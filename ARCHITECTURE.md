@@ -58,6 +58,12 @@ All significant operations should support checkpointing, resumable workflows, de
 
 Generated content never receives unrestricted filesystem authority. File operations, external tools, network access, and project writes must pass explicit authorization boundaries.
 
-## 9. Mission-Based Development
+## 9. Author Input Architecture
+
+Typed text, dictated speech, imported text, and pasted content enter Forge through one canonical author-input contract. The input record preserves the original text and, for transcription, provenance such as provider, language, capture time, and confidence. Intent classification is separate from transcription so speech-to-text never silently becomes rewriting. Browser microphone capture, local transcription, and future providers are adapters at the presentation/integration boundary; they do not change the domain contract.
+
+Author commands are classified before they can affect a project. Ordinary prose remains content. The input layer has no direct filesystem authority and cannot bypass project permissions.
+
+## 10. Mission-Based Development
 
 The application is built through small missions. Every mission has scope, dependencies, acceptance criteria, verification, and a durable checkpoint. Dependent missions do not proceed on unverified state.
