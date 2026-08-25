@@ -1,0 +1,14 @@
+{
+  "name": "authors-forge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Author's Forge — durable AI authoring studio foundation.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test test/**/*.test.js",
+    "check": "npm run build && npm test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
