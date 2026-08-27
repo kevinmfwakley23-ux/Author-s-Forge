@@ -31,7 +31,7 @@ export type { CharacterField, CharacterRelationship, CharacterProfile, Character
 export { CharacterBibleService } from "./application/character-bible";
 export type { CharacterQuery, CharacterHistoryQuery } from "./application/character-bible";
 export { VISUAL_IDENTITY_FORMAT_VERSION, VISUAL_REFERENCE_KINDS, createVisualCharacterIdentity, updateVisualCharacterIdentity, resolveVisualCharacterIdentity, generateVisualCharacterIdentityPackage, validateVisualCharacterIdentity } from "./domain/character-visual-continuity";
-export type { VisualReferenceKind, VisualReference, VisualIdentityState, VisualIdentitySnapshot, VisualCharacterIdentity, VisualIdentityUpdateInput, VisualIdentityPackage } from "./domain/character-visual-continuity";
+export type { VisualReferenceKind, VisualReference, VisualIdentityState, VisualIdentitySnapshot, VisualCharacterIdentity, VisualIdentityUpdateInput, VisualCharacterIdentityPackage } from "./domain/character-visual-continuity";
 export { CharacterVisualContinuityService } from "./application/character-visual-continuity";
 export type { VisualIdentityQuery } from "./application/character-visual-continuity";
 export { ILLUSTRATION_ASSET_LIBRARY_FORMAT_VERSION, ILLUSTRATION_APPROVAL_STATUSES, createIllustrationAsset, updateIllustrationAsset, createCharacterDesignLock, resolveCharacterDesignLock, reuseIllustrationAsset, validateIllustrationAssetLibraryState } from "./domain/illustration-asset-library";
@@ -90,3 +90,6 @@ export { RelationshipMemoryService } from "./application/relationship-memory";
 export { DELIVERY_AUDIT_FORMAT_VERSION, DELIVERY_AUDIT_CATEGORIES, createDeliveryAuditReport, validateDeliveryAuditReport } from "./domain/delivery-audit";
 export type { DeliveryAuditCategory, DeliveryAuditSeverity, DeliveryAuditCheck, DeliveryAuditReport } from "./domain/delivery-audit";
 export { DeliveryAuditService } from "./application/delivery-audit";
+export { FINAL_PRODUCT_FORMAT_VERSION, BOOK_GENOME_COMPONENTS, DELIVERY_AUDIT_CATEGORIES as FINAL_DELIVERY_AUDIT_CATEGORIES, createCapabilityGap, advanceCapabilityGap, defaultOwnershipPolicy, defaultAccessibilityProfile, createVoiceCommand, createCreativeProvenance, createBookGenome, identifyGenomeImpact, createFinalProductAudit } from "./domain/final-product-systems";
+export type { BookGenomeComponent, CapabilityGapStatus, CapabilityGap, OwnershipPolicy, AccessibilityProfile, VoiceCommand, ProvenanceKind, CreativeProvenance, BookGenomeNode, BookGenome, GenomeImpact, FinalDeliveryAuditCategory, FinalDeliveryCheck, FinalProductAudit } from "./domain/final-product-systems";
+export { CapabilityEscalationService, GovernanceService, BookGenomeService, FinalProductAuditService } from "./application/final-product-systems";
