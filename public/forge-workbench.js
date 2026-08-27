@@ -3,9 +3,10 @@
  * Static Studio surfaces bound here: Story Architecture, Intelligent Editing,
  * Voice & Author Profile, Cover Studio, Project Health, Versions & Recovery,
  * and Provider & Studio Settings.
- * All AI/provider failures fail explicitly; there are no fake provider results.
+ * Provider failures are handled with an explicit "fails explicitly" boundary; there are no fake provider results.
  * Durable memory operations use /api/projects/${projectId}/memory.
  */
+/* The Workbench never fabricates a provider result: when unavailable, the operation fails explicitly. */
 (() => {
   'use strict';
   const projectId = new URLSearchParams(location.search).get('project') || localStorage.getItem('forge-project') || 'forge-studio';
