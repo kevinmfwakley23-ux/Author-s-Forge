@@ -7,3 +7,25 @@ export type { ProjectBrainQuery, ProjectBrainContext } from "./application/proje
 export { createProject, touchProject, withProjectMemories, PROJECT_FORMAT_VERSION } from "./domain/project";
 export type { ProjectMetadata, ProjectState, ProjectStatus } from "./domain/project";
 export { FileProjectStore } from "./infrastructure/file-project-store";
+export {
+  MANUSCRIPT_FORMAT_VERSION,
+  createManuscriptState,
+  createBook,
+  createChapter,
+  createScene,
+  addBook,
+  addChapter,
+  addScene,
+  insertChapter,
+  insertScene,
+  validateManuscriptState
+} from "./domain/manuscript";
+export type {
+  BookLifecycle,
+  ChapterLifecycle,
+  SceneLifecycle,
+  BookRecord,
+  ChapterRecord,
+  SceneRecord,
+  ManuscriptState
+} from "./domain/manuscript";
