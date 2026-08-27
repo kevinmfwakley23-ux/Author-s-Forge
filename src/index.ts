@@ -1,7 +1,7 @@
 export type { MemoryClass, MemoryAuthority, MemoryProvenance, MemoryRecord, MemoryQuery } from "./domain/memory";
 export { createMemoryRecord, MEMORY_FORMAT_VERSION } from "./domain/memory";
 export { ProjectMemoryStore } from "./application/project-memory-store";
-export type { MemoryPromotionDecision, ProjectMemorySnapshot } from "./application/project-memory-store";
+export type { MemoryPromotionDecision, ProjectBrainContext, ProjectBrainQuery, ProjectMemorySnapshot } from "./application/project-memory-store";
 export { assembleProjectBrainContext } from "./application/project-brain";
 export type { ProjectBrainQuery, ProjectBrainContext } from "./application/project-brain";
 export { createProject, touchProject, withProjectMemories, withProjectCharacters, withProjectVisualIdentities, withProjectIllustrationAssetLibrary, withProjectBookCoverPlans, PROJECT_FORMAT_VERSION } from "./domain/project";
@@ -41,3 +41,6 @@ export { FileIllustrationAssetLibraryStore } from "./infrastructure/file-illustr
 export { BOOK_COVER_STUDIO_FORMAT_VERSION, COVER_FORMATS, BINDINGS, INTERIOR_TYPES, PAPER_TYPES, COVER_APPROVAL_STATUSES, calculateKdpCoverLayout, validatePublishingConfiguration, validateBookCoverFile, createBookCoverPlan } from "./domain/book-cover-studio";
 export type { CoverFormat, Binding, InteriorType, PaperType, CoverApprovalStatus, PublishingConfiguration, CoverDimensions, CoverZones, CoverValidationIssue, BookCoverPlan, CreateBookCoverPlanInput } from "./domain/book-cover-studio";
 export { BookCoverStudioService } from "./application/book-cover-studio";
+export { MANUSCRIPT_PRODUCTION_FORMAT_VERSION, PRODUCTION_FORMATS, FRONT_MATTER_KINDS, BACK_MATTER_KINDS, validateProductionManuscript, validateProductionOptions, normalizeProductionManuscript, validateProductionArtifact, mimeFor, extensionFor, requiredFrontMatter, requiredBackMatter } from "./domain/manuscript-production";
+export type { ProductionFormat, FrontMatterKind, BackMatterKind, ProductionSection, ProductionChapter, ProductionScene, ProductionManuscript, ProductionOptions, ProductionArtifact, ProductionValidationIssue } from "./domain/manuscript-production";
+export { ManuscriptProductionService } from "./application/manuscript-production";
