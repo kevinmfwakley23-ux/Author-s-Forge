@@ -46,11 +46,27 @@ Missions 029–032 establish collaboration modes, project health, relationship-a
 - **Book Genome:** premise, theme, genre, voice, canon, characters, relationships, locations, timeline, events, scenes, objects, clues, reveals, conflicts, motivations, research, visual identities, art, cover, metadata, and publishing state are represented as a dependency graph. Canon changes can be analyzed for downstream impact before author approval.
 - **Final delivery audit:** the product recognizes the full 13-category audit boundary: canon, continuity, timeline, characters, POV, style, grammar, formatting, research, artwork, cover, metadata, and publishing.
 
+## Reference Engineering Integration
+
+The project was reviewed against three public reference implementations supplied for engineering research:
+
+- **The Novelist's Atelier** — Apache-2.0 licensed. Useful patterns included hierarchical Series/Book/Chapter context, selectable Full/Brief/Extended/Custom/Off context inclusion, pipeline-oriented editing, autosave/backup thinking, global search, Style DNA, local text analysis, and multi-provider boundaries.
+- **BOOKGEN-AI / google-book-writer** — MIT licensed. Useful patterns included staged long-form generation, persistent Book Bible/character/timeline memory, resumable checkpoints, per-chapter memory compression, quality review, and publication exports.
+- **ai-book-studio** — MIT licensed. Useful patterns included explicit Plan → Write → Save workflow, approved-outline gates, chapter-level continuity, session persistence, and separated reviewing/packaging/cover stages.
+
+These repositories are **reference material, not the Author's Forge architecture**. No foreign application framework was transplanted wholesale. The useful workflow principles are being reimplemented inside Forge's existing TypeScript domain/application/persistence boundaries so that Book Genome, Project Brain, author authority, provenance, portability, and K.I.N.G.S. escalation remain first-class rather than becoming bolt-on behavior.
+
+The first concrete integration is the **bounded Writing Context engine**. It implements the strongest shared idea from the reference projects: context should be hierarchical and selectable instead of dumping an entire book into every AI request. Supported modes are `full`, `brief`, `extended`, `custom`, and `off`; context is assembled from project canon, characters, relationships, timeline, research, voice, and unresolved threads; selected records remain attributable through source IDs; and character context carries the structured Character Bible profile rather than a lossy name-only summary.
+
+## Project Persistence Hardening
+
+The file project store now preserves the complete known ProjectState rather than reconstructing only a small subset on reload. Optional mission state is validated where domain validators exist and retained across persistence. This prevents project data such as positioning, marketing, author control, series, voice, health, relationship memory, delivery audits, and other mission outputs from silently disappearing after a restart.
+
 ## Forge Studio
 
-The repository now includes a real local-first Studio boundary rather than a decorative UI. `npm run studio` builds the TypeScript application, copies the Studio assets into `dist/public`, starts the local HTTP server, creates the first local project when needed, and exposes project-scoped API operations for project state, relationship-aware memory entry, Book Genome creation/impact analysis, governance policy, and final delivery auditing.
+The repository includes a real local-first Studio boundary rather than a decorative UI. `npm run studio` builds the TypeScript application, copies the Studio assets into `dist/public`, starts the local HTTP server, creates the first local project when needed, and exposes project-scoped API operations for project state, relationship-aware memory entry, bounded writing-context assembly, Book Genome creation/impact analysis, governance policy, and final delivery auditing.
 
-Studio navigation uses real route state and event handlers rather than dead links. Pipeline controls open the corresponding workspaces. The Studio does not claim that an AI provider or external image service exists when one has not been configured; provider integrations remain explicit extension points.
+Studio navigation uses real route state and event handlers. Pipeline controls open corresponding workspaces, and the Writing Desk can assemble an actual bounded context package from durable project data. The Studio does not claim that an AI provider or external image service exists when one has not been configured; provider integrations remain explicit extension points.
 
 The local project store remains the source of truth. Browser state is a view over durable project state, not the project itself.
 
@@ -74,4 +90,8 @@ If port 4173 is already occupied, inspect the existing process before starting a
 
 ## Status
 
-The repository is in **final product integration/hardening** rather than being declared feature-complete solely from mission-level tests. The current branch integrates the 029–032 foundation with final-product governance, Book Genome, local Studio, project APIs, and the directive's ownership/accessibility/provenance boundaries. Linux verification is the next checkpoint; any failure is to be fixed directly in the repository before completion is claimed.
+**Branch: `integration-reference-hardened`**
+
+This branch is the dedicated integration/hardening line built from the verified 029–032 foundation. It incorporates the strongest applicable workflow patterns from the reviewed open-source book-writing projects, hardens complete ProjectState persistence, adds bounded hierarchical writing context, exposes that capability through the local Studio API, and gives the UI a functional Writing Desk and stronger route handling.
+
+This checkpoint is **ready for Linux verification**. It is not being declared production-complete until the full repository verification suite is run from Linux and any failures are corrected directly in the repository.
