@@ -4,7 +4,7 @@ export { ProjectMemoryStore } from "./application/project-memory-store";
 export type { MemoryPromotionDecision, ProjectMemorySnapshot } from "./application/project-memory-store";
 export { assembleProjectBrainContext } from "./application/project-brain";
 export type { ProjectBrainQuery, ProjectBrainContext } from "./application/project-brain";
-export { createProject, touchProject, withProjectMemories, withProjectCharacters, withProjectVisualIdentities, withProjectIllustrationAssetLibrary, withProjectBookCoverPlans, withProjectPublishingReadinessReports, withProjectKdpMarketIntelligenceReports, PROJECT_FORMAT_VERSION } from "./domain/project";
+export { createProject, touchProject, withProjectMemories, withProjectCharacters, withProjectVisualIdentities, withProjectIllustrationAssetLibrary, withProjectBookCoverPlans, withProjectPublishingReadinessReports, withProjectKdpMarketIntelligenceReports, withProjectBookPositioningReports, PROJECT_FORMAT_VERSION } from "./domain/project";
 export type { ProjectMetadata, ProjectState, ProjectStatus } from "./domain/project";
 export { FileProjectStore } from "./infrastructure/file-project-store";
 export { FileVisualIdentityStore } from "./infrastructure/file-visual-identity-store";
@@ -52,3 +52,7 @@ export { KDP_MARKET_INTELLIGENCE_FORMAT_VERSION, MARKET_INTELLIGENCE_TOPICS, cre
 export type { MarketIntelligenceTopic, SignalDirection, EvidenceStrength as MarketEvidenceStrength, OpportunityLevel, MarketEvidence, MarketSignal, ComparableTitle, MarketOpportunityAssessment, KdpMarketIntelligenceReport, CreateMarketIntelligenceReportInput } from "./domain/kdp-market-intelligence";
 export { KdpMarketIntelligenceService, StaticKdpMarketIntelligenceProvider } from "./application/kdp-market-intelligence";
 export type { KdpMarketIntelligenceRequest, KdpMarketIntelligenceProviderRequest, KdpMarketIntelligenceProviderResult, KdpMarketIntelligenceProvider } from "./application/kdp-market-intelligence";
+export { BOOK_POSITIONING_FORMAT_VERSION, BOOK_POSITIONING_DISCLAIMER, createBookPositioningReport, validateBookPositioningReport } from "./domain/book-positioning";
+export type { PositioningComparable, PositioningAnswer, PositioningConcepts, BookPositioningReport, CreateBookPositioningReportInput } from "./domain/book-positioning";
+export { BookPositioningService, StaticBookPositioningProvider } from "./application/book-positioning";
+export type { BookPositioningRequest, BookPositioningProviderRequest, BookPositioningProviderResult, BookPositioningProvider } from "./application/book-positioning";
