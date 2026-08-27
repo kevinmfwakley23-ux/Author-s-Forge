@@ -67,6 +67,10 @@ The Research Engine is evidence-first and provider-neutral. External research is
 
 The Character Bible is structured state, not merely prose. Every major character has the complete required profile and a temporal history for every profile field. Character updates are explicit, auditable, project-scoped, portable, and reconstructable at a historical point in time.
 
+The Character Visual Continuity system is the visual counterpart to the Character Bible. Every major character can have canonical face, body, pose, wardrobe, hairstyle, age, distinguishing marks, scars, tattoos, accessories, color palette, and artistic style data. Visual state is versioned by story order so a Chapter 27 package can resolve the same canonical identity established at Chapter 4 while still supporting deliberate age, wardrobe, hairstyle, injury, and other visual progression. A `seriesId` keeps the identity portable across multiple books in the same series.
+
+Visual identity packages are deterministic, portable data packages for downstream illustration generation. The package does not itself claim to generate pixels or silently mutate artwork; it supplies the canonical visual identity that an illustration provider must consume when artwork is generated.
+
 ## Code Languages and Tooling
 
 The primary application language is **TypeScript**, compiled with the TypeScript compiler and checked in strict mode. The project uses **Node.js** for the runtime and **JavaScript** with Node's built-in test runner for acceptance tests.
@@ -92,7 +96,8 @@ Completed mission work is preserved in separate branches and verification checkp
 - Mission 007 — Intelligent Editing
 - Mission 008 — Research Engine
 - Mission 009 — Research Honesty
-- Mission 010 — Character Bible + temporal character state (implementation branch; awaiting Linux verification)
+- Mission 010 — Character Bible + temporal character state (verified)
+- Mission 011 — Character Visual Continuity (implementation branch; awaiting Linux verification)
 
 Mission names and scope are governed by the Master Product Directive. Historical implementation checkpoints remain preserved in the repository.
 
@@ -102,4 +107,4 @@ A mission is not considered verified because its code compiles or because indivi
 
 ## Status
 
-Author's Forge is under active mission-based development. Mission 010 has been implemented on `mission-010-character-bible`; the repository has been updated with the locked build/test/fix workflow and the latest Mission 010 failure corrections. It is awaiting the next complete local verification run from the Linux development environment.
+Author's Forge is under active mission-based development. Mission 011 has been implemented on `mission-011-character-visual-continuity` and is awaiting complete local verification from the Linux development environment.
