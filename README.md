@@ -1,166 +1,190 @@
 # Author's Forge
 
-AI Authoring Studio — a long-form writing, editing, continuity, illustration, publishing, and marketing workspace designed to be powered by K.I.N.G.S.
+**Author's Forge** is a local-first author workplace for taking books from idea to finished, edited, illustrated, produced, and publication-ready material.
+
+It is intended to support children's books, memoir, psychological thrillers, guided journals, comic books, training manuals, novels, and future long-form projects without replacing the author's authority.
 
 ## Canonical Product Directive — READ THIS FIRST
 
-**`AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md` is now checked into this repository as the canonical copy of the AUTHOR'S FORGE Master Product Directive.** It was copied from the authoritative ChatGPT Library document and must be treated as the product contract for all future engineering work. Do not invent a competing product definition or silently reduce its requirements.
+**`AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md` is the canonical product contract.** It is checked into this repository so engineering work does not depend on conversational memory.
 
-The directive defines the goal as a real AI publishing studio: an author must be able to move from idea through architecture, canon, characters, timeline, research, manuscript, editing, illustrations, cover, formatting, metadata, marketing, publishing preparation, and portable archival while preserving author control, continuity, provenance, visual identity, and project memory. fileciteturn569file0L11-L23 fileciteturn569file4L735-L796
+The directive defines the complete target: concept → architecture → canon → characters → timeline → research → manuscript → editing → illustrations → cover → formatting → metadata → positioning → marketing → publishing preparation → portable archive/recovery.
 
-The Book Genome, hierarchical persistent memory, anti-drift/canon controls, relationship-aware memory, and author authority are core architecture—not decorative future features. fileciteturn569file7L1288-L1390 fileciteturn569file3L680-L731
+The Book Genome, hierarchical persistent memory, anti-drift/canon controls, relationship-aware memory, provenance, visual continuity, and author authority are core architecture.
 
-### Engineering consequence
+## The standard is the working application
 
-A green unit-test suite is **not** proof that Author's Forge works. A feature is complete only when its real implementation is reachable from Forge Studio, operates on the durable project state, persists its changes, survives restart/reload, participates in downstream dependencies where required, and can be exercised through a real author workflow.
+A green unit-test suite is **not** proof that Forge works.
 
-No placeholder functions, fake integrations, mock behavior presented as production behavior, dead-end scaffolding, or code whose only purpose is to make a file exist is acceptable.
+A capability is complete only when it:
 
-## Repository Role
+1. has real production implementation;
+2. is reachable from Forge Studio;
+3. reads and writes the durable project state;
+4. survives browser reload and server restart;
+5. participates in downstream workflows where required;
+6. has actionable errors;
+7. has automated regression coverage; and
+8. does not pretend an unavailable provider, API, image, export, or integration succeeded.
 
-Author's Forge is a standalone product repository. K.I.N.G.S. remains the independent intelligence/workforce operating system that may power Author's Forge through defined interfaces.
+No placeholder buttons. No fake AI. No fake APIs. No dead-end mission islands.
 
-**K.I.N.G.S. is the builder and ultimate engineering authority for Forge.** Forge must be capable of normal author workflows independently and may escalate genuine capability gaps to K.I.N.G.S. through explicit interfaces.
-
-## Master Product Directive
-
-The complete directive is stored at `AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md` so the engineering agent, Codex, CI, and future maintainers have a repository-local canonical reference rather than relying on conversational memory.
-
-Key product requirements include:
-
-- hierarchical persistent memory rather than whole-manuscript context dumping
-- canon lock and anti-drift checking
-- first-class chapter and scene architecture
-- real writing modes with separation of content truth from style transformation
-- intelligent editorial analysis without silent manuscript mutation
-- governed research with provenance and honesty classifications
-- complete Character Bible with temporal state
-- reusable Visual Character Identity and illustration continuity
-- serious Illustration Studio and immutable image revisions
-- production-aware Book Cover Studio
-- DOCX/PDF/EPUB manuscript production
-- publishing readiness and 13-category delivery auditing
-- evidence-backed KDP market intelligence and book positioning
-- import/export and durable project recovery
-- versioning, compare, rollback, branch, and merge
-- explicit author approval, canon lock, and override authority
-- shared Series Engine
-- voice preservation
-- Co-pilot / Partner / Director / Autonomous / Editor collaboration modes
-- project health reporting
-- relationship-aware memory
-- self-checking before delivery
-- K.I.N.G.S. capability escalation
-- security, ownership, provenance, consent, and accessibility boundaries
-- Book Genome dependency graph and downstream impact analysis
-
-## Locked Build / Test / Fix Workflow
-
-1. The acting chief engineering code-writing role works from the canonical directive and the actual repository.
-2. Production code is integrated into the existing architecture; isolated mission code is not considered complete until connected to the product surface.
-3. The user runs the verification suite from Linux.
-4. If Linux reports a failure, the complete failure output is used to diagnose the actual production root cause.
-5. Tests are never weakened, deleted, skipped, or changed merely to make failures disappear.
-6. Production defects are fixed in production code.
-7. End-to-end Studio workflows must be covered in addition to domain/unit tests.
-8. The complete verification suite must remain green.
-
-## Reference Engineering Integration
-
-Reference repositories may be inspected for **working implementation patterns**, not merely copied as documentation. Useful, compatible components should be adapted into Forge when they solve an actual integration gap and when their license permits use.
-
-### Reviewed references
-
-- **ildrm/google-book-writer** — MIT. Useful patterns include staged long-form generation, persistent book/character/timeline state, resumable checkpoints, quality review, and publication-oriented exports.
-- **edwarddumi/ai-book-studio** — MIT. Useful patterns include explicit Plan → Write → Save flow, approved-outline gates, chapter-level continuity, session persistence, and separated review/packaging stages.
-- **kevinmfwakley23-ux/NovelForge** — user-owned reference repository. Useful engineering patterns include Result/Option/Either primitives, domain errors and guards, dependency injection/service registration, lifecycle/boot pipeline, event bus/event history, retry/dead-letter infrastructure, diagnostics, and modular kernel boundaries.
-- **kevinmfwakley23-ux/-KINGS-AI** — user-owned K.I.N.G.S. engineering authority. Useful patterns include workforce planning, artifact lifecycle/registry/promotion, build/test execution, capability acquisition, autonomous execution bridges, and Builder V1 infrastructure.
-
-Reference code must be evaluated before integration. Do not transplant foreign application frameworks wholesale, duplicate domain models, or create parallel sources of truth. Prefer extracting a proven implementation pattern and adapting it to Forge's existing TypeScript domain/application/infrastructure boundaries.
-
-## Integration-First Rule
-
-The repository has accumulated many successful mission-level domain implementations. They are valuable foundations, but **domain completeness without application integration is not product completeness**.
-
-The integration target is:
+## Current product architecture
 
 ```text
 AUTHOR
   ↓
 PROJECT
   ↓
-BOOK
+BOOK / CHAPTER / SCENE
   ↓
-CHAPTER
+MANUSCRIPT + PROJECT BRAIN
   ↓
-SCENE
-  ↓
-MANUSCRIPT
-  ↓
-PROJECT BRAIN / MEMORY / CANON
-  ↓
-CHARACTERS / WORLD / TIMELINE / RESEARCH / VOICE
+CANON / CHARACTERS / WORLD / TIMELINE / RESEARCH / VOICE
   ↓
 WRITING ENGINE
   ↓
 EDITORIAL ENGINE
   ↓
-VISUAL IDENTITY / ILLUSTRATION LIBRARY
+VISUAL IDENTITY / ILLUSTRATION ASSETS
   ↓
-BOOK GENOME
+BOOK GENOME + DOWNSTREAM IMPACT
   ↓
 POSITIONING / MARKETING
   ↓
-PUBLISHING
+MANUSCRIPT PRODUCTION
   ↓
-PRODUCTION ARTIFACTS
+PUBLISHING READINESS + DELIVERY AUDIT
   ↓
-FINAL DELIVERY AUDIT
+PORTABLE PROJECT STATE
 ```
 
-Every boundary must have real data flow, persistence, validation, and user-visible behavior where applicable.
+The Studio is the product surface. Domain modules are valuable only when they participate in this flow.
 
-## Forge Studio Standard
+## Real provider boundaries
 
-Forge Studio is not a mock dashboard. Navigation must open real workspaces. Workspace controls must invoke real application services or explicit provider boundaries. Forms must read/write durable project state. Reloading the page must not erase work. Restarting the server must not erase work. Buttons must never silently do nothing.
+### AI writing
+Forge supports real provider-backed generation through:
 
-If a capability requires an external AI, image, storage, or research provider that is not configured, the Studio must show the actual configuration state and provide a safe, explicit path to configure it; it must not pretend the capability succeeded.
+- OpenAI Responses API: set `OPENAI_API_KEY` and an explicit `OPENAI_MODEL`.
+- Local Ollama: set `OLLAMA_BASE_URL` and an explicit `OLLAMA_MODEL`.
 
-## Current Engineering Objective
+If neither is configured, AI generation fails explicitly. Forge does not fabricate an answer.
 
-The immediate objective is **full-system integration and product hardening**, not adding another isolated mission. Audit the entire repository, identify disconnected implementations, consolidate duplicate/obsolete paths, wire the strongest existing implementations into one ProjectState and one Studio application surface, and build missing application/infrastructure adapters where necessary.
-
-The result must be an application the author can actually use to develop books, not a collection of passing mission tests.
-
-## Verification Standard
-
-A mission or integration checkpoint is verified only when:
-
-- TypeScript builds cleanly.
-- The complete regression suite passes.
-- Studio starts successfully.
-- The relevant Studio route is reachable.
-- The route's controls actually execute.
-- Data is persisted in the project store.
-- Data survives reload/restart.
-- Downstream consumers see the updated state where required.
-- Errors are visible and actionable.
-- No test has been weakened to obtain the result.
-
-## Linux Verification
+Example:
 
 ```bash
-cd ~/Author-s-Forge
-git fetch origin
-git checkout forge-integration-all-recent
-git pull --ff-only origin forge-integration-all-recent
+export OPENAI_API_KEY="your-key"
+export OPENAI_MODEL="your-enabled-model"
+```
+
+or:
+
+```bash
+export OLLAMA_BASE_URL="http://127.0.0.1:11434"
+export OLLAMA_MODEL="your-installed-model"
+```
+
+AI output is a **candidate**. It does not silently become canon or replace manuscript text.
+
+### Real image generation
+Illustration generation uses a configured OpenAI image provider. Without `OPENAI_API_KEY`, the Studio reports the missing provider instead of showing fake output.
+
+## Working Studio capabilities
+
+The integrated Studio now provides real paths for:
+
+- project and book creation;
+- chapter and scene architecture;
+- persistent scene writing and word counts;
+- bounded Project Brain context assembly;
+- real AI candidate drafting;
+- structured Character Bible creation with history;
+- durable canon, timeline, relationship, location, and creative memory;
+- provenance-aware research records;
+- real provider-backed image generation and local asset storage;
+- Book Genome construction and downstream impact analysis;
+- DOCX/PDF/EPUB production using the existing production engine;
+- publishing delivery audit;
+- governance and accessibility visibility.
+
+The remaining mission implementations are treated as domain/application building blocks to be wired into these same workflows rather than exposed as disconnected demos.
+
+## Engineering references
+
+### User-owned repositories
+
+**NovelForge** is an engineering reference for kernel lifecycle, dependency boundaries, event history, retry/dead-letter handling, diagnostics, and modular infrastructure.
+
+**K.I.N.G.S.-AI** is the engineering reference for workforce planning, artifact lifecycle, build/test execution, capability acquisition, bounded autonomous execution, and recoverable handoffs.
+
+Forge remains the author product. K.I.N.G.S. remains the independent workforce/orchestration system.
+
+### Open-source writing systems studied
+
+Forge has studied and selectively adapted useful patterns from open-source projects including:
+
+- `YfengJ/novel-studio-ai` — local-first long-form memory, story bible, character state, retrieval, and continuity gates.
+- `dreamtelligence/EMBER` — scene cards, canon/object/knowledge/promise ledgers, typed state diffs, continuity guards, and human approval.
+- `abligail/narralume` — manual-first writing, story bible, versioning, review findings, AI candidate workflows, and run/impact surfaces.
+- `john-paul-ruf/novel-engine` — explicit pitch-to-publish phases, editorial workforce, revision planning, local model support, and publication audit.
+- `Dirgha-AI/writer-studio` — binder-style nested chapter/scene structure, drafts, evaluations, versions, and pluggable providers.
+- `giapnguyen74/xnovelist` — AI-optional local-first writing, snapshots, Story Bible, and DOCX export.
+- `jmorenobl/bookwright` — canonical author documents, provenance-aware research, and deterministic continuity validation.
+- `mushroomfk/long-novel-agent-kit` — durable local continuity infrastructure and safety gates.
+
+See `docs/ENGINEERING_INTEGRATION_LEDGER.md` for the integration rules and why each pattern matters.
+
+Foreign repositories are references, not wholesale dependencies. License compatibility and architectural fit are evaluated before reuse.
+
+## Development commands
+
+```bash
 npm install
+npm run build
+npm test
 npm run check
 npm run studio
 ```
 
-Then open `http://127.0.0.1:4173`.
+Then open:
+
+`http://127.0.0.1:4173`
+
+## Verification philosophy
+
+Never weaken or delete tests to make the build green.
+
+The real release gate is:
+
+```text
+BUILD
+  +
+REGRESSION TESTS
+  +
+STUDIO STARTUP
+  +
+REAL ROUTE EXECUTION
+  +
+PERSISTENCE
+  +
+RESTART RECOVERY
+  +
+REAL PROVIDER BOUNDARIES
+  +
+ARTIFACT VALIDATION
+  +
+AUTHOR APPROVAL
+```
+
+## Mission integration rule
+
+The repository contains a large set of mission-level implementations. Those missions are not separate products.
+
+The engineering job is to consolidate the strongest implementations into one coherent ProjectState, one project-memory boundary, one manuscript workflow, one visual workflow, one production path, and one Studio.
+
+**Mission tests prove domain behavior. End-to-end Studio workflows prove the product. Both are required.**
 
 ## Status
 
-This branch is an integration/hardening line. It contains the canonical Master Product Directive and is the working line for turning the mission implementations into one usable Author's Forge product.
+`main` is the integrated engineering baseline. The next work is systematic hardening and completion of every directive-required author workflow, not another isolated mock screen.
