@@ -33,7 +33,7 @@ export type { CharacterField, CharacterRelationship, CharacterProfile, Character
 export { CharacterBibleService } from "./application/character-bible";
 export type { CharacterQuery, CharacterHistoryQuery } from "./application/character-bible";
 export { VISUAL_IDENTITY_FORMAT_VERSION, VISUAL_REFERENCE_KINDS, createVisualCharacterIdentity, updateVisualCharacterIdentity, resolveVisualCharacterIdentity, generateVisualCharacterIdentityPackage, validateVisualCharacterIdentity } from "./domain/character-visual-continuity";
-export type { VisualReferenceKind, VisualReference, VisualIdentityState, VisualIdentitySnapshot, VisualCharacterIdentity, VisualIdentityUpdateInput, VisualCharacterIdentityPackage } from "./domain/character-visual-continuity";
+export type { VisualReferenceKind, VisualReference, VisualIdentityState, VisualIdentitySnapshot, VisualCharacterIdentity, VisualIdentityUpdateInput, VisualIdentityPackage } from "./domain/character-visual-continuity";
 export { CharacterVisualContinuityService } from "./application/character-visual-continuity";
 export type { VisualIdentityQuery } from "./application/character-visual-continuity";
 export { ILLUSTRATION_ASSET_LIBRARY_FORMAT_VERSION, ILLUSTRATION_APPROVAL_STATUSES, createIllustrationAsset, updateIllustrationAsset, createCharacterDesignLock, resolveCharacterDesignLock, reuseIllustrationAsset, validateIllustrationAssetLibraryState } from "./domain/illustration-asset-library";
@@ -70,7 +70,6 @@ export type { StorageProviderId, StoredObject, StorageProvider, ProjectStorageBi
 export { ExternalStorageService } from "./application/external-storage";
 export { BOOK_VERSION_CONTROL_FORMAT_VERSION, createBookSnapshot, validateBookSnapshot, compareBookVersions, rollbackVersion, branchVersion, mergeVersions } from "./domain/book-version-control";
 export type { BookVersionLabel, BookSnapshot, VersionChange, BookVersionComparison, BookVersionBranch, BookVersionHistory } from "./domain/book-version-control";
-export { BookVersionControlService } from "./application/book-version-control";
 export { AUTHOR_CONTROL_FORMAT_VERSION, createAuthorDecision, validateAuthorDecision, applyAuthorOverride, lockCanon, resolveAuthorControl, isCanonLocked } from "./domain/author-control";
 export type { AuthorDecisionStatus, AuthorDecision } from "./domain/author-control";
 export { AuthorControlService } from "./application/author-control";
