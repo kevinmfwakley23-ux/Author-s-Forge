@@ -4,7 +4,7 @@ export { ProjectMemoryStore } from "./application/project-memory-store";
 export type { MemoryPromotionDecision, ProjectMemorySnapshot } from "./application/project-memory-store";
 export { assembleProjectBrainContext } from "./application/project-brain";
 export type { ProjectBrainQuery, ProjectBrainContext } from "./application/project-brain";
-export { createProject, touchProject, withProjectMemories, withProjectCharacters, withProjectVisualIdentities, PROJECT_FORMAT_VERSION } from "./domain/project";
+export { createProject, touchProject, withProjectMemories, withProjectCharacters, withProjectVisualIdentities, withProjectIllustrationAssetLibrary, PROJECT_FORMAT_VERSION } from "./domain/project";
 export type { ProjectMetadata, ProjectState, ProjectStatus } from "./domain/project";
 export { FileProjectStore } from "./infrastructure/file-project-store";
 export { FileVisualIdentityStore } from "./infrastructure/file-visual-identity-store";
@@ -33,3 +33,8 @@ export { VISUAL_IDENTITY_FORMAT_VERSION, VISUAL_REFERENCE_KINDS, createVisualCha
 export type { VisualReferenceKind, VisualReference, VisualIdentityState, VisualIdentitySnapshot, VisualCharacterIdentity, VisualIdentityUpdateInput, VisualIdentityPackage } from "./domain/character-visual-continuity";
 export { CharacterVisualContinuityService } from "./application/character-visual-continuity";
 export type { VisualIdentityQuery } from "./application/character-visual-continuity";
+export { ILLUSTRATION_ASSET_LIBRARY_FORMAT_VERSION, ILLUSTRATION_APPROVAL_STATUSES, createIllustrationAsset, updateIllustrationAsset, createCharacterDesignLock, resolveCharacterDesignLock, reuseIllustrationAsset, validateIllustrationAssetLibraryState } from "./domain/illustration-asset-library";
+export type { IllustrationApprovalStatus, IllustrationAssetReference, IllustrationGenerationSettingValue, IllustrationAsset, CharacterDesignLock, IllustrationAssetLibraryState, CreateIllustrationAssetInput, UpdateIllustrationAssetInput, CreateCharacterDesignLockInput } from "./domain/illustration-asset-library";
+export { IllustrationAssetLibraryService } from "./application/illustration-asset-library";
+export type { IllustrationAssetQuery } from "./application/illustration-asset-library";
+export { FileIllustrationAssetLibraryStore } from "./infrastructure/file-illustration-asset-library-store";

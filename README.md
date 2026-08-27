@@ -71,6 +71,14 @@ The Character Visual Continuity system is the visual counterpart to the Characte
 
 Visual identity packages are deterministic, portable data packages for downstream illustration generation. The package does not itself claim to generate pixels or silently mutate artwork; it supplies the canonical visual identity that an illustration provider must consume when artwork is generated.
 
+## Illustration Asset Library Boundary
+
+The Illustration Asset Library is the durable canonical registry for generated illustration assets. Every asset records its project, book, chapter, scene, character, location, prompt, references, style, generation settings, version, date, approval status, and asset URI. Assets are reusable without mutating their source records, with provenance retained through `reusedFromAssetId`.
+
+Character design locks provide an explicit, temporal implementation of the instruction **Use this character design everywhere going forward**. A lock binds a character to a canonical illustration asset within a series and takes effect at a defined timestamp. Future resolution returns the latest active applicable design, allowing the same design to persist across multiple books while still permitting deliberate future replacement.
+
+The asset library remains provider-neutral. It owns canonical metadata, provenance, approval state, reuse, and design-lock state; it does not pretend to generate pixels. Real illustration providers consume these validated records through explicit integration boundaries.
+
 ## Code Languages and Tooling
 
 The primary application language is **TypeScript**, compiled with the TypeScript compiler and checked in strict mode. The project uses **Node.js** for the runtime and **JavaScript** with Node's built-in test runner for acceptance tests.
@@ -97,7 +105,10 @@ Completed mission work is preserved in separate branches and verification checkp
 - Mission 008 — Research Engine
 - Mission 009 — Research Honesty
 - Mission 010 — Character Bible + temporal character state (verified)
-- Mission 011 — Character Visual Continuity (implementation branch; awaiting Linux verification)
+- Mission 011 — Character Visual Continuity (verified)
+- Mission 012 — Illustration Studio (verified)
+- Mission 013 — Image Editing (verified)
+- Mission 014 — Illustration Asset Library (implementation branch; awaiting Linux verification)
 
 Mission names and scope are governed by the Master Product Directive. Historical implementation checkpoints remain preserved in the repository.
 
@@ -107,4 +118,4 @@ A mission is not considered verified because its code compiles or because indivi
 
 ## Status
 
-Author's Forge is under active mission-based development. Mission 011 has been implemented on `mission-011-character-visual-continuity` and is awaiting complete local verification from the Linux development environment.
+Author's Forge is under active mission-based development. Mission 014 has been implemented on `mission-014-illustration-asset-library` and is awaiting complete local verification from the Linux development environment.
