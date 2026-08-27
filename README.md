@@ -18,6 +18,22 @@ Implementation work is performed against the actual repository architecture as a
 
 No placeholder functions, fake integrations, mock behavior presented as production behavior, dead-end scaffolding, or code whose only purpose is to make a file exist is acceptable. Every mission must leave the repository in a coherent, buildable state that can be verified from the Linux terminal.
 
+## Locked Build / Test / Fix Workflow
+
+The following workflow is permanently locked for mission development:
+
+1. The acting chief engineering code-writing role builds the mission **directly inside the GitHub repository** and completes the implementation before requesting Linux verification.
+2. The user runs the completed mission's verification suite from the Linux terminal.
+3. If the Linux test reports any failure, the user pastes the complete failure output into the conversation.
+4. The acting chief engineering code-writing role immediately returns to the GitHub repository, reads the actual failing production code and tests, diagnoses the root cause, and **fixes the repository directly**.
+5. The acting chief engineering code-writing role does not ask the user to manually edit source files, does not merely describe a proposed fix, and does not declare a failure fixed until the repository implementation has actually been changed.
+6. Tests must never be weakened, deleted, skipped, or altered merely to make a failure disappear. Acceptance tests may be corrected only when the test itself contradicts the authoritative product requirement or contains an objectively incorrect assertion; the production behavior must otherwise be fixed.
+7. After the repository fix is committed, the acting chief engineering code-writing role tells the user that the fix is complete and gives the exact pull/test command needed for the next Linux verification run.
+8. This cycle repeats until the **complete verification suite is green**.
+9. Only after the mission is fully green does development proceed to the next mission.
+
+The user is the Linux verification operator. The acting chief engineering code-writing role is the repository implementation and failure-resolution authority. The user should not have to become the code maintainer or manually repair mission failures.
+
 ## Development Workflow
 
 We build Author's Forge as a sequence of explicit, verifiable missions. The workflow is:
@@ -28,11 +44,12 @@ We build Author's Forge as a sequence of explicit, verifiable missions. The work
 4. Do not use placeholder functions, fake integrations, or code that merely makes a file exist.
 5. Add real acceptance coverage for the mission's required behavior.
 6. Keep each mission on its own branch until verification is complete.
-7. Run the complete local verification suite from the Linux development environment when the mission is ready.
-8. Fix failures in the production implementation rather than weakening tests to force a pass.
-9. Only after the full mission passes verification do we move to the next mission.
+7. Give the completed mission to the Linux development environment for verification.
+8. When Linux reports failures, immediately fix the repository implementation and return a new verification checkpoint; do not instruct the user to make source-code repairs manually.
+9. Fix failures in the production implementation rather than weakening tests.
+10. Only after the full mission passes verification do we move to the next mission.
 
-The Linux terminal is primarily the local verification environment. GitHub is the canonical repository where mission implementation is built and preserved.
+The Linux terminal is primarily the local verification environment. GitHub is the canonical repository where mission implementation is built, corrected, and preserved.
 
 ## Architecture Principles
 
@@ -85,4 +102,4 @@ A mission is not considered verified because its code compiles or because indivi
 
 ## Status
 
-Author's Forge is under active mission-based development. Mission 010 has been implemented on `mission-010-character-bible` and is awaiting complete local verification from the Linux development environment.
+Author's Forge is under active mission-based development. Mission 010 has been implemented on `mission-010-character-bible`; the repository has been updated with the locked build/test/fix workflow and the latest Mission 010 failure corrections. It is awaiting the next complete local verification run from the Linux development environment.
