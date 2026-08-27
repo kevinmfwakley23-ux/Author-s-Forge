@@ -1,4 +1,5 @@
 import {
+  type CharacterChange,
   type CharacterField,
   type CharacterFieldVersion,
   type CharacterProfile,
@@ -27,14 +28,7 @@ export interface CharacterHistoryQuery {
 export class CharacterBibleService {
   private readonly records = new Map<string, CharacterRecord>();
 
-  create(input: {
-    id: string;
-    projectId: string;
-    profile: CharacterProfile;
-    now?: string;
-    reason?: string;
-    actor?: "author" | "system";
-  }): CharacterRecord {
+  create(input: { id: string; projectId: string; profile: CharacterProfile; now?: string; reason?: string; actor?: "author" | "system" }): CharacterRecord {
     const character = createCharacter(input);
     if (this.records.has(character.id)) throw new Error(`Duplicate character id "${character.id}".`);
     this.records.set(character.id, character);
@@ -64,14 +58,14 @@ export class CharacterBibleService {
     return getCharacterAt(this.require(characterId), asOf);
   }
 
-  history(query: CharacterHistoryQuery): readonly CharacterFieldVersion[] | CharacterProfile {
+  history(query: CharacterHistoryQuery): readonly CharacterFieldVersion[] | readonly CharacterChange[] | CharacterProfile {
     const character = this.require(query.characterId);
     if (query.asOf !== undefined) return getCharacterAt(character, query.asOf);
     if (query.field !== undefined) return getCharacterFieldHistory(character, query.field);
     return getCharacterChanges(character);
   }
 
-  changes(characterId: string) {
+  changes(characterId: string): readonly CharacterChange[] {
     return getCharacterChanges(this.require(characterId));
   }
 
