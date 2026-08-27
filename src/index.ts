@@ -16,3 +16,7 @@ export { EDITING_FORMAT_VERSION, EDITOR_ROLES, FINDING_KINDS, createEditingDocum
 export type { EditorRole, FindingSeverity, FindingKind, EditingTarget, EditingDocument, EditorialFinding, EditorialReport } from "./domain/intelligent-editing";
 export { IntelligentEditingService } from "./application/intelligent-editing";
 export type { EditingRequest } from "./application/intelligent-editing";
+export { RESEARCH_FORMAT_VERSION, RESEARCH_DOMAINS, createResearchClaim, createResearchRecord } from "./domain/research";
+export type { ResearchDomain, ResearchConfidence, ResearchRelevance, ResearchSource, ResearchClaim, ResearchRecord } from "./domain/research";
+export { ResearchEngine, StaticResearchProvider } from "./application/research-engine";
+export type { ResearchRequest, ResearchProvider, ResearchProviderRequest, ResearchProviderResult, ResearchSearchResult } from "./application/research-engine";
