@@ -61,7 +61,7 @@ export class FileProjectStore implements ProjectStore {
     return {
       formatVersion: PROJECT_FORMAT_VERSION,
       metadata: {
-        id: record.id,
+        id: expectedId,
         title: record.title,
         createdAt: typeof record.createdAt === "string" ? record.createdAt : "",
         updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : "",
