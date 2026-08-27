@@ -57,7 +57,7 @@ Author's Forge owns the creative truth of a project. Intelligence providers, AI 
 
 Authoritative creative state must remain durable, auditable, portable, and recoverable. Analysis and recommendations must remain separate from actions that mutate author-controlled state.
 
-## Current Writing, Editing, Research, and Character Boundaries
+## Current Writing, Editing, Research, Character, Illustration, and Publishing Boundaries
 
 The Writing Engine distinguishes **content truth** from **style transformation**. A rewrite, POV conversion, tense conversion, style experiment, dialogue enhancement, description enhancement, emotional enhancement, or other transformation must not silently alter canonical facts.
 
@@ -78,6 +78,18 @@ The Illustration Asset Library is the durable canonical registry for generated i
 Character design locks provide an explicit, temporal implementation of the instruction **Use this character design everywhere going forward**. A lock binds a character to a canonical illustration asset within a series and takes effect at a defined timestamp. Future resolution returns the latest active applicable design, allowing the same design to persist across multiple books while still permitting deliberate future replacement.
 
 The asset library remains provider-neutral. It owns canonical metadata, provenance, approval state, reuse, and design-lock state; it does not pretend to generate pixels. Real illustration providers consume these validated records through explicit integration boundaries.
+
+## Book Cover Studio Boundary
+
+The Book Cover Studio is a production-layout system, not merely an artwork prompt generator. A cover plan stores the publishing configuration, trim size, page count, binding, paper/interior selection, bleed, calculated exterior dimensions, front/spine/back zones, barcode-safe area, safe margins, title/author metadata, artwork references, output format, DPI, version, and approval state.
+
+KDP paperback calculations use the current published KDP equations for spine width and full-cover dimensions. KDP specifies 0.125 inch bleed, and paperback spine factors vary by paper/interior type. The Studio therefore calculates the production geometry from the selected publishing configuration rather than guessing from an attractive image. KDP also requires the print cover to be one continuous exterior containing front, back, and spine. citeturn1search0turn1search4
+
+Hardcover plans model the case-wrap geometry and explicitly keep the final provider template authoritative because KDP hardcover cover files have wrap, hinge, spine, and safe-area requirements that depend on the selected production configuration. KDP requires a single PDF containing the back, spine, and front and specifies wrap and safe-area requirements. citeturn1search2
+
+The Studio validates a resulting cover artifact against the production plan: format, exact calculated dimensions, minimum 300 DPI, file size, required cover zones, absence of crop/template marks, flattening, font embedding, and encryption state. Validation is deterministic and provider-neutral; the system does not claim a file has passed KDP's final proprietary previewer.
+
+For eBook covers, the publishing contract remains distinct from print covers: KDP specifies a separate single front-cover image with its own dimensions, format, RGB, and file-size requirements. citeturn1search1
 
 ## Code Languages and Tooling
 
@@ -108,7 +120,8 @@ Completed mission work is preserved in separate branches and verification checkp
 - Mission 011 — Character Visual Continuity (verified)
 - Mission 012 — Illustration Studio (verified)
 - Mission 013 — Image Editing (verified)
-- Mission 014 — Illustration Asset Library (implementation branch; awaiting Linux verification)
+- Mission 014 — Illustration Asset Library (verified)
+- Mission 015 — Book Cover Studio (implementation branch; awaiting Linux verification)
 
 Mission names and scope are governed by the Master Product Directive. Historical implementation checkpoints remain preserved in the repository.
 
@@ -118,4 +131,4 @@ A mission is not considered verified because its code compiles or because indivi
 
 ## Status
 
-Author's Forge is under active mission-based development. Mission 014 has been implemented on `mission-014-illustration-asset-library` and is awaiting complete local verification from the Linux development environment.
+Author's Forge is under active mission-based development. Mission 015 has been implemented on `mission-015-book-cover-studio` and is awaiting complete local verification from the Linux development environment.
