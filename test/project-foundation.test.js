@@ -7,33 +7,49 @@ const {
   createProject,
   FileProjectStore,
   PROJECT_FORMAT_VERSION,
+  createMemoryRecord,
+  withProjectMemories,
   touchProject
 } = require("../.forge-build/index.js");
 
-test("creates a canonical project", () => {
+test("creates a canonical project with durable memory state", () => {
   const project = createProject({ id: "better-question", title: "The Better Question", now: "2026-01-01T00:00:00.000Z" });
   assert.equal(project.formatVersion, PROJECT_FORMAT_VERSION);
   assert.equal(project.metadata.title, "The Better Question");
   assert.equal(project.metadata.status, "active");
+  assert.deepEqual(project.memories, []);
 });
 
-test("persists and restores a project without hidden process state", async () => {
+test("persists and restores project metadata and Project Brain memory without hidden process state", async () => {
   const root = await mkdtemp(join(tmpdir(), "authors-forge-"));
   try {
     const store = new FileProjectStore(root);
     const original = createProject({ id: "journal-001", title: "The Better Question — Edition 001", now: "2026-01-01T00:00:00.000Z" });
-    await store.create(original);
+    const memory = createMemoryRecord({
+      id: "canon-1",
+      projectId: original.metadata.id,
+      class: "story-canon",
+      authority: "authoritative",
+      summary: "The opening setting",
+      content: "The story opens in Ogden.",
+      provenance: [{ kind: "author", reference: "author-note-1", recordedAt: "2026-01-01T00:00:00.000Z" }],
+      relevanceTags: ["opening", "setting"]
+    });
+    const enriched = withProjectMemories(original, [memory], "2026-01-01T00:00:01.000Z");
+    await store.create(enriched);
 
-    assert.equal(await store.exists(original.metadata.id), true);
-    const restored = await store.load(original.metadata.id);
-    assert.deepEqual(restored, original);
+    assert.equal(await store.exists(enriched.metadata.id), true);
+    const restored = await store.load(enriched.metadata.id);
+    assert.deepEqual(restored, enriched);
 
-    const updated = touchProject(original, "2026-01-02T00:00:00.000Z");
+    const updated = touchProject(enriched, "2026-01-02T00:00:00.000Z");
     await store.save(updated);
-    assert.deepEqual(await store.load(original.metadata.id), updated);
+    assert.deepEqual(await store.load(enriched.metadata.id), updated);
 
     const persisted = await readFile(join(root, "projects", "journal-001", "project.json"), "utf8");
-    assert.match(persisted, /\"formatVersion\": 1/);
+    assert.match(persisted, /\"formatVersion\": 2/);
+    assert.match(persisted, /\"canon-1\"/);
+    assert.doesNotMatch(persisted, new RegExp(root.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   } finally {
     await rm(root, { recursive: true, force: true });
   }
