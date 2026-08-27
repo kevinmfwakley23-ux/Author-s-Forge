@@ -12,6 +12,12 @@ The **Author's Forge Master Product Directive** is the authoritative product spe
 
 The directive will be copied into this repository as soon as the ChatGPT Library version is accessible through the available file integration. Until then, no repository document should be treated as a replacement for the canonical Library directive.
 
+## Chief Engineering Standard
+
+Implementation work is performed against the actual repository architecture as a production engineering task. The acting chief engineering code-writing role is responsible for delivering real-world-ready TypeScript, preserving existing contracts, adding acceptance coverage, and correcting production implementation defects rather than weakening tests.
+
+No placeholder functions, fake integrations, mock behavior presented as production behavior, dead-end scaffolding, or code whose only purpose is to make a file exist is acceptable. Every mission must leave the repository in a coherent, buildable state that can be verified from the Linux terminal.
+
 ## Development Workflow
 
 We build Author's Forge as a sequence of explicit, verifiable missions. The workflow is:
@@ -34,13 +40,15 @@ Author's Forge owns the creative truth of a project. Intelligence providers, AI 
 
 Authoritative creative state must remain durable, auditable, portable, and recoverable. Analysis and recommendations must remain separate from actions that mutate author-controlled state.
 
-## Current Writing, Editing, and Research Boundaries
+## Current Writing, Editing, Research, and Character Boundaries
 
 The Writing Engine distinguishes **content truth** from **style transformation**. A rewrite, POV conversion, tense conversion, style experiment, dialogue enhancement, description enhancement, emotional enhancement, or other transformation must not silently alter canonical facts.
 
 The Intelligent Editing system is analysis-first. Editorial reports produce findings and recommendations but do **not** silently rewrite the manuscript. Manuscript mutation requires explicit author instruction.
 
 The Research Engine is evidence-first and provider-neutral. External research is retained as project-linked `research-memory` with source provenance and working authority. Research does **not** silently become canon and does **not** mutate manuscript content. Research can be retrieved later by project and book/chapter/scene scope without repeating the original provider investigation.
+
+The Character Bible is structured state, not merely prose. Every major character has the complete required profile and a temporal history for every profile field. Character updates are explicit, auditable, project-scoped, portable, and reconstructable at a historical point in time.
 
 ## Code Languages and Tooling
 
@@ -66,6 +74,8 @@ Completed mission work is preserved in separate branches and verification checkp
 - Mission 006.2 — Writing Engine, corresponding to Mission 6 of the Master Product Directive
 - Mission 007 — Intelligent Editing
 - Mission 008 — Research Engine
+- Mission 009 — Research Honesty
+- Mission 010 — Character Bible + temporal character state (implementation branch; awaiting Linux verification)
 
 Mission names and scope are governed by the Master Product Directive. Historical implementation checkpoints remain preserved in the repository.
 
@@ -75,4 +85,4 @@ A mission is not considered verified because its code compiles or because indivi
 
 ## Status
 
-Author's Forge is under active mission-based development. The next mission is not started until the current mission has been fully verified against its directive requirements.
+Author's Forge is under active mission-based development. Mission 010 has been implemented on `mission-010-character-bible` and is awaiting complete local verification from the Linux development environment.
