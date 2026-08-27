@@ -53,7 +53,8 @@ export class IllustrationReferencePipeline {
     form.append("output_format", "png");
     const imageBytes = new Uint8Array(input.referenceBytes.byteLength);
     imageBytes.set(input.referenceBytes);
-    form.append("image", new Blob([imageBytes.buffer], { type: input.reference.mimeType }), input.reference.originalFileName);
+    const imageBuffer = imageBytes.buffer.slice(imageBytes.byteOffset, imageBytes.byteOffset + imageBytes.byteLength) as ArrayBuffer;
+    form.append("image", new Blob([imageBuffer], { type: input.reference.mimeType }), input.reference.originalFileName);
 
     const response = await fetch("https://api.openai.com/v1/images/edits", {
       method: "POST",
