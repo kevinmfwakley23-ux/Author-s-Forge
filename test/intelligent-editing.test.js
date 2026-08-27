@@ -14,7 +14,7 @@ const base = (text = "Mara walked home. Mara walked home. She was watching the r
 
 test("exposes every directive editorial role and requested finding kind", () => {
   assert.deepEqual(EDITOR_ROLES, ["developmental", "continuity", "line", "copy", "proofreading", "structural", "dialogue", "pacing", "character", "genre"]);
-  for (const kind of ["pacing", "character-consistency", "plot-hole", "continuity-conflict", "repetition", "weak-scene", "unresolved-thread", "unnecessary-exposition", "dialogue-problem", "pov-violation", "tense-inconsistency", "cliche", "overused-word", "sentence-rhythm", "chapter-balance"]) assert.ok(FINDING_KINDS.includes(kind));
+  for (const kind of ["pacing", "character-consistency", "plot-hole", "continuity-conflict", "repetition", "weak-scene", "unresolved-thread", "unnecessary-exposition", "dialogue-problem", "pov-violation", "tense-inconsistency", "cliche", "overused-word", "sentence-rhythm", "chapter-balance", "genre-fit"]) assert.ok(FINDING_KINDS.includes(kind));
 });
 
 test("validates editing documents and rejects empty or invalid targets", () => {
@@ -26,16 +26,18 @@ test("validates editing documents and rejects empty or invalid targets", () => {
 test("produces reports for every editorial role without mutating manuscript text", () => {
   const service = new IntelligentEditingService();
   for (const role of EDITOR_ROLES) {
-    const report = service.analyze({ document: base(), roles: [role], reportId: `report-${role}`, generatedAt: "2026-01-01T00:00:00.000Z" });
+    const document = base();
+    const report = service.analyze({ document, roles: [role], reportId: `report-${role}`, generatedAt: "2026-01-01T00:00:00.000Z" });
     assert.equal(report.roles[0], role);
     assert.equal(report.manuscriptMutated, false);
     assert.ok(report.findings.every((f) => f.manuscriptMutationAuthorized === false));
-    validateEditorialReport(report, base().text);
+    validateEditorialReport(report, document.text);
   }
 });
 
 test("detects repetition, overused words, cliches, dialogue, pacing, and rhythm signals", () => {
-  const text = `At the end of the day, Mara walked home. Mara walked home. ${"The road was quiet and the rain was falling over the houses and the windows and the empty street while Mara continued walking toward the old station. ".repeat(4)} "I know everything about what happened at the old station and I will explain every detail before we continue because you need to understand exactly what happened to me and why I came here tonight."`;
+  const longSentence = "The road was quiet and the rain was falling over the houses and the windows and the empty street while Mara continued walking toward the old station.";
+  const text = `At the end of the day, Mara walked home. Mara walked home.\n\n${longSentence}\n\n${longSentence}\n\n${longSentence}\n\n${longSentence} "I know everything about what happened at the old station and I will explain every detail before we continue because you need to understand exactly what happened to me and why I came here tonight."`;
   const report = new IntelligentEditingService().analyze({ document: base(text), roles: ["line", "dialogue", "pacing"], reportId: "report-signals" });
   const kinds = new Set(report.findings.map((f) => f.kind));
   assert.ok(kinds.has("repetition"));
@@ -69,13 +71,17 @@ test("rejects forged mutation authorization, duplicate findings, and invalid ran
   assert.throws(() => createEditorialReport({ id: "r", target: document.target, roles: ["line"], findings: [f, f], summary: "x", generatedAt: new Date().toISOString() }), /Duplicate editorial finding/);
 });
 
-test("analysis never returns a manuscript mutation operation", () => {
+test("analysis is deterministic and never returns a manuscript mutation operation", () => {
   const document = base();
-  const report = new IntelligentEditingService().analyze({ document, roles: EDITOR_ROLES, reportId: "report-safety" });
-  assert.equal(report.manuscriptMutated, false);
-  assert.ok(!Object.keys(report).includes("replacementText"));
-  assert.ok(!Object.keys(report).includes("updatedManuscript"));
-  assert.ok(report.findings.every((finding) => Object.keys(finding).includes("manuscriptMutationAuthorized") && finding.manuscriptMutationAuthorized === false));
+  const service = new IntelligentEditingService();
+  const request = { document, roles: EDITOR_ROLES, reportId: "report-safety", generatedAt: "2026-01-01T00:00:00.000Z" };
+  const first = service.analyze(request);
+  const second = service.analyze(request);
+  assert.deepEqual(first, second);
+  assert.equal(first.manuscriptMutated, false);
+  assert.ok(!Object.keys(first).includes("replacementText"));
+  assert.ok(!Object.keys(first).includes("updatedManuscript"));
+  assert.ok(first.findings.every((finding) => Object.keys(finding).includes("manuscriptMutationAuthorized") && finding.manuscriptMutationAuthorized === false));
 });
 
 test("genre analysis uses expectations as review signals rather than forced edits", () => {
