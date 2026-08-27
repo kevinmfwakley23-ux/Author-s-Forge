@@ -1,8 +1,8 @@
-import { strict as assert } from "node:assert";
-import test from "node:test";
-import { createMemoryRecord } from "../.forge-build/domain/memory.js";
-import { ProjectMemoryStore } from "../.forge-build/application/project-memory-store.js";
-import { assembleProjectBrainContext } from "../.forge-build/application/project-brain.js";
+const assert = require("node:assert/strict");
+const test = require("node:test");
+const { createMemoryRecord } = require("../.forge-build/domain/memory.js");
+const { ProjectMemoryStore } = require("../.forge-build/application/project-memory-store.js");
+const { assembleProjectBrainContext } = require("../.forge-build/application/project-brain.js");
 
 test("rejects duplicate memory identifiers", () => {
   const store = new ProjectMemoryStore();
