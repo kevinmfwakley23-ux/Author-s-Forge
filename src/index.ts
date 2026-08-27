@@ -4,7 +4,7 @@ export { ProjectMemoryStore } from "./application/project-memory-store";
 export type { MemoryPromotionDecision, ProjectMemorySnapshot } from "./application/project-memory-store";
 export { assembleProjectBrainContext } from "./application/project-brain";
 export type { ProjectBrainQuery, ProjectBrainContext } from "./application/project-brain";
-export { createProject, touchProject, withProjectMemories, withProjectCharacters, PROJECT_FORMAT_VERSION } from "./domain/project";
+export { createProject, touchProject, withProjectMemories, withProjectCharacters, withProjectVisualIdentities, PROJECT_FORMAT_VERSION } from "./domain/project";
 export type { ProjectMetadata, ProjectState, ProjectStatus } from "./domain/project";
 export { FileProjectStore } from "./infrastructure/file-project-store";
 export { MANUSCRIPT_FORMAT_VERSION, createManuscriptState, createBook, createChapter, createScene, addBook, addChapter, addScene, insertChapter, insertScene, validateManuscriptState } from "./domain/manuscript";
@@ -28,3 +28,7 @@ export { CHARACTER_BIBLE_FORMAT_VERSION, CHARACTER_FIELDS, createCharacter, upda
 export type { CharacterField, CharacterRelationship, CharacterProfile, CharacterFieldValue, CharacterFieldVersion, CharacterChange, CharacterRecord, CharacterProfileUpdate, CharacterUpdateInput } from "./domain/character-bible";
 export { CharacterBibleService } from "./application/character-bible";
 export type { CharacterQuery, CharacterHistoryQuery } from "./application/character-bible";
+export { VISUAL_IDENTITY_FORMAT_VERSION, VISUAL_REFERENCE_KINDS, createVisualCharacterIdentity, updateVisualCharacterIdentity, resolveVisualCharacterIdentity, generateVisualCharacterIdentityPackage, validateVisualCharacterIdentity } from "./domain/character-visual-continuity";
+export type { VisualReferenceKind, VisualReference, VisualIdentityState, VisualIdentitySnapshot, VisualCharacterIdentity, VisualIdentityUpdateInput, VisualIdentityPackage } from "./domain/character-visual-continuity";
+export { CharacterVisualContinuityService } from "./application/character-visual-continuity";
+export type { VisualIdentityQuery } from "./application/character-visual-continuity";
