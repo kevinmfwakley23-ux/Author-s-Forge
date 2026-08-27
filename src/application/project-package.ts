@@ -1,0 +1,3 @@
+import { createProjectPackage, deserializeProjectPackage, serializeProjectPackage, validateProjectPackage } from "../domain/project-package";
+import type { ForgeProjectPackage, ProjectPackageFile } from "../domain/project-package";
+export class ProjectPackageService { export(input:{projectId:string;projectState:unknown;files?:readonly ProjectPackageFile[];exportedAt?:string}):ForgeProjectPackage{return createProjectPackage(input);} serialize(pkg:ForgeProjectPackage):string{return serializeProjectPackage(pkg);} import(serialized:string):ForgeProjectPackage{return deserializeProjectPackage(serialized);} validate(pkg:ForgeProjectPackage):ForgeProjectPackage{return validateProjectPackage(pkg);} }
