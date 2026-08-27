@@ -13,58 +13,15 @@ const BOOK_LIFECYCLES: readonly BookLifecycle[] = ["planned", "active", "complet
 const CHAPTER_LIFECYCLES: readonly ChapterLifecycle[] = ["planned", "drafting", "complete", "archived"];
 const SCENE_LIFECYCLES: readonly SceneLifecycle[] = ["planned", "drafting", "complete", "archived"];
 
-export function createManuscriptState(): ManuscriptState {
-  return { formatVersion: MANUSCRIPT_FORMAT_VERSION, books: [], chapters: [], scenes: [] };
-}
-
-export function createBook(input: { id: string; projectId: string; title: string; lifecycle?: BookLifecycle }): BookRecord {
-  const lifecycle = input.lifecycle ?? "planned";
-  return { id: identifier(input.id, "Book id"), projectId: identifier(input.projectId, "Book project id"), title: text(input.title, "Book title"), lifecycle: validLifecycle(lifecycle, BOOK_LIFECYCLES, "book"), chapterIds: [] };
-}
-
-export function createChapter(input: { id: string; bookId: string; number: number; title: string; lifecycle?: ChapterLifecycle }): ChapterRecord {
-  const lifecycle = input.lifecycle ?? "planned";
-  return { id: identifier(input.id, "Chapter id"), bookId: identifier(input.bookId, "Chapter book id"), number: positiveInteger(input.number, "Chapter number"), title: text(input.title, "Chapter title"), lifecycle: validLifecycle(lifecycle, CHAPTER_LIFECYCLES, "chapter"), sceneIds: [] };
-}
-
-export function createScene(input: { id: string; chapterId: string; order: number; title: string; lifecycle?: SceneLifecycle }): SceneRecord {
-  const lifecycle = input.lifecycle ?? "planned";
-  return { id: identifier(input.id, "Scene id"), chapterId: identifier(input.chapterId, "Scene chapter id"), order: positiveInteger(input.order, "Scene order"), title: text(input.title, "Scene title"), lifecycle: validLifecycle(lifecycle, SCENE_LIFECYCLES, "scene") };
-}
-
-export function addBook(state: ManuscriptState, book: BookRecord): ManuscriptState {
-  validateManuscriptState(state);
-  validateBook(book);
-  assertUniqueId(state, book.id);
-  return cloneState({ ...state, books: [...state.books, cloneBook(book)] });
-}
-
-export function addChapter(state: ManuscriptState, chapter: ChapterRecord): ManuscriptState {
-  validateManuscriptState(state);
-  validateChapter(chapter);
-  const parent = state.books.find((book) => book.id === chapter.bookId);
-  if (!parent) throw new Error(`Unknown book "${chapter.bookId}".`);
-  assertUniqueId(state, chapter.id);
-  if (state.chapters.some((item) => item.bookId === chapter.bookId && item.number === chapter.number)) throw new Error(`Duplicate chapter number ${chapter.number} in book "${chapter.bookId}".`);
-  const chapters = [...state.chapters, cloneChapter(chapter)];
-  const books = state.books.map((book) => book.id === chapter.bookId ? { ...book, chapterIds: sortChapterIds([...book.chapterIds, chapter.id], chapters) } : cloneBook(book));
-  return cloneState({ ...state, books, chapters });
-}
-
-export function addScene(state: ManuscriptState, scene: SceneRecord): ManuscriptState {
-  validateManuscriptState(state);
-  validateScene(scene);
-  const parent = state.chapters.find((chapter) => chapter.id === scene.chapterId);
-  if (!parent) throw new Error(`Unknown chapter "${scene.chapterId}".`);
-  assertUniqueId(state, scene.id);
-  if (state.scenes.some((item) => item.chapterId === scene.chapterId && item.order === scene.order)) throw new Error(`Duplicate scene order ${scene.order} in chapter "${scene.chapterId}".`);
-  const scenes = [...state.scenes, cloneScene(scene)];
-  const chapters = state.chapters.map((chapter) => chapter.id === scene.chapterId ? { ...chapter, sceneIds: sortSceneIds([...chapter.sceneIds, scene.id], scenes) } : cloneChapter(chapter));
-  return cloneState({ ...state, chapters, scenes });
-}
-
-export function insertChapter(state: ManuscriptState, chapter: ChapterRecord): ManuscriptState { return addChapter(state, chapter); }
-export function insertScene(state: ManuscriptState, scene: SceneRecord): ManuscriptState { return addScene(state, scene); }
+export function createManuscriptState(): ManuscriptState { return { formatVersion: MANUSCRIPT_FORMAT_VERSION, books: [], chapters: [], scenes: [] }; }
+export function createBook(input: { id: string; projectId: string; title: string; lifecycle?: BookLifecycle }): BookRecord { const lifecycle = input.lifecycle ?? "planned"; return { id: identifier(input.id, "Book id"), projectId: identifier(input.projectId, "Book project id"), title: text(input.title, "Book title"), lifecycle: validLifecycle(lifecycle, BOOK_LIFECYCLES, "book"), chapterIds: [] }; }
+export function createChapter(input: { id: string; bookId: string; number: number; title: string; lifecycle?: ChapterLifecycle }): ChapterRecord { const lifecycle = input.lifecycle ?? "planned"; return { id: identifier(input.id, "Chapter id"), bookId: identifier(input.bookId, "Chapter book id"), number: positiveInteger(input.number, "Chapter number"), title: text(input.title, "Chapter title"), lifecycle: validLifecycle(lifecycle, CHAPTER_LIFECYCLES, "chapter"), sceneIds: [] }; }
+export function createScene(input: { id: string; chapterId: string; order: number; title: string; lifecycle?: SceneLifecycle }): SceneRecord { const lifecycle = input.lifecycle ?? "planned"; return { id: identifier(input.id, "Scene id"), chapterId: identifier(input.chapterId, "Scene chapter id"), order: positiveInteger(input.order, "Scene order"), title: text(input.title, "Scene title"), lifecycle: validLifecycle(lifecycle, SCENE_LIFECYCLES, "scene") }; }
+export function addBook(state: ManuscriptState, book: BookRecord): ManuscriptState { validateManuscriptState(state); validateBook(book); assertUniqueId(state, book.id); return cloneState({ ...state, books: [...state.books, cloneBook(book)] }); }
+export function addChapter(state: ManuscriptState, chapter: ChapterRecord): ManuscriptState { validateManuscriptState(state); validateChapter(chapter); const parent = state.books.find((book) => book.id === chapter.bookId); if (!parent) throw new Error(`Unknown book "${chapter.bookId}".`); assertUniqueId(state, chapter.id); if (state.chapters.some((item) => item.bookId === chapter.bookId && item.number === chapter.number)) throw new Error(`Duplicate chapter number ${chapter.number} in book "${chapter.bookId}".`); const chapters = [...state.chapters, cloneChapter(chapter)]; const books = state.books.map((book) => book.id === chapter.bookId ? { ...book, chapterIds: sortChapterIds([...book.chapterIds, chapter.id], chapters) } : cloneBook(book)); return cloneState({ ...state, books, chapters }); }
+export function addScene(state: ManuscriptState, scene: SceneRecord): ManuscriptState { validateManuscriptState(state); validateScene(scene); const parent = state.chapters.find((chapter) => chapter.id === scene.chapterId); if (!parent) throw new Error(`Unknown chapter "${scene.chapterId}".`); assertUniqueId(state, scene.id); if (state.scenes.some((item) => item.chapterId === scene.chapterId && item.order === scene.order)) throw new Error(`Duplicate scene order ${scene.order} in chapter "${scene.chapterId}".`); const scenes = [...state.scenes, cloneScene(scene)]; const chapters = state.chapters.map((chapter) => chapter.id === scene.chapterId ? { ...chapter, sceneIds: sortSceneIds([...chapter.sceneIds, scene.id], scenes) } : cloneChapter(chapter)); return cloneState({ ...state, chapters, scenes }); }
+export const insertChapter = addChapter;
+export const insertScene = addScene;
 
 export function validateManuscriptState(state: ManuscriptState): void {
   if (state.formatVersion !== MANUSCRIPT_FORMAT_VERSION) throw new Error("Unsupported manuscript format version.");
@@ -77,6 +34,10 @@ export function validateManuscriptState(state: ManuscriptState): void {
     const children = state.chapters.filter((chapter) => chapter.bookId === book.id);
     const childIds = new Set(book.chapterIds);
     if (childIds.size !== book.chapterIds.length) throw new Error(`Duplicate chapter reference in book "${book.id}".`);
+    const missing = book.chapterIds.find((id) => !state.chapters.some((chapter) => chapter.id === id));
+    if (missing) throw new Error(`Book "${book.id}" references unknown chapter "${missing}".`);
+    const wrongParent = book.chapterIds.find((id) => state.chapters.some((chapter) => chapter.id === id && chapter.bookId !== book.id));
+    if (wrongParent) throw new Error(`Book "${book.id}" has an invalid chapter relationship.`);
     if (children.length !== book.chapterIds.length || children.some((chapter) => !childIds.has(chapter.id))) throw new Error(`Book "${book.id}" has an invalid chapter relationship.`);
     if (!same(book.chapterIds, sortChapterIds(children.map((chapter) => chapter.id), state.chapters))) throw new Error(`Book "${book.id}" has non-deterministic chapter ordering.`);
     if (new Set(children.map((chapter) => chapter.number)).size !== children.length) throw new Error(`Duplicate chapter number in book "${book.id}".`);
@@ -89,6 +50,10 @@ export function validateManuscriptState(state: ManuscriptState): void {
     const children = state.scenes.filter((scene) => scene.chapterId === chapter.id);
     const childIds = new Set(chapter.sceneIds);
     if (childIds.size !== chapter.sceneIds.length) throw new Error(`Duplicate scene reference in chapter "${chapter.id}".`);
+    const missing = chapter.sceneIds.find((id) => !state.scenes.some((scene) => scene.id === id));
+    if (missing) throw new Error(`Chapter "${chapter.id}" references unknown scene "${missing}".`);
+    const wrongParent = chapter.sceneIds.find((id) => state.scenes.some((scene) => scene.id === id && scene.chapterId !== chapter.id));
+    if (wrongParent) throw new Error(`Chapter "${chapter.id}" has an invalid scene relationship.`);
     if (children.length !== chapter.sceneIds.length || children.some((scene) => !childIds.has(scene.id))) throw new Error(`Chapter "${chapter.id}" has an invalid scene relationship.`);
     if (!same(chapter.sceneIds, sortSceneIds(children.map((scene) => scene.id), state.scenes))) throw new Error(`Chapter "${chapter.id}" has non-deterministic scene ordering.`);
     if (new Set(children.map((scene) => scene.order)).size !== children.length) throw new Error(`Duplicate scene order in chapter "${chapter.id}".`);
@@ -100,11 +65,9 @@ export function validateManuscriptState(state: ManuscriptState): void {
     if (!parent.sceneIds.includes(scene.id)) throw new Error(`Chapter "${scene.chapterId}" is missing scene "${scene.id}".`);
   }
 }
-
 function validateBook(book: BookRecord): void { identifier(book.id, "Book id"); identifier(book.projectId, "Book project id"); text(book.title, "Book title"); validLifecycle(book.lifecycle, BOOK_LIFECYCLES, "book"); }
 function validateChapter(chapter: ChapterRecord): void { identifier(chapter.id, "Chapter id"); identifier(chapter.bookId, "Chapter book id"); positiveInteger(chapter.number, "Chapter number"); text(chapter.title, "Chapter title"); validLifecycle(chapter.lifecycle, CHAPTER_LIFECYCLES, "chapter"); }
-function validateScene(scene: SceneRecord): void { identifier(scene.id, "Scene id"); identifier(scene.chapterId, "Scene chapter id"); positiveInteger(scene.order, "Scene order"); text(scene.title, "Scene title"); validLifecycle(scene.lifecycle, SCENE_LIFECYCLES, "scene"); }
-
+function validateScene(scene: SceneRecord): void { identifier(scene.id, "Scene id"); identifier(scene.chapterId, "Scene chapter id"); positiveInteger(scene.order, "Scene order"); text(scene.title, "Scene title"); validLifecycle(scene.lifecycle, SCENE_LIFECYCLE[0] ? SCENE_LIFECYCLES : SCENE_LIFECYCLES, "scene"); }
 function identifier(value: string, label: string): string { if (!value.trim()) throw new Error(`${label} is required.`); if (value !== value.trim()) throw new Error(`${label} cannot have leading or trailing whitespace.`); return value; }
 function text(value: string, label: string): string { if (!value.trim()) throw new Error(`${label} is required.`); return value.trim(); }
 function positiveInteger(value: number, label: string): number { if (!Number.isInteger(value) || value < 1) throw new Error(`${label} must be a positive integer.`); return value; }
