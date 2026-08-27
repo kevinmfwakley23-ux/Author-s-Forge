@@ -38,3 +38,8 @@ export type { IllustrationMode, IllustrationType, IllustrationReference, Illustr
 export { IllustrationStudioService } from "./application/illustration-studio";
 export type { IllustrationQuery } from "./application/illustration-studio";
 export { FileIllustrationStudioStore } from "./infrastructure/file-illustration-studio-store";
+export { IMAGE_EDITING_FORMAT_VERSION, IMAGE_EDIT_OPERATIONS, IMAGE_OUTPUT_FORMATS, createSourceImage, createImageEditSession, applyImageEdit, generateImageEditBrief, createImageEditingState, withImageEditSession, replaceImageEditSession, validateSourceImage, validateImageEditSession, validateImageEditingState } from "./domain/image-editing";
+export type { ImageEditOperation, ImageOutputFormat, SourceImage, ImageEditInstruction, ImageEditRevision, EditedImage, ImageEditSession, ImageEditingState } from "./domain/image-editing";
+export { ImageEditingService } from "./application/image-editing";
+export type { ImageEditQuery } from "./application/image-editing";
+export { FileImageEditingStore } from "./infrastructure/file-image-editing-store";
