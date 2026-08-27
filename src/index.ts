@@ -38,3 +38,6 @@ export type { IllustrationApprovalStatus, IllustrationAssetReference, Illustrati
 export { IllustrationAssetLibraryService } from "./application/illustration-asset-library";
 export type { IllustrationAssetQuery } from "./application/illustration-asset-library";
 export { FileIllustrationAssetLibraryStore } from "./infrastructure/file-illustration-asset-library-store";
+export { BOOK_COVER_STUDIO_FORMAT_VERSION, COVER_FORMATS, BINDINGS, INTERIOR_TYPES, PAPER_TYPES, COVER_APPROVAL_STATUSES, calculateKdpCoverLayout, validatePublishingConfiguration, validateBookCoverFile, createBookCoverPlan } from "./domain/book-cover-studio";
+export type { CoverFormat, Binding, InteriorType, PaperType, CoverApprovalStatus, PublishingConfiguration, CoverDimensions, CoverZones, CoverValidationIssue, BookCoverPlan, CreateBookCoverPlanInput } from "./domain/book-cover-studio";
+export { BookCoverStudioService } from "./application/book-cover-studio";
