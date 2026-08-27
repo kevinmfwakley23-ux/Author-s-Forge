@@ -7,41 +7,12 @@ export type { ProjectBrainQuery, ProjectBrainContext } from "./application/proje
 export { createProject, touchProject, withProjectMemories, PROJECT_FORMAT_VERSION } from "./domain/project";
 export type { ProjectMetadata, ProjectState, ProjectStatus } from "./domain/project";
 export { FileProjectStore } from "./infrastructure/file-project-store";
-export {
-  MANUSCRIPT_FORMAT_VERSION,
-  createManuscriptState,
-  createBook,
-  createChapter,
-  createScene,
-  addBook,
-  addChapter,
-  addScene,
-  insertChapter,
-  insertScene,
-  validateManuscriptState
-} from "./domain/manuscript";
-export type {
-  BookLifecycle,
-  ChapterLifecycle,
-  SceneLifecycle,
-  BookRecord,
-  ChapterRecord,
-  SceneRecord,
-  ManuscriptState
-} from "./domain/manuscript";
-export {
-  MANUSCRIPT_PLAN_FORMAT_VERSION,
-  createManuscriptPlanningState,
-  createManuscriptPlan,
-  addManuscriptPlan,
-  replaceManuscriptPlan,
-  getCurrentManuscriptPlan,
-  validateManuscriptPlanningState
-} from "./domain/manuscript-planning";
-export type {
-  ManuscriptPlan,
-  ManuscriptPlanningState,
-  PlanLifecycle,
-  PlanTargetType
-} from "./domain/manuscript-planning";
+export { MANUSCRIPT_FORMAT_VERSION, createManuscriptState, createBook, createChapter, createScene, addBook, addChapter, addScene, insertChapter, insertScene, validateManuscriptState } from "./domain/manuscript";
+export type { BookLifecycle, ChapterLifecycle, SceneLifecycle, BookRecord, ChapterRecord, SceneRecord, ManuscriptState } from "./domain/manuscript";
+export { MANUSCRIPT_PLAN_FORMAT_VERSION, createManuscriptPlanningState, createManuscriptPlan, addManuscriptPlan, replaceManuscriptPlan, getCurrentManuscriptPlan, validateManuscriptPlanningState } from "./domain/manuscript-planning";
+export type { ManuscriptPlan, ManuscriptPlanningState, PlanLifecycle, PlanTargetType } from "./domain/manuscript-planning";
 export { ManuscriptPlanningService } from "./application/manuscript-planning";
+export { EDITING_FORMAT_VERSION, EDITOR_ROLES, FINDING_KINDS, createEditingDocument, createEditorialFinding, createEditorialReport, validateEditorialReport } from "./domain/intelligent-editing";
+export type { EditorRole, FindingSeverity, FindingKind, EditingTarget, EditingDocument, EditorialFinding, EditorialReport } from "./domain/intelligent-editing";
+export { IntelligentEditingService } from "./application/intelligent-editing";
+export type { EditingRequest } from "./application/intelligent-editing";
