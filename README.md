@@ -34,11 +34,13 @@ Author's Forge owns the creative truth of a project. Intelligence providers, AI 
 
 Authoritative creative state must remain durable, auditable, portable, and recoverable. Analysis and recommendations must remain separate from actions that mutate author-controlled state.
 
-## Current Writing and Editing Boundaries
+## Current Writing, Editing, and Research Boundaries
 
 The Writing Engine distinguishes **content truth** from **style transformation**. A rewrite, POV conversion, tense conversion, style experiment, dialogue enhancement, description enhancement, emotional enhancement, or other transformation must not silently alter canonical facts.
 
 The Intelligent Editing system is analysis-first. Editorial reports produce findings and recommendations but do **not** silently rewrite the manuscript. Manuscript mutation requires explicit author instruction.
+
+The Research Engine is evidence-first and provider-neutral. External research is retained as project-linked `research-memory` with source provenance and working authority. Research does **not** silently become canon and does **not** mutate manuscript content. Research can be retrieved later by project and book/chapter/scene scope without repeating the original provider investigation.
 
 ## Code Languages and Tooling
 
@@ -63,6 +65,7 @@ Completed mission work is preserved in separate branches and verification checkp
 - Mission 006 — Manuscript Planning Foundation
 - Mission 006.2 — Writing Engine, corresponding to Mission 6 of the Master Product Directive
 - Mission 007 — Intelligent Editing
+- Mission 008 — Research Engine
 
 Mission names and scope are governed by the Master Product Directive. Historical implementation checkpoints remain preserved in the repository.
 
