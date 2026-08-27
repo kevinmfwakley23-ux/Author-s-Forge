@@ -1,34 +1,7 @@
 export const CHARACTER_BIBLE_FORMAT_VERSION = 1 as const;
 
 export const CHARACTER_FIELDS = [
-  "name",
-  "age",
-  "birthDate",
-  "physicalAppearance",
-  "height",
-  "build",
-  "hair",
-  "eyes",
-  "skin",
-  "clothing",
-  "voice",
-  "speechPatterns",
-  "personality",
-  "values",
-  "fears",
-  "secrets",
-  "goals",
-  "motivations",
-  "relationships",
-  "history",
-  "knowledge",
-  "skills",
-  "weaknesses",
-  "characterArc",
-  "importantObjects",
-  "currentEmotionalState",
-  "currentLocation",
-  "currentInjuries"
+  "name", "age", "birthDate", "physicalAppearance", "height", "build", "hair", "eyes", "skin", "clothing", "voice", "speechPatterns", "personality", "values", "fears", "secrets", "goals", "motivations", "relationships", "history", "knowledge", "skills", "weaknesses", "characterArc", "importantObjects", "currentEmotionalState", "currentLocation", "currentInjuries"
 ] as const;
 
 export type CharacterField = typeof CHARACTER_FIELDS[number];
@@ -112,14 +85,7 @@ export interface CharacterUpdateInput {
   readonly actor?: "author" | "system";
 }
 
-export function createCharacter(input: {
-  id: string;
-  projectId: string;
-  profile: CharacterProfile;
-  now?: string;
-  reason?: string;
-  actor?: "author" | "system";
-}): CharacterRecord {
+export function createCharacter(input: { id: string; projectId: string; profile: CharacterProfile; now?: string; reason?: string; actor?: "author" | "system" }): CharacterRecord {
   assertIdentifier(input.id, "Character id");
   assertIdentifier(input.projectId, "Character project id");
   const now = validateTimestamp(input.now ?? new Date().toISOString(), "Character timestamp");
@@ -129,41 +95,25 @@ export function createCharacter(input: {
   const fieldHistory = {} as { [F in CharacterField]: CharacterFieldVersion<F>[] };
 
   for (const field of CHARACTER_FIELDS) {
-    fieldHistory[field] = [{
-      field,
-      value: cloneFieldValue(field, profile[field]),
-      effectiveAt: now,
-      sequence: 1,
-      reason,
-      actor
-    }] as CharacterFieldVersion<typeof field>[];
+    fieldHistory[field] = [{ field, value: cloneFieldValue(field, profile[field]), effectiveAt: now, sequence: 1, reason, actor }] as never;
   }
 
-  return {
-    formatVersion: CHARACTER_BIBLE_FORMAT_VERSION,
-    id: input.id,
-    projectId: input.projectId,
-    createdAt: now,
-    updatedAt: now,
-    profile: cloneProfile(profile),
-    fieldHistory: cloneFieldHistory(fieldHistory)
-  };
+  return { formatVersion: CHARACTER_BIBLE_FORMAT_VERSION, id: input.id, projectId: input.projectId, createdAt: now, updatedAt: now, profile: cloneProfile(profile), fieldHistory: cloneFieldHistory(fieldHistory) };
 }
 
 export function updateCharacter(character: CharacterRecord, input: CharacterUpdateInput): CharacterRecord {
   if (character.id !== input.characterId) throw new Error("Character update id does not match the character.");
   const effectiveAt = validateTimestamp(input.effectiveAt ?? new Date().toISOString(), "Character update timestamp");
+  if (effectiveAt < character.createdAt) throw new Error("Character update timestamp cannot precede character creation.");
   const reason = requireText(input.reason, "Character update reason");
   const actor = input.actor ?? "author";
   const changes = input.changes as Record<string, unknown>;
   const keys = Object.keys(changes);
-  for (const key of keys) {
-    if (!(CHARACTER_FIELDS as readonly string[]).includes(key)) throw new Error(`Unsupported character field "${key}".`);
-  }
+  for (const key of keys) if (!(CHARACTER_FIELDS as readonly string[]).includes(key)) throw new Error(`Unsupported character field "${key}".`);
   if (keys.length === 0) throw new Error("Character update requires at least one field change.");
 
   const nextProfile = cloneProfile(character.profile);
-  const nextHistory = cloneFieldHistory(character.fieldHistory);
+  const nextHistory = cloneFieldHistory(character.fieldHistory) as { [F in CharacterField]: CharacterFieldVersion<F>[] };
   const nextSequence = highestSequence(character) + 1;
   const changed: CharacterField[] = [];
 
@@ -172,25 +122,12 @@ export function updateCharacter(character: CharacterRecord, input: CharacterUpda
     const normalized = normalizeField(field, changes[field] as CharacterFieldValue);
     if (valuesEqual(nextProfile[field], normalized)) continue;
     (nextProfile as MutableProfile)[field] = cloneFieldValue(field, normalized) as never;
-    nextHistory[field].push({
-      field,
-      value: cloneFieldValue(field, normalized),
-      effectiveAt,
-      sequence: nextSequence,
-      reason,
-      actor
-    } as never);
+    nextHistory[field].push({ field, value: cloneFieldValue(field, normalized), effectiveAt, sequence: nextSequence, reason, actor } as never);
     changed.push(field);
   }
 
   if (changed.length === 0) throw new Error("Character update does not change any character field.");
-
-  return {
-    ...character,
-    updatedAt: effectiveAt > character.updatedAt ? effectiveAt : character.updatedAt,
-    profile: cloneProfile(nextProfile),
-    fieldHistory: cloneFieldHistory(nextHistory)
-  };
+  return { ...character, updatedAt: effectiveAt > character.updatedAt ? effectiveAt : character.updatedAt, profile: cloneProfile(nextProfile), fieldHistory: cloneFieldHistory(nextHistory) };
 }
 
 export function getCharacterAt(character: CharacterRecord, asOf: string): CharacterProfile {
@@ -220,15 +157,7 @@ export function getCharacterChanges(character: CharacterRecord): readonly Charac
     for (let index = 1; index < versions.length; index += 1) {
       const previous = versions[index - 1];
       const current = versions[index];
-      changes.push({
-        field,
-        previousValue: cloneFieldValue(field, previous.value),
-        nextValue: cloneFieldValue(field, current.value),
-        effectiveAt: current.effectiveAt,
-        sequence: current.sequence,
-        reason: current.reason,
-        actor: current.actor
-      } as CharacterChange);
+      changes.push({ field, previousValue: cloneFieldValue(field, previous.value), nextValue: cloneFieldValue(field, current.value), effectiveAt: current.effectiveAt, sequence: current.sequence, reason: current.reason, actor: current.actor } as CharacterChange);
     }
   }
   return changes.sort((a, b) => a.effectiveAt.localeCompare(b.effectiveAt) || a.sequence - b.sequence || a.field.localeCompare(b.field));
@@ -238,6 +167,8 @@ export function validateCharacterRecord(value: unknown): CharacterRecord {
   if (!value || typeof value !== "object") throw new Error("Invalid character record.");
   const candidate = value as Record<string, unknown>;
   if (candidate.formatVersion !== CHARACTER_BIBLE_FORMAT_VERSION || typeof candidate.id !== "string" || typeof candidate.projectId !== "string") throw new Error("Unsupported or corrupt character record.");
+  assertIdentifier(candidate.id, "Character id");
+  assertIdentifier(candidate.projectId, "Character project id");
   if (!candidate.profile || typeof candidate.profile !== "object") throw new Error("Character profile is required.");
   const profile = normalizeProfile(candidate.profile as CharacterProfile);
   if (!candidate.fieldHistory || typeof candidate.fieldHistory !== "object") throw new Error("Character field history is required.");
@@ -246,10 +177,19 @@ export function validateCharacterRecord(value: unknown): CharacterRecord {
     const versions = history[field];
     if (!Array.isArray(versions) || versions.length === 0) throw new Error(`Character field history is missing "${field}".`);
     for (const version of versions) {
-      if (version.field !== field || typeof version.effectiveAt !== "string" || !Number.isInteger(version.sequence) || version.sequence < 1 || typeof version.reason !== "string" || (version.actor !== "author" && version.actor !== "system")) throw new Error(`Invalid history entry for character field "${field}".`);
+      if (version.field !== field || typeof version.effectiveAt !== "string" || !Number.isInteger(version.sequence) || version.sequence < 1 || typeof version.reason !== "string" || !version.reason.trim() || (version.actor !== "author" && version.actor !== "system")) throw new Error(`Invalid history entry for character field "${field}".`);
       validateTimestamp(version.effectiveAt, `Character field "${field}" timestamp`);
       normalizeField(field, version.value);
     }
+  }
+  const createdAt = validateTimestamp(String(candidate.createdAt), "Character createdAt");
+  const updatedAt = validateTimestamp(String(candidate.updatedAt), "Character updatedAt");
+  if (updatedAt < createdAt) throw new Error("Character updatedAt cannot precede createdAt.");
+  for (const field of CHARACTER_FIELDS) {
+    const versions = history[field]!;
+    if (versions[0].sequence !== 1 || versions[0].effectiveAt !== createdAt) throw new Error(`Character field "${field}" history must begin at character creation.`);
+    const latest = [...versions].sort((a, b) => b.sequence - a.sequence)[0];
+    if (JSON.stringify(normalizeField(field, latest.value)) !== JSON.stringify(profile[field])) throw new Error(`Character profile does not match latest "${field}" history.`);
   }
   return createCharacterFromValidated(candidate, profile, history as { [F in CharacterField]: readonly CharacterFieldVersion<F>[] });
 }
@@ -259,15 +199,7 @@ type MutableProfile = { -readonly [F in CharacterField]: CharacterProfile[F] };
 function createCharacterFromValidated(candidate: Record<string, unknown>, profile: CharacterProfile, history: { [F in CharacterField]: readonly CharacterFieldVersion<F>[] }): CharacterRecord {
   const createdAt = validateTimestamp(String(candidate.createdAt), "Character createdAt");
   const updatedAt = validateTimestamp(String(candidate.updatedAt), "Character updatedAt");
-  return {
-    formatVersion: CHARACTER_BIBLE_FORMAT_VERSION,
-    id: String(candidate.id),
-    projectId: String(candidate.projectId),
-    createdAt,
-    updatedAt,
-    profile: cloneProfile(profile),
-    fieldHistory: cloneFieldHistory(history)
-  };
+  return { formatVersion: CHARACTER_BIBLE_FORMAT_VERSION, id: String(candidate.id), projectId: String(candidate.projectId), createdAt, updatedAt, profile: cloneProfile(profile), fieldHistory: cloneFieldHistory(history) };
 }
 
 function normalizeProfile(profile: CharacterProfile): CharacterProfile {
@@ -286,12 +218,7 @@ function normalizeField<F extends CharacterField>(field: F, value: CharacterProf
     return value.map((relationship) => {
       if (!relationship || typeof relationship !== "object") throw new Error("Character relationship must be an object.");
       const item = relationship as CharacterRelationship;
-      return {
-        characterId: requireText(item.characterId, "Relationship character id"),
-        relationship: requireText(item.relationship, "Relationship type"),
-        status: requireText(item.status, "Relationship status"),
-        notes: requireText(item.notes, "Relationship notes")
-      };
+      return { characterId: requireText(item.characterId, "Relationship character id"), relationship: requireText(item.relationship, "Relationship type"), status: requireText(item.status, "Relationship status"), notes: requireText(item.notes, "Relationship notes") };
     }) as CharacterProfile[F];
   }
   if (field === "speechPatterns" || field === "values" || field === "fears" || field === "secrets" || field === "goals" || field === "motivations" || field === "knowledge" || field === "skills" || field === "weaknesses" || field === "importantObjects" || field === "currentInjuries") {
@@ -306,18 +233,11 @@ function normalizeField<F extends CharacterField>(field: F, value: CharacterProf
 }
 
 function normalizeStringArray(value: readonly unknown[], field: string): readonly string[] {
-  return [...new Set(value.map((item) => {
-    if (typeof item !== "string") throw new Error(`Character ${field} entries must be strings.`);
-    return requireText(item, `Character ${field} entry`);
-  }))];
+  return [...new Set(value.map((item) => { if (typeof item !== "string") throw new Error(`Character ${field} entries must be strings.`); return requireText(item, `Character ${field} entry`); }))];
 }
 
 function cloneProfile(profile: CharacterProfile): CharacterProfile {
-  return {
-    ...profile,
-    speechPatterns: [...profile.speechPatterns], values: [...profile.values], fears: [...profile.fears], secrets: [...profile.secrets], goals: [...profile.goals], motivations: [...profile.motivations],
-    relationships: profile.relationships.map((relationship) => ({ ...relationship })), knowledge: [...profile.knowledge], skills: [...profile.skills], weaknesses: [...profile.weaknesses], importantObjects: [...profile.importantObjects], currentInjuries: [...profile.currentInjuries]
-  };
+  return { ...profile, speechPatterns: [...profile.speechPatterns], values: [...profile.values], fears: [...profile.fears], secrets: [...profile.secrets], goals: [...profile.goals], motivations: [...profile.motivations], relationships: profile.relationships.map((relationship) => ({ ...relationship })), knowledge: [...profile.knowledge], skills: [...profile.skills], weaknesses: [...profile.weaknesses], importantObjects: [...profile.importantObjects], currentInjuries: [...profile.currentInjuries] };
 }
 
 function cloneFieldValue<F extends CharacterField>(field: F, value: CharacterProfile[F]): CharacterProfile[F] {
@@ -328,28 +248,16 @@ function cloneFieldValue<F extends CharacterField>(field: F, value: CharacterPro
 
 function cloneFieldHistory(history: { [F in CharacterField]: readonly CharacterFieldVersion<F>[] }): { [F in CharacterField]: readonly CharacterFieldVersion<F>[] } {
   const result = {} as { [F in CharacterField]: readonly CharacterFieldVersion<F>[] };
-  for (const field of CHARACTER_FIELDS) result[field] = history[field].map((version) => ({ ...version, value: cloneFieldValue(field, version.value) })) as readonly CharacterFieldVersion<typeof field>[];
+  for (const field of CHARACTER_FIELDS) result[field] = history[field].map((version) => ({ ...version, value: cloneFieldValue(field, version.value) })) as never;
   return result;
 }
 
-function valuesEqual(a: CharacterFieldValue, b: CharacterFieldValue): boolean {
-  return JSON.stringify(a) === JSON.stringify(b);
-}
+function valuesEqual(a: CharacterFieldValue, b: CharacterFieldValue): boolean { return JSON.stringify(a) === JSON.stringify(b); }
 
-function highestSequence(character: CharacterRecord): number {
-  return Math.max(...CHARACTER_FIELDS.flatMap((field) => character.fieldHistory[field].map((version) => version.sequence)));
-}
+function highestSequence(character: CharacterRecord): number { return Math.max(...CHARACTER_FIELDS.flatMap((field) => character.fieldHistory[field].map((version) => version.sequence))); }
 
-function assertIdentifier(value: string, label: string): void {
-  if (!value.trim()) throw new Error(`${label} is required.`);
-}
+function assertIdentifier(value: string, label: string): void { if (!value.trim()) throw new Error(`${label} is required.`); }
 
-function requireText(value: string, label: string): string {
-  if (typeof value !== "string" || !value.trim()) throw new Error(`${label} is required.`);
-  return value.trim();
-}
+function requireText(value: string, label: string): string { if (typeof value !== "string" || !value.trim()) throw new Error(`${label} is required.`); return value.trim(); }
 
-function validateTimestamp(value: string, label: string): string {
-  if (typeof value !== "string" || Number.isNaN(Date.parse(value))) throw new Error(`${label} must be a valid timestamp.`);
-  return new Date(value).toISOString();
-}
+function validateTimestamp(value: string, label: string): string { if (typeof value !== "string" || Number.isNaN(Date.parse(value))) throw new Error(`${label} must be a valid timestamp.`); return new Date(value).toISOString(); }
