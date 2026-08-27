@@ -51,7 +51,9 @@ export class IllustrationReferencePipeline {
     form.append("size", input.size);
     form.append("quality", input.quality);
     form.append("output_format", "png");
-    form.append("image", new Blob([input.referenceBytes], { type: input.reference.mimeType }), input.reference.originalFileName);
+    const imageBytes = new Uint8Array(input.referenceBytes.byteLength);
+    imageBytes.set(input.referenceBytes);
+    form.append("image", new Blob([imageBytes.buffer], { type: input.reference.mimeType }), input.reference.originalFileName);
 
     const response = await fetch("https://api.openai.com/v1/images/edits", {
       method: "POST",
