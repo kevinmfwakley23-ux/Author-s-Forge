@@ -4,7 +4,7 @@ export { ProjectMemoryStore } from "./application/project-memory-store";
 export type { MemoryPromotionDecision, ProjectMemorySnapshot } from "./application/project-memory-store";
 export { assembleProjectBrainContext } from "./application/project-brain";
 export type { ProjectBrainQuery, ProjectBrainContext } from "./application/project-brain";
-export { createProject, touchProject, withProjectMemories, withProjectCharacters, withProjectVisualIdentities, withProjectIllustrationAssetLibrary, withProjectBookCoverPlans, withProjectPublishingReadinessReports, PROJECT_FORMAT_VERSION } from "./domain/project";
+export { createProject, touchProject, withProjectMemories, withProjectCharacters, withProjectVisualIdentities, withProjectIllustrationAssetLibrary, withProjectBookCoverPlans, withProjectPublishingReadinessReports, withProjectKdpMarketIntelligenceReports, PROJECT_FORMAT_VERSION } from "./domain/project";
 export type { ProjectMetadata, ProjectState, ProjectStatus } from "./domain/project";
 export { FileProjectStore } from "./infrastructure/file-project-store";
 export { FileVisualIdentityStore } from "./infrastructure/file-visual-identity-store";
@@ -48,3 +48,7 @@ export { PUBLISHING_READINESS_FORMAT_VERSION, createPublishingReadinessReport, v
 export type { ReadinessStatus, ReadinessSeverity, ReadinessCategory, ReadinessCheck, PublishingReadinessInput, PublishingReadinessReport } from "./domain/publishing-readiness";
 export { PublishingReadinessService } from "./application/publishing-readiness";
 export type { PublishingReadinessStore } from "./application/publishing-readiness";
+export { KDP_MARKET_INTELLIGENCE_FORMAT_VERSION, MARKET_INTELLIGENCE_TOPICS, createKdpMarketIntelligenceReport, validateKdpMarketIntelligenceReport, summarizeMarketIntelligence } from "./domain/kdp-market-intelligence";
+export type { MarketIntelligenceTopic, SignalDirection, EvidenceStrength as MarketEvidenceStrength, OpportunityLevel, MarketEvidence, MarketSignal, ComparableTitle, MarketOpportunityAssessment, KdpMarketIntelligenceReport, CreateMarketIntelligenceReportInput } from "./domain/kdp-market-intelligence";
+export { KdpMarketIntelligenceService, StaticKdpMarketIntelligenceProvider } from "./application/kdp-market-intelligence";
+export type { KdpMarketIntelligenceRequest, KdpMarketIntelligenceProviderRequest, KdpMarketIntelligenceProviderResult, KdpMarketIntelligenceProvider } from "./application/kdp-market-intelligence";
