@@ -73,22 +73,30 @@ A series provides a shared continuity boundary across books. Shared state includ
 
 Forge can analyze an author's writing fingerprint without replacing it. The voice profile measures sentence length, punctuation, dialogue ratio, vocabulary richness, paragraph length, narrative distance, description density, metaphor use, pacing, and emotional intensity. Profiles can be compared with new text and converted into provider-facing rewrite briefs. Voice preservation does not claim to reproduce an author from insufficient evidence and does not request imitation of named living authors.
 
-## Current Writing, Editing, Research, Character, Illustration, and Publishing Boundaries
+## Missions 029–032 Boundaries
 
-The Writing Engine distinguishes **content truth** from **style transformation**. A rewrite, POV conversion, tense conversion, style experiment, dialogue enhancement, description enhancement, emotional enhancement, or other transformation must not silently alter canonical facts.
+### Mission 029 — AI Collaboration Modes
 
-The Intelligent Editing system is analysis-first. Editorial reports produce findings and recommendations but do **not** silently rewrite the manuscript. Manuscript mutation requires explicit author instruction.
+Forge exposes five explicit collaboration modes: `co-pilot`, `partner`, `director`, `autonomous`, and `editor`. Each mode has a deterministic collaboration policy describing expected AI work share and editing focus. Author approval remains required in every mode; autonomous operation does not grant the AI authority to silently change author-controlled state.
 
-The Research Engine is evidence-first and provider-neutral. External research is retained as project-linked `research-memory` with source provenance and working authority. Research does **not** silently become canon and does **not** mutate manuscript content. Research can be retrieved later by project and book/chapter/scene scope without repeating the original provider investigation.
+### Mission 030 — Project Health Dashboard
 
-The Character Bible is structured state, not merely prose. Every major character has the complete required profile and a temporal history for every profile field. Character updates are explicit, auditable, project-scoped, portable, and reconstructable at a historical point in time.
+Forge maintains a structured project-health snapshot containing book completion, chapter completion, word count and target, critical/minor canon conflicts, unresolved plot threads, character and location counts, research-source count, illustration count, cover status, marketing completion, and publishing readiness. Percentages are bounded to 0–100 and completion counts cannot exceed their targets.
 
-The Character Visual Continuity system is the visual counterpart to the Character Bible. Every major character can have canonical face, body, pose, wardrobe, hairstyle, age, distinguishing marks, scars, tattoos, accessories, color palette, and artistic style data. Visual state is versioned by story order so a Chapter 27 package can resolve the same canonical identity established at Chapter 4 while still supporting deliberate age, wardrobe, hairstyle, injury, and other visual progression. A `seriesId` keeps the identity portable across multiple books in the same series.
+### Mission 031 — Relationship-Aware Memory
+
+Forge memory can retain not only a fact but its subject, predicate, object, context, source identifier, source location, and relevance. This supports relationships such as **Sarah lives in Denver because it was established in Chapter 3 and affects her ability to reach the hospital in Chapter 18**. Relationship memories are project-scoped, durable, and retrievable by either subject or object.
+
+### Mission 032 — Self-Checking Before Delivery
+
+Forge defines a mandatory delivery audit covering canon, continuity, timeline, character, POV, style, grammar, formatting, research, artwork, cover, metadata, and publishing. A project cannot receive `readyForAuthorApproval` until every required audit category has a result and every result passes without a critical failure. The system therefore cannot truthfully declare a project ready merely because a chat response says it is finished.
 
 ## Verification Standard
 
 A mission is not considered verified because its code compiles or because individual files exist. The complete acceptance suite must pass, including regression coverage for prior missions. Bugs are fixed in production code; tests are not weakened merely to obtain a green result.
 
-## Status
+## Current Status
 
-Author's Forge is under active mission-based development. Missions 025–028 have been implemented on `mission-025-028-version-control-author-control-series-voice` and are awaiting complete local verification from the Linux development environment.
+Missions 025–028 have been verified by the Linux development environment.
+
+Missions 029–032 have been implemented on `mission-029-032-collaboration-health-memory-delivery` and are **awaiting complete Linux verification**.
