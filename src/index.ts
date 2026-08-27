@@ -20,3 +20,7 @@ export { RESEARCH_FORMAT_VERSION, RESEARCH_DOMAINS, createResearchClaim, createR
 export type { ResearchDomain, ResearchConfidence, ResearchRelevance, ResearchSource, ResearchClaim, ResearchRecord } from "./domain/research";
 export { ResearchEngine, StaticResearchProvider } from "./application/research-engine";
 export type { ResearchRequest, ResearchProvider, ResearchProviderRequest, ResearchProviderResult, ResearchSearchResult } from "./application/research-engine";
+export { RESEARCH_HONESTY_FORMAT_VERSION, RESEARCH_HONESTY_CLASSES, createResearchHonestyRecord, isResearchHonest, assertResearchHonest } from "./domain/research-honesty";
+export type { ResearchHonestyClass, EvidenceStrength, ResearchHonestyAssessment, ResearchHonestyRecord, ResearchHonestyInput } from "./domain/research-honesty";
+export { ResearchHonestyService } from "./application/research-honesty";
+export type { ResearchHonestyQuery, ResearchHonestySummary } from "./application/research-honesty";
