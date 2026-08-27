@@ -4,7 +4,7 @@ export { ProjectMemoryStore } from "./application/project-memory-store";
 export type { MemoryPromotionDecision, ProjectMemorySnapshot } from "./application/project-memory-store";
 export { assembleProjectBrainContext } from "./application/project-brain";
 export type { ProjectBrainQuery, ProjectBrainContext } from "./application/project-brain";
-export { createProject, touchProject, withProjectMemories, PROJECT_FORMAT_VERSION } from "./domain/project";
+export { createProject, touchProject, withProjectMemories, withProjectCharacters, PROJECT_FORMAT_VERSION } from "./domain/project";
 export type { ProjectMetadata, ProjectState, ProjectStatus } from "./domain/project";
 export { FileProjectStore } from "./infrastructure/file-project-store";
 export { MANUSCRIPT_FORMAT_VERSION, createManuscriptState, createBook, createChapter, createScene, addBook, addChapter, addScene, insertChapter, insertScene, validateManuscriptState } from "./domain/manuscript";
@@ -24,3 +24,7 @@ export { RESEARCH_HONESTY_FORMAT_VERSION, RESEARCH_HONESTY_CLASSES, createResear
 export type { ResearchHonestyClass, EvidenceStrength, ResearchHonestyAssessment, ResearchHonestyRecord, ResearchHonestyInput } from "./domain/research-honesty";
 export { ResearchHonestyService } from "./application/research-honesty";
 export type { ResearchHonestyQuery, ResearchHonestySummary } from "./application/research-honesty";
+export { CHARACTER_BIBLE_FORMAT_VERSION, CHARACTER_FIELDS, createCharacter, updateCharacter, getCharacterAt, getCharacterFieldHistory, getCharacterChanges, validateCharacterRecord } from "./domain/character-bible";
+export type { CharacterField, CharacterRelationship, CharacterProfile, CharacterFieldValue, CharacterFieldVersion, CharacterChange, CharacterRecord, CharacterProfileUpdate, CharacterUpdateInput } from "./domain/character-bible";
+export { CharacterBibleService } from "./application/character-bible";
+export type { CharacterQuery, CharacterHistoryQuery } from "./application/character-bible";
