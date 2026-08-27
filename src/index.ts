@@ -31,7 +31,7 @@ export type { CharacterField, CharacterRelationship, CharacterProfile, Character
 export { CharacterBibleService } from "./application/character-bible";
 export type { CharacterQuery, CharacterHistoryQuery } from "./application/character-bible";
 export { VISUAL_IDENTITY_FORMAT_VERSION, VISUAL_REFERENCE_KINDS, createVisualCharacterIdentity, updateVisualCharacterIdentity, resolveVisualCharacterIdentity, generateVisualCharacterIdentityPackage, validateVisualCharacterIdentity } from "./domain/character-visual-continuity";
-export type { VisualReferenceKind, VisualReference, VisualIdentityState, VisualIdentitySnapshot, VisualCharacterIdentity, VisualIdentityUpdateInput, VisualCharacterIdentityPackage } from "./domain/character-visual-continuity";
+export type { VisualReferenceKind, VisualReference, VisualIdentityState, VisualIdentitySnapshot, VisualCharacterIdentity, VisualIdentityUpdateInput, VisualIdentityPackage } from "./domain/character-visual-continuity";
 export { CharacterVisualContinuityService } from "./application/character-visual-continuity";
 export type { VisualIdentityQuery } from "./application/character-visual-continuity";
 export { ILLUSTRATION_ASSET_LIBRARY_FORMAT_VERSION, ILLUSTRATION_APPROVAL_STATUSES, createIllustrationAsset, updateIllustrationAsset, createCharacterDesignLock, resolveCharacterDesignLock, reuseIllustrationAsset, validateIllustrationAssetLibraryState } from "./domain/illustration-asset-library";
