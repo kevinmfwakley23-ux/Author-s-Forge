@@ -1,9 +1,8 @@
 export type { MemoryClass, MemoryAuthority, MemoryProvenance, MemoryRecord, MemoryQuery } from "./domain/memory";
 export { createMemoryRecord, MEMORY_FORMAT_VERSION } from "./domain/memory";
 export { ProjectMemoryStore } from "./application/project-memory-store";
-export type { MemoryPromotionDecision, ProjectMemorySnapshot } from "./application/project-memory-store";
+export type { MemoryPromotionDecision, ProjectBrainContext, ProjectBrainQuery, ProjectBrainContext as ProjectBrainContextAlias } from "./application/project-brain";
 export { assembleProjectBrainContext } from "./application/project-brain";
-export type { ProjectBrainQuery, ProjectBrainContext } from "./application/project-brain";
 export { createProject, touchProject, withProjectMemories, withProjectCharacters, withProjectVisualIdentities, PROJECT_FORMAT_VERSION } from "./domain/project";
 export type { ProjectMetadata, ProjectState, ProjectStatus } from "./domain/project";
 export { FileProjectStore } from "./infrastructure/file-project-store";
@@ -33,3 +32,8 @@ export { VISUAL_IDENTITY_FORMAT_VERSION, VISUAL_REFERENCE_KINDS, createVisualCha
 export type { VisualReferenceKind, VisualReference, VisualIdentityState, VisualIdentitySnapshot, VisualCharacterIdentity, VisualIdentityUpdateInput, VisualIdentityPackage } from "./domain/character-visual-continuity";
 export { CharacterVisualContinuityService } from "./application/character-visual-continuity";
 export type { VisualIdentityQuery } from "./application/character-visual-continuity";
+export { ILLUSTRATION_STUDIO_FORMAT_VERSION, ILLUSTRATION_MODES, ILLUSTRATION_TYPES, createIllustrationRequest, reviseIllustrationRequest, generateIllustrationBrief, createIllustrationStudioState, withIllustrationRequest, withIllustrationRevision, validateIllustrationRequest, validateIllustrationRevision } from "./domain/illustration-studio";
+export type { IllustrationMode, IllustrationType, IllustrationReference, IllustrationContinuity, IllustrationRequest, IllustrationRevision, IllustrationStudioState } from "./domain/illustration-studio";
+export { IllustrationStudioService } from "./application/illustration-studio";
+export type { IllustrationQuery } from "./application/illustration-studio";
+export { FileIllustrationStudioStore } from "./infrastructure/file-illustration-studio-store";
