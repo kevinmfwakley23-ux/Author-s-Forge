@@ -11,12 +11,12 @@ export class ResearchHonestyService {
   assess(input: { readonly id: string; readonly projectId: string; readonly claimId: string; readonly classification: ResearchHonestyClass; readonly evidenceStrength: EvidenceStrength; readonly explanation: string; readonly sourceBacked?: boolean; readonly now?: string; }): ResearchHonestyRecord {
     const record = createResearchHonestyRecord(input);
     assertResearchHonest(record);
-    const now = record.assessment.assessedAt;
+    const now = record.assessedAt;
     const memory = createMemoryRecord({
       id: `research-honesty:${record.id}`, projectId: record.projectId, class: "research-memory", authority: "working",
-      summary: `${record.assessment.classification}: ${record.assessment.explanation}`, content: JSON.stringify(record),
-      provenance: [{ kind: "research-honesty", reference: record.assessment.claimId, recordedAt: now }],
-      relevanceTags: ["research-honesty", `claim:${record.claimId}`, `honesty:${record.assessment.classification}`], now,
+      summary: `${record.classification}: ${record.explanation}`, content: JSON.stringify(record),
+      provenance: [{ kind: "source", reference: record.claimId, recordedAt: now }],
+      relevanceTags: ["research-honesty", `claim:${record.claimId}`, `honesty:${record.classification}`], now,
     });
     this.memoryStore.register(memory);
     return clone(record);
@@ -27,17 +27,17 @@ export class ResearchHonestyService {
     return this.memoryStore.query({ projectId: query.projectId, class: "research-memory", relevanceTags: ["research-honesty"], limit: query.limit })
       .map(memory => JSON.parse(memory.content) as ResearchHonestyRecord)
       .filter(record => !query.claimId || record.claimId === query.claimId)
-      .filter(record => !query.classification || record.assessment.classification === query.classification)
-      .filter(record => query.canonEligible === undefined || record.assessment.canonEligible === query.canonEligible)
+      .filter(record => !query.classification || record.classification === query.classification)
+      .filter(record => query.canonEligible === undefined || record.canonEligible === query.canonEligible)
       .filter(record => { assertResearchHonest(record); return true; });
   }
 
   summarize(projectId: string): ResearchHonestySummary {
     const records = this.get({ projectId });
     const byClassification = { "known-fact": 0, "source-supported": 0, "likely-inference": 0, "creative-fiction": 0, "uncertain": 0 } as Record<ResearchHonestyClass, number>;
-    for (const record of records) byClassification[record.assessment.classification] += 1;
-    const canonEligible = records.filter(r => r.assessment.canonEligible).length;
+    for (const record of records) byClassification[record.classification] += 1;
+    const canonEligible = records.filter(r => r.canonEligible).length;
     return { projectId, total: records.length, byClassification, canonEligible, nonCanonEligible: records.length - canonEligible };
   }
 }
-function clone(record: ResearchHonestyRecord): ResearchHonestyRecord { return { ...record, assessment: { ...record.assessment } }; }
+function clone(record: ResearchHonestyRecord): ResearchHonestyRecord { return { ...record }; }
