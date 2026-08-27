@@ -4,7 +4,7 @@
   "private": true,
   "description": "Author's Forge — durable AI authoring studio foundation.",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && rm -rf dist && cp -R .forge-build dist",
     "test": "npm run build && node --test test/**/*.test.js",
     "check": "npm run build && npm test"
   },
