@@ -1,3 +1,5 @@
+import type { CharacterRecord } from "./character-bible";
+import { validateCharacterRecord } from "./character-bible";
 import type { MemoryRecord } from "./memory";
 
 export const PROJECT_FORMAT_VERSION = 2 as const;
@@ -16,6 +18,7 @@ export interface ProjectState {
   readonly formatVersion: typeof PROJECT_FORMAT_VERSION;
   readonly metadata: ProjectMetadata;
   readonly memories: readonly MemoryRecord[];
+  readonly characters?: readonly CharacterRecord[];
 }
 
 export function createProject(input: { id: string; title: string; now?: string }): ProjectState {
@@ -52,6 +55,23 @@ export function withProjectMemories(project: ProjectState, memories: readonly Me
   return { ...project, metadata: { ...project.metadata, updatedAt: now }, memories: memories.map(cloneMemory) };
 }
 
+export function withProjectCharacters(project: ProjectState, characters: readonly CharacterRecord[], now = new Date().toISOString()): ProjectState {
+  if (characters.some((character) => character.projectId !== project.metadata.id)) {
+    throw new Error("Project character state contains a character from another project.");
+  }
+  const ids = new Set<string>();
+  const validated = characters.map((character) => validateCharacterRecord(character));
+  for (const character of validated) {
+    if (ids.has(character.id)) throw new Error(`Duplicate character id "${character.id}" in project state.`);
+    ids.add(character.id);
+  }
+  return { ...project, metadata: { ...project.metadata, updatedAt: now }, characters: validated.map(cloneCharacter) };
+}
+
 function cloneMemory(memory: MemoryRecord): MemoryRecord {
   return { ...memory, provenance: memory.provenance.map((item) => ({ ...item })), relatedMemoryIds: [...memory.relatedMemoryIds], relevanceTags: [...memory.relevanceTags] };
+}
+
+function cloneCharacter(character: CharacterRecord): CharacterRecord {
+  return validateCharacterRecord(JSON.parse(JSON.stringify(character)));
 }
