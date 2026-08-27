@@ -55,6 +55,24 @@ Author's Forge owns the creative truth of a project. Intelligence providers, AI 
 
 Authoritative creative state must remain durable, auditable, portable, and recoverable. Analysis and recommendations must remain separate from actions that mutate author-controlled state.
 
+## Mission 025–028 Boundaries
+
+### Version Control
+
+Book version control stores immutable snapshots for draft, final, and published states. Authors can compare versions by chapter, restore a previous snapshot, create branches, and perform three-way merges with explicit conflict detection. Version operations never mutate the source snapshots.
+
+### Author Control
+
+Forge distinguishes `AI suggestion`, `AI draft`, `author approved`, `canon locked`, and `author override`. Author override and canon lock are explicit durable decisions. An AI recommendation can never silently supersede an author-controlled state. The author can explicitly say **this is canon**, and the project state records that authority.
+
+### Series Engine
+
+A series provides a shared continuity boundary across books. Shared state includes characters, world rules, visual identities, locations, terminology, history, unresolved threads, and cross-book timeline events. Book membership and timeline references are validated against the series.
+
+### Voice Preservation
+
+Forge can analyze an author's writing fingerprint without replacing it. The voice profile measures sentence length, punctuation, dialogue ratio, vocabulary richness, paragraph length, narrative distance, description density, metaphor use, pacing, and emotional intensity. Profiles can be compared with new text and converted into provider-facing rewrite briefs. Voice preservation does not claim to reproduce an author from insufficient evidence and does not request imitation of named living authors.
+
 ## Current Writing, Editing, Research, Character, Illustration, and Publishing Boundaries
 
 The Writing Engine distinguishes **content truth** from **style transformation**. A rewrite, POV conversion, tense conversion, style experiment, dialogue enhancement, description enhancement, emotional enhancement, or other transformation must not silently alter canonical facts.
@@ -67,77 +85,10 @@ The Character Bible is structured state, not merely prose. Every major character
 
 The Character Visual Continuity system is the visual counterpart to the Character Bible. Every major character can have canonical face, body, pose, wardrobe, hairstyle, age, distinguishing marks, scars, tattoos, accessories, color palette, and artistic style data. Visual state is versioned by story order so a Chapter 27 package can resolve the same canonical identity established at Chapter 4 while still supporting deliberate age, wardrobe, hairstyle, injury, and other visual progression. A `seriesId` keeps the identity portable across multiple books in the same series.
 
-Visual identity packages are deterministic, portable data packages for downstream illustration generation. The package does not itself claim to generate pixels or silently mutate artwork; it supplies the canonical visual identity that an illustration provider must consume when artwork is generated.
-
-## Illustration Asset Library Boundary
-
-The Illustration Asset Library is the durable canonical registry for generated illustration assets. Every asset records its project, book, chapter, scene, character, location, prompt, references, style, generation settings, version, date, approval status, and asset URI. Assets are reusable without mutating their source records, with provenance retained through `reusedFromAssetId`.
-
-Character design locks provide an explicit, temporal implementation of the instruction **Use this character design everywhere going forward**. A lock binds a character to a canonical illustration asset within a series and takes effect at a defined timestamp. Future resolution returns the latest active applicable design, allowing the same design to persist across multiple books while still permitting deliberate future replacement.
-
-The asset library remains provider-neutral. It owns canonical metadata, provenance, approval state, reuse, and design-lock state; it does not pretend to generate pixels. Real illustration providers consume these validated records through explicit integration boundaries.
-
-## Book Cover Studio Boundary
-
-The Book Cover Studio is a production-layout system, not merely an artwork prompt generator. A cover plan stores the publishing configuration, trim size, page count, binding, paper/interior selection, bleed, calculated exterior dimensions, front/spine/back zones, barcode-safe area, safe margins, title/author metadata, artwork references, output format, DPI, version, and approval state.
-
-KDP paperback calculations use the current published KDP equations for spine width and full-cover dimensions. KDP specifies 0.125 inch bleed, and paperback spine factors vary by paper/interior type. The Studio therefore calculates the production geometry from the selected publishing configuration rather than guessing from an attractive image. KDP also requires the print cover to be one continuous exterior containing front, back, and spine.
-
-Hardcover plans model the case-wrap geometry and explicitly keep the final provider template authoritative because KDP hardcover cover files have wrap, hinge, spine, and safe-area requirements that depend on the selected production configuration. KDP requires a single PDF containing the back, spine, and front and specifies wrap and safe-area requirements.
-
-The Studio validates a resulting cover artifact against the production plan: format, exact calculated dimensions, minimum 300 DPI, file size, required cover zones, absence of crop/template marks, flattening, font embedding, and encryption state. Validation is deterministic and provider-neutral; the system does not claim a file has passed KDP's final proprietary previewer.
-
-For eBook covers, the publishing contract remains distinct from print covers: KDP specifies a separate single front-cover image with its own dimensions, format, RGB, and file-size requirements.
-
-## Manuscript Production Boundary
-
-The Manuscript Production system converts validated finished-manuscript state into **actual derived DOCX, PDF, and EPUB files** without mutating the authoritative manuscript. It supports KDP-specific output identities (`kdp-docx`, `kdp-pdf`, `kdp-epub`) while keeping the renderer provider-neutral.
-
-Production state includes project/book identity, title, subtitle, author, series information, front matter, back matter, chapters, scenes, title page, copyright, dedication, epigraph, table of contents, author biography, acknowledgments, about-the-author, and other back matter sections. Production options control page size, page numbering, running headers/footers, title-page generation, and contents generation.
-
-The DOCX renderer produces an Open XML package; the EPUB renderer produces a valid EPUB ZIP package with `mimetype`, container metadata, OPF metadata, navigation, and chapter XHTML; the PDF renderer produces a valid PDF 1.4 document with deterministic page layout and text wrapping. Generated artifacts carry MIME type, filename, byte length, SHA-256, timestamp, and encoded file content so output provenance can be verified without treating generated files as canonical manuscript state.
-
-The production boundary validates input structure, duplicate identifiers, chapter ordering, section content, output options, generated file identity, MIME type, extension, byte length, and non-empty content. Actual publishing-platform acceptance remains subject to the platform's own final preview/ingestion checks; Author's Forge does not falsely claim that a provider accepted a file merely because local validation passed.
-
-## Code Languages and Tooling
-
-The primary application language is **TypeScript**, compiled with the TypeScript compiler and checked in strict mode. The project uses **Node.js** for the runtime and **JavaScript** with Node's built-in test runner for acceptance tests.
-
-Current core tooling includes:
-
-- TypeScript 5.x
-- Node.js 20+
-- npm
-- Git / GitHub
-- Node's `node:test` test runner
-
-The Linux environment is used to install dependencies, compile the TypeScript source, execute the complete test suite, and verify the repository state. GitHub remains the authoritative source repository for the implementation.
-
-## Mission History
-
-Completed mission work is preserved in separate branches and verification checkpoints rather than being overwritten as later missions are developed.
-
-- Mission 004 — Project Brain + Canon Memory
-- Mission 005 — Manuscript Foundation / structural manuscript state
-- Mission 006 — Manuscript Planning Foundation
-- Mission 006.2 — Writing Engine, corresponding to Mission 6 of the Master Product Directive
-- Mission 007 — Intelligent Editing
-- Mission 008 — Research Engine
-- Mission 009 — Research Honesty
-- Mission 010 — Character Bible + temporal character state (verified)
-- Mission 011 — Character Visual Continuity (verified)
-- Mission 012 — Illustration Studio (verified)
-- Mission 013 — Image Editing (verified)
-- Mission 014 — Illustration Asset Library (verified)
-- Mission 015 — Book Cover Studio (verified)
-- Mission 016 — Manuscript Production (implementation branch; awaiting Linux verification)
-
-Mission names and scope are governed by the Master Product Directive. Historical implementation checkpoints remain preserved in the repository.
-
 ## Verification Standard
 
 A mission is not considered verified because its code compiles or because individual files exist. The complete acceptance suite must pass, including regression coverage for prior missions. Bugs are fixed in production code; tests are not weakened merely to obtain a green result.
 
 ## Status
 
-Author's Forge is under active mission-based development. Mission 016 has been implemented on `mission-016-manuscript-production` and is awaiting complete local verification from the Linux development environment.
+Author's Forge is under active mission-based development. Missions 025–028 have been implemented on `mission-025-028-version-control-author-control-series-voice` and are awaiting complete local verification from the Linux development environment.
