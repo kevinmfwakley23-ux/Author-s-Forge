@@ -31,7 +31,7 @@ export type ContentOrigin="author-owned"|"user-uploaded"|"generated"|"public-dom
 export type ContentProvenance=Readonly<{id:string;projectId:string;origin:ContentOrigin;source?:string;license?:string;consent?:"granted"|"not-required"|"pending";notes?:string}>;
 export function createContentProvenance(input:ContentProvenance):ContentProvenance{if(!input.id.trim()||!input.projectId.trim())throw new Error("Content provenance requires id and project id.");if((input.origin==="user-uploaded"||input.origin==="third-party-reference")&&input.consent!=="granted")throw new Error("Uploaded/reference content requires explicit consent before processing.");if(input.origin==="external-research"&&!input.source?.trim())throw new Error("External research must identify its source.");return Object.freeze({...input});}
 export const BOOK_GENOME_FORMAT_VERSION=1 as const;
-export const BOOK_GENOME_COMPONENTS=["premise","theme","genre","voice","characters","relationships","locations","timeline","events","scenes","objects","clues","reveals","conflicts","motivations","research","visual-identities","art","cover","metadata","publishing-state"] as const;
+export const BOOK_GENOME_COMPONENTS=["premise","theme","genre","voice","canon","characters","relationships","locations","timeline","events","scenes","objects","clues","reveals","conflicts","motivations","research","visual-identities","art","cover","metadata","publishing-state"] as const;
 export type BookGenomeComponent=typeof BOOK_GENOME_COMPONENTS[number];
 export type GenomeNode=Readonly<{id:string;type:BookGenomeComponent;label:string;data:Readonly<Record<string,unknown>>}>;
 export type GenomeEdge=Readonly<{from:string;to:string;relation:string}>;
