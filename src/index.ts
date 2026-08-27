@@ -56,3 +56,13 @@ export { BOOK_POSITIONING_FORMAT_VERSION, BOOK_POSITIONING_DISCLAIMER, createBoo
 export type { PositioningComparable, PositioningAnswer, PositioningConcepts, BookPositioningReport, CreateBookPositioningReportInput } from "./domain/book-positioning";
 export { BookPositioningService, StaticBookPositioningProvider } from "./application/book-positioning";
 export type { BookPositioningRequest, BookPositioningProviderRequest, BookPositioningProviderResult, BookPositioningProvider } from "./application/book-positioning";
+export { MARKETING_STUDIO_FORMAT_VERSION, MARKETING_CHANNELS, MARKETING_ASSET_TYPES, createMarketingPackage, addMarketingAssets, scheduleMarketingAsset, createMarketingVariants, validateMarketingPackage } from "./domain/marketing-studio";
+export type { MarketingChannel, MarketingAssetType, MarketingAsset, MarketingPackage, CreateMarketingPackageInput } from "./domain/marketing-studio";
+export { MarketingStudioService } from "./application/marketing-studio";
+export type { MarketingStudioStore } from "./application/marketing-studio";
+export { FileMarketingStudioStore } from "./infrastructure/file-marketing-studio-store";
+export { AUTHOR_MARKETING_CALENDAR_FORMAT_VERSION, CAMPAIGN_PHASES, createAuthorMarketingCalendar, addCalendarEntries, buildLaunchCalendar, validateAuthorMarketingCalendar } from "./domain/author-marketing-calendar";
+export type { CampaignPhase, CalendarEntry, AuthorMarketingCalendar, CreateCalendarInput } from "./domain/author-marketing-calendar";
+export { AuthorMarketingCalendarService } from "./application/author-marketing-calendar";
+export type { AuthorMarketingCalendarStore } from "./application/author-marketing-calendar";
+export { FileAuthorMarketingCalendarStore } from "./infrastructure/file-author-marketing-calendar-store";
