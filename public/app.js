@@ -1,145 +1,97 @@
 (() => {
   "use strict";
   const projectId = "forge-studio";
-  const state = { project: null, genome: null };
-  const $ = (selector) => document.querySelector(selector);
-  const $$ = (selector) => [...document.querySelectorAll(selector)];
-  const esc = (value) => String(value).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]));
-  const showError = (message) => { const el = $("#error-banner"); if (el) { el.textContent = message; el.hidden = false; } };
-  const clearError = () => { const el = $("#error-banner"); if (el) el.hidden = true; };
+  const state = { project: null, workspace: null, selected: { bookId: null, chapterId: null, sceneId: null } };
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => [...document.querySelectorAll(s)];
+  const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+  const showError = (m) => { const e = $("#error-banner"); e.textContent = m; e.hidden = false; $("#success-banner").hidden = true; };
+  const showSuccess = (m) => { const e = $("#success-banner"); e.textContent = m; e.hidden = false; $("#error-banner").hidden = true; setTimeout(() => { e.hidden = true; }, 3500); };
+  const clearMessage = () => { $("#error-banner").hidden = true; $("#success-banner").hidden = true; };
 
   async function api(path, options = {}) {
-    const response = await fetch(path, { headers: { "content-type": "application/json", ...(options.headers || {}) }, ...options });
+    const response = await fetch(path, { ...options, headers: { "content-type": "application/json", ...(options.headers || {}) } });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.error || `Request failed (${response.status}).`);
     return payload;
   }
-
   function navigate(route) {
-    const requested = String(route || "dashboard").replace(/^#/, "");
-    const target = document.getElementById(requested) || document.getElementById("dashboard");
-    if (!target) return false;
-    $$("[data-view]").forEach((view) => {
-      const active = view === target;
-      view.classList.toggle("active", active);
-      view.hidden = !active;
-      view.setAttribute("aria-hidden", String(!active));
-    });
-    $$("[data-route]").forEach((link) => link.classList.toggle("active", link.dataset.route === target.id));
+    const id = String(route || "dashboard").replace(/^#/, "");
+    const target = document.getElementById(id) || document.getElementById("dashboard");
+    $$('[data-view]').forEach((view) => { const active = view === target; view.hidden = !active; view.classList.toggle("active", active); view.setAttribute("aria-hidden", String(!active)); });
+    $$('[data-route]').forEach((link) => link.classList.toggle("active", link.dataset.route === target.id));
     if (location.hash !== `#${target.id}`) history.pushState({ route: target.id }, "", `#${target.id}`);
     window.scrollTo({ top: 0, behavior: "smooth" });
-    return true;
   }
-
   function bindNavigation() {
-    document.addEventListener("click", (event) => {
-      const element = event.target instanceof Element ? event.target : null;
-      const control = element?.closest("[data-route]");
-      if (!control) return;
-      const route = control.dataset.route;
-      if (!route || !document.getElementById(route)) return;
-      event.preventDefault();
-      navigate(route);
-    });
+    document.addEventListener("click", (event) => { const control = event.target instanceof Element ? event.target.closest("[data-route]") : null; if (!control) return; event.preventDefault(); navigate(control.dataset.route); });
     window.addEventListener("hashchange", () => navigate(location.hash.slice(1) || "dashboard"));
     window.addEventListener("popstate", () => navigate(location.hash.slice(1) || "dashboard"));
   }
+  function formObject(form) { return Object.fromEntries(new FormData(form).entries()); }
+  function lines(value) { return String(value || "").split(/\r?\n/).map((x) => x.trim()).filter(Boolean); }
+  function activeBook() { return state.workspace?.books?.find((b) => b.id === (state.selected.bookId || state.workspace.activeBookId)) || state.workspace?.books?.[0] || null; }
+  function activeChapter() { const book = activeBook(); return book?.chapters.find((c) => c.id === state.selected.chapterId) || book?.chapters?.[0] || null; }
+  function activeScene() { const chapter = activeChapter(); return chapter?.scenes.find((s) => s.id === state.selected.sceneId) || chapter?.scenes?.[0] || null; }
+  function setSelection(bookId, chapterId, sceneId) { state.selected = { bookId: bookId || state.selected.bookId, chapterId: chapterId || state.selected.chapterId, sceneId: sceneId || state.selected.sceneId }; }
 
-  function renderGenome(graph) {
-    state.genome = graph;
-    $("#genome-list").innerHTML = graph?.nodes?.length ? graph.nodes.map((node) => `<div class="node"><strong>${esc(node.label)}</strong><small>${esc(node.component)}</small></div>`).join("") : "<p class='muted'>No Book Genome has been built yet.</p>";
-    $("#impact-node").innerHTML = graph?.nodes?.length ? '<option value="">Select component</option>' + graph.nodes.map((node) => `<option value="${esc(node.id)}">${esc(node.label)}</option>`).join("") : "<option value=\"\">Build the genome first</option>";
+  function renderProject() {
+    const p = state.project; if (!p) return;
+    $("#project-title").textContent = p.metadata.title;
+    const books = state.workspace?.books || [];
+    const scenes = books.flatMap((b) => b.chapters.flatMap((c) => c.scenes));
+    const words = scenes.reduce((n, s) => n + (s.wordCount || 0), 0);
+    $("#project-meta").textContent = `${p.metadata.id} • ${books.length} books • ${scenes.length} scenes • ${words.toLocaleString()} words`;
+    $("#metrics").innerHTML = [["Books", books.length], ["Chapters", books.reduce((n,b)=>n+b.chapters.length,0)], ["Scenes", scenes.length], ["Words", words.toLocaleString()], ["Characters", (p.characters || []).length], ["Memories", p.memories.length]].map(([k,v]) => `<div class="metric"><strong>${esc(v)}</strong><span>${esc(k)}</span></div>`).join("");
+    $("#active-book").innerHTML = activeBook() ? `<strong>${esc(activeBook().title)}</strong><p class="muted">${esc(activeBook().kind)} • ${activeBook().chapters.length} chapters</p>` : '<p class="muted">Create your first book in Manuscript.</p>';
+    renderWorkspaceControls(); renderCharacters(); renderMemories(); renderResearch(); renderGenome();
   }
-
-  function renderProject(project) {
-    state.project = project;
-    $("#project-title").textContent = project.metadata.title;
-    $("#project-meta").textContent = `${project.metadata.id} • ${project.metadata.status} • ${project.memories.length} memories`;
-    const metrics = [["Memories", project.memories.length], ["Characters", project.characters?.length || 0], ["Visual identities", project.visualIdentities?.length || 0], ["Illustrations", project.illustrationAssetLibrary?.assets?.length || 0], ["Series", project.series?.length || 0], ["Audits", project.deliveryAudits?.length || 0]];
-    $("#metrics").innerHTML = metrics.map(([label, value]) => `<div class="metric"><strong>${esc(value)}</strong><span>${esc(label)}</span></div>`).join("");
-    $("#memory-list").innerHTML = project.memories.length ? project.memories.map((m) => `<article class="memory"><strong>${esc(m.summary)}</strong><p>${esc(m.content)}</p><small>${esc(m.authority)} • ${esc(m.provenance[0]?.reference || "unknown")}</small></article>`).join("") : "<p class='muted'>No memories recorded yet.</p>";
-    renderGenome(project.bookGenome);
-    renderPipeline(project);
+  function renderWorkspaceControls() {
+    const books = state.workspace?.books || [];
+    const selects = [$("#chapter-book"), $("#scene-book"), $("#editor-book"), $("#export-book")].filter(Boolean);
+    selects.forEach((select) => { const current = select.value || activeBook()?.id || ""; select.innerHTML = books.map((b) => `<option value="${esc(b.id)}">${esc(b.title)}</option>`).join(""); if (books.some((b)=>b.id===current)) select.value=current; });
+    const book = activeBook();
+    const chapterSelect = $("#editor-chapter"); const sceneSelect = $("#editor-scene"); const sceneBook = $("#scene-book");
+    const selectedBookId = $("#editor-book")?.value || book?.id; if (selectedBookId) setSelection(selectedBookId, null, null);
+    const chosenBook = books.find((b) => b.id === selectedBookId) || book;
+    if (chapterSelect) { const current = state.selected.chapterId; chapterSelect.innerHTML = (chosenBook?.chapters || []).map((c) => `<option value="${esc(c.id)}">${c.number}. ${esc(c.title)}</option>`).join(""); if ((chosenBook?.chapters || []).some(c=>c.id===current)) chapterSelect.value=current; }
+    const chapter = chosenBook?.chapters.find((c)=>c.id===(chapterSelect?.value || state.selected.chapterId)) || chosenBook?.chapters?.[0];
+    if (chapterSelect && chapter) { state.selected.chapterId = chapter.id; }
+    if (sceneSelect) { const current = state.selected.sceneId; sceneSelect.innerHTML = (chapter?.scenes || []).map((s) => `<option value="${esc(s.id)}">${s.number}. ${esc(s.title)}</option>`).join(""); if ((chapter?.scenes || []).some(s=>s.id===current)) sceneSelect.value=current; }
+    if (sceneBook && chosenBook) sceneBook.value = chosenBook.id;
+    state.selected.bookId = chosenBook?.id || null; state.selected.sceneId = sceneSelect?.value || chapter?.scenes?.[0]?.id || null;
+    const scene = activeScene(); if (scene && document.activeElement !== $("#editor-content")) $("#editor-content").value = scene.content || "";
+    $("#word-count").textContent = `${scene?.wordCount || 0} words`;
+    renderBookTree();
   }
+  function renderBookTree() { const books = state.workspace?.books || []; $("#book-tree").innerHTML = books.length ? books.map((b) => `<article class="memory"><strong>${esc(b.title)}</strong><small>${esc(b.kind)}</small>${b.chapters.map((c) => `<div class="tree-child"><b>${c.number}. ${esc(c.title)}</b>${c.scenes.map((s) => `<button class="link-button" data-open-scene="${esc(b.id)}|${esc(c.id)}|${esc(s.id)}">${s.number}. ${esc(s.title)} <small>${s.wordCount} words</small></button>`).join("")}</div>`).join("")}</article>`).join("") : '<p class="muted">No books yet.</p>'; }
+  function renderCharacters() { const chars = state.project?.characters || []; $("#character-list").innerHTML = chars.length ? chars.map((c) => `<article class="memory"><strong>${esc(c.profile.name)}</strong><p>${esc(c.profile.personality)}</p><small>${esc(c.profile.currentLocation)} • age ${esc(c.profile.age)}</small></article>`).join("") : '<p class="muted">No characters yet.</p>'; }
+  function renderMemories() { const memories = state.project?.memories || []; $("#memory-list").innerHTML = memories.length ? memories.slice().reverse().map((m) => `<article class="memory"><strong>${esc(m.summary)}</strong><p>${esc(m.content)}</p><small>${esc(m.class)} • ${esc(m.authority)} • ${esc(m.provenance?.[0]?.reference || "unknown")}</small></article>`).join("") : '<p class="muted">No durable records yet.</p>'; }
+  function renderResearch() { const rows = (state.project?.memories || []).filter((m)=>m.class==="research-memory"); $("#research-list").innerHTML = rows.length ? rows.map((m)=>`<article class="memory"><strong>${esc(m.summary)}</strong><p>${esc(m.content)}</p><small>${esc(m.provenance?.[0]?.reference || "source")}</small></article>`).join("") : '<p class="muted">No research records yet.</p>'; }
+  function renderGenome() { const nodes = state.project?.bookGenome?.nodes || []; $("#genome-list").innerHTML = nodes.length ? nodes.map((n)=>`<div class="node"><strong>${esc(n.label)}</strong><small>${esc(n.component)}</small></div>`).join("") : '<p class="muted">Build the Book Genome to map downstream dependencies.</p>'; $("#impact-node").innerHTML = nodes.length ? '<option value="">Select component</option>' + nodes.map((n)=>`<option value="${esc(n.id)}">${esc(n.label)}</option>`).join("") : '<option value="">Build the genome first</option>'; }
 
-  function renderPipeline(project) {
-    const stages = ["Concept", "Architecture", "Canon", "Characters", "Manuscript", "Editing", "Research", "Illustrations", "Cover", "Production", "Positioning", "Marketing", "Publishing"];
-    const routes = ["writing", "manuscript", "world", "characters", "manuscript", "publishing", "research", "art", "art", "publishing", "marketing", "marketing", "publishing"];
-    $("#pipeline").innerHTML = stages.map((name, index) => `<button type="button" class="pipeline-step" data-pipeline="${index}" data-route="${routes[index]}"><span>${String(index + 1).padStart(2, "0")}</span><strong>${name}</strong><small>${pipelineStatus(index, project)}</small></button>`).join("");
-  }
+  async function refresh() { clearMessage(); try { const [project, workspace, governance] = await Promise.all([api(`/api/projects/${projectId}`), api(`/api/projects/${projectId}/workspace`), api("/api/governance")]); state.project = project; state.workspace = workspace; $("#ownership").innerHTML = Object.entries(governance.ownership).map(([k,v])=>`<div class="policy"><span>${esc(k)}</span><strong>${esc(v)}</strong></div>`).join(""); $("#accessibility").innerHTML = Object.entries(governance.accessibility).map(([k,v])=>`<div class="policy"><span>${esc(k)}</span><strong>${v ? "Enabled" : "Disabled"}</strong></div>`).join(""); renderProject(); } catch (e) { showError(e.message); } }
 
-  function pipelineStatus(index, project) {
-    if (index === 2) return project.memories.some((m) => m.class === "story-canon") ? "Canon present" : "Author-controlled";
-    if (index === 7) return project.illustrationAssetLibrary ? "Library connected" : "Ready to connect";
-    if (index === 8) return project.bookCoverPlans?.length ? "Plan present" : "Ready to configure";
-    if (index === 12) return project.deliveryAudits?.length ? "Audited" : "Awaiting audit";
-    return "Workspace ready";
-  }
+  async function createProject(event) { event.preventDefault(); try { const data=formObject(event.currentTarget); await api("/api/projects", {method:"POST",body:JSON.stringify(data)}); showSuccess("Project created. Restart with its id when multi-project selection is enabled."); event.currentTarget.reset(); } catch(e){showError(e.message);} }
+  async function createBook(event) { event.preventDefault(); try { const data=formObject(event.currentTarget); await api(`/api/projects/${projectId}/workspace/books`,{method:"POST",body:JSON.stringify(data)}); event.currentTarget.reset(); await refresh(); showSuccess("Book created."); } catch(e){showError(e.message);} }
+  async function createChapter(event) { event.preventDefault(); try { const data=formObject(event.currentTarget); await api(`/api/projects/${projectId}/workspace/books/${encodeURIComponent(data.bookId)}/chapters`,{method:"POST",body:JSON.stringify(data)}); event.currentTarget.reset(); await refresh(); showSuccess("Chapter created."); } catch(e){showError(e.message);} }
+  async function createScene(event) { event.preventDefault(); try { const data=formObject(event.currentTarget); await api(`/api/projects/${projectId}/workspace/books/${encodeURIComponent(data.bookId)}/chapters/${encodeURIComponent(data.chapterId)}/scenes`,{method:"POST",body:JSON.stringify(data)}); event.currentTarget.reset(); await refresh(); showSuccess("Scene created."); } catch(e){showError(e.message);} }
+  async function saveScene() { const scene=activeScene(); const book=activeBook(); const chapter=activeChapter(); if(!scene||!book||!chapter){showError("Create a book, chapter, and scene first.");return;} try { const content=$("#editor-content").value; await api(`/api/projects/${projectId}/workspace/books/${encodeURIComponent(book.id)}/chapters/${encodeURIComponent(chapter.id)}/scenes/${encodeURIComponent(scene.id)}/content`,{method:"PUT",body:JSON.stringify({content})}); await refresh(); showSuccess("Scene saved to the project."); } catch(e){showError(e.message);} }
+  async function draftWithAi() { const book=activeBook(), chapter=activeChapter(); if(!book||!chapter){showError("Select a chapter first.");return;} try { $("#ai-draft").disabled=true; const result=await api(`/api/projects/${projectId}/ai/draft`,{method:"POST",body:JSON.stringify({bookId:book.id,chapterId:chapter.id,instruction:$("#ai-instruction").value,focus:chapter.synopsis||$("#context-query").value})}); $("#ai-result").value=result.text; $("#ai-meta").textContent=`${result.provider} • ${result.model} • candidate only • approval required`; showSuccess("Real provider response received. Nothing was saved automatically."); } catch(e){showError(e.message);} finally{$("#ai-draft").disabled=false;} }
+  function acceptAi(){ const text=$("#ai-result").value.trim(); if(!text){showError("There is no AI candidate to insert.");return;} $("#editor-content").value=text; $("#word-count").textContent=`${text.trim().split(/\s+/).length} words`; showSuccess("Candidate copied into the editor. Save it when you approve it."); }
+  async function assembleContext(event){event.preventDefault();try{const result=await api(`/api/projects/${projectId}/context`,{method:"POST",body:JSON.stringify({query:$("#context-query").value,policies:[{key:"canon",mode:"full"},{key:"characters",mode:"extended"},{key:"relationships",mode:"extended"},{key:"timeline",mode:"brief"},{key:"research",mode:"brief"},{key:"voice",mode:"full"},{key:"unresolved-threads",mode:"full"}]})});$("#context-results").innerHTML=result.sections.map((s)=>`<article class="memory"><strong>${esc(s.title)}</strong><p>${esc(s.text)}</p><small>${s.wordCount} words</small></article>`).join("")||'<p class="muted">No matching context.</p>';}catch(e){showError(e.message);}}
 
-  function renderContextPolicies() {
-    const defaults = [["canon", "Full"], ["characters", "Extended"], ["relationships", "Extended"], ["timeline", "Brief"], ["research", "Brief"], ["voice", "Full"], ["unresolved-threads", "Full"]];
-    $("#context-policies").innerHTML = defaults.map(([key, mode]) => `<label class="policy"><span>${esc(key)}</span><select data-context-key="${esc(key)}"><option ${mode === "Full" ? "selected" : ""}>Full</option><option ${mode === "Brief" ? "selected" : ""}>Brief</option><option ${mode === "Extended" ? "selected" : ""}>Extended</option><option>Custom</option><option>Off</option></select></label>`).join("");
-  }
-
-  async function assembleContext(event) {
-    event.preventDefault(); clearError();
-    try {
-      const policies = $$('[data-context-key]').map((select) => ({ key: select.dataset.contextKey, mode: select.value.toLowerCase() }));
-      const result = await api(`/api/projects/${projectId}/context`, { method: "POST", body: JSON.stringify({ query: $("#context-query").value, policies }) });
-      $("#context-summary").textContent = `${result.sections.length} sections • ${result.totalWords} words • ${result.sourceIds.length} source records`;
-      $("#context-results").innerHTML = result.sections.length ? result.sections.map((section) => `<article class="memory"><strong>${esc(section.title)} · ${esc(section.mode)}</strong><p>${esc(section.text)}</p><small>${esc(section.wordCount)} words • ${esc(section.sourceIds.length)} source records</small></article>`).join("") : "<p class='muted'>No matching context. Add canon, character, timeline, research, voice, or open-thread records first.</p>";
-    } catch (error) { showError(error.message); }
-  }
-
-  async function refresh() {
-    clearError();
-    try {
-      const [project, governance] = await Promise.all([api(`/api/projects/${projectId}`), api("/api/governance")]);
-      renderProject(project);
-      $("#ownership").innerHTML = Object.entries(governance.ownership).map(([k, v]) => `<div class="policy"><span>${esc(k)}</span><strong>${esc(v)}</strong></div>`).join("");
-      $("#accessibility").innerHTML = Object.entries(governance.accessibility).map(([k, v]) => `<div class="policy"><span>${esc(k)}</span><strong>${v ? "Enabled" : "Disabled"}</strong></div>`).join("");
-    } catch (error) { showError(error.message); }
-  }
-
-  async function saveMemory(event) {
-    event.preventDefault(); clearError(); const form = new FormData(event.currentTarget);
-    try { await api(`/api/projects/${projectId}/memory`, { method: "POST", body: JSON.stringify({ summary: form.get("summary"), content: form.get("content"), reference: form.get("reference"), authority: form.get("authority") }) }); event.currentTarget.reset(); await refresh(); }
-    catch (error) { showError(error.message); }
-  }
-
-  async function buildGenome() {
-    clearError();
-    const nodes = ["premise", "theme", "genre", "voice", "canon", "characters", "relationships", "locations", "timeline", "events", "scenes", "objects", "clues", "reveals", "conflicts", "motivations", "research", "visual-identities", "art", "cover", "metadata", "publishing-state"].map((component) => ({ id: `${component}-root`, component, label: component.replaceAll("-", " "), references: component === "characters" ? ["canon-root"] : component === "relationships" ? ["characters-root"] : component === "scenes" ? ["characters-root", "locations-root", "timeline-root"] : component === "art" ? ["visual-identities-root", "scenes-root"] : component === "cover" ? ["art-root", "metadata-root"] : component === "publishing-state" ? ["metadata-root", "cover-root"] : [], metadata: {} }));
-    try { renderGenome(await api(`/api/projects/${projectId}/genome`, { method: "POST", body: JSON.stringify({ nodes }) })); await refresh(); navigate("genome"); }
-    catch (error) { showError(error.message); }
-  }
-
-  async function analyzeImpact() {
-    clearError(); const changedNodeId = $("#impact-node").value;
-    if (!changedNodeId) { showError("Select a Book Genome node first."); return; }
-    try { const result = await api(`/api/projects/${projectId}/genome/impact`, { method: "POST", body: JSON.stringify({ nodes: state.genome.nodes, changedNodeId })); $("#impact-result").textContent = JSON.stringify(result, null, 2); }
-    catch (error) { showError(error.message); }
-  }
-
-  async function runAudit() {
-    clearError(); const checks = ["canon", "continuity", "timeline", "characters", "pov", "style", "grammar", "formatting", "research", "artwork", "cover", "metadata", "publishing"].map((category) => ({ category, passed: category !== "publishing" || Boolean(state.project?.publishingReadinessReports?.length), message: category !== "publishing" ? "Category is represented in the project audit boundary." : "Publishing readiness evidence is required before delivery.", blocking: category === "publishing" && !Boolean(state.project?.publishingReadinessReports?.length) }));
-    try { const result = await api(`/api/projects/${projectId}/delivery-audit`, { method: "POST", body: JSON.stringify({ checks }) }); $("#audit-status").textContent = `${result.passed} checks passed. ${result.attention} require attention. ${result.blocking} blocking.`; $("#audit-results").innerHTML = result.checks.map((c) => `<div class="audit-row ${c.passed ? "pass" : "fail"}"><span>${c.passed ? "✓" : "!"}</span><strong>${esc(c.category)}</strong><p>${esc(c.message)}</p></div>`).join(""); await refresh(); }
-    catch (error) { showError(error.message); }
-  }
-
-  function initialize() {
-    bindNavigation();
-    renderContextPolicies();
-    $("#refresh").addEventListener("click", refresh);
-    $("#memory-form").addEventListener("submit", saveMemory);
-    $("#context-form").addEventListener("submit", assembleContext);
-    $("#build-genome").addEventListener("click", buildGenome);
-    $("#analyze-impact").addEventListener("click", analyzeImpact);
-    $("#run-audit").addEventListener("click", runAudit);
-    navigate(location.hash.slice(1) || "dashboard");
-    refresh();
-  }
-
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initialize, { once: true });
-  else initialize();
+  function profileFromForm(data){ const list=(key)=>lines(data[key]); let relationships=[]; if(String(data.relationships||"").trim()){try{relationships=JSON.parse(data.relationships);if(!Array.isArray(relationships))throw new Error();}catch{throw new Error("Relationships must be a valid JSON array.");}} return {name:String(data.name),age:Number(data.age),birthDate:String(data.birthDate),physicalAppearance:String(data.physicalAppearance),height:String(data.height),build:String(data.build),hair:String(data.hair),eyes:String(data.eyes),skin:String(data.skin),clothing:String(data.clothing),voice:String(data.voice),speechPatterns:list("speechPatterns"),personality:String(data.personality),values:list("values"),fears:list("fears"),secrets:list("secrets"),goals:list("goals"),motivations:list("motivations"),relationships,history:String(data.history),knowledge:list("knowledge"),skills:list("skills"),weaknesses:list("weaknesses"),characterArc:String(data.characterArc),importantObjects:list("importantObjects"),currentEmotionalState:String(data.currentEmotionalState),currentLocation:String(data.currentLocation),currentInjuries:list("currentInjuries")}; }
+  async function createCharacter(event){event.preventDefault();try{const data=formObject(event.currentTarget);await api(`/api/projects/${projectId}/characters`,{method:"POST",body:JSON.stringify({profile:profileFromForm(data)})});event.currentTarget.reset();await refresh();showSuccess("Character Bible entry created with full history.");}catch(e){showError(e.message);}}
+  async function saveMemory(event){event.preventDefault();try{const data=formObject(event.currentTarget);await api(`/api/projects/${projectId}/memory`,{method:"POST",body:JSON.stringify({...data,class:data.class,authority:data.authority})});event.currentTarget.reset();await refresh();showSuccess("Durable project record saved.");}catch(e){showError(e.message);}}
+  async function saveResearch(event){event.preventDefault();try{const data=formObject(event.currentTarget);const content=`Source: ${data.source}\nURL: ${data.url||"not supplied"}\nDate: ${data.date||"not supplied"}\nConfidence: ${data.confidence}\nClaim: ${data.claim}\nNotes: ${data.notes||""}`;await api(`/api/projects/${projectId}/memory`,{method:"POST",body:JSON.stringify({class:"research-memory",authority:"working",summary:data.claim,content,reference:data.url||data.source})});event.currentTarget.reset();await refresh();showSuccess("Research stored with provenance.");}catch(e){showError(e.message);}}
+  async function saveMarketing(event){event.preventDefault();try{const data=formObject(event.currentTarget);await api(`/api/projects/${projectId}/memory`,{method:"POST",body:JSON.stringify({class:data.class,authority:"working",summary:data.summary,content:data.content,reference:"marketing-studio"})});event.currentTarget.reset();await refresh();showSuccess("Marketing record saved.");}catch(e){showError(e.message);}}
+  async function generateImage(event){event.preventDefault();try{const data=formObject(event.currentTarget);const result=await api(`/api/projects/${projectId}/ai/image`,{method:"POST",body:JSON.stringify(data)});$("#image-result").innerHTML=`<img src="${esc(result.url)}" alt="Generated illustration"><p><strong>${esc(result.model)}</strong></p><a href="${esc(result.url)}" target="_blank" rel="noopener">Open generated PNG</a>`;showSuccess("Real image provider response saved as a project asset.");}catch(e){showError(e.message);}}
+  async function exportBook(event){event.preventDefault();try{const data=formObject(event.currentTarget);const result=await api(`/api/projects/${projectId}/export`,{method:"POST",body:JSON.stringify(data)});const bytes=Uint8Array.from(atob(result.contentBase64),(c)=>c.charCodeAt(0));const blob=new Blob([bytes],{type:result.mimeType});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=result.fileName;a.click();URL.revokeObjectURL(url);$("#export-status").textContent=`Built ${result.fileName} • ${result.byteLength.toLocaleString()} bytes • SHA-256 ${result.sha256}`;showSuccess("Production artifact built and downloaded from the local Studio.");}catch(e){showError(e.message);}}
+  async function runAudit(){try{const checks=["canon","continuity","timeline","characters","pov","style","grammar","formatting","research","artwork","cover","metadata","publishing"].map((category)=>({category,passed:category!=="publishing"||Boolean(state.project?.publishingReadinessReports?.length),message:category!=="publishing"?"Project boundary is present; inspect evidence before release.":"Publishing readiness evidence is required.",blocking:category==="publishing"&&!Boolean(state.project?.publishingReadinessReports?.length)}));const result=await api(`/api/projects/${projectId}/delivery-audit`,{method:"POST",body:JSON.stringify({checks})});$("#audit-results").innerHTML=result.checks.map((c)=>`<article class="memory"><strong>${c.passed?"PASS":"ATTENTION"} • ${esc(c.category)}</strong><p>${esc(c.message)}</p></article>`).join("");showSuccess("Delivery audit completed.");}catch(e){showError(e.message);}}
+  async function buildGenome(){try{const components=["premise","theme","genre","voice","canon","characters","relationships","locations","timeline","events","scenes","objects","clues","reveals","conflicts","motivations","research","visual-identities","art","cover","metadata","publishing-state"];const nodes=components.map((component)=>({id:`${component}-root`,component,label:component.replaceAll("-"," "),references:component==="characters"?["canon-root"]:component==="relationships"?["characters-root"]:component==="scenes"?["characters-root","locations-root","timeline-root"]:component==="art"?["visual-identities-root","scenes-root"]:component==="cover"?["art-root","metadata-root"]:component==="publishing-state"?["metadata-root","cover-root"]:[],metadata:{}}));await api(`/api/projects/${projectId}/genome`,{method:"POST",body:JSON.stringify({nodes})});await refresh();showSuccess("Book Genome rebuilt from the current project boundary.");}catch(e){showError(e.message);}}
+  async function analyzeImpact(){const changed=$("#impact-node").value;if(!changed){showError("Select a genome component.");return;}try{const result=await api(`/api/projects/${projectId}/genome/impact`,{method:"POST",body:JSON.stringify({nodes:state.project.bookGenome.nodes,changedNodeId:changed})});$("#impact-result").textContent=JSON.stringify(result,null,2);}catch(e){showError(e.message);}}
+  async function setCollaboration(){try{await api(`/api/projects/${projectId}/collaboration`,{method:"POST",body:JSON.stringify({mode:$("#collaboration-mode").value})});showSuccess("Collaboration authority updated.");}catch(e){showError(e.message);}}
+  function bindForms(){[ ["project-form",createProject],["book-form",createBook],["chapter-form",createChapter],["scene-form",createScene],["character-form",createCharacter],["memory-form",saveMemory],["research-form",saveResearch],["marketing-form",saveMarketing],["image-form",generateImage],["export-form",exportBook],["context-form",assembleContext] ].forEach(([id,fn])=>{const e=$("#"+id);if(e)e.addEventListener("submit",fn);});$("#save-scene").addEventListener("click",saveScene);$("#ai-draft").addEventListener("click",draftWithAi);$("#accept-ai").addEventListener("click",acceptAi);$("#run-audit").addEventListener("click",runAudit);$("#build-genome").addEventListener("click",buildGenome);$("#analyze-impact").addEventListener("click",analyzeImpact);$("#refresh").addEventListener("click",refresh);$("#collaboration-mode").addEventListener("change",setCollaboration);$("#editor-book").addEventListener("change",()=>{state.selected={bookId:$("#editor-book").value,chapterId:null,sceneId:null};renderWorkspaceControls();});$("#editor-chapter").addEventListener("change",()=>{state.selected.chapterId=$("#editor-chapter").value;state.selected.sceneId=null;renderWorkspaceControls();});$("#editor-scene").addEventListener("change",()=>{state.selected.sceneId=$("#editor-scene").value;renderWorkspaceControls();});$("#scene-book").addEventListener("change",()=>{const b=$("#scene-book").value;$("#chapter-form");const book=state.workspace.books.find(x=>x.id===b);$("#scene-chapter").innerHTML=(book?.chapters||[]).map(c=>`<option value="${esc(c.id)}">${c.number}. ${esc(c.title)}</option>`).join("");});$("#book-tree").addEventListener("click",(event)=>{const b=event.target.closest("[data-open-scene]");if(!b)return;const [bookId,chapterId,sceneId]=b.dataset.openScene.split("|");state.selected={bookId,chapterId,sceneId};navigate("writing");renderWorkspaceControls();});$("#editor-content").addEventListener("input",()=>{const text=$("#editor-content").value;$("#word-count").textContent=`${text.trim()?text.trim().split(/\s+/).length:0} words`;});}
+  bindNavigation(); bindForms(); navigate(location.hash.slice(1)||"dashboard"); refresh();
 })();
