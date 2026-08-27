@@ -1,0 +1,50 @@
+export interface AiGenerationRequest { readonly system: string; readonly user: string; readonly temperature?: number; readonly maxOutputTokens?: number; }
+export interface AiGenerationResult { readonly provider: "openai" | "ollama"; readonly model: string; readonly text: string; readonly requestId?: string; }
+
+export async function generateText(request: AiGenerationRequest): Promise<AiGenerationResult> {
+  const openAiKey = process.env.OPENAI_API_KEY?.trim();
+  if (openAiKey) return generateOpenAi(openAiKey, request);
+  const ollama = process.env.OLLAMA_BASE_URL?.trim();
+  if (ollama) return generateOllama(ollama.replace(/\/$/, ""), request);
+  throw new Error("No AI provider is configured. Set OPENAI_API_KEY for OpenAI or OLLAMA_BASE_URL for a local Ollama server.");
+}
+
+async function generateOpenAi(apiKey: string, request: AiGenerationRequest): Promise<AiGenerationResult> {
+  const model = process.env.OPENAI_MODEL?.trim() || "gpt-5.6";
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+    body: JSON.stringify({ model, input: [{ role: "system", content: request.system }, { role: "user", content: request.user }], temperature: request.temperature ?? 0.7, max_output_tokens: request.maxOutputTokens ?? 4000 })
+  });
+  const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
+  if (!response.ok) throw new Error(typeof payload.error === "object" && payload.error ? String((payload.error as Record<string, unknown>).message ?? `OpenAI request failed (${response.status}).`) : `OpenAI request failed (${response.status}).`);
+  const text = extractOpenAiText(payload);
+  if (!text) throw new Error("OpenAI returned no generated text.");
+  return { provider: "openai", model, text, requestId: typeof payload.id === "string" ? payload.id : undefined };
+}
+
+async function generateOllama(baseUrl: string, request: AiGenerationRequest): Promise<AiGenerationResult> {
+  const model = process.env.OLLAMA_MODEL?.trim() || "llama3.2";
+  const response = await fetch(`${baseUrl}/api/chat`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ model, stream: false, messages: [{ role: "system", content: request.system }, { role: "user", content: request.user }], options: { temperature: request.temperature ?? 0.7 } }) });
+  const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
+  if (!response.ok) throw new Error(`Ollama request failed (${response.status}).`);
+  const message = payload.message as Record<string, unknown> | undefined;
+  const text = typeof message?.content === "string" ? message.content.trim() : "";
+  if (!text) throw new Error("Ollama returned no generated text.");
+  return { provider: "ollama", model, text };
+}
+
+function extractOpenAiText(payload: Record<string, unknown>): string {
+  if (typeof payload.output_text === "string") return payload.output_text.trim();
+  const output = Array.isArray(payload.output) ? payload.output : [];
+  const parts: string[] = [];
+  for (const item of output) {
+    if (!item || typeof item !== "object") continue;
+    const content = (item as Record<string, unknown>).content;
+    if (!Array.isArray(content)) continue;
+    for (const part of content) {
+      if (part && typeof part === "object" && typeof (part as Record<string, unknown>).text === "string") parts.push(String((part as Record<string, unknown>).text));
+    }
+  }
+  return parts.join("\n").trim();
+}
