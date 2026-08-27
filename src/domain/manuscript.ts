@@ -30,6 +30,15 @@ export function validateManuscriptState(state: ManuscriptState): void {
   for (const chapter of state.chapters) { validateChapter(chapter); unique(ids, chapter.id); }
   for (const scene of state.scenes) { validateScene(scene); unique(ids, scene.id); }
 
+  // Validate parent existence before reverse relationship checks so an orphaned
+  // child is reported as an unknown parent rather than a generic relationship error.
+  for (const chapter of state.chapters) {
+    if (!state.books.some((book) => book.id === chapter.bookId)) throw new Error(`Chapter "${chapter.id}" references unknown book "${chapter.bookId}".`);
+  }
+  for (const scene of state.scenes) {
+    if (!state.chapters.some((chapter) => chapter.id === scene.chapterId)) throw new Error(`Scene "${scene.id}" references unknown chapter "${scene.chapterId}".`);
+  }
+
   for (const book of state.books) {
     const children = state.chapters.filter((chapter) => chapter.bookId === book.id);
     const childIds = new Set(book.chapterIds);
@@ -44,7 +53,6 @@ export function validateManuscriptState(state: ManuscriptState): void {
   }
 
   for (const chapter of state.chapters) {
-    if (!state.books.some((book) => book.id === chapter.bookId)) throw new Error(`Chapter "${chapter.id}" references unknown book "${chapter.bookId}".`);
     const parent = state.books.find((book) => book.id === chapter.bookId)!;
     if (!parent.chapterIds.includes(chapter.id)) throw new Error(`Book "${chapter.bookId}" is missing chapter "${chapter.id}".`);
     const children = state.scenes.filter((scene) => scene.chapterId === chapter.id);
@@ -60,7 +68,6 @@ export function validateManuscriptState(state: ManuscriptState): void {
   }
 
   for (const scene of state.scenes) {
-    if (!state.chapters.some((chapter) => chapter.id === scene.chapterId)) throw new Error(`Scene "${scene.id}" references unknown chapter "${scene.chapterId}".`);
     const parent = state.chapters.find((chapter) => chapter.id === scene.chapterId)!;
     if (!parent.sceneIds.includes(scene.id)) throw new Error(`Chapter "${scene.chapterId}" is missing scene "${scene.id}".`);
   }
