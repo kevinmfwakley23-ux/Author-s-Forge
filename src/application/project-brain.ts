@@ -18,34 +18,19 @@ export interface ProjectBrainContext {
 }
 
 export function assembleProjectBrainContext(store: ProjectMemoryStore, query: ProjectBrainQuery): ProjectBrainContext {
-  const base = {
-    projectId: query.projectId,
-    relevanceTags: query.relevanceTags,
-    changedSince: query.changedSince
-  };
+  if (!query.projectId.trim()) throw new Error("Project Brain project id is required.");
+  if (query.limit !== undefined && (!Number.isInteger(query.limit) || query.limit < 0)) throw new Error("Project Brain limit must be a non-negative integer.");
 
   const classFilter = query.taskMemoryClasses;
   const filterClasses = (memory: MemoryRecord): boolean => classFilter === undefined || classFilter.includes(memory.class);
+  const take = <T>(items: T[]): T[] => items.slice(0, query.limit ?? Number.MAX_SAFE_INTEGER);
+  const base = { projectId: query.projectId, relevanceTags: query.relevanceTags, changedSince: query.changedSince };
 
-  const authoritative = store.query({
-    ...base,
-    authoritativeOnly: true,
-    limit: query.limit
-  }).filter(filterClasses);
-
+  const authoritative = take(store.query({ ...base, authoritativeOnly: true }).filter(filterClasses));
   const working = query.includeWorkingState
-    ? store.query({ ...base, limit: query.limit }).filter((memory) => {
-        if (!filterClasses(memory)) return false;
-        return memory.authority === "proposed" || memory.authority === "working" || memory.authority === "verified";
-      })
+    ? take(store.query(base).filter((memory) => filterClasses(memory) && (memory.authority === "proposed" || memory.authority === "working" || memory.authority === "verified")))
     : [];
-
-  const changed = store.query({
-    projectId: query.projectId,
-    relevanceTags: query.relevanceTags,
-    changedSince: query.changedSince,
-    limit: query.limit
-  }).filter(filterClasses);
+  const changed = take(store.query(base).filter(filterClasses));
 
   return { projectId: query.projectId, authoritative, working, changed };
 }
