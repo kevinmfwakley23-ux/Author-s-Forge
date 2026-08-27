@@ -50,6 +50,12 @@ The Character Visual Continuity system provides reusable visual identity with ca
 
 The Illustration Studio is a provider-neutral creative workspace supporting AI-only, assisted, collaborative, reference-driven, character-consistent, historical/era-aware, and environment-consistent illustration workflows. It supports scene illustrations, character portraits, maps, objects, and environments. Requests retain references, continuity scope, era, location, story position, and revision history. The studio produces validated deterministic illustration briefs for real image-generation providers; it does not fabricate image-generation behavior.
 
+## Image Editing Boundary
+
+Mission 013 adds a provider-neutral Image Editing system. An uploaded image is represented as an immutable `SourceImage`. Editing is append-only: each requested transformation becomes an auditable `ImageEditRevision` and produces a distinct `EditedImage` derived from the original source. Supported operations include face preservation, clothing, background, age, medium, lighting, object removal/addition, pose alteration, crop, restoration, upscaling, and stylization.
+
+The editing system supports project-scoped sessions, portable state, atomic file persistence, explicit output formats, output references, and deterministic edit briefs for a real downstream image-editing provider. It never represents a fake provider as a completed integration and never overwrites or destroys the source image. Multiple edits can therefore branch from the same canonical original while retaining complete provenance.
+
 ## Code Languages and Tooling
 
 The primary application language is TypeScript, compiled with the TypeScript compiler and checked in strict mode. The project uses Node.js for the runtime and JavaScript with Node's built-in test runner for acceptance tests.
@@ -65,7 +71,8 @@ The primary application language is TypeScript, compiled with the TypeScript com
 - Mission 009 — Research Honesty
 - Mission 010 — Character Bible + temporal character state (verified)
 - Mission 011 — Character Visual Continuity (verified)
-- Mission 012 — Illustration Studio (implementation branch; awaiting Linux verification)
+- Mission 012 — Illustration Studio (verified)
+- Mission 013 — Image Editing (implementation branch; awaiting Linux verification)
 
 ## Verification Standard
 
@@ -73,4 +80,4 @@ A mission is not considered verified because its code compiles or because indivi
 
 ## Status
 
-Author's Forge is under active mission-based development. Mission 012 has been implemented on `mission-012-illustration-studio` and is awaiting complete local verification from the Linux development environment.
+Author's Forge is under active mission-based development. Mission 013 has been implemented on `mission-013-image-editing` and is awaiting complete local verification from the Linux development environment.
