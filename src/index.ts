@@ -8,6 +8,7 @@ export { createProject, touchProject, withProjectMemories, withProjectCharacters
 export type { ProjectMetadata, ProjectState, ProjectStatus } from "./domain/project";
 export { FileProjectStore } from "./infrastructure/file-project-store";
 export { FileVisualIdentityStore } from "./infrastructure/file-visual-identity-store";
+export { LocalFileStorageProvider } from "./infrastructure/local-storage-provider";
 export { MANUSCRIPT_FORMAT_VERSION, createManuscriptState, createBook, createChapter, createScene, addBook, addChapter, addScene, insertChapter, insertScene, validateManuscriptState } from "./domain/manuscript";
 export type { BookLifecycle, ChapterLifecycle, SceneLifecycle, BookRecord, ChapterRecord, SceneRecord, ManuscriptState } from "./domain/manuscript";
 export { MANUSCRIPT_PLAN_FORMAT_VERSION, createManuscriptPlanningState, createManuscriptPlan, addManuscriptPlan, replaceManuscriptPlan, getCurrentManuscriptPlan, validateManuscriptPlanningState } from "./domain/manuscript-planning";
@@ -60,7 +61,7 @@ export { CONTENT_RANDOMIZER_FORMAT_VERSION, randomizeContent, validateRandomizer
 export type { RandomizerItem, RandomizerSet, RandomizerRequest, RandomizerResult } from "./domain/content-randomizer";
 export { ContentRandomizerService } from "./application/content-randomizer";
 export { PROJECT_PACKAGE_FORMAT_VERSION, PROJECT_PACKAGE_NAME, createProjectPackage, validateProjectPackage, serializeProjectPackage, deserializeProjectPackage } from "./domain/project-package";
-export type { ProjectPackageManifest, ForgeProjectPackage, ProjectPackageFile } from "./domain/project-package";
+export type { ProjectPackageEncoding, ProjectPackageManifest, ForgeProjectPackage, ProjectPackageFile } from "./domain/project-package";
 export { ProjectPackageService } from "./application/project-package";
 export { EXTERNAL_STORAGE_FORMAT_VERSION, createProjectStorageBinding, validateProjectStorageBinding, createDownloadableProjectPackageFilename, MemoryStorageProvider } from "./domain/external-storage";
 export type { StorageProviderId, StoredObject, StorageProvider, ProjectStorageBinding } from "./domain/external-storage";
