@@ -33,12 +33,8 @@ export class ProjectMemoryStore {
   }
 
   query(query: MemoryQuery = {}): MemoryRecord[] {
-    if (query.limit !== undefined && (!Number.isInteger(query.limit) || query.limit < 0)) {
-      throw new Error("Memory query limit must be a non-negative integer.");
-    }
-    if (query.changedSince !== undefined && Number.isNaN(Date.parse(query.changedSince))) {
-      throw new Error("Memory changedSince must be a valid timestamp.");
-    }
+    if (query.limit !== undefined && (!Number.isInteger(query.limit) || query.limit < 0)) throw new Error("Memory query limit must be a non-negative integer.");
+    if (query.changedSince !== undefined && Number.isNaN(Date.parse(query.changedSince))) throw new Error("Memory changedSince must be a valid timestamp.");
 
     return this.list().filter((memory) => {
       if (query.projectId && memory.projectId !== query.projectId) return false;
@@ -74,8 +70,10 @@ export class ProjectMemoryStore {
     if (existing.projectId !== replacement.projectId) throw new Error("Superseding memory must belong to the same project.");
     if (memoryId === replacementId) throw new Error("Memory cannot supersede itself.");
 
-    const superseded: MemoryRecord = { ...existing, authority: "superseded", updatedAt: now };
+    const superseded: MemoryRecord = { ...existing, authority: "superseded", supersededBy: replacementId, updatedAt: now };
     this.records.set(memoryId, cloneMemory(superseded));
+    const linkedReplacement: MemoryRecord = { ...replacement, supersedes: replacement.supersedes ?? memoryId, updatedAt: replacement.updatedAt };
+    this.records.set(replacementId, cloneMemory(linkedReplacement));
     return cloneMemory(superseded);
   }
 
