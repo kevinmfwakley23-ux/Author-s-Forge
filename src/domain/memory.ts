@@ -1,24 +1,10 @@
 export const MEMORY_FORMAT_VERSION = 1 as const;
 
 export type MemoryClass =
-  | "author-memory"
-  | "project-memory"
-  | "story-canon"
-  | "character-memory"
-  | "relationship-memory"
-  | "location-memory"
-  | "timeline-memory"
-  | "style-memory"
-  | "research-memory"
-  | "creative-note"
-  | "working-draft"
-  | "hypothesis"
-  | "open-thread"
-  | "visual-identity"
-  | "production-memory"
-  | "publishing-memory"
-  | "marketing-memory"
-  | "generated-alternative";
+  | "author-memory" | "project-memory" | "story-canon" | "character-memory" | "relationship-memory"
+  | "location-memory" | "timeline-memory" | "style-memory" | "research-memory" | "creative-note"
+  | "working-draft" | "hypothesis" | "open-thread" | "visual-identity" | "production-memory"
+  | "publishing-memory" | "marketing-memory" | "generated-alternative";
 
 export type MemoryAuthority = "proposed" | "working" | "verified" | "authoritative" | "superseded" | "archived";
 
@@ -39,6 +25,7 @@ export interface MemoryRecord {
   readonly updatedAt: string;
   readonly provenance: readonly MemoryProvenance[];
   readonly supersedes?: string;
+  readonly supersededBy?: string;
   readonly relatedMemoryIds: readonly string[];
   readonly relevanceTags: readonly string[];
 }
@@ -74,10 +61,7 @@ export function createMemoryRecord(input: {
   if (input.supersedes === input.id) throw new Error("Memory cannot supersede itself.");
 
   const provenance = normalizeProvenance(input.provenance ?? []);
-  if (input.authority === "authoritative" && provenance.length === 0) {
-    throw new Error("Authoritative memory requires provenance.");
-  }
-
+  if (input.authority === "authoritative" && provenance.length === 0) throw new Error("Authoritative memory requires provenance.");
   const now = input.now ?? new Date().toISOString();
   return {
     id: input.id,
