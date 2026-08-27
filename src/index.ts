@@ -4,7 +4,7 @@ export { ProjectMemoryStore } from "./application/project-memory-store";
 export type { MemoryPromotionDecision, ProjectMemorySnapshot } from "./application/project-memory-store";
 export { assembleProjectBrainContext } from "./application/project-brain";
 export type { ProjectBrainQuery, ProjectBrainContext } from "./application/project-brain";
-export { createProject, touchProject, withProjectMemories, withProjectCharacters, withProjectVisualIdentities, withProjectIllustrationAssetLibrary, withProjectBookCoverPlans, PROJECT_FORMAT_VERSION } from "./domain/project";
+export { createProject, touchProject, withProjectMemories, withProjectCharacters, withProjectVisualIdentities, withProjectIllustrationAssetLibrary, withProjectBookCoverPlans, withProjectPublishingReadinessReports, PROJECT_FORMAT_VERSION } from "./domain/project";
 export type { ProjectMetadata, ProjectState, ProjectStatus } from "./domain/project";
 export { FileProjectStore } from "./infrastructure/file-project-store";
 export { FileVisualIdentityStore } from "./infrastructure/file-visual-identity-store";
