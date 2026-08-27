@@ -91,12 +91,66 @@ Forge memory can retain not only a fact but its subject, predicate, object, cont
 
 Forge defines a mandatory delivery audit covering canon, continuity, timeline, character, POV, style, grammar, formatting, research, artwork, cover, metadata, and publishing. A project cannot receive `readyForAuthorApproval` until every required audit category has a result and every result passes without a critical failure. The system therefore cannot truthfully declare a project ready merely because a chat response says it is finished.
 
+## Final Product Directive — Missions 033–042
+
+### Mission 033 — K.I.N.G.S. Relationship
+
+Forge has an explicit capability-gap boundary. When Forge encounters a capability it cannot responsibly provide, it can create an attributable capability gap and escalate it through the K.I.N.G.S. gateway for research, planning, building, testing, and verification. K.I.N.G.S. is the capability escalation authority; Forge remains the customer product and does not become a dependent chat shell.
+
+### Mission 034 — Security and Ownership
+
+Project state is project-scoped and supports explicit permissions, local-first defaults, security audit history, export/delete authorization boundaries, research consent, image-processing consent, provider disclosure, and external-upload denial by default. External storage is a destination rather than the source of truth. Sensitive project actions are attributable to an actor and target.
+
+### Mission 035 — Accessibility and Platforms
+
+The platform-neutral contract covers Android, iPhone/iPad, Windows, macOS, Linux, and Web. Input/accessibility capabilities explicitly include keyboard, mouse, touch, voice, screen readers, large text, and high contrast. Platform-specific UI implementations can sit above the stable project model without changing project portability.
+
+### Mission 036 — Voice as a First-Class Input
+
+Voice input preserves the original transcription and derives structured intent for idea capture, story planning, editing commands, research requests, character creation, scene direction, and revision instructions. Speech-to-text providers remain adapter boundaries; the core never pretends that an unavailable provider processed audio.
+
+### Mission 037 — Creative Safety / IP Boundaries
+
+Project provenance distinguishes author-owned, user-uploaded, generated, public-domain, external-research, third-party-reference, and unknown material. Uploaded/reference material requires explicit consent before processing, while external research must identify its source. Provenance is retained as project state so the author can distinguish what Forge knows, what it generated, and what originated externally.
+
+### Mission 038 — Ultimate User Experience
+
+Forge is architected as a publishing studio rather than a chat-only surface. The durable project boundary encompasses books, series, manuscripts, canon, characters, world information, research, art, covers, marketing, metadata, decisions, publishing state, and archival state. Intelligence operates throughout that environment through explicit service boundaries.
+
+### Mission 039 — Golden Rules
+
+Author creative authority remains primary. Uncertainty is represented rather than silently invented. Autonomous actions are designed to be observable and attributable, and existing version-control mechanisms provide reversibility. Canon changes can be represented in the Book Genome so downstream dependencies can be identified before affected state is changed.
+
+### Mission 040 — Book Genome
+
+The Book Genome is a machine-readable graph spanning premise, theme, genre, voice, characters, relationships, locations, timeline, events, scenes, objects, clues, reveals, conflicts, motivations, research, visual identities, art, cover, metadata, and publishing state. Graph impact analysis identifies connected downstream nodes and components affected by a change, enabling questions such as what else is affected when a Chapter 6 fact changes.
+
+### Mission 041 — Final Product Standard
+
+The complete product lifecycle is represented from concept through architecture, canon, characters, timeline, research, manuscript, editing, illustrations, cover, formatting, metadata, positioning, marketing, publishing, and archive. Final readiness remains false until every required stage is complete.
+
+### Mission 042 — First Private Release Strategy
+
+The first release is private-first. The architecture prioritizes long-memory projects, canon and anti-drift, chapter/scene architecture, writing/editing, research, character and illustration continuity, KDP preparation, manuscript production, portability/recovery, marketing, and publishing preparation. Public-scale distribution, billing, and multi-user infrastructure are not prerequisites for the private product milestone.
+
+## Final Product Standard
+
+Author's Forge is successful when an author can move from story concept through story architecture, canon, character system, timeline, research, manuscript, editing, illustrations, cover, formatting, metadata, market positioning, promotion, publishing preparation, and portable archival without losing continuity, style, canon, visual identity, or author control.
+
+The intended product experience is an **AI publishing company in a box** while preserving the author as the ultimate creative authority.
+
+## One-Sentence Mission
+
+> **Build an autonomous, memory-rich AI publishing studio that can help an author conceive, architect, research, write, edit, illustrate, design, market, format, and prepare an entire book or series for publication without losing continuity, style, canon, visual identity, or author control—and call upon K.I.N.G.S. whenever it encounters a capability gap beyond its current abilities.**
+
 ## Verification Standard
 
 A mission is not considered verified because its code compiles or because individual files exist. The complete acceptance suite must pass, including regression coverage for prior missions. Bugs are fixed in production code; tests are not weakened merely to obtain a green result.
 
 ## Current Status
 
-Missions 025–028 have been verified by the Linux development environment.
+Missions **025–032 have been verified by the Linux development environment**.
 
-Missions 029–032 have been implemented on `mission-029-032-collaboration-health-memory-delivery` and are **awaiting complete Linux verification**.
+Missions **033–042 have been implemented and are awaiting complete Linux verification**.
+
+Final-stretch implementation record: `docs/MISSIONS_033_042_FINAL_STRETCH.md`.
