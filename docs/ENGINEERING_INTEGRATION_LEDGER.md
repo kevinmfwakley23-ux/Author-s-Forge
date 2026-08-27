@@ -18,18 +18,33 @@ This document is part of the product engineering contract. Forge is not a collec
 Use the repository as a reference source for kernel/lifecycle ideas, boot boundaries, event history, retry/recovery, diagnostics, and durable execution patterns. Do not import its artifact wholesale.
 
 ### K.I.N.G.S.-AI
-Use real workforce/build patterns where Forge needs execution planning, artifact lifecycle, verification, capability gaps, bounded execution, and recoverable handoffs. Forge remains the author product; K.I.N.G.S. remains the general AI workforce/orchestration system.
+Use the repository as a reference source for workforce planning, artifact lifecycle, artifact promotion, build/test execution, capability acquisition, bounded autonomous execution, and recoverable handoffs. Forge remains the author product; K.I.N.G.S. remains the general AI workforce/orchestration system.
 
 ## External open-source patterns studied
 
+### Long-form authoring
 - `YfengJ/novel-studio-ai`: local-first SQLite project memory, story bible, character state, relation graph, retrieval, continuity checks, and the Plan → Context Pack → Draft → Check → Accept → Extract Memory loop.
 - `dreamtelligence/EMBER`: scene-card pipeline, canon ledger, character/object/knowledge/promise ledgers, typed StateDiff, continuity guard, quality evaluation, human approval, and project-scoped assistant.
-- `abligail/narralume`: manual-first writing studio, project overview, story bible, versioning, review findings, AI candidate workflow, run center, and impact previews.
+- `abligail/narralume`: manual-first writing studio, story bible, versioning, review findings, AI candidate workflow, run center, and impact previews.
 - `john-paul-ruf/novel-engine`: explicit pitch-to-publish phases, editorial workforce, prioritized revision plans, local model support, command palette, series support, and publication audit.
 - `Dirgha-AI/writer-studio`: binder-style nested chapter/scene structure, saved drafts, evaluations, versions, semantic project search, and pluggable AI providers.
 - `giapnguyen74/xnovelist`: AI-optional local-first writing, device-owned manuscript state, snapshots, find/replace, Story Bible, and DOCX export.
 - `jmorenobl/bookwright`: canonical author documents as source material, provenance-aware research, deterministic continuity validation, and a derived knowledge graph.
 - `mushroomfk/long-novel-agent-kit`: local durable continuity infrastructure and safety gates for long-running agent workflows.
+
+### Children's books and illustration
+- `The-Reading-Club/reading-club-ai`: rich editor + text/image AI integration for collaborative children's stories.
+- `MultiTales/childbook-adk`: bounded writer/editor/reviewer/reader/illustrator roles and a closed-loop children's-book production path.
+- `buildfastwithai/storybook`: page-based story generation, consistent character illustration, and interactive storybook organization.
+- `abidlabs/drawbook`: programmatic illustrated children's-book generation patterns.
+- `ayushnagvanshi101098-ship-it/book-illustration-engine`: style locking, recurring-character consistency, quality judging, retries, and resumable illustration production.
+- `zilogo/ai-storybook-studio`: local-first storybook production with explicit plans, reviews, approval boundaries, manifests, fixed image workflows, and local media artifacts.
+
+### Comics
+- `AskAillex/comic-maker`: structured script → character looks → pages/panels → image generation → deterministic composition → CBZ output.
+- `GA10d/AI-Manga-AI-Comics`: multi-provider text/image workflow, persistent references, style switching, page manifests, continuity memory, and local artifacts.
+- `wenn-id/comicsol`: planning, character consistency, visual QA, selective repair, deterministic lettering/composition, and PDF export.
+- `jbilcke-hf/ai-comic-factory`: explicit LLM/rendering provider boundaries and multi-stage comic generation.
 
 These projects are engineering references, not dependencies. Forge must only copy/adapt mechanisms that fit its directive, license, architecture, and author-control requirements.
 
