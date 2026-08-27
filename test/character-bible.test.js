@@ -1,14 +1,51 @@
-import assert from "node:assert/strict";
-import test from "node:test";
-import { mkdtemp } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { CHARACTER_FIELDS, CharacterBibleService, FileProjectStore, createCharacter, createProject, getCharacterAt, getCharacterChanges, getCharacterFieldHistory, updateCharacter } from "../.forge-build/index.js";
+const assert = require("node:assert/strict");
+const { mkdtemp, rm } = require("node:fs/promises");
+const { tmpdir } = require("node:os");
+const { join } = require("node:path");
+const test = require("node:test");
+const {
+  CHARACTER_FIELDS,
+  CharacterBibleService,
+  createCharacter,
+  getCharacterAt,
+  getCharacterChanges,
+  getCharacterFieldHistory,
+  createProject,
+  FileProjectStore,
+  withProjectCharacters
+} = require("../.forge-build/index.js");
 
 function profile(overrides = {}) {
   return {
-    name: "Mara Voss", age: 34, birthDate: "1991-05-14", physicalAppearance: "Weathered face", height: "5'8\"", build: "Lean", hair: "Dark brown", eyes: "Gray", skin: "Olive", clothing: "Wool coat", voice: "Low", speechPatterns: ["Short sentences"], personality: "Watchful", values: ["Truth"], fears: ["Isolation"], secrets: ["She lied about the fire"], goals: ["Find the missing journal"], motivations: ["Protect Eli"], relationships: [{ characterId: "eli-1", relationship: "Friend", status: "Strained", notes: "Old trust" }], history: "Former investigator", knowledge: ["Reservoir history"], skills: ["Investigation"], weaknesses: ["Distrust"], characterArc: "From isolation to trust", importantObjects: ["Brass key"], currentEmotionalState: "Watchful and exhausted", currentLocation: "North shoreline", currentInjuries: [], ...overrides
-  };
+    name: "Mara Voss",
+    age: 31,
+    birthDate: "1995-04-12",
+    physicalAppearance: "Lean, weathered features, and a small scar beneath the left eye.",
+    height: "5 ft 7 in",
+    build: "Lean and athletic",
+    hair: "Dark brown, shoulder length",
+    eyes: "Gray-green",
+    skin: "Olive",
+    clothing: "Dark field jacket, worn boots, and black jeans",
+    voice: "Low and controlled",
+    speechPatterns: ["Short declarative sentences", "Uses silence before difficult answers"],
+    personality: "Observant, guarded, and fiercely loyal",
+    values: ["Loyalty", "Truth"],
+    fears: ["Abandonment", "Losing control"],
+    secrets: ["She withheld evidence from the first investigation"],
+    goals: ["Find the missing witness"],
+    motivations: ["Protect the people she failed before"],
+    relationships: [{ characterId: "samuel-1", relationship: "ally", status: "strained", notes: "Trust exists but is conditional." }],
+    history: "Raised in a small mountain town and trained as an investigator.",
+    knowledge: ["Knows the old reservoir access roads"],
+    skills: ["Investigation", "Lock bypass"],
+    weaknesses: ["Distrusts authority"],
+    characterArc: "Moves from controlled isolation toward honest collaboration.",
+    importantObjects: ["Father's brass compass"],
+    currentEmotionalState: "Watchful and exhausted",
+    currentLocation: "North shoreline",
+    currentInjuries: []
+  , ...overrides };
 }
 
 test("Mission 010 creates every required Character Bible field and history", () => {
@@ -23,7 +60,7 @@ test("Mission 010 creates every required Character Bible field and history", () 
 
 test("character updates are immutable, auditable, and temporally reconstructable", () => {
   const initial = createCharacter({ id: "mara-1", projectId: "project-1", profile: profile(), now: "2026-01-01T00:00:00.000Z" });
-  const updated = updateCharacter(initial, {
+  const updated = require("../.forge-build/index.js").updateCharacter(initial, {
     characterId: "mara-1",
     changes: { currentLocation: "Old watchtower", currentInjuries: ["Bruised ribs"], currentEmotionalState: "Frightened" },
     effectiveAt: "2026-01-02T00:00:00.000Z",
@@ -59,12 +96,26 @@ test("project persistence preserves temporal character state", async () => {
     const store = new FileProjectStore(root);
     const project = createProject({ id: "novel-1", title: "Character Test", now: "2026-01-01T00:00:00.000Z" });
     const character = createCharacter({ id: "mara-1", projectId: "novel-1", profile: profile(), now: "2026-01-01T00:00:00.000Z" });
-    const changed = updateCharacter(character, { characterId: "mara-1", changes: { currentLocation: "Old watchtower" }, effectiveAt: "2026-01-02T00:00:00.000Z", reason: "Chapter 4", actor: "author" });
-    await store.save(withProjectCharacters(project, [changed]));
-    const loaded = await store.load("novel-1");
-    assert.equal(loaded.characters[0].profile.currentLocation, "Old watchtower");
-    assert.equal(loaded.characters[0].fieldHistory.currentLocation.length, 2);
+    const changed = require("../.forge-build/index.js").updateCharacter(character, {
+      characterId: "mara-1",
+      changes: { age: 32 },
+      effectiveAt: "2026-02-01T00:00:00.000Z",
+      reason: "Birthday",
+      actor: "author"
+    });
+    const enriched = withProjectCharacters(project, [changed], "2026-02-01T00:00:00.000Z");
+    await store.create(enriched);
+    const restored = await store.load("novel-1");
+    assert.deepEqual(restored, enriched);
+    assert.equal(restored.characters[0].fieldHistory.age.length, 2);
+    assert.equal(getCharacterAt(restored.characters[0], "2026-01-15T00:00:00.000Z").age, 31);
   } finally {
-    await import("node:fs/promises").then(({ rm }) => rm(root, { recursive: true, force: true }));
+    await rm(root, { recursive: true, force: true });
   }
+});
+
+test("invalid character state is rejected instead of silently accepted", () => {
+  assert.throws(() => createCharacter({ id: "mara-1", projectId: "project-1", profile: profile({ age: -1 }) }), /age/);
+  assert.throws(() => createCharacter({ id: "mara-1", projectId: "project-1", profile: profile({ name: "" }) }), /name/);
+  assert.throws(() => createCharacter({ id: "mara-1", projectId: "project-1", profile: profile({ currentInjuries: ["", "Broken wrist"] }) }), /currentInjuries/);
 });
