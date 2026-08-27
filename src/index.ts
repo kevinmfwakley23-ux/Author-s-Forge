@@ -44,3 +44,7 @@ export { BookCoverStudioService } from "./application/book-cover-studio";
 export { MANUSCRIPT_PRODUCTION_FORMAT_VERSION, PRODUCTION_FORMATS, FRONT_MATTER_KINDS, BACK_MATTER_KINDS, validateProductionManuscript, validateProductionOptions, normalizeProductionManuscript, validateProductionArtifact, mimeFor, extensionFor, requiredFrontMatter, requiredBackMatter } from "./domain/manuscript-production";
 export type { ProductionFormat, FrontMatterKind, BackMatterKind, ProductionSection, ProductionChapter, ProductionScene, ProductionManuscript, ProductionOptions, ProductionArtifact, ProductionValidationIssue } from "./domain/manuscript-production";
 export { ManuscriptProductionService } from "./application/manuscript-production";
+export { PUBLISHING_READINESS_FORMAT_VERSION, createPublishingReadinessReport, validatePublishingReadinessReport } from "./domain/publishing-readiness";
+export type { ReadinessStatus, ReadinessSeverity, ReadinessCategory, ReadinessCheck, PublishingReadinessInput, PublishingReadinessReport } from "./domain/publishing-readiness";
+export { PublishingReadinessService } from "./application/publishing-readiness";
+export type { PublishingReadinessStore } from "./application/publishing-readiness";
