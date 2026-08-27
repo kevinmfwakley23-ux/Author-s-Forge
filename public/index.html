@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Author's Forge — local-first AI publishing studio">
+<title>Author's Forge</title>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<aside class="sidebar" aria-label="Forge workspace">
+  <a class="brand" href="#dashboard" data-route="dashboard">AUTHOR'S <strong>FORGE</strong></a>
+  <p class="tag">Publishing Studio</p>
+  <nav id="workspace-nav">
+    <a href="#dashboard" data-route="dashboard">Dashboard</a>
+    <a href="#manuscript" data-route="manuscript">Manuscript</a>
+    <a href="#characters" data-route="characters">Characters</a>
+    <a href="#world" data-route="world">World & Canon</a>
+    <a href="#art" data-route="art">Art & Covers</a>
+    <a href="#research" data-route="research">Research</a>
+    <a href="#marketing" data-route="marketing">Marketing</a>
+    <a href="#publishing" data-route="publishing">Publishing</a>
+    <a href="#genome" data-route="genome">Book Genome</a>
+    <a href="#governance" data-route="governance">Control & Safety</a>
+  </nav>
+  <div class="local-status"><span></span> Local-first workspace</div>
+</aside>
+<main>
+<header class="topbar"><div><div class="eyebrow">CURRENT PROJECT</div><h1 id="project-title">Loading project…</h1><p id="project-meta"></p></div><div class="top-actions"><label>AI mode <select id="collaboration-mode"><option>Co-pilot</option><option>Partner</option><option>Director</option><option>Autonomous</option><option>Editor</option></select></label><button id="refresh" type="button">Refresh</button></div></header>
+<div id="error-banner" class="banner error" hidden role="alert"></div>
+<section id="dashboard" class="view" data-view>
+  <div class="hero"><div><div class="eyebrow">PROJECT CONTROL</div><h2>Build the book, not a chat transcript.</h2><p>Forge keeps the manuscript, canon, characters, art, research, marketing, publishing state, and Book Genome in one attributable project.</p></div><button class="primary" type="button" data-route="genome">Open Book Genome</button></div>
+  <div id="metrics" class="metrics"></div>
+  <div class="card"><h2>Production pipeline</h2><div class="pipeline" id="pipeline"></div></div>
+</section>
+<section id="manuscript" class="view" data-view><div class="section-title"><div class="eyebrow">MANUSCRIPT</div><h2>Architecture → writing → editing → production</h2></div><div class="cards"><article><h3>Story architecture</h3><p>Plan books, chapters, scenes, POV, pacing, and intended outcomes before prose becomes the only representation.</p></article><article><h3>Editing</h3><p>Continuity, style, grammar, POV, pacing, and revision remain distinct editorial concerns.</p></article><article><h3>Production</h3><p>Publication output belongs downstream of the project state and is validated before delivery.</p></article></div></section>
+<section id="characters" class="view" data-view><div class="section-title"><div class="eyebrow">CHARACTERS</div><h2>Identity that persists</h2></div><div class="cards"><article><h3>Character Bible</h3><p>Structured identity, history, relationships, goals, fears, skills, weaknesses, injuries, location, and temporal changes.</p></article><article><h3>Visual continuity</h3><p>Face, body, wardrobe, hairstyle, age progression, marks, accessories, palette, style, and pose references.</p></article><article><h3>Reusable design locks</h3><p>Approved character designs can be reused across chapters and books rather than regenerated as unrelated images.</p></article></div></section>
+<section id="world" class="view" data-view><div class="section-title"><div class="eyebrow">WORLD & CANON</div><h2>Relationship-aware memory</h2></div><div class="grid"><article class="card"><h3>Record a project memory</h3><form id="memory-form"><input name="summary" required placeholder="Memory summary"><textarea name="content" required placeholder="What is true, and why does it matter later?"></textarea><input name="reference" required value="author-entry" placeholder="Provenance reference"><select name="authority"><option value="working">Working</option><option value="verified">Verified</option><option value="authoritative">Authoritative</option></select><button class="primary" type="submit">Save memory</button></form></article><article class="card"><h3>Current memories</h3><div id="memory-list" class="list"></div></article></div></section>
+<section id="art" class="view" data-view><div class="section-title"><div class="eyebrow">ART & COVERS</div><h2>Visual production</h2></div><div class="cards"><article><h3>Illustration Studio</h3><p>Scene, portrait, map, object, reference-driven, historical/era-aware, environment-consistent, and character-consistent workflows.</p></article><article><h3>Image Editing</h3><p>Originals remain intact while editing operations are represented as new outputs.</p></article><article><h3>Book Cover Studio</h3><p>Production-aware front, spine, back, bleed, trim, margins, barcode-safe area, dimensions, and validation.</p></article></div></section>
+<section id="research" class="view" data-view><div class="section-title"><div class="eyebrow">RESEARCH</div><h2>Evidence with provenance</h2></div><div class="cards"><article><h3>Research engine</h3><p>External evidence is kept separate from author canon and generated material.</p></article><article><h3>Market intelligence</h3><p>Observable signals can inform positioning without pretending to guarantee sales.</p></article><article><h3>Honesty boundary</h3><p>Forge must distinguish known facts, sourced evidence, inference, generated alternatives, and uncertainty.</p></article></div></section>
+<section id="marketing" class="view" data-view><div class="section-title"><div class="eyebrow">MARKETING</div><h2>Position → promote → launch</h2></div><div class="cards"><article><h3>Positioning</h3><p>Audience, desire, genre, shelf, differentiation, comparables, hooks, and descriptions.</p></article><article><h3>Marketing Studio</h3><p>Social, advertising, email, flyers, bookmarks, quote cards, launch graphics, and video scripts.</p></article><article><h3>Calendar</h3><p>Preorder, release-day, 30-day, 60-day, 90-day, and post-launch campaigns.</p></article></div></section>
+<section id="publishing" class="view" data-view><div class="section-title"><div class="eyebrow">PUBLISHING</div><h2>Final readiness</h2></div><div class="card"><div id="audit-status" class="audit-status">No delivery audit has been run for this project.</div><button id="run-audit" class="primary" type="button">Run 13-category delivery audit</button><div id="audit-results" class="audit-results"></div></div></section>
+<section id="genome" class="view" data-view><div class="section-title"><div><div class="eyebrow">BOOK GENOME</div><h2>One machine-readable representation of the project</h2></div><button id="build-genome" class="primary" type="button">Build Genome</button></div><div class="grid"><article class="card"><h3>Genome components</h3><div id="genome-list" class="list"></div></article><article class="card"><h3>Canon change impact</h3><p>Choose a node before changing canon. Forge identifies downstream dependencies and requires author approval.</p><select id="impact-node"><option value="">Build the genome first</option></select><button id="analyze-impact" type="button">Analyze downstream impact</button><pre id="impact-result">No impact analysis yet.</pre></article></div></section>
+<section id="governance" class="view" data-view><div class="section-title"><div class="eyebrow">CONTROL & SAFETY</div><h2>Author authority is primary</h2></div><div class="grid"><article class="card"><h3>Ownership policy</h3><div id="ownership"></div></article><article class="card"><h3>Accessibility</h3><div id="accessibility"></div></article></div></section>
+<footer>Author's Forge • Project state remains portable and author-controlled.</footer>
+</main>
+<script src="/app.js" defer></script>
+</body>
+</html>
