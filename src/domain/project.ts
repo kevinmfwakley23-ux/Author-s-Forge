@@ -18,8 +18,7 @@ import type { AuthorDecision } from "./author-control";
 import type { SeriesState } from "./series";
 import type { VoiceProfile } from "./voice-preservation";
 import type { ProjectHealth, MemoryRelationship, DeliveryAuditReport } from "./collaboration-health-memory-delivery";
-
-export const PROJECT_FORMAT_VERSION = 3 as const;
+export const PROJECT_FORMAT_VERSION=2 as const;
 export type ProjectStatus="active"|"archived";
 export interface ProjectMetadata{readonly id:string;readonly title:string;readonly createdAt:string;readonly updatedAt:string;readonly status:ProjectStatus;}
 export interface ProjectState{readonly formatVersion:typeof PROJECT_FORMAT_VERSION;readonly metadata:ProjectMetadata;readonly memories:readonly MemoryRecord[];readonly characters?:readonly CharacterRecord[];readonly visualIdentities?:readonly VisualCharacterIdentity[];readonly illustrationAssetLibrary?:IllustrationAssetLibraryState;readonly bookCoverPlans?:readonly BookCoverPlan[];readonly publishingReadinessReports?:readonly PublishingReadinessReport[];readonly kdpMarketIntelligenceReports?:readonly KdpMarketIntelligenceReport[];readonly bookPositioningReports?:readonly BookPositioningReport[];readonly bookVersionHistories?:readonly BookVersionHistory[];readonly authorDecisions?:readonly AuthorDecision[];readonly series?:readonly SeriesState[];readonly voiceProfiles?:readonly VoiceProfile[];readonly collaborationMode?:import("./collaboration-health-memory-delivery").AiCollaborationMode;readonly projectHealth?:ProjectHealth;readonly relationshipMemories?:readonly MemoryRelationship[];readonly deliveryAudit?:DeliveryAuditReport;}
