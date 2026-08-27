@@ -1,0 +1,15 @@
+import type { IllustrationMode, IllustrationRequest, IllustrationRevision, IllustrationStudioState, IllustrationType } from "../domain/illustration-studio";
+import { createIllustrationRequest, createIllustrationStudioState, generateIllustrationBrief, reviseIllustrationRequest, validateIllustrationRequest, validateIllustrationRevision, withIllustrationRequest, withIllustrationRevision } from "../domain/illustration-studio";
+export interface IllustrationQuery { readonly projectId: string; readonly mode?: IllustrationMode; readonly type?: IllustrationType; readonly seriesId?: string; }
+export class IllustrationStudioService {
+  private readonly states = new Map<string, IllustrationStudioState>();
+  public create(input: Parameters<typeof createIllustrationRequest>[0]): IllustrationRequest { const request=createIllustrationRequest(input); const state=this.states.get(request.projectId)??createIllustrationStudioState(request.projectId); this.states.set(request.projectId,withIllustrationRequest(state,request)); return request; }
+  public get(projectId:string,id:string):IllustrationRequest|undefined{return this.states.get(projectId)?.requests.find(x=>x.id===id);}
+  public require(projectId:string,id:string):IllustrationRequest{const value=this.get(projectId,id);if(!value)throw new Error(`Illustration request "${id}" was not found.`);return value;}
+  public list(query:IllustrationQuery):readonly IllustrationRequest[]{const state=this.states.get(query.projectId);return(state?.requests??[]).filter(x=>(!query.mode||x.mode===query.mode)&&(!query.type||x.type===query.type)&&(!query.seriesId||x.continuity?.seriesId===query.seriesId));}
+  public revise(projectId:string,id:string,input:Omit<Parameters<typeof reviseIllustrationRequest>[1],"revisionId">&{revisionId:string}):IllustrationRequest{const current=this.require(projectId,id);const result=reviseIllustrationRequest(current,input);let state=this.states.get(projectId)??createIllustrationStudioState(projectId);state={...state,requests:state.requests.map(x=>x.id===id?result.request:x)};state=withIllustrationRevision(state,result.revision);this.states.set(projectId,state);return result.request;}
+  public generateBrief(projectId:string,id:string):string{return generateIllustrationBrief(this.require(projectId,id));}
+  public toPortableState(projectId:string):IllustrationStudioState{return cloneState(this.states.get(projectId)??createIllustrationStudioState(projectId));}
+  public restoreProject(projectId:string,state:IllustrationStudioState):void{if(state.projectId!==projectId)throw new Error("Illustration studio state belongs to another project.");let next=createIllustrationStudioState(projectId);for(const request of state.requests)next=withIllustrationRequest(next,validateIllustrationRequest(request));for(const revision of state.revisions)next=withIllustrationRevision(next,validateIllustrationRevision(revision));this.states.set(projectId,next);}
+}
+function cloneState(state:IllustrationStudioState):IllustrationStudioState{return JSON.parse(JSON.stringify(state)) as IllustrationStudioState;}
