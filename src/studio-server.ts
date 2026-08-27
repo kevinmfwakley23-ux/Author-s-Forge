@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { FileProjectStore } from "./infrastructure/file-project-store";
-import { createProject } from "./domain/project";
+import { createProject, withProjectBookGenome } from "./domain/project";
 import { createMemoryRecord, type MemoryAuthority, type MemoryClass } from "./domain/memory";
 import { BookGenomeService, FinalProductAuditService, GovernanceService } from "./application/final-product-systems";
 import { DELIVERY_AUDIT_CATEGORIES as FINAL_AUDIT_CATEGORIES, type BookGenomeNode, type FinalDeliveryCheck } from "./domain/final-product-systems";
@@ -33,7 +33,7 @@ async function handleApi(req:IncomingMessage,res:ServerResponse,url:URL):Promise
   const projectId=projectIdFrom(url.pathname); if(projectId){ const project=await store.load(projectId); if(!project){json(res,404,{error:"Project not found."});return true;}
     if(url.pathname===`/api/projects/${projectId}`&&req.method==="GET"){json(res,200,project);return true;}
     if(url.pathname===`/api/projects/${projectId}/memory`&&req.method==="POST"){const input=await body(req);const memory=createMemoryRecord({id:String(input.id??`memory-${randomUUID()}`),projectId,class:enumValue(input.class??"creative-note",MEMORY_CLASSES,"memory class"),authority:enumValue(input.authority??"working",MEMORY_AUTHORITIES,"memory authority"),summary:String(input.summary??""),content:String(input.content??""),provenance:[{kind:"author",reference:String(input.reference??"studio"),recordedAt:new Date().toISOString()}],relatedMemoryIds:Array.isArray(input.relatedMemoryIds)?input.relatedMemoryIds.map(String):[],relevanceTags:Array.isArray(input.relevanceTags)?input.relevanceTags.map(String):[]});if(project.memories.some(m=>m.id===memory.id)){json(res,409,{error:`Memory id "${memory.id}" already exists.`});return true;}const saved={...project,memories:[...project.memories,memory],metadata:{...project.metadata,updatedAt:new Date().toISOString()}};await store.save(saved);json(res,201,memory);return true;}
-    if(url.pathname===`/api/projects/${projectId}/genome`&&req.method==="POST"){const input=await body(req);const nodes=Array.isArray(input.nodes)?input.nodes as BookGenomeNode[]:[];json(res,200,genome.create({projectId,nodes}));return true;}
+    if(url.pathname===`/api/projects/${projectId}/genome`&&req.method==="POST"){const input=await body(req);const nodes=Array.isArray(input.nodes)?input.nodes as BookGenomeNode[]:[];const nextGenome=genome.create({projectId,nodes});await store.save(withProjectBookGenome(project,nextGenome));json(res,200,nextGenome);return true;}
     if(url.pathname===`/api/projects/${projectId}/genome/impact`&&req.method==="POST"){const input=await body(req);const nodes=Array.isArray(input.nodes)?input.nodes as BookGenomeNode[]:[];const graph=genome.create({projectId,nodes});json(res,200,genome.impact(graph,String(input.changedNodeId??"")));return true;}
     if(url.pathname===`/api/projects/${projectId}/delivery-audit`&&req.method==="POST"){const input=await body(req);const checks=Array.isArray(input.checks)?input.checks as FinalDeliveryCheck[]:FINAL_AUDIT_CATEGORIES.map(category=>({category,passed:false,message:"No audit evidence supplied.",blocking:true}));json(res,200,audit.run({id:String(input.id??`audit-${randomUUID()}`),projectId,checks}));return true;}
   }
