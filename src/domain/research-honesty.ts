@@ -3,6 +3,17 @@ export const RESEARCH_HONESTY_CLASSES = ["known-fact", "source-supported", "like
 export type ResearchHonestyClass = typeof RESEARCH_HONESTY_CLASSES[number];
 export type EvidenceStrength = "none" | "indirect" | "direct";
 
+export interface ResearchHonestyAssessment {
+  readonly id: string;
+  readonly claimId: string;
+  readonly classification: ResearchHonestyClass;
+  readonly evidenceStrength: EvidenceStrength;
+  readonly explanation: string;
+  readonly sourceBacked: boolean;
+  readonly canonEligible: boolean;
+  readonly assessedAt: string;
+}
+
 export interface ResearchHonestyRecord {
   readonly id: string;
   readonly projectId: string;
@@ -41,11 +52,10 @@ export function createResearchHonestyRecord(input: ResearchHonestyInput): Resear
 }
 
 export function isResearchHonest(record: ResearchHonestyRecord): boolean {
-  const r = record;
-  if (r.classification === "known-fact" || r.classification === "source-supported") return r.sourceBacked && r.evidenceStrength === "direct";
-  if (r.classification === "likely-inference") return r.evidenceStrength !== "none";
-  if (r.classification === "creative-fiction") return !r.sourceBacked;
-  return r.evidenceStrength !== "direct";
+  if (record.classification === "known-fact" || record.classification === "source-supported") return record.sourceBacked && record.evidenceStrength === "direct";
+  if (record.classification === "likely-inference") return record.evidenceStrength !== "none";
+  if (record.classification === "creative-fiction") return !record.sourceBacked;
+  return record.evidenceStrength !== "direct";
 }
 
 export function assertResearchHonest(record: ResearchHonestyRecord): void { if (!isResearchHonest(record)) throw new Error(`Research honesty record "${record.id}" violates its evidence classification.`); }
