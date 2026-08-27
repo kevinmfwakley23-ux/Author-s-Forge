@@ -4,6 +4,8 @@ import type { ProjectStore } from "../application/project-store";
 import type { ProjectState } from "../domain/project";
 import { PROJECT_FORMAT_VERSION } from "../domain/project";
 import type { MemoryRecord } from "../domain/memory";
+import type { CharacterRecord } from "../domain/character-bible";
+import { validateCharacterRecord } from "../domain/character-bible";
 
 export class FileProjectStore implements ProjectStore {
   public constructor(private readonly rootDirectory: string) {}
@@ -58,6 +60,14 @@ export class FileProjectStore implements ProjectStore {
     }
     const memories = candidate.memories === undefined ? [] : candidate.memories;
     if (!Array.isArray(memories) || !memories.every(isMemoryRecord)) throw new Error("Invalid project memory state.");
+    const characters = candidate.characters === undefined ? undefined : candidate.characters;
+    if (characters !== undefined) {
+      if (!Array.isArray(characters)) throw new Error("Invalid project character state.");
+      for (const character of characters) {
+        const validated = validateCharacterRecord(character);
+        if (validated.projectId !== expectedId) throw new Error("Project character state contains a character from another project.");
+      }
+    }
     return {
       formatVersion: PROJECT_FORMAT_VERSION,
       metadata: {
@@ -67,7 +77,8 @@ export class FileProjectStore implements ProjectStore {
         updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : "",
         status: record.status === "archived" ? "archived" : "active"
       },
-      memories: memories.map(cloneMemory)
+      memories: memories.map(cloneMemory),
+      ...(characters !== undefined ? { characters: characters.map((character) => cloneCharacter(character as CharacterRecord)) } : {})
     };
   }
 }
@@ -90,6 +101,10 @@ function isMemoryRecord(value: unknown): value is MemoryRecord {
 
 function cloneMemory(memory: MemoryRecord): MemoryRecord {
   return { ...memory, provenance: memory.provenance.map((item) => ({ ...item })), relatedMemoryIds: [...memory.relatedMemoryIds], relevanceTags: [...memory.relevanceTags] };
+}
+
+function cloneCharacter(character: CharacterRecord): CharacterRecord {
+  return validateCharacterRecord(JSON.parse(JSON.stringify(character)));
 }
 
 function isMissingFile(error: unknown): boolean {
