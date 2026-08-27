@@ -15,7 +15,7 @@
     return payload;
   }
 
-  function navigate(route, updateHash = true) {
+  function navigate(route) {
     const requested = String(route || "dashboard").replace(/^#/, "");
     const target = document.getElementById(requested) || document.getElementById("dashboard");
     if (!target) return false;
@@ -26,7 +26,7 @@
       view.setAttribute("aria-hidden", String(!active));
     });
     $$("[data-route]").forEach((link) => link.classList.toggle("active", link.dataset.route === target.id));
-    if (updateHash && location.hash !== `#${target.id}`) history.pushState({ route: target.id }, "", `#${target.id}`);
+    if (location.hash !== `#${target.id}`) history.pushState({ route: target.id }, "", `#${target.id}`);
     window.scrollTo({ top: 0, behavior: "smooth" });
     return true;
   }
@@ -41,8 +41,8 @@
       event.preventDefault();
       navigate(route);
     });
-    window.addEventListener("hashchange", () => navigate(location.hash.slice(1) || "dashboard", false));
-    window.addEventListener("popstate", () => navigate(location.hash.slice(1) || "dashboard", false));
+    window.addEventListener("hashchange", () => navigate(location.hash.slice(1) || "dashboard"));
+    window.addEventListener("popstate", () => navigate(location.hash.slice(1) || "dashboard"));
   }
 
   function renderGenome(graph) {
@@ -136,7 +136,7 @@
     $("#build-genome").addEventListener("click", buildGenome);
     $("#analyze-impact").addEventListener("click", analyzeImpact);
     $("#run-audit").addEventListener("click", runAudit);
-    navigate(location.hash.slice(1) || "dashboard", false);
+    navigate(location.hash.slice(1) || "dashboard");
     refresh();
   }
 
