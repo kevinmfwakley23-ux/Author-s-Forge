@@ -19,3 +19,5 @@ jobs:
       - run: npm run build
       - run: npm test
       - run: node --check public/app.js
+      - run: node --check public/forge-command-center.js
+      - run: node --check public/forge-workbench.js
