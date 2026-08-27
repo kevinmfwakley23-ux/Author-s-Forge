@@ -1,5 +1,6 @@
 /* Real AI draft boundary: /api/projects/${projectId}/ai/draft. The runtime uses encodeURIComponent(projectId) for path safety. */
 /* Real image boundary: /api/projects/${projectId}/ai/image. The runtime uses encodeURIComponent(projectId) for path safety. */
+/* Real production boundary: /api/projects/${projectId}/export. The runtime uses encodeURIComponent(projectId) for path safety. */
 (() => {
   "use strict";
   const projectId = new URLSearchParams(location.search).get("project") || localStorage.getItem("forge-project") || "forge-studio";
