@@ -7,7 +7,7 @@ export interface PublishingReadinessInput { readonly manuscript?: { readonly tit
 export interface PublishingReadinessReport { readonly formatVersion: typeof PUBLISHING_READINESS_FORMAT_VERSION; readonly id: string; readonly projectId: string; readonly createdAt: string; readonly checks: readonly ReadinessCheck[]; readonly passedCount: number; readonly attentionCount: number; readonly status: "ready" | "attention"; }
 
 const CATEGORIES: readonly ReadinessCategory[] = ["manuscript","cover","metadata","formatting","images","table-of-contents","pagination","production"];
-const text = (v: string | undefined, label: string): boolean => typeof v === "string" && v.trim().length > 0;
+const text = (v: string | undefined): boolean => typeof v === "string" && v.trim().length > 0;
 const check = (id: string, category: ReadinessCategory, label: string, ok: boolean, message: string, remediation?: string, severity: ReadinessSeverity = "error"): ReadinessCheck => ({ id, category, label, status: ok ? "passed" : "attention", severity, message, ...(ok ? {} : remediation ? { remediation } : {}) });
 
 export function createPublishingReadinessReport(input: PublishingReadinessInput & { id: string; projectId: string; now?: string }): PublishingReadinessReport {
@@ -22,7 +22,7 @@ export function createPublishingReadinessReport(input: PublishingReadinessInput 
     check("categories","metadata","Categories",!!md?.categories?.length,"Categories are present.","Add at least one category."),
     check("title-page","manuscript","Title page",!!m?.hasTitlePage,"Title page is present.","Add a title page."),
     check("copyright-page","manuscript","Copyright page",!!m?.hasCopyrightPage,"Copyright page is present.","Add a copyright page."),
-    check("dedication","manuscript","Dedication",!!m?.hasDedication,"Dedication is present.","Add or explicitly omit the dedication." ,"warning"),
+    check("dedication","manuscript","Dedication",!!m?.hasDedication,"Dedication is present.","Add or explicitly omit the dedication.","warning"),
     check("epigraph","manuscript","Epigraph",!!m?.hasEpigraph,"Epigraph is present.","Add or explicitly omit the epigraph.","warning"),
     check("toc","table-of-contents","Table of contents",!!m?.hasTableOfContents,"Table of contents is present.","Generate and validate the table of contents."),
     check("chapter-order","manuscript","Chapter ordering",!!m?.chapters?.length && m.chapters.every((x, n) => x.number === n + 1),"Chapter numbering is sequential.","Correct chapter numbering and ordering."),
