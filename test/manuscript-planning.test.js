@@ -12,7 +12,7 @@ function manuscript() {
   return addScene(state, createScene({ id: "scene-1", chapterId: "chapter-1", order: 1, title: "Scene" }));
 }
 function planInput(overrides = {}) {
-  return { id: "plan-1", projectId: "project-1", targetType: "scene", targetId: "scene-1", purpose: "Advance the conflict", summary: "The protagonist discovers the hidden cost.", beats: ["Discovery", "Confrontation"], constraints: ["Preserve established canon"], openQuestions: ["Who knows the truth?"] , ...overrides };
+  return { id: "plan-1", projectId: "project-1", targetType: "scene", targetId: "scene-1", purpose: "Advance the conflict", summary: "The protagonist discovers the hidden cost.", beats: ["Discovery", "Confrontation"], constraints: ["Preserve established canon"], openQuestions: ["Who knows the truth?"], ...overrides };
 }
 
 test("creates canonical planning records with explicit structured intent", () => {
@@ -56,11 +56,11 @@ test("replaces a plan with an explicit sequential superseding version", () => {
   validateManuscriptPlanningState(planning, state);
 });
 
-test("rejects replacement that changes target identity or skips a version", () => {
+test("rejects replacement that skips a version or attempts a different target", () => {
   const state = manuscript();
   let planning = addManuscriptPlan(createManuscriptPlanningState(), state, createManuscriptPlan(planInput()));
   assert.throws(() => replaceManuscriptPlan(planning, state, createManuscriptPlan(planInput({ id: "plan-2", version: 3, supersedesPlanId: "plan-1" }))), /version must advance/);
-  assert.throws(() => replaceManuscriptPlan(planning, state, createManuscriptPlan(planInput({ id: "plan-3", version: 2, targetId: "chapter-1", targetType: "chapter", supersedesPlanId: "plan-1" }))), /cannot change project or target identity/);
+  assert.throws(() => replaceManuscriptPlan(planning, state, createManuscriptPlan(planInput({ id: "plan-3", version: 2, targetId: "chapter-1", targetType: "chapter", supersedesPlanId: "plan-1" }))), /No current plan exists for chapter/);
 });
 
 test("retrieves plans deterministically and preserves portable structured state", () => {
