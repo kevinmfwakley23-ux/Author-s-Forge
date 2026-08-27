@@ -17,11 +17,21 @@ import { validateBookPositioningReport } from "../domain/book-positioning";
 import { mkdir, readFile, rename, writeFile, access } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
+const LEGACY_PROJECT_FORMAT_VERSION = 2 as const;
+
 export class FileProjectStore {
   public constructor(private readonly rootDirectory: string) {}
   public async create(project: ProjectState): Promise<void> { if (await this.exists(project.metadata.id)) throw new Error(`Project already exists: ${project.metadata.id}`); await this.save(project); }
   public async load(projectId: string): Promise<ProjectState | null> { try { const raw = await readFile(this.projectPath(projectId), "utf8"); return this.validate(JSON.parse(raw), projectId); } catch (error) { if (isMissingFile(error)) return null; throw error; } }
-  public async save(project: ProjectState): Promise<void> { const path = this.projectPath(project.metadata.id); await mkdir(dirname(path), { recursive: true }); const temporaryPath = `${path}.tmp`; await writeFile(temporaryPath, `${JSON.stringify(project, null, 2)}\n`, "utf8"); await rename(temporaryPath, path); }
+  public async save(project: ProjectState): Promise<void> {
+    const path = this.projectPath(project.metadata.id);
+    await mkdir(dirname(path), { recursive: true });
+    const temporaryPath = `${path}.tmp`;
+    const persisted = JSON.parse(JSON.stringify(project)) as Record<string, unknown>;
+    persisted.formatVersion = LEGACY_PROJECT_FORMAT_VERSION;
+    await writeFile(temporaryPath, `${JSON.stringify(persisted, null, 2)}\n`, "utf8");
+    await rename(temporaryPath, path);
+  }
   public async exists(projectId: string): Promise<boolean> { try { await access(this.projectPath(projectId)); return true; } catch (error) { if (isMissingFile(error)) return false; throw error; } }
   private projectPath(projectId: string): string { if (!/^[a-zA-Z0-9_-]+$/.test(projectId)) throw new Error("Project id contains unsupported path characters."); return join(this.rootDirectory, "projects", projectId, "project.json"); }
   private validate(value: unknown, expectedId: string): ProjectState {
@@ -30,7 +40,7 @@ export class FileProjectStore {
     const metadata = candidate.metadata;
     if (!metadata || typeof metadata !== "object") throw new Error("Invalid project metadata.");
     const record = metadata as Record<string, unknown>;
-    if ((candidate.formatVersion !== 1 && candidate.formatVersion !== PROJECT_FORMAT_VERSION) || record.id !== expectedId || typeof record.title !== "string") throw new Error("Unsupported or corrupt project package.");
+    if ((candidate.formatVersion !== 1 && candidate.formatVersion !== LEGACY_PROJECT_FORMAT_VERSION && candidate.formatVersion !== PROJECT_FORMAT_VERSION) || record.id !== expectedId || typeof record.title !== "string") throw new Error("Unsupported or corrupt project package.");
     const memories = candidate.memories === undefined ? [] : candidate.memories;
     if (!Array.isArray(memories) || !memories.every(isMemoryRecord)) throw new Error("Invalid project memory state.");
     for (const memory of memories) if ((memory as MemoryRecord).projectId !== expectedId) throw new Error("Project memory state contains a memory from another project.");
