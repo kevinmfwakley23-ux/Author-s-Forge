@@ -10,8 +10,6 @@ Author's Forge is a standalone product repository. K.I.N.G.S. remains the indepe
 
 The **Author's Forge Master Product Directive** is the authoritative product specification for the mission sequence and feature requirements. The canonical directive is currently maintained in the **ChatGPT Library** and is used as the source of truth when defining and auditing missions.
 
-The directive will be copied into this repository as soon as the ChatGPT Library version is accessible through the available file integration. Until then, no repository document should be treated as a replacement for the canonical Library directive.
-
 ## Chief Engineering Standard
 
 Implementation work is performed against the actual repository architecture as a production engineering task. The acting chief engineering code-writing role is responsible for delivering real-world-ready TypeScript, preserving existing contracts, adding acceptance coverage, and correcting production implementation defects rather than weakening tests.
@@ -83,13 +81,23 @@ The asset library remains provider-neutral. It owns canonical metadata, provenan
 
 The Book Cover Studio is a production-layout system, not merely an artwork prompt generator. A cover plan stores the publishing configuration, trim size, page count, binding, paper/interior selection, bleed, calculated exterior dimensions, front/spine/back zones, barcode-safe area, safe margins, title/author metadata, artwork references, output format, DPI, version, and approval state.
 
-KDP paperback calculations use the current published KDP equations for spine width and full-cover dimensions. KDP specifies 0.125 inch bleed, and paperback spine factors vary by paper/interior type. The Studio therefore calculates the production geometry from the selected publishing configuration rather than guessing from an attractive image. KDP also requires the print cover to be one continuous exterior containing front, back, and spine. citeturn1search0turn1search4
+KDP paperback calculations use the current published KDP equations for spine width and full-cover dimensions. KDP specifies 0.125 inch bleed, and paperback spine factors vary by paper/interior type. The Studio therefore calculates the production geometry from the selected publishing configuration rather than guessing from an attractive image. KDP also requires the print cover to be one continuous exterior containing front, back, and spine.
 
-Hardcover plans model the case-wrap geometry and explicitly keep the final provider template authoritative because KDP hardcover cover files have wrap, hinge, spine, and safe-area requirements that depend on the selected production configuration. KDP requires a single PDF containing the back, spine, and front and specifies wrap and safe-area requirements. citeturn1search2
+Hardcover plans model the case-wrap geometry and explicitly keep the final provider template authoritative because KDP hardcover cover files have wrap, hinge, spine, and safe-area requirements that depend on the selected production configuration. KDP requires a single PDF containing the back, spine, and front and specifies wrap and safe-area requirements.
 
 The Studio validates a resulting cover artifact against the production plan: format, exact calculated dimensions, minimum 300 DPI, file size, required cover zones, absence of crop/template marks, flattening, font embedding, and encryption state. Validation is deterministic and provider-neutral; the system does not claim a file has passed KDP's final proprietary previewer.
 
-For eBook covers, the publishing contract remains distinct from print covers: KDP specifies a separate single front-cover image with its own dimensions, format, RGB, and file-size requirements. citeturn1search1
+For eBook covers, the publishing contract remains distinct from print covers: KDP specifies a separate single front-cover image with its own dimensions, format, RGB, and file-size requirements.
+
+## Manuscript Production Boundary
+
+The Manuscript Production system converts validated finished-manuscript state into **actual derived DOCX, PDF, and EPUB files** without mutating the authoritative manuscript. It supports KDP-specific output identities (`kdp-docx`, `kdp-pdf`, `kdp-epub`) while keeping the renderer provider-neutral.
+
+Production state includes project/book identity, title, subtitle, author, series information, front matter, back matter, chapters, scenes, title page, copyright, dedication, epigraph, table of contents, author biography, acknowledgments, about-the-author, and other back matter sections. Production options control page size, page numbering, running headers/footers, title-page generation, and contents generation.
+
+The DOCX renderer produces an Open XML package; the EPUB renderer produces a valid EPUB ZIP package with `mimetype`, container metadata, OPF metadata, navigation, and chapter XHTML; the PDF renderer produces a valid PDF 1.4 document with deterministic page layout and text wrapping. Generated artifacts carry MIME type, filename, byte length, SHA-256, timestamp, and encoded file content so output provenance can be verified without treating generated files as canonical manuscript state.
+
+The production boundary validates input structure, duplicate identifiers, chapter ordering, section content, output options, generated file identity, MIME type, extension, byte length, and non-empty content. Actual publishing-platform acceptance remains subject to the platform's own final preview/ingestion checks; Author's Forge does not falsely claim that a provider accepted a file merely because local validation passed.
 
 ## Code Languages and Tooling
 
@@ -121,7 +129,8 @@ Completed mission work is preserved in separate branches and verification checkp
 - Mission 012 — Illustration Studio (verified)
 - Mission 013 — Image Editing (verified)
 - Mission 014 — Illustration Asset Library (verified)
-- Mission 015 — Book Cover Studio (implementation branch; awaiting Linux verification)
+- Mission 015 — Book Cover Studio (verified)
+- Mission 016 — Manuscript Production (implementation branch; awaiting Linux verification)
 
 Mission names and scope are governed by the Master Product Directive. Historical implementation checkpoints remain preserved in the repository.
 
@@ -131,4 +140,4 @@ A mission is not considered verified because its code compiles or because indivi
 
 ## Status
 
-Author's Forge is under active mission-based development. Mission 015 has been implemented on `mission-015-book-cover-studio` and is awaiting complete local verification from the Linux development environment.
+Author's Forge is under active mission-based development. Mission 016 has been implemented on `mission-016-manuscript-production` and is awaiting complete local verification from the Linux development environment.
