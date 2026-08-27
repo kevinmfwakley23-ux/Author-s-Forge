@@ -2,11 +2,12 @@
   "name": "authors-forge",
   "version": "0.1.0",
   "private": true,
-  "description": "Author's Forge — durable AI authoring studio foundation.",
+  "description": "Author's Forge — durable, local-first AI publishing studio foundation.",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && rm -rf dist && cp -R .forge-build dist && cp -R public dist/public",
     "test": "npm run build && node --test test/**/*.test.js",
-    "check": "npm run build && npm test"
+    "check": "npm run build && npm test",
+    "studio": "npm run build && node dist/studio-server.js"
   },
   "engines": {
     "node": ">=20"
