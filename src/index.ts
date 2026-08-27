@@ -29,3 +29,19 @@ export type {
   SceneRecord,
   ManuscriptState
 } from "./domain/manuscript";
+export {
+  MANUSCRIPT_PLAN_FORMAT_VERSION,
+  createManuscriptPlanningState,
+  createManuscriptPlan,
+  addManuscriptPlan,
+  replaceManuscriptPlan,
+  getCurrentManuscriptPlan,
+  validateManuscriptPlanningState
+} from "./domain/manuscript-planning";
+export type {
+  ManuscriptPlan,
+  ManuscriptPlanningState,
+  PlanLifecycle,
+  PlanTargetType
+} from "./domain/manuscript-planning";
+export { ManuscriptPlanningService } from "./application/manuscript-planning";
