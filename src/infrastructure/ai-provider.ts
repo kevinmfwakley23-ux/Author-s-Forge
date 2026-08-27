@@ -6,11 +6,12 @@ export async function generateText(request: AiGenerationRequest): Promise<AiGene
   if (openAiKey) return generateOpenAi(openAiKey, request);
   const ollama = process.env.OLLAMA_BASE_URL?.trim();
   if (ollama) return generateOllama(ollama.replace(/\/$/, ""), request);
-  throw new Error("No AI provider is configured. Set OPENAI_API_KEY for OpenAI or OLLAMA_BASE_URL for a local Ollama server.");
+  throw new Error("No AI provider is configured. Set OPENAI_API_KEY + OPENAI_MODEL for OpenAI or OLLAMA_BASE_URL + OLLAMA_MODEL for local Ollama.");
 }
 
 async function generateOpenAi(apiKey: string, request: AiGenerationRequest): Promise<AiGenerationResult> {
-  const model = process.env.OPENAI_MODEL?.trim() || "gpt-5.6";
+  const model = process.env.OPENAI_MODEL?.trim();
+  if (!model) throw new Error("OPENAI_MODEL is required when OPENAI_API_KEY is configured.");
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
@@ -24,7 +25,8 @@ async function generateOpenAi(apiKey: string, request: AiGenerationRequest): Pro
 }
 
 async function generateOllama(baseUrl: string, request: AiGenerationRequest): Promise<AiGenerationResult> {
-  const model = process.env.OLLAMA_MODEL?.trim() || "llama3.2";
+  const model = process.env.OLLAMA_MODEL?.trim();
+  if (!model) throw new Error("OLLAMA_MODEL is required when OLLAMA_BASE_URL is configured.");
   const response = await fetch(`${baseUrl}/api/chat`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ model, stream: false, messages: [{ role: "system", content: request.system }, { role: "user", content: request.user }], options: { temperature: request.temperature ?? 0.7 } }) });
   const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
   if (!response.ok) throw new Error(`Ollama request failed (${response.status}).`);
