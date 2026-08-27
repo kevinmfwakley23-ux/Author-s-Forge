@@ -6,23 +6,17 @@ It is intended to support children's books, memoir, psychological thrillers, gui
 
 ## Canonical Product Directive — READ THIS FIRST
 
-**`AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md` is the canonical product contract.** It is checked into this repository so engineering work does not depend on conversational memory.
+**`AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md` is the canonical product contract.** It is checked into this repository and is the engineering source of truth.
 
-The directive defines the complete target: concept → architecture → canon → characters → timeline → research → manuscript → editing → illustrations → cover → formatting → metadata → positioning → marketing → publishing preparation → portable archive/recovery.
+The directive defines the complete target: concept → architecture → canon → characters → timeline → research → manuscript → editing → illustrations → cover → formatting → metadata → positioning → marketing → publishing preparation → portable archive/recovery. It explicitly calls for hierarchical memory, anti-drift controls, relationship-aware memory, voice input, five AI collaboration modes, a Book Genome, real provider boundaries, and an author-controlled publishing workflow. fileciteturn723file2L53-L65 fileciteturn723file4L481-L501
 
-The Book Genome, hierarchical persistent memory, anti-drift/canon controls, relationship-aware memory, provenance, visual continuity, and author authority are core architecture.
+The final product standard is not a feature list. It is a complete working path from story concept through architecture, canon, character system, timeline, research, manuscript, editing, illustrations, cover, formatting, metadata, positioning, promotion, publishing preparation, and portable project state. fileciteturn723file8L963-L1001
 
-### Directive requirements that must remain visible during engineering
+## Chief engineering standard
 
-The directive explicitly requires **voice as a first-class input**: idea capture, story planning, editing commands, research requests, character creation, scene direction, and revision instructions, while preserving the original transcription. It also requires five AI collaboration modes — Co-pilot, Partner, Director, Autonomous, and Editor — and an AI environment operating throughout the author workplace. The long-form target assumes projects around 100,000+ words, hundreds of scenes, dozens of characters, extensive chronology, and series-scale continuity rather than a single chat context. fileciteturn657file4L673-L693 fileciteturn657file8L1381-L1403
+The lead engineering responsibility for this repository is to turn the directive into a **real working author workplace**, not a mission gallery or collection of promises.
 
-The directive's final product standard is a complete workflow from story concept through architecture, canon, character system, timeline, research, manuscript, editing, illustrations, cover, formatting, metadata, market positioning, promotion, publishing preparation, and portable archived project. The private release is explicitly expected to be tested against real projects until these workflows are dependable. fileciteturn657file3L553-L614
-
-## Engineering role and non-negotiable standard
-
-The lead engineering responsibility for this repository is to turn the directive into a **real working author workplace**, not a mission gallery. Domain modules and mission implementations are raw product machinery until they are reachable through the Studio, connected to durable ProjectState, and verified through end-to-end workflows.
-
-The engineering standard is:
+Non-negotiable rules:
 
 - real implementation only;
 - real provider calls only;
@@ -32,77 +26,77 @@ The engineering standard is:
 - no placeholder controls presented as completed features;
 - no dead navigation;
 - no silent canon mutation;
-- no deleting or weakening tests to obtain a green build;
-- every major autonomous action must be attributable, observable, reversible, and author-controlled.
+- no weakening or deleting tests to make the build green;
+- major autonomous actions must be observable, reversible, attributable, and author-controlled.
 
-## Voice and command interface
+A green unit-test suite is **not** proof that Forge works. A capability is complete only when it is reachable from Studio, reads/writes durable project state, survives reload/restart, participates in downstream workflows, reports real errors, and has end-to-end regression coverage.
 
-Forge now includes a first-class **Forge Command Center** surface in the Studio. It provides typed commands and browser microphone input, preserves the original transcript in the command field, supports the five collaboration modes, and routes AI work through the project's existing real provider-backed drafting boundary. Chrome's `SpeechRecognition` / `webkitSpeechRecognition` API is the first local voice path for the Chromebook target.
+## Current integrated Studio
 
-Voice is not a decorative feature. It is the UI expression of the directive's author-input contract. The next engineering layers must extend the same canonical command contract into project creation, architecture, chapter/scene planning, research, editing, character work, illustration direction, production, and publishing workflows.
-
-## The standard is the working application
-
-A green unit-test suite is **not** proof that Forge works.
-
-A capability is complete only when it:
-
-1. has real production implementation;
-2. is reachable from Forge Studio;
-3. reads and writes the durable project state;
-4. survives browser reload and server restart;
-5. participates in downstream workflows where required;
-6. has actionable errors;
-7. has automated regression coverage; and
-8. does not pretend an unavailable provider, API, image, export, or integration succeeded.
-
-No placeholder buttons. No fake AI. No fake APIs. No dead-end mission islands.
-
-## Current product architecture
+The Studio is now one static application surface rather than a dynamically injected collection of disconnected screens. Its primary workflow is:
 
 ```text
 AUTHOR
   ↓
-VOICE / TYPED COMMAND
+TYPED / VOICE COMMAND
   ↓
-PROJECT
+PROJECT + BOOK BINDER
   ↓
-BOOK / CHAPTER / SCENE
-  ↓
-MANUSCRIPT + PROJECT BRAIN
+ARCHITECTURE
   ↓
 CANON / CHARACTERS / WORLD / TIMELINE / RESEARCH / VOICE
   ↓
-WRITING ENGINE
+WRITING DESK + PROJECT BRAIN
   ↓
-EDITORIAL ENGINE
+EDITORIAL ANALYSIS
   ↓
-VISUAL IDENTITY / ILLUSTRATION ASSETS
+VISUAL / ILLUSTRATION / COVER
   ↓
 BOOK GENOME + DOWNSTREAM IMPACT
   ↓
-POSITIONING / MARKETING
+MARKETING
   ↓
-MANUSCRIPT PRODUCTION
+DOCX / PDF / EPUB PRODUCTION
   ↓
-PUBLISHING READINESS + DELIVERY AUDIT
+13-CATEGORY DELIVERY AUDIT
   ↓
-PORTABLE PROJECT STATE
+PORTABLE PROJECT PACKAGE
 ```
 
-The Studio is the product surface. Domain modules are valuable only when they participate in this flow.
+The integrated surface includes:
+
+- durable project, book, chapter, and scene creation;
+- real scene editor with word counts and persistent save;
+- real AI drafting through OpenAI or Ollama when configured;
+- AI task modes for drafting, continuation, rewrite, expansion, dialogue, description, outlining, and brainstorming;
+- first-class typed and browser-microphone command center;
+- original voice transcript preservation before execution;
+- Co-pilot, Partner, Director, Autonomous, and Editor collaboration modes;
+- structured Character Bible records with history;
+- canon, timeline, location, relationship, style, visual, open-thread, and creative-decision memory;
+- provenance-aware research storage;
+- read-only intelligent editing analysis;
+- local author-voice fingerprint analysis;
+- real OpenAI image generation with local project asset storage when configured;
+- KDP cover geometry planning;
+- Book Genome construction and downstream impact analysis;
+- real DOCX/PDF/EPUB/KDP production through the existing production engine;
+- project health reporting;
+- portable project JSON export;
+- 13-category delivery audit;
+- explicit provider-status reporting.
+
+No button is considered complete merely because it exists in HTML. Every control must terminate in a real state transition, provider operation, calculation, artifact, navigation action, or explicit actionable error.
 
 ## Real provider boundaries
 
 ### AI writing
 Forge supports real provider-backed generation through:
 
-- OpenAI Responses API: set `OPENAI_API_KEY` and an explicit `OPENAI_MODEL`.
-- Local Ollama: set `OLLAMA_BASE_URL` and an explicit `OLLAMA_MODEL`.
+- OpenAI: `OPENAI_API_KEY` + explicit `OPENAI_MODEL`.
+- Local Ollama: `OLLAMA_BASE_URL` + explicit `OLLAMA_MODEL`.
 
-If neither is configured, AI generation fails explicitly. Forge does not fabricate an answer.
-
-Example:
+If neither provider is configured, generation fails explicitly. Forge does not fabricate an answer.
 
 ```bash
 export OPENAI_API_KEY="your-key"
@@ -116,55 +110,26 @@ export OLLAMA_BASE_URL="http://127.0.0.1:11434"
 export OLLAMA_MODEL="your-installed-model"
 ```
 
-AI output is a **candidate**. It does not silently become canon or replace manuscript text.
-
 ### Real image generation
-Illustration generation uses a configured OpenAI image provider. Without `OPENAI_API_KEY`, the Studio reports the missing provider instead of showing fake output.
+Illustration generation uses the configured OpenAI image provider. Without `OPENAI_API_KEY`, the Studio reports the missing configuration instead of showing fake output.
 
-## Working Studio capabilities
+## Voice as a first-class input
 
-The integrated Studio provides real paths for:
+The directive requires voice for idea capture, story planning, editing commands, research requests, character creation, scene direction, and revision instructions while preserving the original transcription. fileciteturn723file4L481-L501
 
-- project and book creation;
-- chapter and scene architecture;
-- persistent scene writing and word counts;
-- bounded Project Brain context assembly;
-- real AI candidate drafting;
-- typed and voice command entry;
-- structured Character Bible creation with history;
-- durable canon, timeline, relationship, location, and creative memory;
-- provenance-aware research records;
-- real provider-backed image generation and local asset storage;
-- Book Genome construction and downstream impact analysis;
-- DOCX/PDF/EPUB production using the existing production engine;
-- publishing delivery audit;
-- governance and accessibility visibility.
+Forge's Chromebook path uses Chrome `SpeechRecognition` / `webkitSpeechRecognition`. The command center keeps the original transcript in an editable command field and routes the instruction through the same real project/AI boundary used by typed commands.
 
-The remaining mission implementations are treated as domain/application building blocks to be wired into these same workflows rather than exposed as disconnected demos.
+## Engineering references and proven patterns
 
-## Engineering references
+Forge is not blindly copying unrelated projects. It selectively implements proven patterns while respecting licenses and preserving Forge's architecture.
 
-### User-owned repositories
+- urlNovel Studio (MIT)https://github.com/Openapps-free/novel-studio — rich editor, writing modes, story matrix, world codex, timeline, relationships, research, analysis, revision history, and export patterns. citeturn2search0
+- urlWriter Studio (Apache-2.0)https://github.com/Dirgha-AI/writer-studio — binder structure, long-form documents, drafts, evaluations, versions, research, transcription, and pluggable AI providers. citeturn2search1
+- urlNovel Studio AI (MIT)https://github.com/YfengJ/novel-studio-ai — local-first story bibles, retrieval memory, character state, graph facts, and continuity checks. citeturn2search7
+- urlOpen-Write (Apache-2.0)https://github.com/Open-Write/Open-Write — professional writing-room and revision-protocol patterns. citeturn2search3
+- urlPikahttps://github.com/bricke/pika — local-first author-controlled editor and non-destructive AI editing pattern. citeturn2search9
 
-**NovelForge** is an engineering reference for kernel lifecycle, dependency boundaries, event history, retry/dead-letter handling, diagnostics, and modular infrastructure.
-
-**K.I.N.G.S.-AI** is the engineering reference for workforce planning, artifact lifecycle, build/test execution, capability acquisition, bounded autonomous execution, and recoverable handoffs.
-
-Forge remains the author product. K.I.N.G.S. remains the independent workforce/orchestration system.
-
-### Open-source writing systems studied
-
-Forge has studied and selectively adapted useful patterns from open-source projects including:
-
-- `Openapps-free/novel-studio` — rich writing environment, AI writing modes, story planning, world codex, timeline, research, revision history, and provider configuration. The repository is MIT licensed. urlNovel Studio repositoryhttps://github.com/Openapps-free/novel-studio
-- `dreamtelligence/EMBER` — scene cards, memory backbone, canon/object/knowledge/promise ledgers, typed state diffs, continuity guards, and human approval. urlEMBER repositoryhttps://github.com/dreamtelligence/EMBER
-- `Dirgha-AI/writer-studio` — binder-style nested chapter/scene structure, drafts, evaluations, versions, research, transcription, export, and pluggable AI providers. It is Apache-2.0 licensed. urlWriter Studio repositoryhttps://github.com/Dirgha-AI/writer-studio
-- `Ckokoski/AuthorAgent` — autonomous local-first book-pipeline architecture from research through publish-ready output. urlAuthorAgent repositoryhttps://github.com/Ckokoski/AuthorAgent
-- `ilrein/openwrite` — story-map generation, rich editor, chapter management, multi-provider AI, codex, and project workflows. Its AGPL-3.0 license requires architectural/legal review before any code reuse. urlOpenWrite repositoryhttps://github.com/ilrein/openwrite
-
-These repositories are **engineering references, not permission to copy code blindly**. Any direct code reuse must respect the source repository's license, attribution requirements, and compatibility with Forge's architecture. Where licenses are incompatible or unclear, Forge will reproduce the useful behavior independently rather than import the code.
-
-See `docs/ENGINEERING_INTEGRATION_LEDGER.md` for the integration rules and why each pattern matters.
+License rule: **do not copy code merely because it is useful.** Direct reuse must be compatible with the source license and Forge's architecture. Where license compatibility or provenance is unclear, reproduce the behavior independently.
 
 ## Development commands
 
@@ -180,11 +145,7 @@ Then open:
 
 `http://127.0.0.1:4173`
 
-## Verification philosophy
-
-Never weaken or delete tests to make the build green.
-
-The real release gate is:
+## Verification gate
 
 ```text
 BUILD
@@ -208,14 +169,10 @@ ARTIFACT VALIDATION
 AUTHOR APPROVAL
 ```
 
-## Mission integration rule
-
-The repository contains a large set of mission-level implementations. Those missions are not separate products.
-
-The engineering job is to consolidate the strongest implementations into one coherent ProjectState, one project-memory boundary, one manuscript workflow, one visual workflow, one production path, and one Studio.
+The mission modules remain valuable domain machinery, but they are not separate products. The engineering objective is one coherent ProjectState, one manuscript workflow, one visual workflow, one production path, one memory boundary, and one Studio.
 
 **Mission tests prove domain behavior. End-to-end Studio workflows prove the product. Both are required.**
 
 ## Status
 
-`main` is the integrated engineering baseline. The next work is systematic hardening and completion of every directive-required author workflow, not another isolated mock screen.
+`main` remains the production integration baseline. The active engineering line is focused on converting the directive into a dependable private author workplace and eliminating dead-end UI, disconnected mission islands, and unverified feature claims.
