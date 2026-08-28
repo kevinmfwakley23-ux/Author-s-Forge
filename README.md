@@ -107,6 +107,7 @@ This ledger exists so a future engineering session can resume from the actual st
 - **The package scripts now distinguish regression testing from real-browser acceptance.** `npm test` remains the deterministic build/unit/integration suite; `npm run test:browser` is the real rendered-application acceptance gate.
 - **The package script change and browser harness were committed directly to `feature/reference-image-pipeline`.** They still require the branch to be deliberately reconciled with `main` before integration.
 - **The product must not be declared complete because a button, page, API expression, or test exists.** The actual user journey must be proven from visible interaction through durable result.
+- **Static Studio control wiring is now regression-tested.** A dedicated test requires all 37 current static buttons to have a route, form submission boundary, or client-side handler reference; all 11 forms must be present in client wiring; all declared routes must map to real `data-view` sections; and dynamic scene controls must have executable handlers. This is a guard against accidentally reintroducing visibly present but unwired controls. It does not replace real browser execution.
 
 ### Discovery workflow — mandatory going forward
 
