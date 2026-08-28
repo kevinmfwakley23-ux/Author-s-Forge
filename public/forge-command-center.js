@@ -1,5 +1,6 @@
 /* Static Workbench integrations are bound by /forge-workbench.js; this file owns the first-class typed/voice command surface. */
 /* AI candidates have NOT been saved as canon until the author approves and saves them. */
+/* Approval boundary: candidate output has NOT been saved as canon. */
 (() => {
   'use strict';
   const projectId = new URLSearchParams(location.search).get('project') || localStorage.getItem('forge-project') || 'forge-studio';
