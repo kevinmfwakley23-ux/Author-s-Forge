@@ -41,7 +41,7 @@ test("Forge Studio exposes a real persistent author workflow", async () => {
     assert.match(html, /id="writing"/);
     assert.match(html, /id="export-form"/);
 
-    const pkg = await get("/api/projects/forge-studio/package");
+    let pkg = await get("/api/projects/forge-studio/package");
     assert.equal(pkg.manifest.formatVersion, 2);
     assert.equal(pkg.manifest.packageName, "AUTHOR'S FORGE PROJECT");
     assert.deepEqual(pkg.manifest.paths, ["project-state.json"]);
@@ -50,9 +50,19 @@ test("Forge Studio exposes a real persistent author workflow", async () => {
     assert.equal(pkg.files[0].path, "project-state.json");
     assert.equal(pkg.files[0].mediaType, "application/json");
     assert.match(pkg.files[0].sha256, /^[a-f0-9]{64}$/);
+
+    await new Promise((resolve, reject) => { child.once("exit", resolve); child.kill("SIGTERM"); setTimeout(() => reject(new Error("Studio server did not stop.")), 2000); });
+    const restarted = spawn(process.execPath, ["dist/studio-server.js"], { env: { ...process.env, PORT: String(port), HOST: "127.0.0.1", FORGE_DATA_DIR: dataDir, OPENAI_API_KEY: "", OPENAI_MODEL: "" }, stdio: ["ignore", "pipe", "pipe"] });
+    await waitForServer(restarted, port);
+    const afterRestart = await (async () => { const response = await fetch(`${base}/api/projects/forge-studio/package`); const payload = await response.json(); assert.equal(response.ok, true, JSON.stringify(payload)); return payload; })();
+    assert.equal(afterRestart.manifest.formatVersion, 2);
+    assert.equal(afterRestart.projectState.studioWorkspace.books[0].chapters[0].scenes[0].content, "A durable manuscript scene written through the Studio.");
+    assert.equal(afterRestart.projectState.project.memories.length, 0);
+    restarted.kill("SIGTERM");
+    await new Promise((resolve) => restarted.once("exit", resolve));
   } finally {
     child.kill("SIGTERM");
-    await new Promise((resolve) => child.once("exit", resolve));
+    await new Promise((resolve) => { const timer = setTimeout(resolve, 1000); child.once("exit", () => { clearTimeout(timer); resolve(); }); });
     await rm(dataDir, { recursive: true, force: true });
   }
 });
