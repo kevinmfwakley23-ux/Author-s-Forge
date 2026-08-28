@@ -136,7 +136,7 @@ test('running Studio executes a complete durable author workflow without a provi
 
   result = await request(`/api/projects/${projectId}/genome`, {
     method: 'POST',
-    body: JSON.stringify({ nodes: [{ id: 'opening', label: 'Opening', component: 'chapter', references: [chapterId] }] }),
+    body: JSON.stringify({ projectId, nodes: [{ id: 'opening', label: 'Opening', component: 'scenes', references: [chapterId], metadata: {} }] }),
   });
   assert.equal(result.response.status, 200);
   assert.equal(result.body.nodes.length, 1);
@@ -159,9 +159,6 @@ test('running Studio executes a complete durable author workflow without a provi
   assert.equal(result.response.status, 200);
   assert.equal(result.body.workspace.books[0].chapters[0].scenes[0].content, content);
 
-  // Restart the real server against the same durable data directory. This
-  // proves persistence across process boundaries rather than only within one
-  // in-memory application lifetime.
   await stopServer();
   await startServer();
 
