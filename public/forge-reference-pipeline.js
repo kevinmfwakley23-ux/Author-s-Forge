@@ -1,8 +1,6 @@
 /* Author's Forge reference-image workflow.
- * Runs before the legacy illustration submit handler so the selected file is
- * never silently discarded. The current server contract is JSON-only, so the
- * browser persists the original image as a project memory record while the
- * provider-side binary edit transport is completed in the server pipeline.
+ * The selected reference is uploaded through the real binary server boundary,
+ * then the returned durable asset URI is supplied to the image provider edit.
  */
 (() => {
   "use strict";
@@ -45,32 +43,16 @@
     target.innerHTML = `<img src="${escapeHtml(dataUrl)}" alt="Reference image preview"><p><strong>${escapeHtml(file.name)}</strong> • ${escapeHtml(file.type)} • ${Math.ceil(file.size / 1024)} KiB</p>`;
   }
 
-  async function persistReference(file, dataUrl, prompt) {
-    // Keep the client-to-server payload bounded by the Studio's existing 8 MiB
-    // JSON request ceiling. Images larger than this are rejected rather than
-    // silently truncated or converted into unusable records.
+  async function uploadReference(file) {
     if (file.size > 5 * 1024 * 1024) throw new Error("Reference images must be 5 MiB or smaller in the current local Studio pipeline.");
-    const id = `reference-image-${crypto.randomUUID()}`;
-    const memory = await api(`/api/projects/${encodeURIComponent(projectId())}/memory`, {
+    const response = await fetch(`/api/projects/${encodeURIComponent(projectId())}/illustration/references?fileName=${encodeURIComponent(file.name)}`, {
       method: "POST",
-      body: JSON.stringify({
-        id,
-        class: "visual-identity",
-        authority: "working",
-        summary: `Reference image: ${file.name}`,
-        content: JSON.stringify({
-          kind: "reference-image",
-          originalFileName: file.name,
-          mediaType: file.type,
-          byteLength: file.size,
-          dataUrl,
-          prompt: String(prompt || "").trim(),
-        }),
-        reference: "illustration-studio-reference-upload",
-        relevanceTags: ["illustration", "reference-image", "visual-identity"],
-      }),
+      headers: { "content-type": file.type },
+      body: file,
     });
-    return memory;
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || `Reference upload failed (${response.status}).`);
+    return payload;
   }
 
   async function handleSubmit(event) {
@@ -85,18 +67,19 @@
     try {
       let reference = null;
       if (selected && useReference) {
-        const dataUrl = await readFile(selected);
-        showPreview(selected, dataUrl);
-        reference = await persistReference(selected, dataUrl, prompt);
+        showPreview(selected, await readFile(selected));
+        reference = await uploadReference(selected);
       }
 
       const payload = Object.fromEntries(new FormData(form()).entries());
       delete payload.referenceImage;
       payload.useReference = useReference;
       if (reference) {
-        payload.referenceMemoryId = reference.id;
-        payload.referenceFileName = selected.name;
-        payload.prompt = `${prompt}\n\nREFERENCE IMAGE AVAILABLE IN PROJECT MEMORY: ${selected.name}. Preserve the referenced subject's identity, proportions, distinctive visual traits, and continuity where appropriate. Do not claim the image was used as an image input until the provider-side reference transport confirms it.`;
+        payload.referenceId = reference.id;
+        payload.referenceUri = reference.assetUri;
+        payload.referenceFileName = reference.originalFileName;
+        payload.referenceKind = "source";
+        payload.referenceNotes = "Author-selected reference supplied as an actual image input to the provider edit boundary.";
       }
 
       const generated = await api(`/api/projects/${encodeURIComponent(projectId())}/ai/image`, {
@@ -105,9 +88,9 @@
       });
 
       if (result()) {
-        result().innerHTML = `<img src="${escapeHtml(generated.url)}" alt="Generated illustration"><p>${escapeHtml(generated.model || "image provider")}</p><a href="${escapeHtml(generated.url)}" target="_blank" rel="noopener">Open image</a>${reference ? `<p class="muted">Reference preserved as project record <code>${escapeHtml(reference.id)}</code>. Provider reference transport is the next server integration step.</p>` : ""}`;
+        result().innerHTML = `<img src="${escapeHtml(generated.url)}" alt="Generated illustration"><p>${escapeHtml(generated.model || "image provider")} • ${escapeHtml(generated.mode || "generation")}</p><a href="${escapeHtml(generated.url)}" target="_blank" rel="noopener">Open image</a>${reference ? `<p class="muted">Reference ${escapeHtml(reference.originalFileName)} was uploaded to durable project storage and supplied to the provider edit request.</p>` : ""}`;
       }
-      notify(reference ? "Reference image preserved and illustration generated. The image-reference provider boundary remains explicitly marked until server-side image input is enabled." : "Real image provider response received.", true);
+      notify(reference ? "Reference image uploaded and supplied to the real image-edit provider boundary." : "Real image provider response received.", true);
     } catch (error) {
       notify(error instanceof Error ? error.message : String(error));
     }
