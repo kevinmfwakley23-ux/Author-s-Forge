@@ -128,13 +128,11 @@ No button is considered complete merely because it exists in HTML. Every control
 
 ## AI Context Optimization & Token Efficiency
 
-Author's Forge will treat **context efficiency as a first-class AI architecture concern**. The goal is to reduce unnecessary model input, latency, and operating cost without sacrificing canon, author intent, reasoning quality, or recoverability.
+Author's Forge treats **context efficiency as a first-class AI architecture concern**. The goal is to reduce unnecessary model input, latency, and operating cost without sacrificing canon, author intent, reasoning quality, or recoverability.
 
-This capability should reuse compatible ideas from the K.I.N.G.S. architecture where appropriate, while remaining **provider-neutral and independently deployable inside Forge**. Forge must receive reusable optimization capabilities, not become tightly coupled to K.I.N.G.S.
+This capability explicitly reuses compatible K.I.N.G.S. architecture and open-source research where appropriate while remaining provider-neutral and independently deployable inside Forge. Forge receives reusable optimization capabilities; it does not become structurally dependent on K.I.N.G.S.
 
 ### Context Optimization Pipeline
-
-The canonical direction is:
 
 ```text
 AUTHOR REQUEST
@@ -157,22 +155,43 @@ TOKEN / COST GUARD
       ↓
 PROVIDER ROUTER
       ↓
-OPENAI / OLLAMA / FUTURE PROVIDERS
+K.I.N.G.S. / OPENAI / OLLAMA / FUTURE PROVIDERS
 ```
 
 ### Required optimization principles
 
 - **Context stratification:** separate essential system rules, project canon, current book/chapter/scene, characters, world/canon memories, research, recent workflow state, and low-value historical material so only relevant context is sent.
-- **Retrieval over wholesale replay:** retrieve the relevant project knowledge instead of repeatedly sending the entire project to every AI request.
+- **Retrieval over wholesale replay:** retrieve relevant project knowledge instead of repeatedly sending the entire project to every AI request.
 - **Fetch-once / reuse:** retain normalized context artifacts and reuse unchanged context rather than reconstructing or transmitting it repeatedly.
 - **Deterministic optimization first:** deduplicate repeated material, compact metadata and tool output, remove boilerplate, and use deltas for unchanged state before invoking model-based compression.
 - **Semantic caching:** avoid paying for equivalent or sufficiently similar requests when a valid reusable result exists and the cache policy permits it.
-- **Optional model-based compression:** support open-source prompt/context compression techniques such as LLMLingua-style compression where they provide a measurable benefit. Compression must be provider-neutral and replaceable.
-- **Compression economics:** do not compress blindly. Estimate whether the expected token savings justify the preprocessing cost and latency.
-- **Inflation guard:** if optimized context is not meaningfully smaller or materially better, discard the optimization and use the original context.
+- **Optional model-based compression:** support open-source prompt/context compression techniques such as LLMLingua-style compression where they provide a measurable benefit. Microsoft describes LLMLingua as identifying non-essential prompt tokens and LongLLMLingua as query-aware long-context compression. urlMicrosoft Research — LLMLinguahttps://www.microsoft.com/en-us/research/project/llmlingua/
+- **Compression economics:** do not compress blindly. Estimate whether expected savings justify preprocessing cost and latency.
+- **Inflation guard:** if optimized context is not meaningfully smaller, discard the optimization and use the original context.
 - **Structured-data protection:** JSON, identifiers, canon facts, constraints, tool arguments, and other machine-critical structures must not be lossy-compressed in ways that can change meaning.
-- **Immutable source context:** optimization must never destroy the original project information. Compressed context is a derived representation, not the source of truth.
+- **Immutable source context:** optimization must never destroy original project information. Compressed context is derived state, never the source of truth.
 - **Author authority:** optimization may shorten context sent to a model but may never silently alter canon or author-approved project state.
+
+### Open-source compatibility decision
+
+The first production optimization layer is **deterministic and dependency-light**. Forge now has an internal context optimizer with token estimation, whitespace normalization, duplicate-line reduction, savings measurement, and an inflation guard. This provides immediate savings without adding a heavy runtime dependency.
+
+Open-source semantic compression remains an optional second stage. LLMLingua/LongLLMLingua is a strong research-backed candidate, but it should only be adopted after licensing, runtime footprint, local-device viability, fidelity, latency, and measured savings are verified for Forge's workloads. Semantic caching and tool-output compression are likewise candidates, not automatic dependencies. citeturn0search0turn0academia28
+
+### K.I.N.G.S. integration decision
+
+**K.I.N.G.S. is now an approved optional intelligence resource for Author's Forge.** Forge must be able to call K.I.N.G.S. whenever a task benefits from its workforce, knowledge, routing, local intelligence, verification, or other governed capabilities.
+
+The integration boundary is deliberately explicit:
+
+- `KINGS_AI_ENDPOINT` selects a running K.I.N.G.S. bridge endpoint.
+- `KINGS_AI_MODEL` identifies the model/resource exposed through that bridge.
+- `KINGS_AI_API_KEY` is optional and only used when the bridge requires authentication.
+- The bridge uses an OpenAI-Responses-compatible request/response contract so Forge does not import K.I.N.G.S. internals into its core domain.
+- If K.I.N.G.S. is unavailable, Forge can fall back to its independently governed OpenAI/Ollama providers rather than becoming unusable.
+- Forge must never pretend that K.I.N.G.S. is connected merely because the adapter exists; an actual configured endpoint and successful runtime verification are required.
+
+The K.I.N.G.S. V1 reference explicitly assigns Context its own tree containing context building, knowledge selection, task-state selection, safe compression, checkpointing, and context budgets, and assigns Execution responsibility for provider/model routing and cost/quality policy. Forge will reuse those architectural capabilities at the boundary rather than duplicate or fork them. fileciteturn141file0
 
 ### Token and cost observability
 
@@ -191,18 +210,6 @@ Every provider request should ultimately expose an optimization ledger containin
 
 The system must **measure actual savings rather than promise a fixed percentage**. Compression quality is workload- and model-dependent, and aggressive compression must be rejected when it damages critical information or reasoning quality.
 
-### Open-source compatibility direction
-
-The implementation should evaluate and selectively adopt compatible open-source approaches rather than creating unnecessary proprietary equivalents. Candidate techniques include:
-
-- LLMLingua / LongLLMLingua-style prompt compression;
-- tool-output/context compression;
-- semantic caching;
-- retrieval and hierarchical context selection;
-- deterministic token-aware compaction.
-
-Third-party dependencies must be reviewed for license compatibility, runtime footprint, maintenance health, browser/server compatibility, and TypeScript/Node integration before adoption. No dependency is considered approved merely because it reduces tokens.
-
 ### Non-negotiable safety rule for optimization
 
 **Never save tokens by losing the author's book.**
@@ -214,22 +221,11 @@ The original durable project state remains authoritative. Optimization layers ma
 ### AI writing
 Forge supports real provider-backed generation through:
 
+- K.I.N.G.S. bridge: `KINGS_AI_ENDPOINT` + `KINGS_AI_MODEL` when a governed K.I.N.G.S. bridge is running.
 - OpenAI: `OPENAI_API_KEY` + explicit `OPENAI_MODEL`.
 - Local Ollama: `OLLAMA_BASE_URL` + explicit `OLLAMA_MODEL`.
 
-If neither provider is configured, generation fails explicitly. Forge does not fabricate an answer.
-
-```bash
-export OPENAI_API_KEY="your-key"
-export OPENAI_MODEL="your-enabled-model"
-```
-
-or:
-
-```bash
-export OLLAMA_BASE_URL="http://127.0.0.1:11434"
-export OLLAMA_MODEL="your-installed-model"
-```
+If no provider is configured, generation fails explicitly. Forge does not fabricate an answer.
 
 ### Real image generation
 Illustration generation uses the configured OpenAI image provider. Without `OPENAI_API_KEY`, the Studio reports the missing configuration instead of showing fake output.
@@ -242,7 +238,7 @@ AI candidates are explicitly non-canon until the author approves them. The comma
 
 ## Functional Verification Roadmap
 
-The verification layer now includes an actual **application-level acceptance harness** in addition to domain and source-contract tests.
+The verification layer includes an actual **application-level acceptance harness** in addition to domain and source-contract tests.
 
 It exercises the real running Studio server and verifies:
 
@@ -293,14 +289,22 @@ CHROMEBOOK / ANDROID DEVICE VERIFICATION
 
 This section is permanent engineering memory. **Whenever a material discovery is made about progress, a missing capability, an architectural constraint, a platform requirement, a verification weakness, or unfinished work, record it here.** This is mandatory restart context.
 
+### 2026-08-28 — K.I.N.G.S. integration and token-efficiency decision locked
+
+- Author's Forge will reuse compatible K.I.N.G.S. context, memory, routing, local-intelligence, cost-control, and verification capabilities instead of creating competing subsystems.
+- K.I.N.G.S. remains an optional governed intelligence resource; Forge remains independently deployable and functional without it.
+- Added a K.I.N.G.S. bridge adapter using an explicit `KINGS_AI_ENDPOINT` contract rather than guessing at or importing K.I.N.G.S. runtime internals.
+- Added deterministic context optimization directly to Forge so immediate token reduction does not depend on a large external runtime.
+- Added token estimation, savings measurement, compression ratio reporting, duplicate-line reduction, whitespace compaction, and an inflation guard.
+- Open-source semantic compression such as LLMLingua/LongLLMLingua remains a candidate second-stage optimizer pending measured fidelity, latency, licensing, and Chromebook viability.
+- The original project state remains immutable and authoritative; no optimization may silently discard canon.
+
 ### 2026-08-28 — Context optimization and token-efficiency architecture identified
 
-- Context/token efficiency is now an explicit Author's Forge architectural requirement rather than an informal optimization goal.
+- Context/token efficiency is an explicit Author's Forge architectural requirement.
 - The intended design is provider-neutral and layered: request planning, context budgeting, retrieval, stratification, deterministic optimization, semantic caching, optional model-based compression, token/cost guarding, and provider routing.
-- K.I.N.G.S. techniques should be reused where compatible, but Forge must remain independently deployable and must not become coupled to the K.I.N.G.S. runtime.
-- Open-source approaches such as LLMLingua-style prompt compression, tool-output/context compression, semantic caching, retrieval, and deterministic compaction are candidates for evaluation rather than automatic dependencies.
 - Compression must preserve the immutable original project state and must never trade canon fidelity for token savings.
-- The eventual implementation must measure actual savings, cost, latency, and quality rather than advertise a fixed compression percentage.
+- The implementation must measure actual savings, cost, latency, and quality rather than advertise a fixed compression percentage.
 
 ### 2026-08-28 — Validated project snapshot restore boundary added
 
@@ -314,39 +318,28 @@ This section is permanent engineering memory. **Whenever a material discovery is
 - Canonical version-2 packages now bind `manifest.projectId` to `projectState.metadata.id` when project metadata declares an id.
 - `project-state.json`, when present as a UTF-8 package file, must exactly match the canonical serialized `projectState`, in addition to its SHA-256 integrity check.
 - Added regression coverage for identity mismatch, semantic state-file mismatch, and strengthened round-trip behavior.
-- This prevents a validly hashed package file and a separately altered in-memory state envelope from being accepted as one coherent Forge project package.
 
 ### 2026-08-28 — Live Studio command surface added to application acceptance
 
 - Extended the real server acceptance harness beyond API workflow persistence.
 - The harness now fetches the served Studio root and verifies the actual command-center/workbench scripts plus every declared Studio view.
 - It fetches the real command-center script and verifies the microphone surface, browser speech APIs, and explicit non-canon approval boundary are present in the served application.
-- This closes a verification gap where source-pattern tests could pass while the running server served an incomplete Studio surface.
 
 ### 2026-08-28 — Canonical v2 package route integration
 
 - Integrated `ProjectPackageService` into the live Studio server.
 - `/api/projects/{projectId}/package` now returns the canonical version-2 Forge project package rather than the legacy version-1 application snapshot envelope.
 - The route packages the complete durable project plus validated Studio workspace inside `projectState` and emits the integrity-checked `project-state.json` package file.
-- Application integration coverage now verifies the v2 manifest, package name, state preservation, file path/media type, SHA-256 shape, and persistence across server restart.
 
 ### 2026-08-28 — Portable package application foundation
 
 - Added `ProjectPackageService.exportSnapshot(...)` as the application-level entry point for creating a canonical version-2 Forge package from durable project state.
 - Snapshot exports include an integrity-checked `project-state.json` package file using SHA-256 and the versioned package manifest.
-- The Studio `/api/projects/{projectId}/package` route is now wired to this service and no longer returns the older application snapshot envelope.
 
 ### 2026-08-28 — Portable package contract verification
 
 - The repository already contains the version-2 portable project package domain contract with manifest metadata, traversal-safe relative paths, SHA-256 file integrity, deterministic serialization, and validation on deserialization.
 - Added dedicated contract coverage for successful round-trip serialization plus rejection of traversal, tampering, and unsupported package versions.
-
-### 2026-08-28 — Command-center regression hardening
-
-- GitHub access to the private `kevinmfwakley23-ux/Author-s-Forge` repository is operational again.
-- The first-class command center already uses real `SpeechRecognition` / `webkitSpeechRecognition`, preserves the original transcript, and routes non-navigation commands through the real `/api/projects/{projectId}/ai/draft` provider boundary.
-- A regression hardening commit added an explicit approval-boundary marker so the source contract unambiguously states that AI candidate output **has NOT been saved as canon**.
-- This does not substitute for runtime acceptance testing; it only hardens the existing contract while the application-level verification layer is built.
 
 ### 2026-08-27 — Functional verification gap identified
 
