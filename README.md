@@ -165,7 +165,7 @@ K.I.N.G.S. / OPENAI / OLLAMA / FUTURE PROVIDERS
 - **Fetch-once / reuse:** retain normalized context artifacts and reuse unchanged context rather than reconstructing or transmitting it repeatedly.
 - **Deterministic optimization first:** deduplicate repeated material, compact metadata and tool output, remove boilerplate, and use deltas for unchanged state before invoking model-based compression.
 - **Semantic caching:** avoid paying for equivalent or sufficiently similar requests when a valid reusable result exists and the cache policy permits it.
-- **Optional model-based compression:** support open-source prompt/context compression techniques such as LLMLingua-style compression where they provide a measurable benefit. Microsoft describes LLMLingua as identifying non-essential prompt tokens and LongLLMLingua as query-aware long-context compression. urlMicrosoft Research — LLMLinguahttps://www.microsoft.com/en-us/research/project/llmlingua/
+- **Optional model-based compression:** support open-source prompt/context compression techniques such as LLMLingua-style compression where they provide a measurable benefit.
 - **Compression economics:** do not compress blindly. Estimate whether expected savings justify preprocessing cost and latency.
 - **Inflation guard:** if optimized context is not meaningfully smaller, discard the optimization and use the original context.
 - **Structured-data protection:** JSON, identifiers, canon facts, constraints, tool arguments, and other machine-critical structures must not be lossy-compressed in ways that can change meaning.
@@ -174,13 +174,13 @@ K.I.N.G.S. / OPENAI / OLLAMA / FUTURE PROVIDERS
 
 ### Open-source compatibility decision
 
-The first production optimization layer is **deterministic and dependency-light**. Forge now has an internal context optimizer with token estimation, whitespace normalization, duplicate-line reduction, savings measurement, and an inflation guard. This provides immediate savings without adding a heavy runtime dependency.
+The first production optimization layer is **deterministic and dependency-light**. Forge has an internal context optimizer with token estimation, whitespace normalization, duplicate-line reduction, savings measurement, and an inflation guard. This provides immediate savings without adding a heavy runtime dependency.
 
-Open-source semantic compression remains an optional second stage. LLMLingua/LongLLMLingua is a strong research-backed candidate, but it should only be adopted after licensing, runtime footprint, local-device viability, fidelity, latency, and measured savings are verified for Forge's workloads. Semantic caching and tool-output compression are likewise candidates, not automatic dependencies. citeturn0search0turn0academia28
+Open-source semantic compression remains an optional second stage. LLMLingua/LongLLMLingua is a strong candidate, but adoption requires licensing, runtime footprint, local-device viability, fidelity, latency, and measured savings to be verified for Forge workloads. Semantic caching and tool-output compression are likewise candidates, not automatic dependencies.
 
 ### K.I.N.G.S. integration decision
 
-**K.I.N.G.S. is now an approved optional intelligence resource for Author's Forge.** Forge must be able to call K.I.N.G.S. whenever a task benefits from its workforce, knowledge, routing, local intelligence, verification, or other governed capabilities.
+**K.I.N.G.S. is an approved optional intelligence resource for Author's Forge.** Forge must be able to call K.I.N.G.S. whenever a task benefits from its workforce, knowledge, routing, local intelligence, verification, or other governed capabilities.
 
 The integration boundary is deliberately explicit:
 
@@ -188,10 +188,34 @@ The integration boundary is deliberately explicit:
 - `KINGS_AI_MODEL` identifies the model/resource exposed through that bridge.
 - `KINGS_AI_API_KEY` is optional and only used when the bridge requires authentication.
 - The bridge uses an OpenAI-Responses-compatible request/response contract so Forge does not import K.I.N.G.S. internals into its core domain.
-- If K.I.N.G.S. is unavailable, Forge can fall back to its independently governed OpenAI/Ollama providers rather than becoming unusable.
-- Forge must never pretend that K.I.N.G.S. is connected merely because the adapter exists; an actual configured endpoint and successful runtime verification are required.
+- If K.I.N.G.S. is unavailable, Forge can fall back to independently governed OpenAI/Ollama providers rather than becoming unusable.
+- Forge must never pretend K.I.N.G.S. is connected merely because the adapter exists; an actual configured endpoint and successful runtime verification are required.
 
-The K.I.N.G.S. V1 reference explicitly assigns Context its own tree containing context building, knowledge selection, task-state selection, safe compression, checkpointing, and context budgets, and assigns Execution responsibility for provider/model routing and cost/quality policy. Forge will reuse those architectural capabilities at the boundary rather than duplicate or fork them. fileciteturn141file0
+K.I.N.G.S. remains the source of reusable architecture for context building, knowledge selection, task-state selection, safe compression, checkpointing, context budgets, provider/model routing, and cost/quality policy. Forge adopts compatible capabilities at explicit boundaries rather than forking K.I.N.G.S. internals.
+
+### OpenAI-compatible gateway decision
+
+**OpenAI-compatible gateways are an approved optional provider boundary for Forge.** The reviewed `andeya/token-free-gateway` project demonstrates useful, reusable protocol infrastructure including OpenAI-compatible request/response types, SSE streaming, tool-call normalization, provider adapters, and routing concepts.
+
+Forge may selectively reuse compatible, license-approved protocol components or reproduce their proven interface patterns behind its own provider contract.
+
+The gateway architecture is:
+
+```text
+FORGE PROVIDER ROUTER
+        ↓
+OPENAI-COMPATIBLE GATEWAY ADAPTER
+        ↓
+LOCAL / EXTERNAL GATEWAY
+        ↓
+UNDERLYING PROVIDER(S)
+```
+
+The gateway is an **execution option, not the token-optimization system**. Context optimization remains above the provider layer.
+
+Forge will **not** import browser credential interception, browser-session automation, or provider-session storage into the core product. Those mechanisms create unnecessary security, policy, browser-runtime, and maintenance coupling.
+
+Third-party code is never copied blindly. License compatibility, security, maintenance health, runtime footprint, Chromebook/Android viability, and architectural fit must be reviewed before direct reuse.
 
 ### Token and cost observability
 
@@ -224,6 +248,7 @@ Forge supports real provider-backed generation through:
 - K.I.N.G.S. bridge: `KINGS_AI_ENDPOINT` + `KINGS_AI_MODEL` when a governed K.I.N.G.S. bridge is running.
 - OpenAI: `OPENAI_API_KEY` + explicit `OPENAI_MODEL`.
 - Local Ollama: `OLLAMA_BASE_URL` + explicit `OLLAMA_MODEL`.
+- Optional OpenAI-compatible gateway through the provider abstraction.
 
 If no provider is configured, generation fails explicitly. Forge does not fabricate an answer.
 
@@ -289,12 +314,22 @@ CHROMEBOOK / ANDROID DEVICE VERIFICATION
 
 This section is permanent engineering memory. **Whenever a material discovery is made about progress, a missing capability, an architectural constraint, a platform requirement, a verification weakness, or unfinished work, record it here.** This is mandatory restart context.
 
-### 2026-08-28 — K.I.N.G.S. integration and token-efficiency decision locked
+### 2026-08-28 — OpenAI-compatible gateway decision locked
+
+- Reviewed `andeya/token-free-gateway` as a candidate source of proven gateway infrastructure.
+- OpenAI-compatible protocol types, SSE streaming, tool-call normalization, provider adapters, and routing patterns are approved for selective reuse after license/security/runtime review.
+- Browser credential interception, browser-session automation, and provider-session storage are explicitly excluded from Forge's core architecture.
+- Gateway infrastructure remains below Forge's context-optimization layer and must not replace Project Brain retrieval, budgeting, compression, caching, or cost controls.
+- Forge remains provider-neutral and can operate without a gateway.
+
+### 2026-08-28 — Context intelligence and K.I.N.G.S. integration locked
 
 - Author's Forge will reuse compatible K.I.N.G.S. context, memory, routing, local-intelligence, cost-control, and verification capabilities instead of creating competing subsystems.
 - K.I.N.G.S. remains an optional governed intelligence resource; Forge remains independently deployable and functional without it.
 - Added a K.I.N.G.S. bridge adapter using an explicit `KINGS_AI_ENDPOINT` contract rather than guessing at or importing K.I.N.G.S. runtime internals.
 - Added deterministic context optimization directly to Forge so immediate token reduction does not depend on a large external runtime.
+- Added a context budget manager and Project Brain context pipeline so AI requests can select relevant context before optimization.
+- Added a project-aware AI generation boundary that retrieves and budgets project memory before provider dispatch.
 - Added token estimation, savings measurement, compression ratio reporting, duplicate-line reduction, whitespace compaction, and an inflation guard.
 - Open-source semantic compression such as LLMLingua/LongLLMLingua remains a candidate second-stage optimizer pending measured fidelity, latency, licensing, and Chromebook viability.
 - The original project state remains immutable and authoritative; no optimization may silently discard canon.
