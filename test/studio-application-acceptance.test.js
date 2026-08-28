@@ -64,12 +64,27 @@ test.after(async () => {
   if (dataDir) await rm(dataDir, { recursive: true, force: true });
 });
 
-test('running Studio executes a complete durable author workflow without a provider', async () => {
-  let result = await request('/');
+test('running Studio exposes its real integrated command surface', async () => {
+  const result = await request('/');
   assert.equal(result.response.status, 200);
-  assert.match(String(result.body), /Author's Forge/);
+  const html = String(result.body);
+  assert.match(html, /Author's Forge/);
+  assert.match(html, /forge-command-center\.js/);
+  assert.match(html, /forge-workbench\.js/);
+  for (const view of ['dashboard', 'manuscript', 'writing', 'architecture', 'characters', 'world', 'research', 'editing', 'voice', 'art', 'cover', 'marketing', 'publishing', 'genome', 'health', 'versions', 'settings', 'governance']) {
+    assert.match(html, new RegExp(`id=["']${view}["']`), `missing Studio view: ${view}`);
+  }
 
-  result = await request('/api/health');
+  const command = await request('/forge-command-center.js');
+  assert.equal(command.response.status, 200);
+  assert.match(String(command.body), /Start mic/);
+  assert.match(String(command.body), /SpeechRecognition/);
+  assert.match(String(command.body), /webkitSpeechRecognition/);
+  assert.match(String(command.body), /has NOT been saved as canon/);
+});
+
+test('running Studio executes a complete durable author workflow without a provider', async () => {
+  let result = await request('/api/health');
   assert.equal(result.response.status, 200);
   assert.equal(result.body.ok, true);
   assert.equal(result.body.ai.openai, false);
