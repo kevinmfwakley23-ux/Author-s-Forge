@@ -210,6 +210,13 @@ CHROMEBOOK / ANDROID DEVICE VERIFICATION
 
 This section is permanent engineering memory. **Whenever a material discovery is made about progress, a missing capability, an architectural constraint, a platform requirement, a verification weakness, or unfinished work, record it here.** This is mandatory restart context.
 
+### 2026-08-28 — Portable package integrity binding strengthened
+
+- Canonical version-2 packages now bind `manifest.projectId` to `projectState.metadata.id` when project metadata declares an id.
+- `project-state.json`, when present as a UTF-8 package file, must exactly match the canonical serialized `projectState`, in addition to its SHA-256 integrity check.
+- Added regression coverage for identity mismatch, semantic state-file mismatch, and strengthened round-trip behavior.
+- This prevents a validly hashed package file and a separately altered in-memory state envelope from being accepted as one coherent Forge project package.
+
 ### 2026-08-28 — Live Studio command surface added to application acceptance
 
 - Extended the real server acceptance harness beyond API workflow persistence.
