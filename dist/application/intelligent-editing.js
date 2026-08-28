@@ -1,0 +1,117 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.IntelligentEditingService = void 0;
+const intelligent_editing_1 = require("../domain/intelligent-editing");
+const KIND_ROLES = { pacing: ["pacing", "structural", "developmental", "genre"], "character-consistency": ["character", "continuity", "dialogue"], "plot-hole": ["developmental"], "continuity-conflict": ["continuity"], repetition: ["line", "copy", "dialogue"], "weak-scene": ["developmental", "structural", "pacing"], "unresolved-thread": ["developmental"], "unnecessary-exposition": ["pacing", "genre"], "dialogue-problem": ["dialogue", "character"], "pov-violation": ["continuity", "character"], "tense-inconsistency": ["continuity", "copy"], cliche: ["line", "genre"], "overused-word": ["line", "copy", "proofreading"], "sentence-rhythm": ["line", "proofreading"], "chapter-balance": ["structural", "developmental"], "genre-fit": ["genre"] };
+class IntelligentEditingService {
+    analyze(request) { const d = (0, intelligent_editing_1.createEditingDocument)(request.document); if (!request.roles.length)
+        throw new Error("At least one editorial role is required."); for (const role of request.roles)
+        if (!intelligent_editing_1.EDITOR_ROLES.includes(role))
+            throw new Error(`Unknown editorial role "${role}".`); const findings = request.roles.flatMap(r => this.analyzeRole(d, r)); const report = (0, intelligent_editing_1.createEditorialReport)({ id: request.reportId, target: d.target, roles: [...new Set(request.roles)], findings: deduplicate(findings), summary: summarize(findings), generatedAt: request.generatedAt ?? new Date().toISOString() }); (0, intelligent_editing_1.validateEditorialReport)(report, d.text); return report; }
+    analyzeRole(d, r) { const o = []; const a = (k) => KIND_ROLES[k].includes(r); if (a("overused-word"))
+        o.push(...overusedWords(d, r)); if (a("repetition"))
+        o.push(...repeatedSentences(d, r)); if (a("sentence-rhythm"))
+        o.push(...rhythm(d, r)); if (a("cliche"))
+        o.push(...cliches(d, r)); if (a("tense-inconsistency") && d.tense)
+        o.push(...tense(d, r)); if (a("pov-violation") && d.pov)
+        o.push(...pov(d, r)); if (a("dialogue-problem"))
+        o.push(...dialogue(d, r)); if (a("character-consistency") && d.expectedCharacterNames?.length)
+        o.push(...characterConsistency(d, r)); if (a("continuity-conflict"))
+        o.push(...requiredFacts(d, r)); if (a("unresolved-thread"))
+        o.push(...unresolvedThreads(d, r)); if (a("unnecessary-exposition"))
+        o.push(...exposition(d, r)); if (a("weak-scene") || a("pacing"))
+        o.push(...scenePacing(d, r)); if (a("chapter-balance"))
+        o.push(...chapterBalance(d, r)); if (a("plot-hole"))
+        o.push(...plotHoles(d, r)); if (a("genre-fit") && d.genreExpectations?.length)
+        o.push(...genreFit(d, r)); return o; }
+}
+exports.IntelligentEditingService = IntelligentEditingService;
+function finding(d, r, k, s, m, rec, start, end, c) { return (0, intelligent_editing_1.createEditorialFinding)({ id: `${r}:${k}:${start}:${end}`, role: r, kind: k, severity: s, message: m, recommendation: rec, start, end, excerpt: d.text.slice(start, end), confidence: c }); }
+function words(t) { const a = []; const re = /[A-Za-z][A-Za-z'-]*/g; let m; while ((m = re.exec(t)))
+    a.push({ word: m[0].toLowerCase(), start: m.index, end: re.lastIndex }); return a; }
+function overusedWords(d, r) { const all = words(d.text), c = new Map(), o = []; for (const w of all) {
+    if (w.word.length < 5 || STOP.has(w.word))
+        continue;
+    const p = c.get(w.word) ?? [];
+    p.push(w.start);
+    c.set(w.word, p);
+} for (const [word, p] of c)
+    if (p.length >= Math.max(4, Math.ceil(all.length / 120))) {
+        const s = p[0];
+        o.push(finding(d, r, "overused-word", "suggestion", `The word “${word}” appears ${p.length} times and may be overused.`, `Review repeated uses and vary wording only where it preserves meaning and author voice.`, s, s + word.length, .91));
+    } return o; }
+function repeatedSentences(d, r) { const seen = new Map(), o = []; for (const s of sentences(d.text)) {
+    const k = normalize(s.text);
+    if (k.length < 35)
+        continue;
+    if (seen.has(k))
+        o.push(finding(d, r, "repetition", "warning", "A substantially repeated sentence appears elsewhere in the document.", "Compare both passages and remove or differentiate only with author approval.", s.start, s.end, .96));
+    else
+        seen.set(k, s.start);
+} return o; }
+function rhythm(d, r) { const ss = sentences(d.text), o = []; for (let i = 2; i < ss.length; i++) {
+    const l = [wordCount(ss[i - 2].text), wordCount(ss[i - 1].text), wordCount(ss[i].text)];
+    const spread = Math.max(...l) - Math.min(...l);
+    if (l.every(n => n >= 18) && spread <= 4)
+        o.push(finding(d, r, "sentence-rhythm", "suggestion", "Three consecutive sentences have a notably uniform length and may flatten sentence rhythm.", "Consider varying sentence length or cadence only where it strengthens the prose without changing content.", ss[i - 2].start, ss[i].end, .78));
+} return o; }
+function cliches(d, r) { return phraseFindings(d, r, "cliche", ["at the end of the day", "cold as ice", "heart sank", "dead as a doornail", "time will tell", "only time will tell", "once in a lifetime"], "A potentially familiar cliché appears.", "Consider a more specific expression if it better serves the established voice."); }
+function tense(d, r) { const o = [], p = d.tense === "past" ? /\b(is|are|am)\b/g : /\b(was|were|had|did)\b/g; let m; while ((m = p.exec(d.text)))
+    o.push(finding(d, r, "tense-inconsistency", "warning", `The passage contains a verb that may conflict with the requested ${d.tense} tense.`, "Verify the intended tense against narrative context; do not alter it automatically.", m.index, p.lastIndex, .63)); return o.slice(0, 20); }
+function pov(d, r) { const ps = d.pov === "first" ? [/\b(he|she|they)\b/gi] : d.pov === "second" ? [/\b(I|we|he|she|they)\b/gi] : [/\b(I|we)\b/gi], o = []; for (const p of ps) {
+    let m;
+    while ((m = p.exec(d.text)))
+        o.push(finding(d, r, "pov-violation", "suggestion", `A ${m[0]}-person reference may conflict with the requested ${d.pov}-person POV.`, `Review the local narrative perspective before changing it; quoted dialogue may be valid.`, m.index, p.lastIndex, .58));
+} return o.slice(0, 20); }
+function dialogue(d, r) { const o = [], re = /“([^”]*)”|"([^"]*)"/g; let m; while ((m = re.exec(d.text))) {
+    const text = m[1] ?? m[2] ?? "";
+    if (wordCount(text) >= 30)
+        o.push(finding(d, r, "dialogue-problem", "suggestion", "A dialogue turn is unusually long and may need review for natural conversational pacing.", "Check whether the character would realistically sustain this turn and preserve the intended character objective.", m.index, re.lastIndex, .81));
+} return o; }
+function characterConsistency(d, r) { const o = []; for (const name of d.expectedCharacterNames ?? []) {
+    const m = words(d.text).find(w => w.word === name.toLowerCase());
+    if (!m)
+        o.push(finding(d, r, "character-consistency", "warning", `Expected character “${name}” does not appear in the supplied text.`, `Verify whether the character's absence is intentional for this scene.`, 0, Math.min(d.text.length, 1), .86));
+    else
+        o.push(finding(d, r, "character-consistency", "info", `Character “${name}” appears in the passage and should be checked against established character truth.`, `Compare behavior, knowledge, motivation, dialogue, and emotional response against authoritative character memory.`, m.start, m.end, .82));
+} return o; }
+function requiredFacts(d, r) { const o = []; for (const f of d.requiredFacts ?? [])
+    if (!d.text.toLowerCase().includes(f.toLowerCase()))
+        o.push(finding(d, r, "continuity-conflict", "warning", `A supplied required fact is not represented in the analyzed passage: “${f}”.`, "Verify whether the fact belongs in this passage; absence is a review signal, not proof of a continuity error.", 0, Math.min(d.text.length, 1), .74)); return o; }
+function unresolvedThreads(d, r) { const o = []; for (const t of d.unresolvedThreads ?? [])
+    if (!d.text.toLowerCase().includes(t.toLowerCase()))
+        o.push(finding(d, r, "unresolved-thread", "suggestion", `The supplied open thread is not visibly addressed: “${t}”.`, "Confirm whether the thread should remain open or receive a deliberate beat in this passage.", 0, Math.min(d.text.length, 1), .72)); return o; }
+function exposition(d, r) { const o = []; const re = /\b(?:was|were|is|are)\s+[^.!?]{90,}[.!?]/g; let m; while ((m = re.exec(d.text)))
+    o.push(finding(d, r, "unnecessary-exposition", "suggestion", "A long explanatory sentence may be carrying substantial exposition at once.", "Check whether some information can emerge through action, dialogue, or more focused narration.", m.index, re.lastIndex, .68)); return o; }
+function scenePacing(d, r) { const p = d.text.split(/\n\s*\n/).map(text => text.trim()).filter(Boolean); if (p.length < 3)
+    return []; const lengths = p.map(wordCount), avg = lengths.reduce((n, x) => n + x, 0) / lengths.length; const i = lengths.findIndex(n => n >= Math.max(30, avg * 1.5)); if (i < 0)
+    return []; const s = d.text.indexOf(p[i]); return [finding(d, r, "pacing", "suggestion", "One paragraph is substantially longer than the surrounding paragraph rhythm and may affect scene pacing.", "Review whether the paragraph's length is deliberate; consider a break or tighter movement only if it improves the scene without removing necessary content.", s, s + p[i].length, .79)]; }
+function chapterBalance(d, r) { const p = d.text.split(/\n\s*\n/).filter(Boolean), l = p.map(wordCount); if (l.length < 2)
+    return []; const max = Math.max(...l), min = Math.min(...l); return max >= min * 4 ? [finding(d, r, "chapter-balance", "suggestion", "Paragraph/section lengths vary substantially and may warrant structural review.", "Confirm that section balance reflects deliberate story emphasis rather than accidental imbalance.", 0, d.text.length, .7)] : []; }
+function plotHoles(d, r) { const m = /\b(?:but|however)\b[^.!?]{0,80}\b(?:already|never|always)\b/i.exec(d.text); return m ? [finding(d, r, "plot-hole", "warning", "The passage contains a local contradiction signal that merits developmental review.", "Compare the surrounding event sequence and canon before deciding whether a plot hole exists.", m.index, m.index + m[0].length, .55)] : []; }
+function genreFit(d, r) { const o = []; for (const e of d.genreExpectations ?? [])
+    if (!d.text.toLowerCase().includes(e.toLowerCase()))
+        o.push(finding(d, r, "genre-fit", "suggestion", `The stated genre expectation is not visibly represented: “${e}”.`, "Review whether the expectation belongs in this passage rather than forcing genre markers into the prose.", 0, Math.min(d.text.length, 1), .61)); return o; }
+function phraseFindings(d, r, k, p, m, rec) { const o = []; const lower = d.text.toLowerCase(); for (const phrase of p) {
+    let at = lower.indexOf(phrase);
+    while (at >= 0) {
+        o.push(finding(d, r, k, "suggestion", m, rec, at, at + phrase.length, .94));
+        at = lower.indexOf(phrase, at + phrase.length);
+    }
+} return o; }
+function sentences(text) { const o = []; const re = /[^.!?]+[.!?]+|[^.!?]+$/g; let m; while ((m = re.exec(text))) {
+    const v = m[0].trim();
+    if (!v)
+        continue;
+    const s = m.index + m[0].indexOf(v);
+    o.push({ text: v, start: s, end: s + v.length });
+} return o; }
+function normalize(v) { return v.toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ").trim(); }
+function wordCount(v) { return v.trim() ? v.trim().split(/\s+/).length : 0; }
+function deduplicate(fs) { const seen = new Set(); return fs.filter(f => { const k = `${f.kind}:${f.start}:${f.end}`; if (seen.has(k))
+    return false; seen.add(k); return true; }); }
+function summarize(fs) { if (!fs.length)
+    return "No deterministic editorial findings were identified by the selected analysis roles."; const c = new Map(); for (const f of fs)
+    c.set(f.kind, (c.get(f.kind) ?? 0) + 1); return `${fs.length} editorial finding(s) identified: ${[...c.entries()].map(([k, n]) => `${k} (${n})`).join(", ")}. Findings are recommendations only and do not authorize manuscript mutation.`; }
+const STOP = new Set(["about", "after", "again", "could", "every", "first", "their", "there", "which", "would", "where", "while", "because", "before", "through", "should"]);
+//# sourceMappingURL=intelligent-editing.js.map

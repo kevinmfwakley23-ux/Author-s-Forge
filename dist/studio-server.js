@@ -1,0 +1,469 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const node_http_1 = require("node:http");
+const node_crypto_1 = require("node:crypto");
+const promises_1 = require("node:fs/promises");
+const node_path_1 = require("node:path");
+const file_project_store_1 = require("./infrastructure/file-project-store");
+const project_1 = require("./domain/project");
+const memory_1 = require("./domain/memory");
+const context_assembly_1 = require("./domain/context-assembly");
+const final_product_systems_1 = require("./application/final-product-systems");
+const final_product_systems_2 = require("./domain/final-product-systems");
+const character_bible_1 = require("./domain/character-bible");
+const studio_workspace_1 = require("./domain/studio-workspace");
+const ai_provider_1 = require("./infrastructure/ai-provider");
+const manuscript_production_1 = require("./application/manuscript-production");
+const intelligent_editing_1 = require("./application/intelligent-editing");
+const intelligent_editing_2 = require("./domain/intelligent-editing");
+const ai_collaboration_1 = require("./domain/ai-collaboration");
+const book_cover_studio_1 = require("./application/book-cover-studio");
+const book_cover_studio_2 = require("./domain/book-cover-studio");
+const illustration_reference_pipeline_1 = require("./application/illustration-reference-pipeline");
+const illustration_asset_library_1 = require("./domain/illustration-asset-library");
+const port = Number(process.env.PORT ?? 4173);
+const host = process.env.HOST ?? "127.0.0.1";
+const dataRoot = process.env.FORGE_DATA_DIR ?? (0, node_path_1.join)(process.cwd(), ".forge-data");
+const publicRoot = (0, node_path_1.join)(process.cwd(), "public");
+const store = new file_project_store_1.FileProjectStore(dataRoot);
+const genome = new final_product_systems_1.BookGenomeService();
+const audit = new final_product_systems_1.FinalProductAuditService();
+const governance = new final_product_systems_1.GovernanceService();
+const production = new manuscript_production_1.ManuscriptProductionService();
+const editor = new intelligent_editing_1.IntelligentEditingService();
+const coverStudio = new book_cover_studio_1.BookCoverStudioService();
+const illustrationReferences = new illustration_reference_pipeline_1.IllustrationReferencePipeline();
+const defaultProjectId = "forge-studio";
+const MEMORY_CLASSES = ["author-memory", "project-memory", "story-canon", "character-memory", "relationship-memory", "location-memory", "timeline-memory", "style-memory", "research-memory", "creative-note", "working-draft", "hypothesis", "open-thread", "visual-identity", "production-memory", "publishing-memory", "marketing-memory", "generated-alternative", "decision-memory"];
+const MEMORY_AUTHORITIES = ["proposed", "working", "verified", "authoritative", "superseded", "archived"];
+const REFERENCE_MIME_TYPES = ["image/png", "image/jpeg", "image/webp"];
+const MAX_REFERENCE_BYTES = 5 * 1024 * 1024;
+async function ensureDefaultProject() { if (!(await store.exists(defaultProjectId)))
+    await store.create((0, project_1.createProject)({ id: defaultProjectId, title: "My First Forge Book" })); }
+function json(res, status, value) { res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" }); res.end(JSON.stringify(value)); }
+function text(res, status, value, contentType) { res.writeHead(status, { "content-type": contentType, "cache-control": "no-store", "x-content-type-options": "nosniff" }); res.end(value); }
+async function body(req) { let raw = ""; for await (const chunk of req)
+    raw += String(chunk); if (raw.length > 8 * 1024 * 1024)
+    throw new Error("Request body exceeds 8 MiB limit."); if (!raw.trim())
+    return {}; const parsed = JSON.parse(raw); if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+    throw new Error("JSON object body required."); return parsed; }
+function projectIdFrom(pathname) { const match = pathname.match(/^\/api\/projects\/([A-Za-z0-9_-]+)(?:\/|$)/); return match?.[1] ?? null; }
+function enumValue(value, allowed, label) { if (typeof value !== "string" || !allowed.includes(value))
+    throw new Error(`Invalid ${label}.`); return value; }
+function workspaceOf(project) { return project?.studioWorkspace ? (0, studio_workspace_1.validateStudioWorkspace)(project.studioWorkspace) : (0, studio_workspace_1.createStudioWorkspace)(); }
+function saveWorkspace(project, workspace) { return { ...project, studioWorkspace: (0, studio_workspace_1.validateStudioWorkspace)(workspace), metadata: { ...project.metadata, updatedAt: new Date().toISOString() } }; }
+function parseJsonObject(textValue) { const fenced = textValue.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1] ?? textValue; const start = fenced.indexOf("{"); const end = fenced.lastIndexOf("}"); if (start < 0 || end <= start)
+    throw new Error("AI did not return a JSON object for the requested structured plan."); const parsed = JSON.parse(fenced.slice(start, end + 1)); if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+    throw new Error("AI structured plan was not an object."); return parsed; }
+async function listProjects() { const root = (0, node_path_1.join)(dataRoot, "projects"); try {
+    const entries = await (0, promises_1.readdir)(root, { withFileTypes: true });
+    const projects = [];
+    for (const entry of entries) {
+        if (!entry.isDirectory() || !/^[A-Za-z0-9_-]+$/.test(entry.name))
+            continue;
+        const project = await store.load(entry.name);
+        if (project)
+            projects.push({ id: project.metadata.id, title: project.metadata.title, updatedAt: project.metadata.updatedAt });
+    }
+    return projects.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT")
+        return [];
+    throw error;
+} }
+async function projectHealth(project) { const workspace = workspaceOf(project); const books = workspace.books; const chapters = books.flatMap((b) => b.chapters); const scenes = chapters.flatMap((c) => c.scenes); const words = scenes.reduce((n, s) => n + s.wordCount, 0); return { projectId: project.metadata.id, status: project.metadata.status, metrics: { books: books.length, chapters: chapters.length, scenes: scenes.length, words, characters: (project.characters ?? []).length, memories: project.memories.length, researchRecords: project.memories.filter((m) => m.class === "research-memory").length, canonRecords: project.memories.filter((m) => m.class === "story-canon").length, illustrations: project.illustrationAssetLibrary?.assets?.length ?? 0, audits: project.deliveryAudits?.length ?? 0 }, readiness: { hasStructure: books.length > 0 && chapters.length > 0 && scenes.length > 0, hasWriting: words > 0, hasCharacters: (project.characters ?? []).length > 0, hasResearch: project.memories.some((m) => m.class === "research-memory"), hasCanon: project.memories.some((m) => m.class === "story-canon"), hasGenome: Boolean(project.bookGenome?.nodes?.length) } }; }
+async function readBinaryBody(req) { const chunks = []; let total = 0; for await (const chunk of req) {
+    const part = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    total += part.byteLength;
+    if (total > MAX_REFERENCE_BYTES)
+        throw new Error("Reference image exceeds the 5 MiB limit.");
+    chunks.push(part);
+} return Buffer.concat(chunks, total); }
+function referencePath(projectId, assetId, extension) { if (!/^[A-Za-z0-9_-]+$/.test(projectId) || !/^[A-Za-z0-9_-]+$/.test(assetId) || !["png", "jpg", "webp"].includes(extension))
+    throw new Error("Invalid reference asset path."); return (0, node_path_1.join)(dataRoot, "projects", projectId, "illustrations", "references", `${assetId}.${extension}`); }
+async function handleApi(req, res, url) {
+    if (url.pathname === "/api/health" && req.method === "GET") {
+        json(res, 200, { ok: true, service: "authors-forge-studio", projectId: defaultProjectId, port, ai: { openai: Boolean(process.env.OPENAI_API_KEY && process.env.OPENAI_MODEL), ollama: Boolean(process.env.OLLAMA_BASE_URL && process.env.OLLAMA_MODEL), image: Boolean(process.env.OPENAI_API_KEY) } });
+        return true;
+    }
+    if (url.pathname === "/api/governance" && req.method === "GET") {
+        json(res, 200, { ownership: governance.ownershipPolicy(), accessibility: governance.accessibilityProfile() });
+        return true;
+    }
+    if (url.pathname === "/api/projects" && req.method === "GET") {
+        json(res, 200, await listProjects());
+        return true;
+    }
+    if (url.pathname === "/api/projects" && req.method === "POST") {
+        const input = await body(req);
+        const project = (0, project_1.createProject)({ id: String(input.id ?? ""), title: String(input.title ?? "") });
+        await store.create(project);
+        json(res, 201, project);
+        return true;
+    }
+    const projectId = projectIdFrom(url.pathname);
+    if (!projectId)
+        return false;
+    const loaded = await store.load(projectId);
+    if (!loaded) {
+        json(res, 404, { error: "Project not found." });
+        return true;
+    }
+    const project = loaded;
+    if (url.pathname === `/api/projects/${projectId}` && req.method === "GET") {
+        json(res, 200, project);
+        return true;
+    }
+    if (url.pathname === `/api/projects/${projectId}/collaboration` && req.method === "GET") {
+        json(res, 200, project.aiCollaborationPolicy ?? (0, ai_collaboration_1.createAiCollaborationPolicy)("co-pilot"));
+        return true;
+    }
+    if (url.pathname === `/api/projects/${projectId}/collaboration` && req.method === "POST") {
+        const input = await body(req);
+        const policy = (0, ai_collaboration_1.createAiCollaborationPolicy)(enumValue(input.mode, ai_collaboration_1.AI_COLLABORATION_MODES, "collaboration mode"));
+        await store.save((0, project_1.withProjectAiCollaborationPolicy)(project, policy));
+        json(res, 200, policy);
+        return true;
+    }
+    if (url.pathname === `/api/projects/${projectId}/health` && req.method === "GET") {
+        json(res, 200, await projectHealth(project));
+        return true;
+    }
+    if (url.pathname === `/api/projects/${projectId}/package` && req.method === "GET") {
+        json(res, 200, { formatVersion: 1, exportedAt: new Date().toISOString(), project, workspace: workspaceOf(project) });
+        return true;
+    }
+    if (url.pathname === `/api/projects/${projectId}/workspace` && req.method === "GET") {
+        json(res, 200, workspaceOf(project));
+        return true;
+    }
+    if (url.pathname === `/api/projects/${projectId}/workspace/activate` && req.method === "POST") {
+        const input = await body(req);
+        const workspace = (0, studio_workspace_1.setActiveBook)(workspaceOf(project), String(input.bookId ?? ""));
+        await store.save(saveWorkspace(project, workspace));
+        json(res, 200, workspace);
+        return true;
+    }
+    if (url.pathname === `/api/projects/${projectId}/workspace/books` && req.method === "POST") {
+        const input = await body(req);
+        const workspace = (0, studio_workspace_1.addWorkspaceBook)(workspaceOf(project), (0, studio_workspace_1.createWorkspaceBook)({ id: String(input.id ?? `book-${(0, node_crypto_1.randomUUID)()}`), title: String(input.title ?? ""), kind: input.kind, description: String(input.description ?? "") }));
+        await store.save(saveWorkspace(project, workspace));
+        json(res, 201, workspace.books.find((b) => b.id === workspace.activeBookId));
+        return true;
+    }
+    const bookMatch = url.pathname.match(new RegExp(`^/api/projects/${projectId}/workspace/books/([^/]+)/chapters$`));
+    if (bookMatch && req.method === "POST") {
+        const input = await body(req);
+        const workspace = (0, studio_workspace_1.addWorkspaceChapter)(workspaceOf(project), bookMatch[1], { id: String(input.id ?? `chapter-${(0, node_crypto_1.randomUUID)()}`), number: Number(input.number), title: String(input.title ?? ""), synopsis: String(input.synopsis ?? "") });
+        await store.save(saveWorkspace(project, workspace));
+        json(res, 201, (0, studio_workspace_1.getBook)(workspace, bookMatch[1]).chapters.find((c) => c.id === String(input.id)));
+        return true;
+    }
+    const chapterMatch = url.pathname.match(new RegExp(`^/api/projects/${projectId}/workspace/books/([^/]+)/chapters/([^/]+)/scenes$`));
+    if (chapterMatch && req.method === "POST") {
+        const input = await body(req);
+        const workspace = (0, studio_workspace_1.addWorkspaceScene)(workspaceOf(project), chapterMatch[1], chapterMatch[2], { id: String(input.id ?? `scene-${(0, node_crypto_1.randomUUID)()}`), number: Number(input.number), title: String(input.title ?? ""), synopsis: String(input.synopsis ?? "") });
+        await store.save(saveWorkspace(project, workspace));
+        json(res, 201, (0, studio_workspace_1.getBook)(workspace, chapterMatch[1]).chapters.find((c) => c.id === chapterMatch[2]));
+        return true;
+    }
+    const sceneContentMatch = url.pathname.match(new RegExp(`^/api/projects/${projectId}/workspace/books/([^/]+)/chapters/([^/]+)/scenes/([^/]+)/content$`));
+    if (sceneContentMatch && req.method === "PUT") {
+        const input = await body(req);
+        const workspace = (0, studio_workspace_1.saveSceneContent)(workspaceOf(project), sceneContentMatch[1], sceneContentMatch[2], sceneContentMatch[3], String(input.content ?? ""));
+        await store.save(saveWorkspace(project, workspace));
+        const book = workspace.books.find((b) => b.id === sceneContentMatch[1]);
+        json(res, 200, (0, studio_workspace_1.getScene)(book, sceneContentMatch[2], sceneContentMatch[3]));
+        return true;
+    }
+    if (url.pathname === `/api/projects/${projectId}/illustration/references` && req.method === "POST") {
+        const mime = enumValue(req.headers["content-type"]?.split(";", 1)[0] ?? "", REFERENCE_MIME_TYPES, "reference image MIME type");
+        const fileName = String(url.searchParams.get("fileName") ?? `reference-${(0, node_crypto_1.randomUUID)()}.${mime.split("/")[1]}`);
+        const bytes = await readBinaryBody(req);
+        if (bytes.byteLength === 0)
+            throw new Error("Reference image is empty.");
+        const assetId = `reference-${(0, node_crypto_1.randomUUID)()}`;
+        const extension = mime === "image/jpeg" ? "jpg" : mime.split("/")[1];
+        const relativeUri = `/api/projects/${projectId}/illustration/references/${assetId}.${extension}`;
+        await (0, promises_1.mkdir)((0, node_path_1.join)(dataRoot, "projects", projectId, "illustrations", "references"), { recursive: true });
+        await (0, promises_1.writeFile)(referencePath(projectId, assetId, extension), bytes, { flag: "wx" });
+        const reference = illustrationReferences.createReference({ id: assetId, projectId, originalFileName: fileName, mimeType: mime, bytes: new Uint8Array(bytes), assetUri: relativeUri });
+        json(res, 201, reference);
+        return true;
+    }
+    const referenceMatch = url.pathname.match(new RegExp(`^/api/projects/${projectId}/illustration/references/([A-Za-z0-9_-]+)\\.(png|jpg|webp)$`));
+    if (referenceMatch && req.method === "GET") {
+        const extension = referenceMatch[2];
+        try {
+            const data = await (0, promises_1.readFile)(referencePath(projectId, referenceMatch[1], extension));
+            res.writeHead(200, { "content-type": extension === "jpg" ? "image/jpeg" : `image/${extension}`, "cache-control": "no-store", "x-content-type-options": "nosniff" });
+            res.end(data);
+        }
+        catch {
+            text(res, 404, "Reference image not found", "text/plain; charset=utf-8");
+        }
+        return true;
+    }
+    if (url.pathname === `/api/projects/${projectId}/memory` && req.method === "POST") {
+        const input = await body(req);
+        const memory = (0, memory_1.createMemoryRecord)({ id: String(input.id ?? `memory-${(0, node_crypto_1.randomUUID)()}`), projectId, class: enumValue(input.class ?? "creative-note", MEMORY_CLASSES, "memory class"), authority: enumValue(input.authority ?? "working", MEMORY_AUTHORITIES, "memory authority"), summary: String(input.summary ?? ""), content: String(input.content ?? ""), provenance: [{ kind: "author", reference: String(input.reference ?? "studio"), recordedAt: new Date().toISOString() }], relatedMemoryIds: Array.isArray(input.relatedMemoryIds) ? input.relatedMemoryIds.map(String) : [], relevanceTags: Array.isArray(input.relevanceTags) ? input.relevanceTags.map(String) : [] });
+        if (project.memories.some((m) => m.id === memory.id)) {
+            json(res, 409, { error: `Memory id \"${memory.id}\" already exists.` });
+            return true;
+        }
+        await store.save({ ...project, memories: [...project.memories, memory], metadata: { ...project.metadata, updatedAt: new Date().toISOString() } });
+        json(res, 201, memory);
+        return true;
+    }
+    if (url.pathname === `/api/projects/${projectId}/context` && req.method === "POST") {
+        const input = await body(req);
+        const policies = Array.isArray(input.policies) ? input.policies.map((item) => { if (!item || typeof item !== "object")
+            throw new Error("Context policy must be an object."); const policy = item; const mode = enumValue(policy.mode, context_assembly_1.CONTEXT_INCLUSION_MODES, "context inclusion mode"); const key = String(policy.key ?? "").trim(); if (!key)
+            throw new Error("Context policy key is required."); return { key, mode, ...(policy.maxWords === undefined ? {} : { maxWords: Number(policy.maxWords) }) }; }) : undefined;
+        json(res, 200, (0, context_assembly_1.assembleWritingContext)(project, { projectId, policies, query: input.query === undefined ? undefined : String(input.query), characterIds: Array.isArray(input.characterIds) ? input.characterIds.map(String) : undefined }));
+        return true;
+    }
+    if (url.pathname === `/api/projects/${projectId}/characters` && req.method === "POST") {
+        const input = await body(req);
+        const character = (0, character_bible_1.createCharacter)({ id: String(input.id ?? `character-${(0, node_crypto_1.randomUUID)()}`), projectId, profile: input.profile, reason: String(input.reason ?? "Initial character bible entry") });
+        await store.save((0, project_1.withProjectCharacters)(project, [...(project.characters ?? []), character]));
+        json(res, 201, character);
+        return true;
+    }
+    const characterMatch = url.pathname.match(new RegExp(`^/api/projects/${projectId}/characters/([^/]+)$`));
+    if (characterMatch && req.method === "PUT") {
+        const input = await body(req);
+        const current = (project.characters ?? []).find((item) => item.id === characterMatch[1]);
+        if (!current) {
+            json(res, 404, { error: "Character not found." });
+            return true;
+        }
+        const next = (0, character_bible_1.updateCharacter)(current, { characterId: current.id, changes: input.changes, reason: String(input.reason ?? "Author update"), actor: input.actor === "system" ? "system" : "author" });
+        await store.save((0, project_1.withProjectCharacters)(project, (project.characters ?? []).map((item) => item.id === current.id ? next : item)));
+        json(res, 200, next);
+        return true;
+    }
+    if (url.pathname === `/api/projects/${projectId}/edit` && req.method === "POST") {
+        const input = await body(req);
+        const roles = (Array.isArray(input.roles) ? input.roles : ["developmental", "continuity", "line", "copy", "proofreading"]).map((role) => enumValue(role, intelligent_editing_2.EDITOR_ROLES, "editorial role"));
+        const report = editor.analyze({ document: { target: { projectId, manuscriptId: String(input.manuscriptId ?? "studio-workspace"), chapterId: input.chapterId === undefined ? undefined : String(input.chapterId), sceneId: input.sceneId === undefined ? undefined : String(input.sceneId) }, title: String(input.title ?? "Manuscript review"), text: String(input.text ?? ""), pov: input.pov, tense: input.tense, expectedCharacterNames: Array.isArray(input.expectedCharacterNames) ? input.expectedCharacterNames.map(String) : undefined, requiredFacts: Array.isArray(input.requiredFacts) ? input.requiredFacts.map(String) : undefined, unresolvedThreads: Array.isArray(input.unresolvedThreads) ? input.unresolvedThreads.map(String) : undefined, genreExpectations: Array.isArray(input.genreExpectations) ? input.genreExpectations.map(String) : undefined }, roles, reportId: String(input.reportId ?? `edit-${(0, node_crypto_1.randomUUID)()}`) });
+        json(res, 200, report);
+        return true;
+    }
+    if (url.pathname === `/api/projects/${projectId}/ai/architecture` && req.method === "POST") {
+        const input = await body(req);
+        const idea = String(input.idea ?? "").trim();
+        if (!idea)
+            throw new Error("Book idea is required.");
+        const target = Number(input.targetChapters ?? 0);
+        const result = await (0, ai_provider_1.generateText)({ system: "You are Author's Forge story architect. Return a detailed, practical book architecture. Do not write final prose. Preserve author intent, distinguish assumptions from supplied facts, and return useful chapter/scene structure.", user: `BOOK TYPE: ${String(input.kind ?? "novel")}\nTARGET CHAPTERS: ${target > 0 ? target : "choose an appropriate number"}\nAUTHOR IDEA:\n${idea}\n\nReturn: premise, themes, audience, genre expectations, canon candidates, character candidates, locations, timeline considerations, chapter plan, scene plan, unresolved questions, and production risks.`, temperature: 0.4, maxOutputTokens: 8000 });
+        json(res, 200, { ...result, candidate: true, authorApprovalRequired: true });
+        return true;
+    }
+    if (url.pathname === `/api/projects/${projectId}/ai/outline-to-workspace` && req.method === "POST") {
+        const input = await body(req);
+        const idea = String(input.idea ?? "").trim();
+        if (!idea)
+            throw new Error("Book idea is required.");
+        const target = Number(input.targetChapters ?? 0);
+        const result = await (0, ai_provider_1.generateText)({ system: "You are Author's Forge's structured book planner. Return ONLY valid JSON. Do not use markdown. Create a practical book outline that can be directly persisted into a manuscript binder. Each chapter must have scenes with titles and concise synopses. Do not write final prose.", user: JSON.stringify({ kind: String(input.kind ?? "novel"), targetChapters: target > 0 ? target : undefined, title: String(input.bookTitle ?? "Untitled Book"), idea }), temperature: 0.3, maxOutputTokens: 12000 });
+        const plan = parseJsonObject(result.text);
+        const title = String(plan.title ?? input.bookTitle ?? "Untitled Book").trim();
+        const chaptersRaw = Array.isArray(plan.chapters) ? plan.chapters : [];
+        if (!chaptersRaw.length)
+            throw new Error("AI outline contained no chapters.");
+        let workspace = workspaceOf(project);
+        const bookId = `book-${(0, node_crypto_1.randomUUID)()}`;
+        workspace = (0, studio_workspace_1.addWorkspaceBook)(workspace, (0, studio_workspace_1.createWorkspaceBook)({ id: bookId, title, kind: String(input.kind ?? "novel"), description: idea }));
+        let sceneCount = 0;
+        for (let ci = 0; ci < chaptersRaw.length; ci++) {
+            const rawChapter = chaptersRaw[ci] && typeof chaptersRaw[ci] === "object" ? chaptersRaw[ci] : {};
+            const chapterId = `chapter-${(0, node_crypto_1.randomUUID)()}`;
+            workspace = (0, studio_workspace_1.addWorkspaceChapter)(workspace, bookId, { id: chapterId, number: ci + 1, title: String(rawChapter.title ?? `Chapter ${ci + 1}`), synopsis: String(rawChapter.synopsis ?? rawChapter.purpose ?? "") });
+            const scenesRaw = Array.isArray(rawChapter.scenes) ? rawChapter.scenes : [];
+            for (let si = 0; si < scenesRaw.length; si++) {
+                const rawScene = scenesRaw[si] && typeof scenesRaw[si] === "object" ? scenesRaw[si] : {};
+                workspace = (0, studio_workspace_1.addWorkspaceScene)(workspace, bookId, chapterId, { id: `scene-${(0, node_crypto_1.randomUUID)()}`, number: si + 1, title: String(rawScene.title ?? `Scene ${si + 1}`), synopsis: String(rawScene.synopsis ?? rawScene.purpose ?? rawScene.conflict ?? "") });
+                sceneCount++;
+            }
+        }
+        await store.save(saveWorkspace(project, workspace));
+        json(res, 201, { book: workspace.books.find((b) => b.id === bookId), sceneCount, provider: result.provider, model: result.model, plan });
+        return true;
+    }
+    if (url.pathname === `/api/projects/${projectId}/ai/draft` && req.method === "POST") {
+        const input = await body(req);
+        const workspace = workspaceOf(project);
+        const book = (0, studio_workspace_1.getBook)(workspace, String(input.bookId ?? workspace.activeBookId ?? ""));
+        const chapter = book.chapters.find((item) => item.id === String(input.chapterId ?? ""));
+        if (!chapter)
+            throw new Error("A valid chapter is required for AI drafting.");
+        const focus = String(input.focus ?? chapter.synopsis ?? "").trim();
+        if (!focus)
+            throw new Error("A scene focus or chapter synopsis is required.");
+        const context = (0, context_assembly_1.assembleWritingContext)(project, { projectId, query: focus });
+        const recent = chapter.scenes.slice(-3).map((scene) => `${scene.title}\n${scene.content.slice(-3000)}`).join("\n\n");
+        const result = await (0, ai_provider_1.generateText)({ system: "You are the writing engine inside Author's Forge. The author owns canon and prose. Produce a candidate draft only. Never claim generated material is canon. Preserve the author's stated facts and voice constraints. Do not invent research as fact.", user: `PROJECT: ${project.metadata.title}\nBOOK: ${book.title}\nCHAPTER: ${chapter.number} ${chapter.title}\nFOCUS: ${focus}\n\nBOUND CONTEXT:\n${JSON.stringify(context)}\n\nRECENT SCENES:\n${recent}\n\nAUTHOR REQUEST:\n${String(input.instruction ?? "Draft the next scene in a publication-quality form while respecting the supplied context.")}`, temperature: Number(input.temperature ?? 0.7), maxOutputTokens: Number(input.maxOutputTokens ?? 5000) });
+        json(res, 200, { ...result, candidate: true, authorApprovalRequired: true });
+        return true;
+    }
+    if (url.pathname === `/api/projects/${projectId}/ai/image` && req.method === "POST") {
+        const input = await body(req);
+        const key = process.env.OPENAI_API_KEY?.trim();
+        const model = process.env.OPENAI_IMAGE_MODEL?.trim() || "gpt-image-1";
+        if (!key)
+            throw new Error("OPENAI_API_KEY is required for image generation.");
+        const prompt = String(input.prompt ?? "").trim();
+        if (!prompt)
+            throw new Error("Image prompt is required.");
+        const size = String(input.size ?? "1024x1024");
+        const quality = String(input.quality ?? "high");
+        const referenceUri = typeof input.referenceUri === "string" ? input.referenceUri.trim() : "";
+        let payloadBody;
+        let referenceForAsset = [];
+        if (referenceUri) {
+            const match = referenceUri.match(new RegExp(`^/api/projects/${projectId}/illustration/references/([A-Za-z0-9_-]+)\\.(png|jpg|webp)$`));
+            if (!match)
+                throw new Error("Invalid reference image URI.");
+            const extension = match[2];
+            const bytes = await (0, promises_1.readFile)(referencePath(projectId, match[1], extension));
+            const mime = extension === "jpg" ? "image/jpeg" : `image/${extension}`;
+            const form = new FormData();
+            form.append("model", model);
+            form.append("prompt", prompt);
+            form.append("size", size);
+            form.append("quality", quality);
+            form.append("output_format", "png");
+            const safeBytes = new Uint8Array(bytes.byteLength);
+            safeBytes.set(bytes);
+            const buffer = safeBytes.buffer.slice(safeBytes.byteOffset, safeBytes.byteOffset + safeBytes.byteLength);
+            form.append("image", new Blob([buffer], { type: mime }), String(input.referenceFileName ?? `reference.${extension}`));
+            payloadBody = form;
+            referenceForAsset = [{ id: String(input.referenceId ?? match[1]), uri: referenceUri, label: String(input.referenceFileName ?? "Reference image"), kind: String(input.referenceKind ?? "source"), notes: String(input.referenceNotes ?? "Author-selected reference for generation.") }];
+        }
+        else {
+            payloadBody = JSON.stringify({ model, prompt, size, quality, output_format: "png" });
+        }
+        const headers = { authorization: `Bearer ${key}` };
+        if (!referenceUri)
+            headers["content-type"] = "application/json";
+        const endpoint = referenceUri ? "https://api.openai.com/v1/images/edits" : "https://api.openai.com/v1/images/generations";
+        const response = await fetch(endpoint, { method: "POST", headers, body: payloadBody });
+        const providerPayload = await response.json().catch(() => ({}));
+        if (!response.ok)
+            throw new Error(typeof providerPayload.error === "object" && providerPayload.error ? String(providerPayload.error.message ?? `Image request failed (${response.status}).`) : `Image request failed (${response.status}).`);
+        const first = Array.isArray(providerPayload.data) ? providerPayload.data[0] : undefined;
+        if (!first || typeof first.b64_json !== "string")
+            throw new Error("Image provider returned no PNG data.");
+        const assetId = `image-${(0, node_crypto_1.randomUUID)()}`;
+        const assetDir = (0, node_path_1.join)(dataRoot, "projects", projectId, "assets");
+        await (0, promises_1.mkdir)(assetDir, { recursive: true });
+        const assetFile = `${assetId}.png`;
+        await (0, promises_1.writeFile)((0, node_path_1.join)(assetDir, assetFile), Buffer.from(first.b64_json, "base64"));
+        const assetUri = `/api/projects/${projectId}/assets/${assetFile}`;
+        const workspace = workspaceOf(project);
+        const book = workspace.books.find((item) => item.id === String(input.bookId ?? workspace.activeBookId ?? ""));
+        if (!book)
+            throw new Error("Create a book before saving an illustration asset.");
+        const chapter = book.chapters.find((item) => item.id === String(input.chapterId ?? ""));
+        const scene = chapter?.scenes.find((item) => item.id === String(input.sceneId ?? ""));
+        const library = project.illustrationAssetLibrary ?? { formatVersion: 1, projectId, assets: [], characterDesignLocks: [] };
+        const illustration = (0, illustration_asset_library_1.createIllustrationAsset)({ id: assetId, projectId, bookId: book.id, chapterId: chapter?.id ?? "unassigned-chapter", sceneId: scene?.id ?? "unassigned-scene", characterId: String(input.characterId ?? "unassigned-character"), locationId: String(input.locationId ?? "unassigned-location"), prompt, references: referenceForAsset, style: String(input.style ?? ""), generationSettings: { model, size, quality, provider: "openai", mode: referenceUri ? "reference-edit" : "generation" }, version: 1, approvalStatus: "draft", assetUri });
+        await store.save((0, project_1.withProjectIllustrationAssetLibrary)(project, { ...library, assets: [...library.assets, illustration] }));
+        json(res, 201, { id: assetId, provider: "openai", model, prompt, url: assetUri, asset: illustration, mode: referenceUri ? "reference-edit" : "generation" });
+        return true;
+    }
+    const assetMatch = url.pathname.match(new RegExp(`^/api/projects/${projectId}/assets/([A-Za-z0-9_-]+\\.png)$`));
+    if (assetMatch && req.method === "GET") {
+        try {
+            const data = await (0, promises_1.readFile)((0, node_path_1.join)(dataRoot, "projects", projectId, "assets", assetMatch[1]));
+            res.writeHead(200, { "content-type": "image/png", "cache-control": "no-store", "x-content-type-options": "nosniff" });
+            res.end(data);
+        }
+        catch {
+            text(res, 404, "Asset not found", "text/plain; charset=utf-8");
+        }
+        return true;
+    }
+    if (url.pathname === `/api/projects/${projectId}/cover/plan` && req.method === "POST") {
+        const input = await body(req);
+        const workspace = workspaceOf(project);
+        const book = workspace.books.find((b) => b.id === String(input.bookId ?? workspace.activeBookId ?? ""));
+        if (!book)
+            throw new Error("Create a book before creating a cover plan.");
+        const binding = enumValue(input.binding ?? "paperback", book_cover_studio_2.BINDINGS, "binding");
+        const interiorType = enumValue(input.interior ?? "black-white", book_cover_studio_2.INTERIOR_TYPES, "interior type");
+        const paperType = enumValue(input.paper ?? "white", book_cover_studio_2.PAPER_TYPES, "paper type");
+        const plan = coverStudio.create({ id: `cover-${(0, node_crypto_1.randomUUID)()}`, projectId, bookId: book.id, format: "paperback", publishing: { platform: "kdp", binding, interiorType, paperType, trimWidthInches: Number(input.widthInches), trimHeightInches: Number(input.heightInches), pageCount: Number(input.pages), bleedInches: 0.125, readingDirection: "ltr" }, title: String(input.title ?? book.title), author: String(input.author ?? "Author"), frontPrompt: String(input.front ?? "Create the front cover artwork."), spineText: String(input.title ?? book.title), backText: String(input.back ?? "Back cover copy."), outputFormat: "pdf", dpi: 300, version: 1, approvalStatus: "draft" });
+        const memory = (0, memory_1.createMemoryRecord)({ id: `memory-${(0, node_crypto_1.randomUUID)()}`, projectId, class: "production-memory", authority: "working", summary: `Cover plan: ${plan.title}`, content: JSON.stringify(plan, null, 2), provenance: [{ kind: "author", reference: "cover-studio", recordedAt: new Date().toISOString() }], relatedMemoryIds: [], relevanceTags: ["cover", "kdp"] });
+        await store.save({ ...(0, project_1.withProjectBookCoverPlans)(project, [...(project.bookCoverPlans ?? []), plan]), memories: [...project.memories, memory], metadata: { ...project.metadata, updatedAt: new Date().toISOString() } });
+        json(res, 201, plan);
+        return true;
+    }
+    if (url.pathname === `/api/projects/${projectId}/export` && req.method === "POST") {
+        const input = await body(req);
+        const workspace = workspaceOf(project);
+        const book = (0, studio_workspace_1.getBook)(workspace, String(input.bookId ?? workspace.activeBookId ?? ""));
+        const chapters = book.chapters.map((chapter) => ({ id: chapter.id, number: chapter.number, title: chapter.title, scenes: chapter.scenes.map((scene) => ({ id: scene.id, title: scene.title, body: scene.content })) }));
+        const format = enumValue(input.format ?? "docx", ["docx", "pdf", "epub", "kdp-docx", "kdp-pdf", "kdp-epub"], "production format");
+        const artifact = production.render({ projectId, bookId: book.id, title: book.title, author: String(input.author ?? "Author"), chapters, frontMatter: [], backMatter: [] }, { format, pageSize: input.pageSize === "6x9" || input.pageSize === "5x8" || input.pageSize === "a4" ? input.pageSize : "letter", pageNumbers: true, includeTitlePage: true, includeToc: true });
+        json(res, 200, artifact);
+        return true;
+    }
+    if (url.pathname === `/api/projects/${projectId}/genome` && req.method === "POST") {
+        const input = await body(req);
+        const nodes = Array.isArray(input.nodes) ? input.nodes : [];
+        const nextGenome = genome.create({ projectId, nodes });
+        await store.save((0, project_1.withProjectBookGenome)(project, nextGenome));
+        json(res, 200, nextGenome);
+        return true;
+    }
+    if (url.pathname === `/api/projects/${projectId}/genome/impact` && req.method === "POST") {
+        const input = await body(req);
+        const nodes = Array.isArray(input.nodes) ? input.nodes : [];
+        const graph = genome.create({ projectId, nodes });
+        json(res, 200, genome.impact(graph, String(input.changedNodeId ?? "")));
+        return true;
+    }
+    if (url.pathname === `/api/projects/${projectId}/delivery-audit` && req.method === "POST") {
+        const input = await body(req);
+        const checks = Array.isArray(input.checks) ? input.checks : final_product_systems_2.DELIVERY_AUDIT_CATEGORIES.map((category) => ({ category, passed: false, message: "No audit evidence supplied.", blocking: true }));
+        json(res, 200, audit.run({ id: String(input.id ?? `audit-${(0, node_crypto_1.randomUUID)()}`), projectId, checks }));
+        return true;
+    }
+    return false;
+}
+async function serveStatic(req, res, url) { const requested = url.pathname === "/" ? "index.html" : url.pathname.slice(1); const safe = (0, node_path_1.normalize)(requested); if (safe.startsWith("..") || safe.includes("/../")) {
+    text(res, 400, "Bad path", "text/plain; charset=utf-8");
+    return;
+} const file = (0, node_path_1.join)(publicRoot, safe); try {
+    const data = await (0, promises_1.readFile)(file);
+    const type = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".json": "application/json; charset=utf-8", ".svg": "image/svg+xml" };
+    res.writeHead(200, { "content-type": type[(0, node_path_1.extname)(file)] ?? "application/octet-stream", "cache-control": "no-cache", "x-content-type-options": "nosniff", "content-security-policy": "default-src 'self'; connect-src 'self' https://api.openai.com; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'" });
+    res.end(data);
+}
+catch {
+    text(res, 404, "Not found", "text/plain; charset=utf-8");
+} }
+const server = (0, node_http_1.createServer)(async (req, res) => { try {
+    const url = new URL(req.url ?? "/", `http://${req.headers.host ?? `${host}:${port}`}`);
+    if (url.pathname.startsWith("/api/")) {
+        if (await handleApi(req, res, url))
+            return;
+        json(res, 404, { error: "API route not found." });
+        return;
+    }
+    if (req.method !== "GET" && req.method !== "HEAD") {
+        json(res, 405, { error: "Method not allowed." });
+        return;
+    }
+    await serveStatic(req, res, url);
+}
+catch (error) {
+    console.error(error);
+    json(res, 400, { error: error instanceof Error ? error.message : "Request failed." });
+} });
+server.on("error", (error) => { console.error(error); process.exitCode = 1; });
+ensureDefaultProject().then(() => server.listen(port, host, () => console.log(`Author's Forge Studio: http://${host}:${port}`))).catch((error) => { console.error(error); process.exitCode = 1; });
+//# sourceMappingURL=studio-server.js.map
