@@ -1,12 +1,38 @@
+import { optimizeContext } from "../application/context-optimizer";
+import { generateWithKingsAi } from "./kings-ai-bridge";
+
 export interface AiGenerationRequest { readonly system: string; readonly user: string; readonly temperature?: number; readonly maxOutputTokens?: number; }
-export interface AiGenerationResult { readonly provider: "openai" | "ollama"; readonly model: string; readonly text: string; readonly requestId?: string; }
+export interface AiGenerationResult { readonly provider: "openai" | "ollama" | "kings"; readonly model: string; readonly text: string; readonly requestId?: string; readonly optimization?: { readonly originalEstimatedTokens: number; readonly optimizedEstimatedTokens: number; readonly tokensSaved: number; readonly compressionRatio: number; readonly strategy: readonly string[]; }; }
 
 export async function generateText(request: AiGenerationRequest): Promise<AiGenerationResult> {
+  const optimized = optimizeContext({
+    system: request.system,
+    user: request.user,
+    maxInputTokens: readPositiveInteger(process.env.AI_CONTEXT_MAX_INPUT_TOKENS),
+  });
+  const optimizedRequest = { ...request, system: optimized.system, user: optimized.user };
+  const optimization = {
+    originalEstimatedTokens: optimized.originalEstimatedTokens,
+    optimizedEstimatedTokens: optimized.optimizedEstimatedTokens,
+    tokensSaved: optimized.tokensSaved,
+    compressionRatio: optimized.compressionRatio,
+    strategy: optimized.strategy,
+  };
+
+  const kingsEndpoint = process.env.KINGS_AI_ENDPOINT?.trim();
+  if (kingsEndpoint) return { ...(await generateWithKingsAi({ endpoint: kingsEndpoint }, optimizedRequest)), optimization };
+
   const openAiKey = process.env.OPENAI_API_KEY?.trim();
-  if (openAiKey) return generateOpenAi(openAiKey, request);
+  if (openAiKey) return { ...(await generateOpenAi(openAiKey, optimizedRequest)), optimization };
   const ollama = process.env.OLLAMA_BASE_URL?.trim();
-  if (ollama) return generateOllama(ollama.replace(/\/$/, ""), request);
-  throw new Error("No AI provider is configured. Set OPENAI_API_KEY + OPENAI_MODEL for OpenAI or OLLAMA_BASE_URL + OLLAMA_MODEL for local Ollama.");
+  if (ollama) return { ...(await generateOllama(ollama.replace(/\/$/, ""), optimizedRequest)), optimization };
+  throw new Error("No AI provider is configured. Set KINGS_AI_ENDPOINT + KINGS_AI_MODEL, OPENAI_API_KEY + OPENAI_MODEL, or OLLAMA_BASE_URL + OLLAMA_MODEL.");
+}
+
+function readPositiveInteger(value: string | undefined): number | undefined {
+  if (!value?.trim()) return undefined;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
 }
 
 async function generateOpenAi(apiKey: string, request: AiGenerationRequest): Promise<AiGenerationResult> {
