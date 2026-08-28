@@ -1,3 +1,6 @@
+import { classifyContextPayload } from "./context-payload-classifier";
+import { compressContextPayload } from "./context-compressor";
+
 export interface ContextOptimizationInput {
   readonly system: string;
   readonly user: string;
@@ -23,51 +26,25 @@ export function estimateTokens(text: string): number {
   return Math.max(1, Math.ceil(normalized.length / TOKEN_CHARS));
 }
 
-function compactText(text: string): string {
-  return text
-    .replace(/\r\n?/g, "\n")
-    .replace(/[ \t]+\n/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .replace(/[ \t]{2,}/g, " ")
-    .trim();
-}
-
-function compactDuplicateLines(text: string): string {
-  const lines = text.split("\n");
-  const seen = new Set<string>();
-  const result: string[] = [];
-  for (const line of lines) {
-    const key = line.trim();
-    if (!key) {
-      result.push("");
-      continue;
-    }
-    if (/^(system|user|assistant|instruction|context|canon|memory|research):?$/i.test(key)) {
-      result.push(line);
-      continue;
-    }
-    if (key.length >= 24 && seen.has(key)) continue;
-    if (key.length >= 24) seen.add(key);
-    result.push(line);
-  }
-  return result.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+function optimizePayload(text: string, sourceName: string) {
+  const classification = classifyContextPayload(text, sourceName);
+  const compressed = compressContextPayload(classification.kind, text);
+  return {
+    text: compressed.text,
+    strategy: [`payload:${classification.kind}`, `confidence:${classification.confidence}`, ...compressed.strategy],
+  };
 }
 
 export function optimizeContext(input: ContextOptimizationInput): ContextOptimizationResult {
-  const originalSystemTokens = estimateTokens(input.system);
-  const originalUserTokens = estimateTokens(input.user);
-  const originalEstimatedTokens = originalSystemTokens + originalUserTokens;
-
-  const compactedSystem = compactDuplicateLines(compactText(input.system));
-  const compactedUser = compactDuplicateLines(compactText(input.user));
-  const optimizedEstimatedTokens = estimateTokens(compactedSystem) + estimateTokens(compactedUser);
-
+  const originalEstimatedTokens = estimateTokens(input.system) + estimateTokens(input.user);
+  const system = optimizePayload(input.system, "system.txt");
+  const user = optimizePayload(input.user, "user.txt");
+  const optimizedEstimatedTokens = estimateTokens(system.text) + estimateTokens(user.text);
   const maxInputTokens = input.maxInputTokens;
   const overBudget = maxInputTokens !== undefined && optimizedEstimatedTokens > maxInputTokens;
-  const strategy = ["newline-normalization", "whitespace-compaction", "duplicate-line-removal"];
+  const strategy = [...system.strategy, ...user.strategy];
 
-  // Deterministic compaction must never be allowed to make the prompt larger.
-  if (optimizedEstimatedTokens >= originalEstimatedTokens || overBudget && optimizedEstimatedTokens >= originalEstimatedTokens) {
+  if (optimizedEstimatedTokens >= originalEstimatedTokens || (overBudget && optimizedEstimatedTokens >= originalEstimatedTokens)) {
     return {
       system: input.system,
       user: input.user,
@@ -75,14 +52,14 @@ export function optimizeContext(input: ContextOptimizationInput): ContextOptimiz
       optimizedEstimatedTokens: originalEstimatedTokens,
       tokensSaved: 0,
       compressionRatio: 1,
-      strategy: ["no-op-inflation-guard"],
+      strategy: ["no-op-inflation-guard", ...strategy],
       changed: false,
     };
   }
 
   return {
-    system: compactedSystem,
-    user: compactedUser,
+    system: system.text,
+    user: user.text,
     originalEstimatedTokens,
     optimizedEstimatedTokens,
     tokensSaved: originalEstimatedTokens - optimizedEstimatedTokens,
