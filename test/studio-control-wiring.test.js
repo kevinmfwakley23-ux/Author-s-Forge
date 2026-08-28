@@ -1,11 +1,13 @@
-import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
-import { test } from "node:test";
+const assert = require("node:assert/strict");
+const { readFile } = require("node:fs/promises");
+const { join } = require("node:path");
+const { test } = require("node:test");
 
-const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
-const app = await readFile(new URL("../public/app.js", import.meta.url), "utf8");
-const commandCenter = await readFile(new URL("../public/forge-command-center.js", import.meta.url), "utf8");
-const workbench = await readFile(new URL("../public/forge-workbench.js", import.meta.url), "utf8");
+const root = join(__dirname, "..");
+const html = await readFile(join(root, "public/index.html"), "utf8");
+const app = await readFile(join(root, "public/app.js"), "utf8");
+const commandCenter = await readFile(join(root, "public/forge-command-center.js"), "utf8");
+const workbench = await readFile(join(root, "public/forge-workbench.js"), "utf8");
 const clientSource = `${app}\n${commandCenter}\n${workbench}`;
 
 function attributes(tag) {
@@ -45,7 +47,6 @@ test("every static button has a declared execution boundary", () => {
     const attrs = attributes(tag);
     const description = attrs.id || attrs["data-route"] || tag;
     const isRoute = Boolean(attrs["data-route"]);
-    const isSubmit = attrs.type === "submit" || (!attrs.type && /<form\b/i.test(html.slice(0, html.indexOf(tag))));
 
     if (isRoute) continue;
 
@@ -61,7 +62,7 @@ test("every static button has a declared execution boundary", () => {
       continue;
     }
 
-    assert.ok(isSubmit, `button ${description} has neither a route nor an id-backed handler`);
+    assert.equal(attrs.type, "submit", `button ${description} has neither a route nor an id-backed handler`);
   }
 });
 
