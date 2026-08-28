@@ -159,25 +159,20 @@ AI candidates are explicitly non-canon until the author approves them. The comma
 
 ## Functional Verification Roadmap
 
-The next verification layer is an actual **end-to-end application acceptance harness**, not another collection of source-pattern assertions.
+The verification layer now includes an actual **application-level acceptance harness** in addition to domain and source-contract tests.
 
-It must exercise the real running application and verify at minimum:
+It exercises the real running Studio server and verifies:
 
-- Studio startup and HTTP availability;
-- every declared Studio view is reachable;
-- navigation changes the visible view;
-- project creation reaches the server;
-- book/chapter/scene creation reaches durable persistence;
-- manuscript content saves and survives reload/restart;
-- AI reaches a configured provider or fails honestly when none is configured;
-- editing reaches the real editing service;
-- memory and research records persist;
-- Book Genome and downstream-impact operations work;
-- cover planning reaches its real service;
-- production export creates a real artifact;
-- project package export creates a real portable package;
+- Studio HTTP startup;
+- the integrated command-center and workbench scripts are actually served;
+- every declared Studio view exists in the served application;
+- the live command surface exposes microphone support and the author approval boundary;
+- project, book, chapter, and scene creation reaches durable persistence;
+- manuscript content saves and survives server restart;
+- memory/context, editing, Book Genome, and downstream-impact operations execute;
 - health reflects actual project state;
-- controls that claim to modify state actually modify the intended state.
+- the canonical version-2 project package contains durable state and `project-state.json`;
+- AI fails honestly when no provider is configured.
 
 Browser/device acceptance remains a separate layer. The current Linux development container has no installed Chrome/Chromium executable, so browser automation must not be falsely represented as completed there. The Chromebook's real Chrome environment remains the authoritative target for final device-level verification.
 
@@ -214,6 +209,13 @@ CHROMEBOOK / ANDROID DEVICE VERIFICATION
 ## Engineering Memory / Discovery Log
 
 This section is permanent engineering memory. **Whenever a material discovery is made about progress, a missing capability, an architectural constraint, a platform requirement, a verification weakness, or unfinished work, record it here.** This is mandatory restart context.
+
+### 2026-08-28 — Live Studio command surface added to application acceptance
+
+- Extended the real server acceptance harness beyond API workflow persistence.
+- The harness now fetches the served Studio root and verifies the actual command-center/workbench scripts plus every declared Studio view.
+- It fetches the real command-center script and verifies the microphone surface, browser speech APIs, and explicit non-canon approval boundary are present in the served application.
+- This closes a verification gap where source-pattern tests could pass while the running server served an incomplete Studio surface.
 
 ### 2026-08-28 — Canonical v2 package route integration
 
