@@ -18,6 +18,7 @@ const { chromium } = require("@playwright/test");
 
 const HOST = "127.0.0.1";
 const APP_PORT = 4800 + Math.floor(Math.random() * 200);
+const bootstrapProjectId = "forge-studio";
 const projectId = `browser-acceptance-${Date.now()}`;
 
 function findBrowser() {
@@ -75,6 +76,24 @@ async function waitForHttp(url, timeoutMs = 10000) {
   throw new Error(`Timed out waiting for ${url}`);
 }
 
+async function ensureBootstrapProject(baseUrl) {
+  const existing = await fetch(`${baseUrl}/api/projects/${encodeURIComponent(bootstrapProjectId)}`);
+  if (existing.ok) return;
+  if (existing.status !== 404) {
+    throw new Error(`Unable to inspect bootstrap project: HTTP ${existing.status}`);
+  }
+
+  const created = await fetch(`${baseUrl}/api/projects`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ id: bootstrapProjectId, title: "Forge Browser Bootstrap" }),
+  });
+  if (!created.ok) {
+    const detail = await created.text();
+    throw new Error(`Unable to create bootstrap project: HTTP ${created.status}: ${detail}`);
+  }
+}
+
 async function main() {
   const executablePath = findBrowser();
   if (!executablePath) {
@@ -103,7 +122,10 @@ async function main() {
 
   let browser;
   try {
-    await waitForHttp(`http://${HOST}:${APP_PORT}/api/health`);
+    const serverUrl = `http://${HOST}:${APP_PORT}`;
+    await waitForHttp(`${serverUrl}/api/health`);
+    await ensureBootstrapProject(serverUrl);
+
     browser = await chromium.launch({
       executablePath,
       headless: true,
@@ -111,7 +133,7 @@ async function main() {
     });
     const context = await browser.newContext();
     const page = await context.newPage();
-    const baseUrl = `http://${HOST}:${APP_PORT}/?project=${encodeURIComponent(projectId)}`;
+    const baseUrl = `${serverUrl}/?project=${encodeURIComponent(bootstrapProjectId)}`;
 
     await page.goto(baseUrl, { waitUntil: "networkidle" });
     await page.waitForFunction(() => {
