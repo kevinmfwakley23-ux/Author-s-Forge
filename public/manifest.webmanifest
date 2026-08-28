@@ -1,0 +1,19 @@
+{
+  "name": "Author's Forge",
+  "short_name": "Forge",
+  "description": "Author's Forge — local-first authoring, AI writing, editing, illustration, production, and publishing studio.",
+  "start_url": "/?project=forge-studio",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f4f1eb",
+  "theme_color": "#20252b",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
