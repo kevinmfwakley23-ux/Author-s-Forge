@@ -34,19 +34,33 @@ async function waitForServer() {
   throw new Error('Studio server did not become ready within 10 seconds.');
 }
 
-test.before(async () => {
-  dataDir = await mkdtemp(join(tmpdir(), 'authors-forge-acceptance-'));
+function startServer() {
   child = spawn(process.execPath, ['dist/studio-server.js'], {
     cwd: process.cwd(),
     env: { ...process.env, HOST: '127.0.0.1', PORT: String(port), FORGE_DATA_DIR: dataDir },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   child.stderr.on('data', () => {});
-  await waitForServer();
+  return waitForServer();
+}
+
+async function stopServer() {
+  if (!child || child.killed) return;
+  child.kill('SIGTERM');
+  await new Promise((resolve) => {
+    const timer = setTimeout(resolve, 2000);
+    child.once('exit', () => { clearTimeout(timer); resolve(); });
+  });
+  child = null;
+}
+
+test.before(async () => {
+  dataDir = await mkdtemp(join(tmpdir(), 'authors-forge-acceptance-'));
+  await startServer();
 });
 
 test.after(async () => {
-  if (child && !child.killed) child.kill('SIGTERM');
+  await stopServer();
   if (dataDir) await rm(dataDir, { recursive: true, force: true });
 });
 
@@ -144,6 +158,23 @@ test('running Studio executes a complete durable author workflow without a provi
   result = await request(`/api/projects/${projectId}/package`);
   assert.equal(result.response.status, 200);
   assert.equal(result.body.workspace.books[0].chapters[0].scenes[0].content, content);
+
+  // Restart the real server against the same durable data directory. This
+  // proves persistence across process boundaries rather than only within one
+  // in-memory application lifetime.
+  await stopServer();
+  await startServer();
+
+  result = await request(`/api/projects/${projectId}/package`);
+  assert.equal(result.response.status, 200);
+  assert.equal(result.body.workspace.books[0].chapters[0].scenes[0].content, content);
+  assert.equal(result.body.memories.some((memory) => memory.summary === 'Opening canon'), true);
+
+  result = await request(`/api/projects/${projectId}/health`);
+  assert.equal(result.response.status, 200);
+  assert.equal(result.body.metrics.books, 1);
+  assert.equal(result.body.metrics.scenes, 1);
+  assert.ok(result.body.metrics.words > 0);
 
   result = await request(`/api/projects/${projectId}/ai/draft`, {
     method: 'POST',
