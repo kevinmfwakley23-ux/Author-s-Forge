@@ -2,10 +2,11 @@ import { buildProjectContext } from "../application/context-pipeline";
 import type { ProjectBrainQuery } from "../application/project-brain";
 import type { ProjectMemoryStore } from "../application/project-memory-store";
 import { estimateTokens, optimizeContext } from "../application/context-optimizer";
+import { SemanticCache, stableCacheKey } from "../application/semantic-cache";
 import { generateWithKingsAi } from "./kings-ai-bridge";
 
 export interface AiGenerationRequest { readonly system: string; readonly user: string; readonly temperature?: number; readonly maxOutputTokens?: number; }
-export interface AiGenerationResult { readonly provider: "openai" | "ollama" | "kings"; readonly model: string; readonly text: string; readonly requestId?: string; readonly optimization?: { readonly originalEstimatedTokens: number; readonly optimizedEstimatedTokens: number; readonly tokensSaved: number; readonly compressionRatio: number; readonly strategy: readonly string[]; }; }
+export interface AiGenerationResult { readonly provider: "openai" | "ollama" | "kings"; readonly model: string; readonly text: string; readonly requestId?: string; readonly cacheHit?: boolean; readonly optimization?: { readonly originalEstimatedTokens: number; readonly optimizedEstimatedTokens: number; readonly tokensSaved: number; readonly compressionRatio: number; readonly strategy: readonly string[]; }; }
 
 export interface ProjectAiGenerationRequest extends Omit<AiGenerationRequest, "system"> {
   readonly system?: string;
@@ -13,6 +14,11 @@ export interface ProjectAiGenerationRequest extends Omit<AiGenerationRequest, "s
   readonly context: ProjectBrainQuery;
   readonly contextBudget?: number;
 }
+
+const responseCache = new SemanticCache<AiGenerationResult>({
+  maxEntries: readPositiveInteger(process.env.AI_CACHE_MAX_ENTRIES) ?? 128,
+  ttlMs: readPositiveInteger(process.env.AI_CACHE_TTL_MS),
+});
 
 export async function generateText(request: AiGenerationRequest): Promise<AiGenerationResult> {
   const optimized = optimizeContext({
@@ -29,14 +35,39 @@ export async function generateText(request: AiGenerationRequest): Promise<AiGene
     strategy: optimized.strategy,
   };
 
-  const kingsEndpoint = process.env.KINGS_AI_ENDPOINT?.trim();
-  if (kingsEndpoint) return { ...(await generateWithKingsAi({ endpoint: kingsEndpoint }, optimizedRequest)), optimization };
+  const cacheEnabled = process.env.AI_CACHE_ENABLED?.trim().toLowerCase() === "true";
+  const cacheable = cacheEnabled && (request.temperature ?? 0.7) === 0;
+  const cacheKey = cacheable ? stableCacheKey([
+    "forge-ai-v1",
+    optimizedRequest.system,
+    optimizedRequest.user,
+    request.temperature ?? 0.7,
+    request.maxOutputTokens ?? 4000,
+    process.env.KINGS_AI_MODEL?.trim() ?? "",
+    process.env.OPENAI_MODEL?.trim() ?? "",
+    process.env.OLLAMA_MODEL?.trim() ?? "",
+  ]) : undefined;
+  if (cacheKey) {
+    const cached = responseCache.get(cacheKey);
+    if (cached) return { ...cached, cacheHit: true, optimization };
+  }
 
-  const openAiKey = process.env.OPENAI_API_KEY?.trim();
-  if (openAiKey) return { ...(await generateOpenAi(openAiKey, optimizedRequest)), optimization };
-  const ollama = process.env.OLLAMA_BASE_URL?.trim();
-  if (ollama) return { ...(await generateOllama(ollama.replace(/\/$/, ""), optimizedRequest)), optimization };
-  throw new Error("No AI provider is configured. Set KINGS_AI_ENDPOINT + KINGS_AI_MODEL, OPENAI_API_KEY + OPENAI_MODEL, or OLLAMA_BASE_URL + OLLAMA_MODEL.");
+  let result: AiGenerationResult;
+  const kingsEndpoint = process.env.KINGS_AI_ENDPOINT?.trim();
+  if (kingsEndpoint) result = await generateWithKingsAi({ endpoint: kingsEndpoint }, optimizedRequest);
+  else {
+    const openAiKey = process.env.OPENAI_API_KEY?.trim();
+    if (openAiKey) result = await generateOpenAi(openAiKey, optimizedRequest);
+    else {
+      const ollama = process.env.OLLAMA_BASE_URL?.trim();
+      if (ollama) result = await generateOllama(ollama.replace(/\/$/, ""), optimizedRequest);
+      else throw new Error("No AI provider is configured. Set KINGS_AI_ENDPOINT + KINGS_AI_MODEL, OPENAI_API_KEY + OPENAI_MODEL, or OLLAMA_BASE_URL + OLLAMA_MODEL.");
+    }
+  }
+
+  const finalResult = { ...result, cacheHit: false, optimization };
+  if (cacheKey) responseCache.set(cacheKey, finalResult);
+  return finalResult;
 }
 
 export async function generateProjectText(request: ProjectAiGenerationRequest): Promise<AiGenerationResult> {
