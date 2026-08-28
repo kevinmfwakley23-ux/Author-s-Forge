@@ -7,7 +7,8 @@
     "build": "rm -rf .forge-build && tsc -p tsconfig.json && rm -rf dist && cp -R .forge-build dist && cp -R public dist/public",
     "test": "npm run build && node --test test/**/*.test.js",
     "check": "npm run build && npm test",
-    "studio": "npm run build && node dist/studio-server.js"
+    "studio": "npm run build && node dist/studio-server.js",
+    "test:browser": "npm run build && node scripts/studio-browser-acceptance.js"
   },
   "engines": {
     "node": ">=20"
