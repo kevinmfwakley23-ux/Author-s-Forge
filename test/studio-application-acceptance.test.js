@@ -89,7 +89,8 @@ test('running Studio executes a complete durable author workflow without a provi
     body: JSON.stringify({ id: sceneId, number: 1, title: 'First Scene', synopsis: 'Open on the protagonist.' }),
   });
   assert.equal(result.response.status, 201);
-  assert.equal(result.body.id, sceneId);
+  assert.equal(result.body.id, chapterId);
+  assert.equal(result.body.chapters.find((chapter) => chapter.id === chapterId).scenes[0].id, sceneId);
 
   const content = 'The first scene proves that the manuscript editor writes to durable project state.';
   result = await request(`/api/projects/${projectId}/workspace/books/${bookId}/chapters/${chapterId}/scenes/${sceneId}/content`, {
