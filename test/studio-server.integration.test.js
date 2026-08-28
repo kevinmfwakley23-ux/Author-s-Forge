@@ -40,6 +40,16 @@ test("Forge Studio exposes a real persistent author workflow", async () => {
     const html = await fetch(`${base}/`).then((response) => response.text());
     assert.match(html, /id="writing"/);
     assert.match(html, /id="export-form"/);
+
+    const pkg = await get("/api/projects/forge-studio/package");
+    assert.equal(pkg.manifest.formatVersion, 2);
+    assert.equal(pkg.manifest.packageName, "AUTHOR'S FORGE PROJECT");
+    assert.deepEqual(pkg.manifest.paths, ["project-state.json"]);
+    assert.equal(pkg.projectState.project.metadata.id, "forge-studio");
+    assert.equal(pkg.projectState.studioWorkspace.books[0].chapters[0].scenes[0].content, "A durable manuscript scene written through the Studio.");
+    assert.equal(pkg.files[0].path, "project-state.json");
+    assert.equal(pkg.files[0].mediaType, "application/json");
+    assert.match(pkg.files[0].sha256, /^[a-f0-9]{64}$/);
   } finally {
     child.kill("SIGTERM");
     await new Promise((resolve) => child.once("exit", resolve));
