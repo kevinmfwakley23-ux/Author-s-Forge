@@ -67,26 +67,29 @@ test('running Studio executes a complete durable author workflow without a provi
   assert.equal(result.response.status, 201);
   assert.equal(result.body.metadata.id, projectId);
 
+  const bookId = 'acceptance-book';
   result = await request(`/api/projects/${projectId}/workspace/books`, {
     method: 'POST',
-    body: JSON.stringify({ title: 'Acceptance Book', kind: 'novel', description: 'Application-level verification.' }),
+    body: JSON.stringify({ id: bookId, title: 'Acceptance Book', kind: 'novel', description: 'Application-level verification.' }),
   });
   assert.equal(result.response.status, 201);
-  const bookId = result.body.id;
+  assert.equal(result.body.id, bookId);
 
+  const chapterId = 'acceptance-chapter';
   result = await request(`/api/projects/${projectId}/workspace/books/${bookId}/chapters`, {
     method: 'POST',
-    body: JSON.stringify({ number: 1, title: 'Opening', synopsis: 'Establish the opening situation.' }),
+    body: JSON.stringify({ id: chapterId, number: 1, title: 'Opening', synopsis: 'Establish the opening situation.' }),
   });
   assert.equal(result.response.status, 201);
-  const chapterId = result.body.chapters.find((chapter) => chapter.number === 1).id;
+  assert.equal(result.body.id, chapterId);
 
+  const sceneId = 'acceptance-scene';
   result = await request(`/api/projects/${projectId}/workspace/books/${bookId}/chapters/${chapterId}/scenes`, {
     method: 'POST',
-    body: JSON.stringify({ number: 1, title: 'First Scene', synopsis: 'Open on the protagonist.' }),
+    body: JSON.stringify({ id: sceneId, number: 1, title: 'First Scene', synopsis: 'Open on the protagonist.' }),
   });
   assert.equal(result.response.status, 201);
-  const sceneId = result.body.chapters.find((chapter) => chapter.id === chapterId).scenes[0].id;
+  assert.equal(result.body.id, sceneId);
 
   const content = 'The first scene proves that the manuscript editor writes to durable project state.';
   result = await request(`/api/projects/${projectId}/workspace/books/${bookId}/chapters/${chapterId}/scenes/${sceneId}/content`, {
