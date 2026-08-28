@@ -126,6 +126,89 @@ The integrated surface includes durable project/book/chapter/scene state, real s
 
 No button is considered complete merely because it exists in HTML. Every control must terminate in a real state transition, provider operation, calculation, artifact, navigation action, or explicit actionable error.
 
+## AI Context Optimization & Token Efficiency
+
+Author's Forge will treat **context efficiency as a first-class AI architecture concern**. The goal is to reduce unnecessary model input, latency, and operating cost without sacrificing canon, author intent, reasoning quality, or recoverability.
+
+This capability should reuse compatible ideas from the K.I.N.G.S. architecture where appropriate, while remaining **provider-neutral and independently deployable inside Forge**. Forge must receive reusable optimization capabilities, not become tightly coupled to K.I.N.G.S.
+
+### Context Optimization Pipeline
+
+The canonical direction is:
+
+```text
+AUTHOR REQUEST
+      ↓
+AI REQUEST PLANNER
+      ↓
+CONTEXT BUDGET MANAGER
+      ↓
+PROJECT CONTEXT RETRIEVER
+      ↓
+CONTEXT STRATIFIER
+      ↓
+DETERMINISTIC OPTIMIZER
+      ↓
+SEMANTIC CACHE
+      ↓
+OPTIONAL SEMANTIC COMPRESSOR
+      ↓
+TOKEN / COST GUARD
+      ↓
+PROVIDER ROUTER
+      ↓
+OPENAI / OLLAMA / FUTURE PROVIDERS
+```
+
+### Required optimization principles
+
+- **Context stratification:** separate essential system rules, project canon, current book/chapter/scene, characters, world/canon memories, research, recent workflow state, and low-value historical material so only relevant context is sent.
+- **Retrieval over wholesale replay:** retrieve the relevant project knowledge instead of repeatedly sending the entire project to every AI request.
+- **Fetch-once / reuse:** retain normalized context artifacts and reuse unchanged context rather than reconstructing or transmitting it repeatedly.
+- **Deterministic optimization first:** deduplicate repeated material, compact metadata and tool output, remove boilerplate, and use deltas for unchanged state before invoking model-based compression.
+- **Semantic caching:** avoid paying for equivalent or sufficiently similar requests when a valid reusable result exists and the cache policy permits it.
+- **Optional model-based compression:** support open-source prompt/context compression techniques such as LLMLingua-style compression where they provide a measurable benefit. Compression must be provider-neutral and replaceable.
+- **Compression economics:** do not compress blindly. Estimate whether the expected token savings justify the preprocessing cost and latency.
+- **Inflation guard:** if optimized context is not meaningfully smaller or materially better, discard the optimization and use the original context.
+- **Structured-data protection:** JSON, identifiers, canon facts, constraints, tool arguments, and other machine-critical structures must not be lossy-compressed in ways that can change meaning.
+- **Immutable source context:** optimization must never destroy the original project information. Compressed context is a derived representation, not the source of truth.
+- **Author authority:** optimization may shorten context sent to a model but may never silently alter canon or author-approved project state.
+
+### Token and cost observability
+
+Every provider request should ultimately expose an optimization ledger containing, where available:
+
+- original estimated token count;
+- optimized token count;
+- tokens saved;
+- compression ratio;
+- cache hit/miss;
+- retrieved context count;
+- optimization strategy used;
+- provider and model;
+- estimated request cost;
+- whether compression was skipped by the cost/benefit guard.
+
+The system must **measure actual savings rather than promise a fixed percentage**. Compression quality is workload- and model-dependent, and aggressive compression must be rejected when it damages critical information or reasoning quality.
+
+### Open-source compatibility direction
+
+The implementation should evaluate and selectively adopt compatible open-source approaches rather than creating unnecessary proprietary equivalents. Candidate techniques include:
+
+- LLMLingua / LongLLMLingua-style prompt compression;
+- tool-output/context compression;
+- semantic caching;
+- retrieval and hierarchical context selection;
+- deterministic token-aware compaction.
+
+Third-party dependencies must be reviewed for license compatibility, runtime footprint, maintenance health, browser/server compatibility, and TypeScript/Node integration before adoption. No dependency is considered approved merely because it reduces tokens.
+
+### Non-negotiable safety rule for optimization
+
+**Never save tokens by losing the author's book.**
+
+The original durable project state remains authoritative. Optimization layers may derive smaller context packs, summaries, retrieval results, caches, or compressed prompts, but the full source material remains recoverable and unchanged.
+
 ## Real Provider Boundaries
 
 ### AI writing
@@ -209,6 +292,15 @@ CHROMEBOOK / ANDROID DEVICE VERIFICATION
 ## Engineering Memory / Discovery Log
 
 This section is permanent engineering memory. **Whenever a material discovery is made about progress, a missing capability, an architectural constraint, a platform requirement, a verification weakness, or unfinished work, record it here.** This is mandatory restart context.
+
+### 2026-08-28 — Context optimization and token-efficiency architecture identified
+
+- Context/token efficiency is now an explicit Author's Forge architectural requirement rather than an informal optimization goal.
+- The intended design is provider-neutral and layered: request planning, context budgeting, retrieval, stratification, deterministic optimization, semantic caching, optional model-based compression, token/cost guarding, and provider routing.
+- K.I.N.G.S. techniques should be reused where compatible, but Forge must remain independently deployable and must not become coupled to the K.I.N.G.S. runtime.
+- Open-source approaches such as LLMLingua-style prompt compression, tool-output/context compression, semantic caching, retrieval, and deterministic compaction are candidates for evaluation rather than automatic dependencies.
+- Compression must preserve the immutable original project state and must never trade canon fidelity for token savings.
+- The eventual implementation must measure actual savings, cost, latency, and quality rather than advertise a fixed compression percentage.
 
 ### 2026-08-28 — Validated project snapshot restore boundary added
 
