@@ -46,14 +46,14 @@ export class IllustrationReferencePipeline {
     if (!prompt) throw new Error("Image edit prompt is required.");
 
     const form = new FormData();
-    form.append("model", input.model?.trim() || "gpt-image-1");
+    const model = input.model?.trim() || "gpt-image-1";
+    form.append("model", model);
     form.append("prompt", prompt);
     form.append("size", input.size);
     form.append("quality", input.quality);
     form.append("output_format", "png");
-    const imageBytes = new Uint8Array(input.referenceBytes.byteLength);
-    imageBytes.set(input.referenceBytes);
-    const imageBuffer = imageBytes.buffer.slice(imageBytes.byteOffset, imageBytes.byteOffset + imageBytes.byteLength) as ArrayBuffer;
+    const imageBuffer = new ArrayBuffer(input.referenceBytes.byteLength);
+    new Uint8Array(imageBuffer).set(input.referenceBytes);
     form.append("image", new Blob([imageBuffer], { type: input.reference.mimeType }), input.reference.originalFileName);
 
     const response = await fetch("https://api.openai.com/v1/images/edits", {
@@ -72,11 +72,6 @@ export class IllustrationReferencePipeline {
     const first = Array.isArray(payload.data) ? payload.data[0] as Record<string, unknown> | undefined : undefined;
     if (!first || typeof first.b64_json !== "string") throw new Error("Image edit provider returned no PNG data.");
 
-    return {
-      id: `image-${randomUUID()}`,
-      provider: "openai",
-      model: input.model?.trim() || "gpt-image-1",
-      b64Json: first.b64_json,
-    };
+    return { id: `image-${randomUUID()}`, provider: "openai", model, b64Json: first.b64_json };
   }
 }
