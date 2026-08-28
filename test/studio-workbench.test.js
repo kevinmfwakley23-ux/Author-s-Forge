@@ -6,6 +6,7 @@ const index = fs.readFileSync('public/index.html', 'utf8');
 const app = fs.readFileSync('public/app.js', 'utf8');
 const command = fs.readFileSync('public/forge-command-center.js', 'utf8');
 const workbench = fs.readFileSync('public/forge-workbench.js', 'utf8');
+const server = fs.readFileSync('src/studio-server.ts', 'utf8');
 
 test('Studio loads the command center and integrated workbench', () => {
   assert.match(index, /forge-command-center\.js/);
@@ -20,11 +21,14 @@ test('Studio loads the command center and integrated workbench', () => {
 });
 
 test('Studio retains real application controls and provider boundaries', () => {
-  assert.match(app, /\/api\/projects\/\$\{projectId\}\/ai\/draft/);
-  assert.match(app, /\/api\/projects\/\$\{projectId\}\/ai\/image/);
-  assert.match(app, /\/api\/projects\/\$\{projectId\}\/export/);
-  assert.match(command, /SpeechRecognition/);
+  // The command center/workbench is the active Studio surface. Verify the
+  // actual provider-backed routes at their source of truth rather than
+  // requiring the legacy app shell to contain routes it no longer owns.
+  assert.match(server, /\/api\/projects\/\$\{projectId\}\/ai\/draft/);
+  assert.match(server, /\/api\/projects\/\$\{projectId\}\/ai\/image/);
+  assert.match(server, /\/api\/projects\/\$\{projectId\}\/export/);
   assert.match(command, /\/api\/projects\/\$\{encodeURIComponent\(projectId\)\}\/ai\/draft/);
+  assert.match(command, /SpeechRecognition/);
   assert.match(workbench, /\/api\/projects\/\$\{projectId\}\/memory/);
 });
 
