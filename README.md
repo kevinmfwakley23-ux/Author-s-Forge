@@ -10,115 +10,43 @@ It is intended to support children's books, memoir, psychological thrillers, gui
 
 The directive defines the complete target: concept → architecture → canon → characters → timeline → research → manuscript → editing → illustrations → cover → formatting → metadata → positioning → marketing → publishing preparation → portable archive/recovery. It explicitly calls for hierarchical memory, anti-drift controls, relationship-aware memory, voice input, five AI collaboration modes, a Book Genome, real provider boundaries, and an author-controlled publishing workflow.
 
-The final product standard is not a feature list. It is a complete working path from story concept through architecture, canon, character system, timeline, research, manuscript, editing, illustrations, cover, formatting, metadata, positioning, promotion, publishing preparation, and portable project state.
+## Current Engineering Discoveries — 2026-08-28
+
+- **Real browser acceptance is the product gate.** The Studio acceptance harness uses Playwright-managed Chromium and exercises the rendered application rather than merely checking source files.
+- **Navigation acceptance is correctly scoped.** The branded AUTHOR'S FORGE link also carries `data-route="dashboard"`; route enumeration and route clicks are therefore scoped to `nav a[data-route]` so the acceptance contract represents the actual navigation menu.
+- **The Chromebook browser gate has passed the core Studio workflow.** The verified run covered all 18 routes, project/book/chapter/scene creation, manuscript save/reload, honest AI-provider failure, and health checks.
+- **Character Bible and canon-memory acceptance has now been wired into the real browser harness.** The harness creates a structured character through the visible Character Bible form, creates an authoritative story-canon memory through the visible World/memory form, saves manuscript content, reloads the application, and verifies that the character and canon fact remain visible after reload. This is the next required Chromebook execution gate; it must be run locally before being marked browser-verified.
+- **Character state has a durable project boundary.** `FileProjectStore` validates and restores project character records, including project ownership and duplicate-ID protection. The browser gate now verifies the Studio-facing persistence path rather than treating the application service's in-memory map as sufficient evidence.
+- **Reference-image generation has a real provider boundary.** Selected PNG/JPEG/WebP references are uploaded to the durable project reference path and passed to the real image-edit provider boundary. Missing provider credentials fail honestly. A configured-provider browser run remains required to prove an actual edited-image artifact.
+- **Generated output is not product proof.** `dist/` is build output; `.forge-data/` is local runtime state. Neither replaces source implementation or browser acceptance evidence.
 
 ## Chief engineering standard
 
-The lead engineering responsibility for this repository is to turn the directive into a **real working author workplace**, not a mission gallery or collection of promises.
+Forge is being built as a real author workplace, not a mission gallery or collection of promises. Real implementation, real persistence, real provider boundaries, honest failures, author control, and end-to-end verification are non-negotiable.
 
-Non-negotiable rules:
+A capability is complete only when it is reachable from Studio, performs the promised operation, persists where durability is promised, survives reload/restart where applicable, reports real errors, and has regression coverage.
 
-- real implementation only;
-- real provider calls only;
-- real persistence only;
-- no fake AI responses;
-- no fake image generation;
-- no placeholder controls presented as completed features;
-- no dead navigation;
-- no silent canon mutation;
-- no weakening or deleting tests to make the build green;
-- major autonomous actions must be observable, reversible, attributable, and author-controlled.
+## Required functional verification levels
 
-A green unit-test suite is **not** proof that Forge works. A capability is complete only when it is reachable from Studio, reads/writes durable project state, survives reload/restart, participates in downstream workflows, reports real errors, and has end-to-end regression coverage.
+Every meaningful Studio capability is verified at the strongest applicable level:
 
-### The Green-Test Trap — Permanent Engineering Rule
+1. Static wiring
+2. Unit/domain behavior
+3. Server/HTTP behavior
+4. Browser/UI behavior
+5. Persistence
+6. Reload/restart recovery
+7. Provider behavior
+8. Artifact validity
+9. End-to-end workflow participation
 
-Forge has previously reached an apparently perfect green test state while the actual Studio experience still contained controls that went nowhere and features that were represented in the interface without being genuinely usable. **That failure mode is explicitly rejected.**
-
-A test that proves an internal function works does not prove the corresponding product feature works. A rendered button is not an implementation. A route existing is not proof that the route performs the promised operation. A mocked provider response is not a real provider integration. A generated-looking card, panel, status message, or result is not evidence that the underlying workflow exists.
-
-From this point forward, every feature claim must be verified across the complete chain:
-
-```text
-VISIBLE CONTROL
-      ↓
-USER ACTION
-      ↓
-REAL EVENT HANDLER
-      ↓
-REAL APPLICATION SERVICE
-      ↓
-REAL SERVER / ROUTE
-      ↓
-REAL DOMAIN OPERATION
-      ↓
-REAL PROVIDER OR LOCAL ENGINE
-      ↓
-REAL PERSISTED STATE / ARTIFACT
-      ↓
-VISIBLE RESULT
-      ↓
-RELOAD / RESTART RECOVERY
-```
-
-If any link is missing, the feature is **not complete**, regardless of how many tests are green.
-
-### Required functional verification levels
-
-Every meaningful Studio capability must be verified at the strongest applicable level:
-
-1. **Static verification** — control, route, module, and wiring actually exist.
-2. **Unit/domain verification** — business rules behave correctly.
-3. **Server/HTTP verification** — the real application route accepts the real request and returns the real result or actionable error.
-4. **Browser/UI verification** — the visible control can actually be used and reaches the intended workflow.
-5. **Persistence verification** — state is written to the real project source of truth.
-6. **Reload/restart verification** — the result survives application reload and server restart where durability is promised.
-7. **Provider verification** — configured external providers are actually called; unavailable providers fail honestly.
-8. **Artifact verification** — promised files/results are real, valid, reusable outputs rather than placeholders.
-9. **End-to-end workflow verification** — the feature participates in the larger author workflow instead of existing as an isolated mission island.
-
-The acceptance rule is **the lowest failed level**, not the highest passed level.
+The acceptance rule is the lowest failed level, not the highest passed level.
 
 ## Continuous Discovery & README Ledger
 
-The README is part of the engineering continuity system. **Whenever a meaningful discovery is made about repository state, product progress, environment capability, verification gaps, integration needs, or an observed failure mode, record it here before the work is considered complete.**
+Whenever a meaningful discovery is made about repository state, product progress, environment capability, verification gaps, integration needs, or an observed failure mode, record it here before the checkpoint is considered complete.
 
-Each discovery note should answer, as applicable:
-
-- what was discovered;
-- what evidence produced the discovery;
-- what it means for Forge;
-- what remains to be built or verified;
-- what environment/tooling is required;
-- what acceptance evidence will prove it is truly complete.
-
-This ledger exists so a future engineering session can resume from the actual state of the project rather than relying on memory, assumptions, or a green test count.
-
-### Current Engineering Discoveries — 2026-08-28
-
-- **Green tests alone are insufficient.** The repository currently reports 125 passing tests, but that result must not be treated as product-level proof. The Studio must be exercised through its actual controls and workflows.
-- **The Studio contains many visible controls.** Current inspection found 37 buttons, 11 forms, and 19 route/navigation links in `public/index.html`. Their presence establishes UI surface area, not completion.
-- **Client/server wiring exists in several places.** `public/app.js`, `public/forge-command-center.js`, and `public/forge-workbench.js` contain real event handlers and API-call paths. These still require functional browser execution verification rather than source inspection alone.
-- **The repository is currently on `feature/reference-image-pipeline`, not `main`.** Local branch history contains the reference-image work while `origin/main` has newer platform/documentation commits. A fast-forward pull from `main` is therefore expected to fail until the branch divergence is deliberately reconciled.
-- **The local working tree contains generated/untracked output.** Current inspection showed `.forge-data/`, `dist/`, and `package-lock.json` as untracked, plus local modifications to `public/app.js` and `src/application/illustration-reference-pipeline.ts`. These must be handled deliberately; generated state must not be mistaken for source-of-truth product implementation.
-- **The development environment is Chromebook Linux with Node 24.19.0 and npm 11.17.0.** No supported browser executable was initially found through the checked Linux command names (`google-chrome`, `google-chrome-stable`, `chromium`, `chromium-browser`, `chrome`). Therefore browser verification could not initially be claimed from that Linux shell inspection alone.
-- **Playwright Chromium is now installed in the Chromebook Linux environment.** `npx playwright install chromium` successfully installed Chrome for Testing, FFmpeg, and the Chromium headless shell under the Playwright cache. This provides a real browser binary suitable for the acceptance harness without requiring a system-wide Chrome/Chromium package.
-- **The browser acceptance harness now discovers Playwright-managed Chromium.** `scripts/studio-browser-acceptance.js` first honors `FORGE_BROWSER_EXECUTABLE`, then checks standard system browser paths, then searches the Playwright browser cache (`PLAYWRIGHT_BROWSERS_PATH` or `~/.cache/ms-playwright`). This means the real browser already installed by Playwright can be used directly.
-- **Browser acceptance remains an honest gate.** If no browser executable can be found, `npm run test:browser` fails with an explicit error instead of silently skipping browser verification or reporting a false green result.
-- **Browser acceptance is exposed as `npm run test:browser`.** It launches the real Studio server, drives the rendered DOM through Playwright/Chromium, exercises all declared navigation routes, creates a project/book/chapter/scene, saves manuscript content, verifies reload persistence, verifies honest AI failure without a configured provider, and checks health.
-- **The package scripts distinguish regression testing from real-browser acceptance.** `npm test` remains the deterministic build/unit/integration suite; `npm run test:browser` is the real rendered-application acceptance gate.
-- **The package script and browser harness belong to the feature branch.** The branch must still be deliberately reconciled with `main`; do not use `git pull --ff-only origin main` while the branch is divergent.
-- **The product must not be declared complete because a button, page, API expression, or test exists.** The actual user journey must be proven from visible interaction through durable result.
-- **Static Studio control wiring is now regression-tested.** A dedicated test requires all 37 current static buttons to have a route, form submission boundary, or client-side handler reference; all 11 forms must be present in client wiring; all declared routes must map to real `data-view` sections; and dynamic scene controls must have executable handlers. This is a guard against accidentally reintroducing visibly present but unwired controls. It does not replace real browser execution.
-- **The first real Chromium acceptance run exposed a legitimate fixture-state bug.** The harness generated a new project ID and opened that URL before the project existed. The Studio correctly returned `404 Project not found`, so `#project-title` remained `Loading…` and the acceptance gate timed out rather than falsely passing.
-- **The browser harness now establishes a valid initial project state before UI testing.** It verifies or creates the disposable `forge-studio` bootstrap project through the real HTTP API, loads that project in the browser, and then uses a separate generated project ID for the visible Create Project workflow. The actual project creation, book creation, chapter creation, scene creation, writing, save, reload, AI-provider failure, and health checks remain browser-driven.
-- **The Studio navigation acceptance bug is resolved.** The browser harness originally counted the branded `AUTHOR'S FORGE` link as a second `dashboard` route because it also carries `data-route="dashboard"`. The acceptance contract now scopes route enumeration and route clicks to `nav a[data-route]`, preserving the branded link while asserting exactly 18 navigational routes. The Chromebook Linux Chromium run passed all 18 routes plus project/book/chapter/scene creation, save/reload, honest AI failure, and health.
-- **The reference-image provider boundary is now real end-to-end at the server layer.** The Studio already had a durable binary reference upload route and a real OpenAI `/v1/images/edits` server branch, but the browser workflow was incorrectly storing the image as a memory data URL and sending only a `referenceMemoryId`; the server therefore generated from text instead of using the uploaded image. `public/forge-reference-pipeline.js` now uploads the selected PNG/JPEG/WebP through `/illustration/references`, receives the durable `assetUri`, and sends that URI as `referenceUri` to the real provider edit boundary. The provider remains fail-closed when `OPENAI_API_KEY` is absent. **Remaining evidence required:** a real browser run must exercise a selected reference image and confirm the upload reaches the provider-edit branch; a configured OpenAI image request is required to prove an actual edited image response.
-- **The latest route acceptance checkpoint is committed as `6edb977`.** The reference-provider wiring checkpoint is committed as `dc6354a91e727a2fc5c9ab2d56b796a548848e49` and requires Chromebook browser acceptance before it can be called complete.
-
-### Discovery workflow — mandatory going forward
-
-At the end of every meaningful engineering checkpoint:
+The mandatory cycle is:
 
 ```text
 DISCOVERY / CHANGE
@@ -136,11 +64,7 @@ RECORD REMAINING GAPS
 COMMIT
 ```
 
-A newly discovered limitation is not bad news to hide. It is required engineering knowledge. **Forge records gaps honestly so they can be fixed.**
-
-## Current integrated Studio
-
-The Studio is one static application surface rather than a dynamically injected collection of disconnected screens. Its intended workflow is:
+## Integrated Studio workflow
 
 ```text
 AUTHOR
@@ -170,19 +94,10 @@ DOCX / PDF / EPUB PRODUCTION
 PORTABLE PROJECT PACKAGE
 ```
 
-The integrated surface includes the implemented foundations for durable project, manuscript, memory, character, visual, research, editing, production, provider, audit, and Studio workflows. **Each surface remains subject to the functional verification standard above before it may be described as production-complete.**
-
-No button is considered complete merely because it exists in HTML. Every control must terminate in a real state transition, provider operation, calculation, artifact, navigation action, or explicit actionable error.
-
 ## Real provider boundaries
 
 ### AI writing
-Forge supports real provider-backed generation through:
-
-- OpenAI: `OPENAI_API_KEY` + explicit `OPENAI_MODEL`.
-- Local Ollama: `OLLAMA_BASE_URL` + explicit `OLLAMA_MODEL`.
-
-If neither provider is configured, generation fails explicitly. Forge does not fabricate an answer.
+Forge supports real provider-backed generation through OpenAI and local Ollama. If neither provider is configured, generation fails explicitly; Forge does not fabricate an answer.
 
 ```bash
 export OPENAI_API_KEY="your-key"
@@ -197,17 +112,11 @@ export OLLAMA_MODEL="your-installed-model"
 ```
 
 ### Real image generation
-Illustration generation uses the configured OpenAI image provider. Without `OPENAI_API_KEY`, the Studio reports the missing configuration instead of showing fake output.
-
-## Voice as a first-class input
-
-The directive requires voice for idea capture, story planning, editing commands, research requests, character creation, scene direction, and revision instructions while preserving the original transcription.
-
-Forge's Chromebook path uses Chrome `SpeechRecognition` / `webkitSpeechRecognition`. The command center keeps the original transcript in an editable command field and routes the instruction through the same real project/AI boundary used by typed commands.
+Illustration generation uses the configured OpenAI image provider. Without `OPENAI_API_KEY`, the Studio reports missing configuration instead of showing fake output.
 
 ## Real-browser development workflow
 
-Chromium is the primary browser target for Studio development and acceptance testing on the Chromebook Linux environment. Playwright is the browser acquisition and automation tool; the repository acceptance harness drives the actual rendered application through Chromium.
+Chromium is the primary browser target for Studio development and acceptance testing on the Chromebook Linux environment. Playwright is the browser acquisition and automation tool.
 
 Install the browser once:
 
@@ -216,14 +125,16 @@ npm install -D @playwright/test
 npx playwright install chromium
 ```
 
-Verify the installed Playwright version when troubleshooting:
+Run the deterministic suite:
 
 ```bash
-npx playwright --version
+npm test
 ```
 
-Run the real browser gate:
+Run real rendered Studio acceptance:
 
 ```bash
 npm run test:browser
 ```
+
+The browser command intentionally fails when Chromium is unavailable; browser verification is never silently skipped.
