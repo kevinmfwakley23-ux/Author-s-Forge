@@ -10,9 +10,9 @@
 
 const assert = require("node:assert/strict");
 const { spawn } = require("node:child_process");
-const { mkdtemp, rm } = require("node:fs/promises");
+const { mkdtemp, readdir, rm } = require("node:fs/promises");
 const { existsSync } = require("node:fs");
-const { tmpdir } = require("node:os");
+const { homedir, tmpdir } = require("node:os");
 const { join } = require("node:path");
 const { request } = require("node:http");
 
@@ -21,15 +21,49 @@ const APP_PORT = 4800 + Math.floor(Math.random() * 200);
 const CDP_PORT = 5300 + Math.floor(Math.random() * 200);
 const projectId = `browser-acceptance-${Date.now()}`;
 
-function findBrowser() {
+async function findPlaywrightBrowser(root) {
+  if (!root || !existsSync(root)) return null;
+
+  const candidates = [];
+  async function walk(directory, depth) {
+    if (depth > 4) return;
+    let entries;
+    try {
+      entries = await readdir(directory, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    for (const entry of entries) {
+      const fullPath = join(directory, entry.name);
+      if (entry.isFile() && entry.name === "chrome" && existsSync(fullPath)) {
+        candidates.push(fullPath);
+      } else if (entry.isDirectory()) {
+        await walk(fullPath, depth + 1);
+      }
+    }
+  }
+
+  await walk(root, 0);
+  return candidates.find((candidate) => /chromium|chrome/i.test(candidate)) ?? candidates[0] ?? null;
+}
+
+async function findBrowser() {
   if (process.env.FORGE_BROWSER_EXECUTABLE) return process.env.FORGE_BROWSER_EXECUTABLE;
-  return [
+
+  const systemBrowser = [
     "/usr/bin/google-chrome",
     "/usr/bin/google-chrome-stable",
     "/usr/bin/chromium",
     "/usr/bin/chromium-browser",
     "/usr/bin/chrome",
-  ].find(existsSync) ?? null;
+  ].find(existsSync);
+  if (systemBrowser) return systemBrowser;
+
+  const playwrightRoot = process.env.PLAYWRIGHT_BROWSERS_PATH === "0"
+    ? join(process.cwd(), "node_modules", "playwright-core")
+    : process.env.PLAYWRIGHT_BROWSERS_PATH || join(homedir(), ".cache", "ms-playwright");
+  return findPlaywrightBrowser(playwrightRoot);
 }
 
 async function waitForHttp(url, timeoutMs = 10000) {
@@ -120,7 +154,7 @@ class CdpPage {
 }
 
 async function main() {
-  const browser = findBrowser();
+  const browser = await findBrowser();
   if (!browser) {
     throw new Error(
       "REAL BROWSER ACCEPTANCE BLOCKED: no Chrome/Chromium executable was found. " +
@@ -129,6 +163,7 @@ async function main() {
     );
   }
 
+  console.log(`Browser acceptance executable: ${browser}`);
   const dataDir = await mkdtemp(join(tmpdir(), "authors-forge-browser-"));
   const browserDataDir = await mkdtemp(join(tmpdir(), "authors-forge-chrome-"));
   const server = spawn(process.execPath, ["dist/studio-server.js"], {
