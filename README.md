@@ -94,18 +94,20 @@ Each discovery note should answer, as applicable:
 
 This ledger exists so a future engineering session can resume from the actual state of the project rather than relying on memory, assumptions, or a green test count.
 
-### Current Engineering Discoveries — 2026-08-27
+### Current Engineering Discoveries — 2026-08-28
 
 - **Green tests alone are insufficient.** The repository currently reports 125 passing tests, but that result must not be treated as product-level proof. The Studio must be exercised through its actual controls and workflows.
 - **The Studio contains many visible controls.** Current inspection found 37 buttons, 11 forms, and 19 route/navigation links in `public/index.html`. Their presence establishes UI surface area, not completion.
 - **Client/server wiring exists in several places.** `public/app.js`, `public/forge-command-center.js`, and `public/forge-workbench.js` contain real event handlers and API-call paths. These still require functional browser execution verification rather than source inspection alone.
 - **The repository is currently on `feature/reference-image-pipeline`, not `main`.** Local branch history contains the reference-image work while `origin/main` has newer platform/documentation commits. A fast-forward pull from `main` is therefore expected to fail until the branch divergence is deliberately reconciled.
 - **The local working tree contains generated/untracked output.** Current inspection showed `.forge-data/`, `dist/`, and `package-lock.json` as untracked, plus local modifications to `public/app.js` and `src/application/illustration-reference-pipeline.ts`. These must be handled deliberately; generated state must not be mistaken for source-of-truth product implementation.
-- **The development environment is Chromebook Linux with Node 24.19.0 and npm 11.17.0.** No supported browser executable was found through the checked Linux command names (`google-chrome`, `google-chrome-stable`, `chromium`, `chromium-browser`, `chrome`). Therefore browser verification cannot be claimed from that Linux shell inspection alone.
-- **A real-browser acceptance harness is now part of the repository.** `scripts/studio-browser-acceptance.js` launches the real Studio server, drives the actual rendered DOM through Chrome DevTools Protocol, exercises all declared navigation routes, creates a project/book/chapter/scene, saves manuscript content, verifies reload persistence, verifies honest AI failure without a configured provider, and checks health. It intentionally exits non-zero when no browser executable is available rather than producing a false green result.
-- **Browser acceptance is exposed as `npm run test:browser`.** It is intentionally separate from `npm test` because the normal regression suite must remain runnable in environments without a browser, while the browser gate must fail honestly when a browser is required but unavailable. Set `FORGE_BROWSER_EXECUTABLE` when Chrome/Chromium is installed at a non-standard path.
-- **The package scripts now distinguish regression testing from real-browser acceptance.** `npm test` remains the deterministic build/unit/integration suite; `npm run test:browser` is the real rendered-application acceptance gate.
-- **The package script change and browser harness were committed directly to `feature/reference-image-pipeline`.** They still require the branch to be deliberately reconciled with `main` before integration.
+- **The development environment is Chromebook Linux with Node 24.19.0 and npm 11.17.0.** No supported browser executable was initially found through the checked Linux command names (`google-chrome`, `google-chrome-stable`, `chromium`, `chromium-browser`, `chrome`). Therefore browser verification could not initially be claimed from that Linux shell inspection alone.
+- **Playwright Chromium is now installed in the Chromebook Linux environment.** `npx playwright install chromium` successfully installed Chrome for Testing, FFmpeg, and the Chromium headless shell under the Playwright cache. This provides a real browser binary suitable for the acceptance harness without requiring a system-wide Chrome/Chromium package.
+- **The browser acceptance harness now discovers Playwright-managed Chromium.** `scripts/studio-browser-acceptance.js` first honors `FORGE_BROWSER_EXECUTABLE`, then checks standard system browser paths, then searches the Playwright browser cache (`PLAYWRIGHT_BROWSERS_PATH` or `~/.cache/ms-playwright`). This means the real browser already installed by Playwright can be used directly.
+- **Browser acceptance remains an honest gate.** If no browser executable can be found, `npm run test:browser` fails with an explicit error instead of silently skipping browser verification or reporting a false green result.
+- **Browser acceptance is exposed as `npm run test:browser`.** It launches the real Studio server, drives the rendered DOM through Chrome DevTools Protocol, exercises all declared navigation routes, creates a project/book/chapter/scene, saves manuscript content, verifies reload persistence, verifies honest AI failure without a configured provider, and checks health.
+- **The package scripts distinguish regression testing from real-browser acceptance.** `npm test` remains the deterministic build/unit/integration suite; `npm run test:browser` is the real rendered-application acceptance gate.
+- **The package script and browser harness belong to the feature branch.** The branch must still be deliberately reconciled with `main`; do not use `git pull --ff-only origin main` while the branch is divergent.
 - **The product must not be declared complete because a button, page, API expression, or test exists.** The actual user journey must be proven from visible interaction through durable result.
 - **Static Studio control wiring is now regression-tested.** A dedicated test requires all 37 current static buttons to have a route, form submission boundary, or client-side handler reference; all 11 forms must be present in client wiring; all declared routes must map to real `data-view` sections; and dynamic scene controls must have executable handlers. This is a guard against accidentally reintroducing visibly present but unwired controls. It does not replace real browser execution.
 
@@ -197,6 +199,37 @@ Illustration generation uses the configured OpenAI image provider. Without `OPEN
 The directive requires voice for idea capture, story planning, editing commands, research requests, character creation, scene direction, and revision instructions while preserving the original transcription.
 
 Forge's Chromebook path uses Chrome `SpeechRecognition` / `webkitSpeechRecognition`. The command center keeps the original transcript in an editable command field and routes the instruction through the same real project/AI boundary used by typed commands.
+
+## Real-browser development workflow
+
+Chromium is the primary browser target for Studio development and acceptance testing on the Chromebook Linux environment. Playwright is the browser acquisition and automation tool; the repository acceptance harness drives the actual rendered application through Chrome DevTools Protocol.
+
+Install the browser once:
+
+```bash
+npm install -D @playwright/test
+npx playwright install chromium
+```
+
+Verify the installed Playwright version when troubleshooting:
+
+```bash
+npx playwright --version
+```
+
+Run the real browser gate:
+
+```bash
+npm run test:browser
+```
+
+The harness automatically discovers the Playwright-managed Chromium under `~/.cache/ms-playwright` on Linux. If a different browser should be used, set:
+
+```bash
+FORGE_BROWSER_EXECUTABLE=/path/to/chrome npm run test:browser
+```
+
+The browser gate is deliberately separate from `npm test`. This keeps ordinary regression testing portable while making real UI execution an explicit engineering gate. Playwright's bundled Chromium is preferred for deterministic browser testing; a system Chrome/Chromium can be supplied explicitly when needed.
 
 ## Development commands
 
