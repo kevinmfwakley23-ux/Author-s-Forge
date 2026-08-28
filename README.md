@@ -215,17 +215,23 @@ CHROMEBOOK / ANDROID DEVICE VERIFICATION
 
 This section is permanent engineering memory. **Whenever a material discovery is made about progress, a missing capability, an architectural constraint, a platform requirement, a verification weakness, or unfinished work, record it here.** This is mandatory restart context.
 
+### 2026-08-28 — Canonical v2 package route integration
+
+- Integrated `ProjectPackageService` into the live Studio server.
+- `/api/projects/{projectId}/package` now returns the canonical version-2 Forge project package rather than the legacy version-1 application snapshot envelope.
+- The route packages the complete durable project plus validated Studio workspace inside `projectState` and emits the integrity-checked `project-state.json` package file.
+- Application integration coverage now verifies the v2 manifest, package name, state preservation, file path/media type, SHA-256 shape, and persistence across server restart.
+
 ### 2026-08-28 — Portable package application foundation
 
 - Added `ProjectPackageService.exportSnapshot(...)` as the application-level entry point for creating a canonical version-2 Forge package from durable project state.
 - Snapshot exports include an integrity-checked `project-state.json` package file using SHA-256 and the versioned package manifest.
-- The Studio `/api/projects/{projectId}/package` route still returns the older application snapshot envelope; wiring that route to `ProjectPackageService` remains the next integration step.
+- The Studio `/api/projects/{projectId}/package` route is now wired to this service and no longer returns the older application snapshot envelope.
 
 ### 2026-08-28 — Portable package contract verification
 
 - The repository already contains the version-2 portable project package domain contract with manifest metadata, traversal-safe relative paths, SHA-256 file integrity, deterministic serialization, and validation on deserialization.
 - Added dedicated contract coverage for successful round-trip serialization plus rejection of traversal, tampering, and unsupported package versions.
-- The Studio `/api/projects/{projectId}/package` route is still a simpler application snapshot envelope; integrating the full version-2 package service into that route remains an application-level portability task.
 
 ### 2026-08-28 — Command-center regression hardening
 
