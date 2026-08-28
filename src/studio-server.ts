@@ -18,6 +18,7 @@ import { EDITOR_ROLES, type EditorRole } from "./domain/intelligent-editing";
 import { createAiCollaborationPolicy, AI_COLLABORATION_MODES, type AiCollaborationMode } from "./domain/ai-collaboration";
 import { BookCoverStudioService } from "./application/book-cover-studio";
 import { BINDINGS, INTERIOR_TYPES, PAPER_TYPES, type Binding, type InteriorType, type PaperType } from "./domain/book-cover-studio";
+import { ProjectPackageService } from "./application/project-package";
 
 const port = Number(process.env.PORT ?? 4173);
 const host = process.env.HOST ?? "127.0.0.1";
@@ -30,6 +31,7 @@ const governance = new GovernanceService();
 const production = new ManuscriptProductionService();
 const editor = new IntelligentEditingService();
 const coverStudio = new BookCoverStudioService();
+const projectPackages = new ProjectPackageService();
 const defaultProjectId = "forge-studio";
 const MEMORY_CLASSES: readonly MemoryClass[] = ["author-memory", "project-memory", "story-canon", "character-memory", "relationship-memory", "location-memory", "timeline-memory", "style-memory", "research-memory", "creative-note", "working-draft", "hypothesis", "open-thread", "visual-identity", "production-memory", "publishing-memory", "marketing-memory", "generated-alternative", "decision-memory"];
 const MEMORY_AUTHORITIES: readonly MemoryAuthority[] = ["proposed", "working", "verified", "authoritative", "superseded", "archived"];
@@ -56,7 +58,7 @@ if(url.pathname===`/api/projects/${projectId}`&&req.method==="GET"){json(res,200
 if(url.pathname===`/api/projects/${projectId}/collaboration`&&req.method==="GET"){json(res,200,project.aiCollaborationPolicy??createAiCollaborationPolicy("co-pilot"));return true;}
 if(url.pathname===`/api/projects/${projectId}/collaboration`&&req.method==="POST"){const input=await body(req);const policy=createAiCollaborationPolicy(enumValue(input.mode,AI_COLLABORATION_MODES,"collaboration mode") as AiCollaborationMode);await store.save(withProjectAiCollaborationPolicy(project,policy) as never);json(res,200,policy);return true;}
 if(url.pathname===`/api/projects/${projectId}/health`&&req.method==="GET"){json(res,200,await projectHealth(project));return true;}
-if(url.pathname===`/api/projects/${projectId}/package`&&req.method==="GET"){json(res,200,{formatVersion:1,exportedAt:new Date().toISOString(),project,workspace:workspaceOf(project)});return true;}
+if(url.pathname===`/api/projects/${projectId}/package`&&req.method==="GET"){const workspace=workspaceOf(project);const pkg=projectPackages.exportSnapshot({projectId,projectState:{project,studioWorkspace:workspace}});json(res,200,pkg);return true;}
 if(url.pathname===`/api/projects/${projectId}/workspace`&&req.method==="GET"){json(res,200,workspaceOf(project));return true;}
 if(url.pathname===`/api/projects/${projectId}/workspace/activate`&&req.method==="POST"){const input=await body(req);const workspace=setActiveBook(workspaceOf(project),String(input.bookId??""));await store.save(saveWorkspace(project,workspace) as never);json(res,200,workspace);return true;}
 if(url.pathname===`/api/projects/${projectId}/workspace/books`&&req.method==="POST"){const input=await body(req);const workspace=addWorkspaceBook(workspaceOf(project),createWorkspaceBook({id:String(input.id??`book-${randomUUID()}`),title:String(input.title??""),kind:input.kind as never,description:String(input.description??"")}));await store.save(saveWorkspace(project,workspace) as never);json(res,201,workspace.books.find((b)=>b.id===workspace.activeBookId));return true;}
