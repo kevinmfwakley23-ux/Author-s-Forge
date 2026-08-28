@@ -157,7 +157,7 @@ async function main() {
     await page.locator("#project-form").evaluate((form) => form.requestSubmit());
     await page.waitForFunction((id) => location.search.includes(`project=${id}`) && document.querySelector("#project-title")?.textContent === "Browser Acceptance Book", projectId);
 
-    await page.locator('a[data-route="manuscript"]').click();
+    await page.locator('nav a[data-route="manuscript"]').click();
     await page.waitForFunction(() => location.hash === "#manuscript");
     await page.locator("#book-form [name=title]").fill("Acceptance Book");
     await page.locator("#book-form [name=kind]").selectOption("novel");
@@ -177,7 +177,40 @@ async function main() {
     await page.locator("#scene-form").evaluate((form) => form.requestSubmit());
     await page.waitForFunction(() => document.querySelector("#editor-scene option"));
 
-    await page.locator('a[data-route="writing"]').click();
+    await page.locator('nav a[data-route="characters"]').click();
+    await page.waitForFunction(() => location.hash === "#characters");
+    const characterForm = page.locator("#character-form");
+    await characterForm.locator('[name="name"]').fill("Acceptance Character");
+    await characterForm.locator('[name="age"]').fill("34");
+    await characterForm.locator('[name="birthDate"]').fill("1992-01-15");
+    await characterForm.locator('[name="physicalAppearance"]').fill("A weathered face with a steady gaze.");
+    await characterForm.locator('[name="height"]').fill("5'11");
+    await characterForm.locator('[name="build"]').fill("Athletic");
+    await characterForm.locator('[name="hair"]').fill("Dark brown");
+    await characterForm.locator('[name="eyes"]').fill("Hazel");
+    await characterForm.locator('[name="skin"]').fill("Olive");
+    await characterForm.locator('[name="clothing"]').fill("Dark jacket and boots");
+    await characterForm.locator('[name="voice"]').fill("Low and measured");
+    await characterForm.locator('[name="personality"]').fill("Observant, loyal, guarded");
+    await characterForm.locator('[name="history"]').fill("A former investigator rebuilding a life after a difficult case.");
+    await characterForm.locator('[name="characterArc"]').fill("Learns to trust others without surrendering judgment.");
+    await characterForm.locator('[name="currentEmotionalState"]').fill("Determined");
+    await characterForm.locator('[name="currentLocation"]').fill("Ogden");
+    await characterForm.evaluate((form) => form.requestSubmit());
+    await page.waitForFunction(() => document.querySelector("#character-list")?.textContent.includes("Acceptance Character"));
+
+    await page.locator('nav a[data-route="world"]').click();
+    await page.waitForFunction(() => location.hash === "#world");
+    const memoryForm = page.locator("#memory-form");
+    await memoryForm.locator('[name="class"]').selectOption("story-canon");
+    await memoryForm.locator('[name="authority"]').selectOption("authoritative");
+    await memoryForm.locator('[name="summary"]').fill("The acceptance character is canonically based in Ogden.");
+    await memoryForm.locator('[name="content"]').fill("This durable canon fact is established by the author for browser acceptance.");
+    await memoryForm.locator('[name="reference"]').fill("browser-acceptance");
+    await memoryForm.evaluate((form) => form.requestSubmit());
+    await page.waitForFunction(() => document.querySelector("#memory-list")?.textContent.includes("The acceptance character is canonically based in Ogden."));
+
+    await page.locator('nav a[data-route="writing"]').click();
     await page.waitForFunction(() => location.hash === "#writing");
     await page.locator("#editor-content").fill("A real browser-driven manuscript scene.");
     await page.locator("#save-scene").click();
@@ -191,12 +224,16 @@ async function main() {
 
     await page.reload({ waitUntil: "networkidle" });
     await page.waitForFunction(() => document.readyState === "complete" && document.querySelector("#project-title")?.textContent === "Browser Acceptance Book");
-    await page.locator('a[data-route="writing"]').click();
+    await page.locator('nav a[data-route="writing"]').click();
     await page.waitForFunction(() => document.querySelector("#editor-content")?.value === "A real browser-driven manuscript scene.");
-    await page.locator('a[data-route="health"]').click();
+    await page.locator('nav a[data-route="characters"]').click();
+    await page.waitForFunction(() => document.querySelector("#character-list")?.textContent.includes("Acceptance Character"));
+    await page.locator('nav a[data-route="world"]').click();
+    await page.waitForFunction(() => document.querySelector("#memory-list")?.textContent.includes("The acceptance character is canonically based in Ogden."));
+    await page.locator('nav a[data-route="health"]').click();
     await page.waitForFunction(() => document.querySelector("#health-result")?.textContent.includes("1"));
 
-    console.log(`REAL BROWSER ACCEPTANCE PASSED: ${routes.length} routes + project + book + chapter + scene + save/reload + honest AI failure + health.`);
+    console.log(`REAL BROWSER ACCEPTANCE PASSED: ${routes.length} routes + project + book + chapter + scene + character bible + canon memory + save/reload + honest AI failure + health.`);
   } finally {
     if (browser) await browser.close().catch(() => {});
     server.kill("SIGTERM");
