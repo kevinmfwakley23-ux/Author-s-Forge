@@ -1,7 +1,7 @@
 import { buildProjectContext } from "../application/context-pipeline";
 import type { ProjectBrainQuery } from "../application/project-brain";
 import type { ProjectMemoryStore } from "../application/project-memory-store";
-import { optimizeContext } from "../application/context-optimizer";
+import { estimateTokens, optimizeContext } from "../application/context-optimizer";
 import { generateWithKingsAi } from "./kings-ai-bridge";
 
 export interface AiGenerationRequest { readonly system: string; readonly user: string; readonly temperature?: number; readonly maxOutputTokens?: number; }
@@ -52,16 +52,17 @@ export async function generateProjectText(request: ProjectAiGenerationRequest): 
     maxOutputTokens: request.maxOutputTokens,
   });
   if (!result.optimization) return result;
+
+  const originalEstimatedTokens = projectContext.originalEstimatedTokens + estimateTokens([request.system?.trim(), request.user].filter(Boolean).join("\n\n"));
+  const optimizedEstimatedTokens = result.optimization.optimizedEstimatedTokens;
+  const tokensSaved = Math.max(0, originalEstimatedTokens - optimizedEstimatedTokens);
   return {
     ...result,
     optimization: {
-      ...result.optimization,
-      originalEstimatedTokens: projectContext.originalEstimatedTokens,
-      optimizedEstimatedTokens: result.optimization.optimizedEstimatedTokens,
-      tokensSaved: projectContext.tokensSaved + result.optimization.tokensSaved,
-      compressionRatio: projectContext.optimizedEstimatedTokens > 0
-        ? result.optimization.optimizedEstimatedTokens / projectContext.originalEstimatedTokens
-        : result.optimization.compressionRatio,
+      originalEstimatedTokens,
+      optimizedEstimatedTokens,
+      tokensSaved,
+      compressionRatio: originalEstimatedTokens > 0 ? optimizedEstimatedTokens / originalEstimatedTokens : 1,
       strategy: [...projectContext.strategies, ...result.optimization.strategy],
     },
   };
