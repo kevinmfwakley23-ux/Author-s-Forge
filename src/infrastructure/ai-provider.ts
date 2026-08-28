@@ -1,8 +1,18 @@
+import { buildProjectContext } from "../application/context-pipeline";
+import type { ProjectBrainQuery } from "../application/project-brain";
+import type { ProjectMemoryStore } from "../application/project-memory-store";
 import { optimizeContext } from "../application/context-optimizer";
 import { generateWithKingsAi } from "./kings-ai-bridge";
 
 export interface AiGenerationRequest { readonly system: string; readonly user: string; readonly temperature?: number; readonly maxOutputTokens?: number; }
 export interface AiGenerationResult { readonly provider: "openai" | "ollama" | "kings"; readonly model: string; readonly text: string; readonly requestId?: string; readonly optimization?: { readonly originalEstimatedTokens: number; readonly optimizedEstimatedTokens: number; readonly tokensSaved: number; readonly compressionRatio: number; readonly strategy: readonly string[]; }; }
+
+export interface ProjectAiGenerationRequest extends Omit<AiGenerationRequest, "system"> {
+  readonly system?: string;
+  readonly memory: ProjectMemoryStore;
+  readonly context: ProjectBrainQuery;
+  readonly contextBudget?: number;
+}
 
 export async function generateText(request: AiGenerationRequest): Promise<AiGenerationResult> {
   const optimized = optimizeContext({
@@ -27,6 +37,34 @@ export async function generateText(request: AiGenerationRequest): Promise<AiGene
   const ollama = process.env.OLLAMA_BASE_URL?.trim();
   if (ollama) return { ...(await generateOllama(ollama.replace(/\/$/, ""), optimizedRequest)), optimization };
   throw new Error("No AI provider is configured. Set KINGS_AI_ENDPOINT + KINGS_AI_MODEL, OPENAI_API_KEY + OPENAI_MODEL, or OLLAMA_BASE_URL + OLLAMA_MODEL.");
+}
+
+export async function generateProjectText(request: ProjectAiGenerationRequest): Promise<AiGenerationResult> {
+  const projectContext = buildProjectContext(request.memory, {
+    query: request.context,
+    budget: request.contextBudget ?? readPositiveInteger(process.env.AI_CONTEXT_MAX_INPUT_TOKENS),
+  });
+  const system = [request.system?.trim(), projectContext.system].filter(Boolean).join("\n\n");
+  const result = await generateText({
+    system,
+    user: request.user,
+    temperature: request.temperature,
+    maxOutputTokens: request.maxOutputTokens,
+  });
+  if (!result.optimization) return result;
+  return {
+    ...result,
+    optimization: {
+      ...result.optimization,
+      originalEstimatedTokens: projectContext.originalEstimatedTokens,
+      optimizedEstimatedTokens: result.optimization.optimizedEstimatedTokens,
+      tokensSaved: projectContext.tokensSaved + result.optimization.tokensSaved,
+      compressionRatio: projectContext.optimizedEstimatedTokens > 0
+        ? result.optimization.optimizedEstimatedTokens / projectContext.originalEstimatedTokens
+        : result.optimization.compressionRatio,
+      strategy: [...projectContext.strategies, ...result.optimization.strategy],
+    },
+  };
 }
 
 function readPositiveInteger(value: string | undefined): number | undefined {
