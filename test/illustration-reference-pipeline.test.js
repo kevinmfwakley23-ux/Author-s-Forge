@@ -59,7 +59,7 @@ test("reference pipeline sends the reference as a real multipart image edit", as
     const result = await pipeline.editWithOpenAi({
       prompt: "Preserve the character identity and change the background.",
       reference,
-      referenceBytes: referenceBytes = new Uint8Array([137, 80, 78, 71]),
+      referenceBytes: new Uint8Array([137, 80, 78, 71]),
       size: "1024x1536",
       quality: "high",
     }, "test-key");
