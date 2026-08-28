@@ -8,9 +8,9 @@ It is intended to support children's books, memoir, psychological thrillers, gui
 
 **`AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md` is the canonical product contract.** It is checked into this repository and is the engineering source of truth.
 
-The directive defines the complete target: concept → architecture → canon → characters → timeline → research → manuscript → editing → illustrations → cover → formatting → metadata → positioning → marketing → publishing preparation → portable archive/recovery. It explicitly calls for hierarchical memory, anti-drift controls, relationship-aware memory, voice input, five AI collaboration modes, a Book Genome, real provider boundaries, and an author-controlled publishing workflow. fileciteturn723file2L53-L65 fileciteturn723file4L481-L501
+The directive defines the complete target: concept → architecture → canon → characters → timeline → research → manuscript → editing → illustrations → cover → formatting → metadata → positioning → marketing → publishing preparation → portable archive/recovery. It explicitly calls for hierarchical memory, anti-drift controls, relationship-aware memory, voice input, five AI collaboration modes, a Book Genome, real provider boundaries, and an author-controlled publishing workflow.
 
-The final product standard is not a feature list. It is a complete working path from story concept through architecture, canon, character system, timeline, research, manuscript, editing, illustrations, cover, formatting, metadata, positioning, promotion, publishing preparation, and portable project state. fileciteturn723file8L963-L1001
+The final product standard is not a feature list. It is a complete working path from story concept through architecture, canon, character system, timeline, research, manuscript, editing, illustrations, cover, formatting, metadata, positioning, promotion, publishing preparation, and portable project state.
 
 ## Chief engineering standard
 
@@ -31,9 +31,105 @@ Non-negotiable rules:
 
 A green unit-test suite is **not** proof that Forge works. A capability is complete only when it is reachable from Studio, reads/writes durable project state, survives reload/restart, participates in downstream workflows, reports real errors, and has end-to-end regression coverage.
 
+### The Green-Test Trap — Permanent Engineering Rule
+
+Forge has previously reached an apparently perfect green test state while the actual Studio experience still contained controls that went nowhere and features that were represented in the interface without being genuinely usable. **That failure mode is explicitly rejected.**
+
+A test that proves an internal function works does not prove the corresponding product feature works. A rendered button is not an implementation. A route existing is not proof that the route performs the promised operation. A mocked provider response is not a real provider integration. A generated-looking card, panel, status message, or result is not evidence that the underlying workflow exists.
+
+From this point forward, every feature claim must be verified across the complete chain:
+
+```text
+VISIBLE CONTROL
+      ↓
+USER ACTION
+      ↓
+REAL EVENT HANDLER
+      ↓
+REAL APPLICATION SERVICE
+      ↓
+REAL SERVER / ROUTE
+      ↓
+REAL DOMAIN OPERATION
+      ↓
+REAL PROVIDER OR LOCAL ENGINE
+      ↓
+REAL PERSISTED STATE / ARTIFACT
+      ↓
+VISIBLE RESULT
+      ↓
+RELOAD / RESTART RECOVERY
+```
+
+If any link is missing, the feature is **not complete**, regardless of how many tests are green.
+
+### Required functional verification levels
+
+Every meaningful Studio capability must be verified at the strongest applicable level:
+
+1. **Static verification** — control, route, module, and wiring actually exist.
+2. **Unit/domain verification** — business rules behave correctly.
+3. **Server/HTTP verification** — the real application route accepts the real request and returns the real result or actionable error.
+4. **Browser/UI verification** — the visible control can actually be used and reaches the intended workflow.
+5. **Persistence verification** — state is written to the real project source of truth.
+6. **Reload/restart verification** — the result survives application reload and server restart where durability is promised.
+7. **Provider verification** — configured external providers are actually called; unavailable providers fail honestly.
+8. **Artifact verification** — promised files/results are real, valid, reusable outputs rather than placeholders.
+9. **End-to-end workflow verification** — the feature participates in the larger author workflow instead of existing as an isolated mission island.
+
+The acceptance rule is **the lowest failed level**, not the highest passed level.
+
+## Continuous Discovery & README Ledger
+
+The README is part of the engineering continuity system. **Whenever a meaningful discovery is made about repository state, product progress, environment capability, verification gaps, integration needs, or an observed failure mode, record it here before the work is considered complete.**
+
+Each discovery note should answer, as applicable:
+
+- what was discovered;
+- what evidence produced the discovery;
+- what it means for Forge;
+- what remains to be built or verified;
+- what environment/tooling is required;
+- what acceptance evidence will prove it is truly complete.
+
+This ledger exists so a future engineering session can resume from the actual state of the project rather than relying on memory, assumptions, or a green test count.
+
+### Current Engineering Discoveries — 2026-08-27
+
+- **Green tests alone are insufficient.** The repository currently reports 125 passing tests, but that result must not be treated as product-level proof. The Studio must be exercised through its actual controls and workflows.
+- **The Studio contains many visible controls.** Current inspection found 37 buttons, 11 forms, and 19 route/navigation links in `public/index.html`. Their presence establishes UI surface area, not completion.
+- **Client/server wiring exists in several places.** `public/app.js`, `public/forge-command-center.js`, and `public/forge-workbench.js` contain real event handlers and API-call paths. These still require functional browser execution verification rather than source inspection alone.
+- **The repository is currently on `feature/reference-image-pipeline`, not `main`.** Local branch history contains the reference-image work while `origin/main` has newer platform/documentation commits. A fast-forward pull from `main` is therefore expected to fail until the branch divergence is deliberately reconciled.
+- **The local working tree contains generated/untracked output.** Current inspection showed `.forge-data/`, `dist/`, and `package-lock.json` as untracked, plus local modifications to `public/app.js` and `src/application/illustration-reference-pipeline.ts`. These must be handled deliberately; generated state must not be mistaken for source-of-truth product implementation.
+- **The development environment is Chromebook Linux with Node 24.19.0 and npm 11.17.0.** No supported browser executable was found through the checked Linux command names (`google-chrome`, `google-chrome-stable`, `chromium`, `chromium-browser`, `chrome`). Therefore browser verification cannot be claimed from that Linux shell inspection alone.
+- **The package scripts currently provide build, test, check, and Studio startup paths.** `npm run studio` builds and starts `dist/studio-server.js`; the configured Studio URL is `http://127.0.0.1:4173`.
+- **The product must not be declared complete because a button, page, API expression, or test exists.** The actual user journey must be proven from visible interaction through durable result.
+
+### Discovery workflow — mandatory going forward
+
+At the end of every meaningful engineering checkpoint:
+
+```text
+DISCOVERY / CHANGE
+      ↓
+EVIDENCE
+      ↓
+README LEDGER UPDATE
+      ↓
+IMPLEMENTATION
+      ↓
+FUNCTIONAL VERIFICATION
+      ↓
+RECORD REMAINING GAPS
+      ↓
+COMMIT
+```
+
+A newly discovered limitation is not bad news to hide. It is required engineering knowledge. **Forge records gaps honestly so they can be fixed.**
+
 ## Current integrated Studio
 
-The Studio is now one static application surface rather than a dynamically injected collection of disconnected screens. Its primary workflow is:
+The Studio is one static application surface rather than a dynamically injected collection of disconnected screens. Its intended workflow is:
 
 ```text
 AUTHOR
@@ -63,28 +159,7 @@ DOCX / PDF / EPUB PRODUCTION
 PORTABLE PROJECT PACKAGE
 ```
 
-The integrated surface includes:
-
-- durable project, book, chapter, and scene creation;
-- real scene editor with word counts and persistent save;
-- real AI drafting through OpenAI or Ollama when configured;
-- AI task modes for drafting, continuation, rewrite, expansion, dialogue, description, outlining, and brainstorming;
-- first-class typed and browser-microphone command center;
-- original voice transcript preservation before execution;
-- Co-pilot, Partner, Director, Autonomous, and Editor collaboration modes;
-- structured Character Bible records with history;
-- canon, timeline, location, relationship, style, visual, open-thread, and creative-decision memory;
-- provenance-aware research storage;
-- read-only intelligent editing analysis;
-- local author-voice fingerprint analysis;
-- real OpenAI image generation with local project asset storage when configured;
-- KDP cover geometry planning;
-- Book Genome construction and downstream impact analysis;
-- real DOCX/PDF/EPUB/KDP production through the existing production engine;
-- project health reporting;
-- portable project JSON export;
-- 13-category delivery audit;
-- explicit provider-status reporting.
+The integrated surface includes the implemented foundations for durable project, manuscript, memory, character, visual, research, editing, production, provider, audit, and Studio workflows. **Each surface remains subject to the functional verification standard above before it may be described as production-complete.**
 
 No button is considered complete merely because it exists in HTML. Every control must terminate in a real state transition, provider operation, calculation, artifact, navigation action, or explicit actionable error.
 
@@ -115,21 +190,9 @@ Illustration generation uses the configured OpenAI image provider. Without `OPEN
 
 ## Voice as a first-class input
 
-The directive requires voice for idea capture, story planning, editing commands, research requests, character creation, scene direction, and revision instructions while preserving the original transcription. fileciteturn723file4L481-L501
+The directive requires voice for idea capture, story planning, editing commands, research requests, character creation, scene direction, and revision instructions while preserving the original transcription.
 
 Forge's Chromebook path uses Chrome `SpeechRecognition` / `webkitSpeechRecognition`. The command center keeps the original transcript in an editable command field and routes the instruction through the same real project/AI boundary used by typed commands.
-
-## Engineering references and proven patterns
-
-Forge is not blindly copying unrelated projects. It selectively implements proven patterns while respecting licenses and preserving Forge's architecture.
-
-- urlNovel Studio (MIT)https://github.com/Openapps-free/novel-studio — rich editor, writing modes, story matrix, world codex, timeline, relationships, research, analysis, revision history, and export patterns. citeturn2search0
-- urlWriter Studio (Apache-2.0)https://github.com/Dirgha-AI/writer-studio — binder structure, long-form documents, drafts, evaluations, versions, research, transcription, and pluggable AI providers. citeturn2search1
-- urlNovel Studio AI (MIT)https://github.com/YfengJ/novel-studio-ai — local-first story bibles, retrieval memory, character state, graph facts, and continuity checks. citeturn2search7
-- urlOpen-Write (Apache-2.0)https://github.com/Open-Write/Open-Write — professional writing-room and revision-protocol patterns. citeturn2search3
-- urlPikahttps://github.com/bricke/pika — local-first author-controlled editor and non-destructive AI editing pattern. citeturn2search9
-
-License rule: **do not copy code merely because it is useful.** Direct reuse must be compatible with the source license and Forge's architecture. Where license compatibility or provenance is unclear, reproduce the behavior independently.
 
 ## Development commands
 
@@ -156,6 +219,8 @@ STUDIO STARTUP
   +
 REAL ROUTE EXECUTION
   +
+VISIBLE CONTROL EXECUTION
+  +
 VOICE / TYPED COMMAND EXECUTION
   +
 PERSISTENCE
@@ -167,6 +232,8 @@ REAL PROVIDER BOUNDARIES
 ARTIFACT VALIDATION
   +
 AUTHOR APPROVAL
+  +
+END-TO-END WORKFLOW
 ```
 
 The mission modules remain valuable domain machinery, but they are not separate products. The engineering objective is one coherent ProjectState, one manuscript workflow, one visual workflow, one production path, one memory boundary, and one Studio.
