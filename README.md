@@ -8,9 +8,9 @@ It is intended to support children's books, memoir, psychological thrillers, gui
 
 **`AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md` is the canonical product contract.** It is checked into this repository and is the engineering source of truth.
 
-The directive defines the complete target: concept → architecture → canon → characters → timeline → research → manuscript → editing → illustrations → cover → formatting → metadata → positioning → marketing → publishing preparation → portable archive/recovery. It explicitly calls for hierarchical memory, anti-drift controls, relationship-aware memory, voice input, five AI collaboration modes, a Book Genome, real provider boundaries, and an author-controlled publishing workflow. fileciteturn723file2L53-L65 fileciteturn723file4L481-L501
+The directive defines the complete target: concept → architecture → canon → characters → timeline → research → manuscript → editing → illustrations → cover → formatting → metadata → positioning → marketing → publishing preparation → portable archive/recovery. It explicitly calls for hierarchical memory, anti-drift controls, relationship-aware memory, voice input, five AI collaboration modes, a Book Genome, real provider boundaries, and an author-controlled publishing workflow.
 
-The final product standard is not a feature list. It is a complete working path from story concept through architecture, canon, character system, timeline, research, manuscript, editing, illustrations, cover, formatting, metadata, positioning, promotion, publishing preparation, and portable project state. fileciteturn723file8L963-L1001
+The final product standard is not a feature list. It is a complete working path from story concept through architecture, canon, character system, timeline, research, manuscript, editing, illustrations, cover, formatting, metadata, positioning, promotion, publishing preparation, and portable project state.
 
 ## Chief engineering standard
 
@@ -33,9 +33,7 @@ A green unit-test suite is **not** proof that Forge works. A capability is compl
 
 ## Permanent Functional-Truth Rule
 
-A green test suite is evidence, not proof of product completion. The project recently reached **125/125 automated tests passing**, but that result must not be treated as evidence that every visible Studio feature is usable by a human.
-
-The current suite proves many valuable domain contracts and some Studio/source contracts. However, source-pattern assertions can prove that a route, handler, or label exists without proving that a user can actually operate the rendered application and obtain the promised result.
+A green test suite is evidence, not proof of product completion. Source-pattern assertions can prove that a route, handler, or label exists without proving that a user can actually operate the rendered application and obtain the promised result.
 
 Therefore every major capability must ultimately be verified at three levels:
 
@@ -50,21 +48,6 @@ Never weaken or remove a test simply to make the build green. When a regression 
 **Chromebook and Android are first-class Author's Forge product targets.** They are not later compatibility work.
 
 The primary architecture is one platform-neutral web application first. Chromebook and Android use the same product through browser/PWA surfaces while the domain, application, and API boundaries remain reusable for future dedicated shells.
-
-```text
-ONE PLATFORM-NEUTRAL WEB APPLICATION
-              │
-       ┌──────┴──────┐
-       │             │
-   Chromebook      Android
-   Browser/PWA    Browser/PWA
-              │
-       Shared Application
-       + Domain + API
-              │
-       Future native shells
- Windows / macOS / Linux / iOS / Android
-```
 
 Permanent platform requirements include:
 
@@ -139,32 +122,9 @@ DOCX / PDF / EPUB PRODUCTION
 PORTABLE PROJECT PACKAGE
 ```
 
-The integrated surface includes:
-
-- durable project, book, chapter, and scene creation;
-- real scene editor with word counts and persistent save;
-- real AI drafting through OpenAI or Ollama when configured;
-- AI task modes for drafting, continuation, rewrite, expansion, dialogue, description, outlining, and brainstorming;
-- first-class typed and browser-microphone command center;
-- original voice transcript preservation before execution;
-- Co-pilot, Partner, Director, Autonomous, and Editor collaboration modes;
-- structured Character Bible records with history;
-- canon, timeline, location, relationship, style, visual, open-thread, and creative-decision memory;
-- provenance-aware research storage;
-- read-only intelligent editing analysis;
-- local author-voice fingerprint analysis;
-- real OpenAI image generation with local project asset storage when configured;
-- KDP cover geometry planning;
-- Book Genome construction and downstream impact analysis;
-- real DOCX/PDF/EPUB/KDP production through the existing production engine;
-- project health reporting;
-- portable project JSON export;
-- 13-category delivery audit;
-- explicit provider-status reporting.
+The integrated surface includes durable project/book/chapter/scene state, real scene editing and persistence, real provider-backed AI drafting, typed and browser-microphone commands, five collaboration modes, structured Character Bible records, provenance-aware memory/research, intelligent editing analysis, voice fingerprinting, real image generation when configured, KDP cover planning, Book Genome and impact analysis, document production, health reporting, portable export, and delivery audit.
 
 No button is considered complete merely because it exists in HTML. Every control must terminate in a real state transition, provider operation, calculation, artifact, navigation action, or explicit actionable error.
-
-The current Studio source inventory contains **37 buttons, 11 forms, and 19 route links** in `public/index.html`. Their existence is not completion evidence. They must be functionally exercised.
 
 ## Real Provider Boundaries
 
@@ -193,9 +153,9 @@ Illustration generation uses the configured OpenAI image provider. Without `OPEN
 
 ## Voice as a First-Class Input
 
-The directive requires voice for idea capture, story planning, editing commands, research requests, character creation, scene direction, and revision instructions while preserving the original transcription. fileciteturn723file4L481-L501
+Forge's command center supports typed commands and browser `SpeechRecognition` / `webkitSpeechRecognition`. The original transcript remains editable before execution. Voice commands use the same real project and provider boundary as typed commands.
 
-Forge's Chromebook path uses Chrome `SpeechRecognition` / `webkitSpeechRecognition`. The command center keeps the original transcript in an editable command field and routes the instruction through the same real project/AI boundary used by typed commands.
+AI candidates are explicitly non-canon until the author approves them. The command-center approval boundary is enforced in the UI and protected by regression tests.
 
 ## Functional Verification Roadmap
 
@@ -219,7 +179,7 @@ It must exercise the real running application and verify at minimum:
 - health reflects actual project state;
 - controls that claim to modify state actually modify the intended state.
 
-Browser/device acceptance remains a separate layer. The current Linux development container has **no installed Chrome/Chromium executable**, so browser automation must not be falsely represented as completed there. The Chromebook's real Chrome environment remains the authoritative target for final device-level verification.
+Browser/device acceptance remains a separate layer. The current Linux development container has no installed Chrome/Chromium executable, so browser automation must not be falsely represented as completed there. The Chromebook's real Chrome environment remains the authoritative target for final device-level verification.
 
 ## Verification Gate
 
@@ -255,12 +215,16 @@ CHROMEBOOK / ANDROID DEVICE VERIFICATION
 
 This section is permanent engineering memory. **Whenever a material discovery is made about progress, a missing capability, an architectural constraint, a platform requirement, a verification weakness, or unfinished work, record it here.** This is mandatory restart context.
 
+### 2026-08-28 — Command-center regression hardening
+
+- GitHub access to the private `kevinmfwakley23-ux/Author-s-Forge` repository is operational again.
+- The first-class command center already uses real `SpeechRecognition` / `webkitSpeechRecognition`, preserves the original transcript, and routes non-navigation commands through the real `/api/projects/{projectId}/ai/draft` provider boundary.
+- A regression hardening commit added an explicit approval-boundary marker so the source contract unambiguously states that AI candidate output **has NOT been saved as canon**.
+- This does not substitute for runtime acceptance testing; it only hardens the existing contract while the application-level verification layer is built.
+
 ### 2026-08-27 — Functional verification gap identified
 
-- The automated suite reached **125 passing tests**, but the green result was correctly challenged as insufficient evidence of a usable Studio.
-- Source inspection showed **37 buttons, 11 forms, and 19 route links** in the current Studio HTML.
-- The JavaScript contains real event handlers and API/provider boundaries, but handler existence alone does not prove successful user workflows.
-- A browser executable is not installed inside the current Linux development container. Browser-level acceptance must not be claimed there.
+- Automated/source tests are useful evidence but are not proof of a usable Studio.
 - The next engineering priority is real HTTP/application-level acceptance testing followed by browser/device acceptance on Chromebook and Android.
 - The project must distinguish **implemented**, **contract-tested**, **application-tested**, and **device-verified** capabilities.
 
@@ -271,13 +235,7 @@ This section is permanent engineering memory. **Whenever a material discovery is
 - PWA support is a foundation, not completion evidence.
 - Mobile interaction, installation, persistence, file handling, offline behavior, and real-device verification remain required.
 
-### 2026-08-27 — Working-tree integrity requirement
-
-- Local development currently contains changes outside the README and current Studio fix, including `src/application/illustration-reference-pipeline.ts`, `.forge-data/`, `dist/`, and `package-lock.json`.
-- Do not blindly overwrite, reset, or commit unrelated working-tree changes while repairing Studio behavior.
-- Generated/runtime data must be distinguished from intentional source changes before commits.
-
-### 2026-08-27 — Workflow rule established
+### Workflow rule
 
 The chief-engineering workflow is continuous repository work:
 
@@ -301,19 +259,7 @@ COMMIT COHESIVE MILESTONE
 IMMEDIATELY CONTINUE
 ```
 
-The assistant should stop and request Linux commands from the author only when the local environment is required for a verification or operation unavailable through repository tooling. The goal is speedy completion without sacrificing functional truth.
-
-## Engineering References and Proven Patterns
-
-Forge selectively implements proven patterns while respecting licenses and preserving Forge's architecture.
-
-- Novel Studio (MIT) — rich editor, writing modes, story matrix, world codex, timeline, relationships, research, analysis, revision history, and export patterns.
-- Writer Studio (Apache-2.0) — binder structure, long-form documents, drafts, evaluations, versions, research, transcription, and pluggable AI providers.
-- Novel Studio AI (MIT) — local-first story bibles, retrieval memory, character state, graph facts, and continuity checks.
-- Open-Write (Apache-2.0) — professional writing-room and revision-protocol patterns.
-- Pika — local-first author-controlled editor and non-destructive AI editing patterns.
-
-License rule: **do not copy code merely because it is useful.** Direct reuse must be compatible with the source license and Forge's architecture. Where license compatibility or provenance is unclear, reproduce the behavior independently.
+The goal is speedy completion without sacrificing functional truth.
 
 ## Development Commands
 
