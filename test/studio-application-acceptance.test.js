@@ -172,7 +172,7 @@ test('running Studio executes a complete durable author workflow without a provi
 
   result = await request(`/api/projects/${projectId}/package`);
   assert.equal(result.response.status, 200);
-  assert.equal(result.body.manifest.version, 2);
+  assert.equal(result.body.manifest.formatVersion, 2);
   assert.equal(result.body.manifest.projectId, projectId);
   assert.equal(result.body.projectState.studioWorkspace.books[0].chapters[0].scenes[0].content, content);
   assert.ok(result.body.files.some((file) => file.path === 'project-state.json'));
@@ -182,7 +182,7 @@ test('running Studio executes a complete durable author workflow without a provi
 
   result = await request(`/api/projects/${projectId}/package`);
   assert.equal(result.response.status, 200);
-  assert.equal(result.body.manifest.version, 2);
+  assert.equal(result.body.manifest.formatVersion, 2);
   assert.equal(result.body.projectState.studioWorkspace.books[0].chapters[0].scenes[0].content, content);
   assert.equal(result.body.projectState.project.memories.some((memory) => memory.summary === 'Opening canon'), true);
 
