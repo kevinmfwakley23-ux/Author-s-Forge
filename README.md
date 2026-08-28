@@ -210,6 +210,13 @@ CHROMEBOOK / ANDROID DEVICE VERIFICATION
 
 This section is permanent engineering memory. **Whenever a material discovery is made about progress, a missing capability, an architectural constraint, a platform requirement, a verification weakness, or unfinished work, record it here.** This is mandatory restart context.
 
+### 2026-08-28 — Validated project snapshot restore boundary added
+
+- Added an application-level restore boundary to `ProjectPackageService` for canonical v2 packages.
+- Restore requires a validated UTF-8 `project-state.json` snapshot and can enforce a target project id before state is returned to persistence code.
+- Added regression coverage for successful restore, wrong-target rejection, and missing snapshot rejection.
+- The live Studio restore route/UI is still a separate integration step; no restore capability is claimed merely from this service boundary.
+
 ### 2026-08-28 — Portable package integrity binding strengthened
 
 - Canonical version-2 packages now bind `manifest.projectId` to `projectState.metadata.id` when project metadata declares an id.
