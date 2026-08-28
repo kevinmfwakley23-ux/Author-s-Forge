@@ -1,6 +1,6 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
 
 const index = fs.readFileSync('public/index.html', 'utf8');
 const app = fs.readFileSync('public/app.js', 'utf8');
@@ -20,9 +20,9 @@ test('Studio loads the command center and integrated workbench', () => {
 });
 
 test('Studio retains real application controls and provider boundaries', () => {
-  assert.match(app, /\/api\/projects\/\$\{projectId\}\/ai\/draft/);
-  assert.match(app, /\/api\/projects\/\$\{projectId\}\/ai\/image/);
-  assert.match(app, /\/api\/projects\/\$\{projectId\}\/export/);
+  assert.match(app, /\/api\/projects\/\$\{(?:encodeURIComponent\(projectId\)|projectId)\}\/ai\/draft/);
+  assert.match(app, /\/api\/projects\/\$\{(?:encodeURIComponent\(projectId\)|projectId)\}\/ai\/image/);
+  assert.match(app, /\/api\/projects\/\$\{(?:encodeURIComponent\(projectId\)|projectId)\}\/export/);
   assert.match(command, /SpeechRecognition/);
   assert.match(command, /\/api\/projects\/\$\{encodeURIComponent\(projectId\)\}\/ai\/draft/);
   assert.match(workbench, /\/api\/projects\/\$\{projectId\}\/memory/);

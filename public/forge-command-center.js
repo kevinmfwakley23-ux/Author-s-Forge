@@ -1,31 +1,144 @@
-/* Static Workbench integrations are bound by /forge-workbench.js; this file owns the first-class typed/voice command surface. */
+/* First-class typed/voice command surface for Author's Forge Studio. */
 /* AI candidates have NOT been saved as canon until the author approves and saves them. */
+/* Every voice capture keeps the original transcript available to the author. */
 (() => {
   'use strict';
+
   const projectId = new URLSearchParams(location.search).get('project') || localStorage.getItem('forge-project') || 'forge-studio';
   const routes = ['dashboard','manuscript','writing','architecture','characters','world','research','editing','voice','art','cover','marketing','publishing','genome','health','versions','settings','governance'];
-  const $ = (s) => document.querySelector(s);
-  const api = async (path, options = {}) => { const response = await fetch(path, { ...options, headers: { 'content-type': 'application/json', ...(options.headers || {}) } }); const payload = await response.json().catch(() => ({})); if (!response.ok) throw new Error(payload.error || `Request failed (${response.status})`); return payload; };
-  const msg = (text, ok = false) => { const e = ok ? $('#success-banner') : $('#error-banner'); if (!e) return; e.textContent = text; e.hidden = false; const other = ok ? $('#error-banner') : $('#success-banner'); if (other) other.hidden = true; if (ok) setTimeout(() => { e.hidden = true; }, 3500); };
+  const $ = (selector) => document.querySelector(selector);
+  const api = async (path, options = {}) => {
+    const response = await fetch(path, { ...options, headers: { 'content-type': 'application/json', ...(options.headers || {}) } });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || `Request failed (${response.status})`);
+    return payload;
+  };
   const projectUrl = (suffix = '') => `/api/projects/${encodeURIComponent(projectId)}${suffix}`;
-  const safeText = (selector) => $(selector)?.value?.trim() || '';
-  async function architecture() { const idea=safeText('#arch-idea');if(!idea)return msg('Describe the book idea first.');const button=$('#arch-run');if(button)button.disabled=true;try{let workspace=await api(projectUrl('/workspace'));let book=workspace.books?.find((b)=>b.id===workspace.activeBookId)||workspace.books?.[0];if(!book){await api(projectUrl('/workspace/books'),{method:'POST',body:JSON.stringify({title:'Working Draft',kind:$('#arch-kind')?.value||'novel',description:idea})});workspace=await api(projectUrl('/workspace'));book=workspace.books.find((b)=>b.id===workspace.activeBookId)||workspace.books[0];}let chapter=book.chapters?.[0];if(!chapter){await api(projectUrl(`/workspace/books/${encodeURIComponent(book.id)}/chapters`),{method:'POST',body:JSON.stringify({number:1,title:'Story Architecture',synopsis:idea})});workspace=await api(projectUrl('/workspace'));book=workspace.books.find((b)=>b.id===book.id);chapter=book.chapters[0];}const target=Number($('#arch-target')?.value||0);const result=await api(projectUrl('/ai/draft'),{method:'POST',body:JSON.stringify({bookId:book.id,chapterId:chapter.id,instruction:`Act as the story architect. Do not write finished prose. Build a production-ready architecture from the author's idea. Include premise, theme, genre promise, audience, major characters, world/canon requirements, timeline, act or part structure, chapter-by-chapter purpose, scene objectives, continuity constraints, unresolved threads, ending, and practical writing order. ${target?`Target approximately ${target} chapters.`:''}\n\nAUTHOR IDEA:\n${idea}`,focus:idea,maxOutputTokens:7000})});$('#arch-result').textContent=result.text||JSON.stringify(result,null,2);msg('Real AI architecture candidate returned. Review it before treating any plan as canon.',true);}catch(e){msg(e.message);}finally{if(button)button.disabled=false;}}
-  async function fullBook(){const idea=safeText('#arch-idea');const target=Math.max(1,Number($('#arch-target')?.value||1));if(!idea)return msg('Describe the book idea first.');if(!window.confirm(`Forge will make one planning call plus ${target} real AI drafting calls and save the results as draft manuscript content. You remain the authority. Continue?`))return;const button=$('#book-run');if(button)button.disabled=true;try{let workspace=await api(projectUrl('/workspace'));let book=workspace.books?.find((b)=>b.id===workspace.activeBookId)||workspace.books?.[0];if(!book){await api(projectUrl('/workspace/books'),{method:'POST',body:JSON.stringify({title:'Working Draft',kind:$('#arch-kind')?.value||'novel',description:idea})});workspace=await api(projectUrl('/workspace'));book=workspace.books.find((b)=>b.id===workspace.activeBookId)||workspace.books[0];}if(!book.chapters?.length){await api(projectUrl(`/workspace/books/${encodeURIComponent(book.id)}/chapters`),{method:'POST',body:JSON.stringify({number:1,title:'Story Architecture',synopsis:idea})});workspace=await api(projectUrl('/workspace'));book=workspace.books.find((b)=>b.id===book.id);}const seed=book.chapters[0];const outline=await api(projectUrl('/ai/draft'),{method:'POST',body:JSON.stringify({bookId:book.id,chapterId:seed.id,instruction:`Create exactly ${target} numbered chapter production records for this book. For each chapter provide a title, purpose, key events, character movement, continuity requirements, and ending hook. Do not write finished prose.\n\nAUTHOR IDEA:\n${idea}`,focus:idea,maxOutputTokens:7000})});const lines=String(outline.text||'').split(/\n+/).map((x)=>x.trim()).filter(Boolean);for(let i=1;i<=target;i+=1){workspace=await api(projectUrl('/workspace'));book=workspace.books.find((b)=>b.id===book.id)||book;let chapter=book.chapters.find((c)=>c.number===i);const numbered=lines.find((line)=>new RegExp(`^${i}[.)]\\s+`).test(line));const title=numbered?numbered.replace(new RegExp(`^${i}[.)]\\s+`),'').slice(0,120):`Chapter ${i}`;const synopsis=lines.slice(Math.max(0,(i-1)*3),Math.min(lines.length,i*3)).join(' ')||`Chapter ${i} based on the author's approved idea.`;if(!chapter){await api(projectUrl(`/workspace/books/${encodeURIComponent(book.id)}/chapters`),{method:'POST',body:JSON.stringify({number:i,title,synopsis})});workspace=await api(projectUrl('/workspace'));book=workspace.books.find((b)=>b.id===book.id);chapter=book.chapters.find((c)=>c.number===i);}let scene=chapter.scenes[0];if(!scene){await api(projectUrl(`/workspace/books/${encodeURIComponent(book.id)}/chapters/${encodeURIComponent(chapter.id)}/scenes`),{method:'POST',body:JSON.stringify({number:1,title:`${title} — Draft`,synopsis})});workspace=await api(projectUrl('/workspace'));book=workspace.books.find((b)=>b.id===book.id);chapter=book.chapters.find((c)=>c.id===chapter.id);scene=chapter.scenes[0];}const draft=await api(projectUrl('/ai/draft'),{method:'POST',body:JSON.stringify({bookId:book.id,chapterId:chapter.id,instruction:`Write a strong first-draft scene for this chapter. Preserve all supplied canon. Do not invent unsupported facts. This is draft material for author review. Chapter ${i}: ${title}. Purpose: ${synopsis}`,focus:synopsis,maxOutputTokens:7000})});await api(projectUrl(`/workspace/books/${encodeURIComponent(book.id)}/chapters/${encodeURIComponent(chapter.id)}/scenes/${encodeURIComponent(scene.id)}/content`),{method:'PUT',body:JSON.stringify({content:String(draft.text||'')})});}msg(`Generated ${target} chapter candidates and saved them as draft manuscript content. Review every chapter before approval.`,true);if(location.hash!=='#manuscript')location.hash='#manuscript';}catch(e){msg(e.message);}finally{if(button)button.disabled=false;}}
-  async function edit(){const text=safeText('#edit-text');if(!text)return msg('Load a scene or paste manuscript text first.');try{const result=await api(projectUrl('/edit'),{method:'POST',body:JSON.stringify({text,roles:[safeText('#edit-role')||'line'],manuscriptId:'studio-workspace'})});const findings=result.findings||[];$('#edit-result').innerHTML=findings.length?findings.map((f)=>`<article class="memory"><strong>${esc(f.kind||'finding')}</strong><p>${esc(f.message||f.description||'')}</p><small>${esc(f.start??'')}–${esc(f.end??'')}</small></article>`).join(''):'<p class="muted">No findings for this role.</p>';msg(`Editorial analysis complete: ${findings.length} findings.`,true);}catch(e){msg(e.message);}}
-  function loadEditScene(){const bookId=$('#edit-source-book')?.value,sceneId=$('#edit-source-scene')?.value;if(!bookId||!sceneId)return msg('Select a book and scene.');const workspace=window.forgeWorkspaceState,book=workspace?.books?.find((b)=>b.id===bookId),scene=book?.chapters?.flatMap((c)=>c.scenes).find((s)=>s.id===sceneId);if(!scene)return msg('Scene not found in current workspace.');$('#edit-text').value=scene.content||'';msg(`Loaded ${scene.title}.`,true);}
-  async function voice(){const text=safeText('#voice-text');const words=text.split(/\s+/).filter(Boolean);if(words.length<20)return msg('Provide at least 20 words of your own writing.');try{const sentences=text.split(/[.!?]+/).map((x)=>x.trim()).filter(Boolean),paragraphs=text.split(/\n\s*\n/).map((x)=>x.trim()).filter(Boolean),lengths=sentences.map((x)=>x.split(/\s+/).filter(Boolean).length).sort((a,b)=>a-b),mean=(a)=>a.reduce((x,y)=>x+y,0)/Math.max(1,a.length),median=lengths.length%2?lengths[(lengths.length-1)/2]:(lengths[lengths.length/2-1]+lengths[lengths.length/2])/2,unique=new Set(words.map((w)=>w.toLowerCase().replace(/[^a-z']/g,''))).size;const profile={sentenceLengthMean:mean(lengths),sentenceLengthMedian:median,punctuationRate:Math.min(1,(text.match(/[,:;!?—-]/g)||[]).length/words.length*4),dialogueRatio:Math.min(1,(text.match(/“[^”]*”|\"[^\"]*\"/g)||[]).join('').length/Math.max(1,text.length)),vocabularyRichness:unique/words.length,paragraphLengthMean:mean(paragraphs.map((p)=>p.split(/\s+/).filter(Boolean).length)),narrativeDistance:/\b(I|we|me|my|our|us)\b/i.test(text)?'first-person':/\b(you|your|yours)\b/i.test(text)?'second-person':/\b(he|she|they|his|her|their|him|them)\b/i.test(text)?'third-person':'undetermined',sampleWordCount:words.length};const result={profile,confidence:words.length>=1000?'high':words.length>=250?'medium':'low'};$('#voice-result').textContent=JSON.stringify(result,null,2);await api(projectUrl('/memory'),{method:'POST',body:JSON.stringify({class:'style-memory',authority:'working',summary:'Author voice fingerprint',content:JSON.stringify(result,null,2),reference:'voice-analysis'})});msg('Voice fingerprint calculated locally and stored as style memory.',true);}catch(e){msg(e.message);}}
-  async function cover(){try{const binding=$('#cover-binding').value,pages=Number($('#cover-pages').value),width=Number($('#cover-width').value),height=Number($('#cover-height').value),paper=$('#cover-paper').value,interior=$('#cover-interior').value;if(!Number.isInteger(pages)||pages<1||width<=0||height<=0)throw new Error('Enter valid page count and trim dimensions.');if(binding==='paperback'&&pages<24)throw new Error('Paperback planning requires at least 24 pages.');if(binding==='hardcover'&&pages<75)throw new Error('Hardcover planning requires at least 75 pages.');let factor=.002252;if(paper==='cream')factor=.0025;else if(paper==='groundwood')factor=.00235;else if(interior==='premium-color'||interior==='standard-color')factor=.002347;const bleed=.125,spine=binding==='paperback'?pages*factor:.635+pages*.002252,wrap=binding==='hardcover'?.51:0,plan={platform:'kdp',binding,interiorType:interior,paperType:paper,trimWidthInches:width,trimHeightInches:height,pageCount:pages,bleedInches:bleed,dimensions:{widthInches:+(width*2+spine+bleed*2+wrap*2).toFixed(6),heightInches:+(height+bleed*2+wrap*2).toFixed(6),spineWidthInches:+spine.toFixed(6),bleedInches:bleed,wrapInches:wrap},title:safeText('#cover-title'),author:safeText('#cover-author'),frontPrompt:safeText('#cover-front'),backText:safeText('#cover-back'),spineText:safeText('#cover-title'),outputFormat:'pdf',dpi:300};$('#cover-result').textContent=JSON.stringify(plan,null,2);await api(projectUrl('/memory'),{method:'POST',body:JSON.stringify({class:'production-memory',authority:'working',summary:'KDP cover plan',content:JSON.stringify(plan),reference:'cover-studio'})});msg('KDP cover plan calculated and stored as production memory.',true);}catch(e){msg(e.message);}}
-  async function health(){try{const[project,workspace]=await Promise.all([api(projectUrl()),api(projectUrl('/workspace'))]);const books=workspace.books||[],chapters=books.flatMap((b)=>b.chapters),scenes=chapters.flatMap((c)=>c.scenes),words=scenes.reduce((n,s)=>n+(s.wordCount||0),0),memories=project.memories||[],metrics={bookCompletionPercent:chapters.length?Math.round(chapters.filter((c)=>c.lifecycle==='complete').length/chapters.length*100):0,chaptersComplete:chapters.filter((c)=>c.lifecycle==='complete').length,chaptersTotal:chapters.length,wordCount:words,characters:(project.characters||[]).length,locations:memories.filter((m)=>m.class==='location-memory').length,researchSources:memories.filter((m)=>m.class==='research-memory').length,illustrations:project.illustrationAssetLibrary?.assets?.length||0,unresolvedPlotThreads:memories.filter((m)=>m.class==='open-thread').length,publishingReadinessPercent:project.publishingReadinessReports?.length?100:0};$('#health-result').innerHTML=Object.entries(metrics).map(([k,v])=>`<div class="metric"><strong>${esc(v)}</strong><span>${esc(k)}</span></div>`).join('');$('#health-detail').textContent=JSON.stringify(metrics,null,2);}catch(e){msg(e.message);}}
-  async function projectExport(){try{const[project,workspace]=await Promise.all([api(projectUrl()),api(projectUrl('/workspace'))]);const payload={packageName:"AUTHOR'S FORGE PROJECT",formatVersion:1,exportedAt:new Date().toISOString(),projectId,projectState:project,studioWorkspace:workspace};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`${projectId}-forge-project.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);$('#version-state').innerHTML=`<div class="policy"><span>Exported</span><strong>${new Date().toLocaleString()}</strong></div><div class="policy"><span>Books</span><strong>${workspace.books?.length||0}</strong></div><div class="policy"><span>Memories</span><strong>${project.memories?.length||0}</strong></div>`;msg('Portable project package downloaded.',true);}catch(e){msg(e.message);}}
-  async function provider(){try{const r=await api('/api/health');$('#provider-status').innerHTML=`<div class="policy"><span>OpenAI</span><strong>${r.ai?.openai?'Configured':'Not configured'}</strong></div><div class="policy"><span>Ollama</span><strong>${r.ai?.ollama?'Configured':'Not configured'}</strong></div>`;}catch(e){msg(e.message);}}
-  function populateEditSelectors(){const workspace=window.forgeWorkspaceState,books=workspace?.books||[],bookSelect=$('#edit-source-book');if(!bookSelect)return;const current=bookSelect.value;bookSelect.innerHTML=books.map((b)=>`<option value="${esc(b.id)}">${esc(b.title)}</option>`).join('');if(books.some((b)=>b.id===current))bookSelect.value=current;const selected=books.find((b)=>b.id===bookSelect.value)||books[0],sceneSelect=$('#edit-source-scene');if(!sceneSelect)return;const scenes=selected?.chapters?.flatMap((c)=>c.scenes)||[];sceneSelect.innerHTML=scenes.map((s)=>`<option value="${esc(s.id)}">${esc(s.title)}</option>`).join('');}
-  function bind(){$('#arch-run')?.addEventListener('click',architecture);$('#book-run')?.addEventListener('click',fullBook);$('#edit-run')?.addEventListener('click',edit);$('#edit-load')?.addEventListener('click',loadEditScene);$('#voice-run')?.addEventListener('click',voice);$('#cover-run')?.addEventListener('click',cover);$('#health-refresh')?.addEventListener('click',health);$('#export-project')?.addEventListener('click',projectExport);$('#edit-source-book')?.addEventListener('change',populateEditSelectors);window.addEventListener('forge:workspace-ready',populateEditSelectors);provider();}
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);else bind();
+  const show = (text) => { const result = $('#fcc-result'); if (result) { result.hidden = false; result.textContent = text; } };
+  const setStatus = (text) => { const status = $('#fcc-status'); if (status) status.textContent = text; };
+  const navigate = (route) => { const link = document.querySelector(`[data-route="${CSS.escape(route)}"]`); if (link) { link.click(); return true; } return false; };
 
-  /* Reference-image workflow: capture before the legacy JSON submitter, upload the binary, then
-     pass the durable reference metadata into the existing real image-generation boundary. */
-  document.addEventListener('change',(event)=>{const input=event.target;if(!(input instanceof HTMLInputElement)||input.id!=='image-reference')return;const file=input.files?.[0];const preview=$('#image-reference-preview');if(!preview)return;if(!file){preview.innerHTML='<p class="muted">No reference selected. You can generate from text alone.</p>';return;}if(!['image/png','image/jpeg','image/webp'].includes(file.type)){input.value='';preview.innerHTML='<p class="muted">Unsupported image type. Use PNG, JPEG, or WebP.</p>';return;}if(file.size>5*1024*1024){input.value='';preview.innerHTML='<p class="muted">Reference image exceeds the 5 MiB project limit.</p>';return;}const url=URL.createObjectURL(file);preview.innerHTML=`<figure><img src="${url}" alt="Selected reference image" style="max-width:100%;max-height:360px;object-fit:contain;border-radius:12px"><figcaption>${file.name} • ${(file.size/1024/1024).toFixed(2)} MiB</figcaption></figure>`;},{capture:true});
-  document.addEventListener('submit',async(event)=>{const form=event.target;if(!(form instanceof HTMLFormElement)||form.id!=='image-form')return;event.preventDefault();event.stopImmediatePropagation();const button=form.querySelector('button[type="submit"]');const reference=form.querySelector('#image-reference')?.files?.[0];const prompt=form.querySelector('[name="prompt"]')?.value?.trim();if(!prompt)return msg('Describe the illustration first.');if(button)button.disabled=true;try{let referenceRecord=null;if(reference){if(!['image/png','image/jpeg','image/webp'].includes(reference.type))throw new Error('Reference must be PNG, JPEG, or WebP.');if(reference.size>5*1024*1024)throw new Error('Reference image exceeds the 5 MiB limit.');const upload=await fetch(projectUrl(`/illustration/references?fileName=${encodeURIComponent(reference.name)}`),{method:'POST',headers:{'content-type':reference.type},body:reference});const payload=await upload.json().catch(()=>({}));if(!upload.ok)throw new Error(payload.error||`Reference upload failed (${upload.status}).`);referenceRecord=payload;}
-      const values=Object.fromEntries(new FormData(form).entries());delete values.referenceImage;values.reference=referenceRecord;values.useReference=form.querySelector('#use-reference')?.checked===true;const generated=await api(projectUrl('/ai/image'),{method:'POST',body:JSON.stringify(values)});const result=$('#image-result');if(result){const src=generated.imageUrl||generated.url||(generated.b64Json?`data:image/png;base64,${generated.b64Json}`:null);result.innerHTML=src?`<figure><img src="${src}" alt="Generated illustration" style="max-width:100%;height:auto;border-radius:12px"><figcaption>${esc(generated.id||'Generated illustration')} • ${esc(generated.provider||'real provider')} • ${esc(generated.model||'')}</figcaption></figure>`:`<pre>${esc(JSON.stringify(generated,null,2))}</pre>`;}msg(referenceRecord?'Reference uploaded and sent with the illustration request.':'Illustration request completed.',true);
-    }catch(error){msg(error.message);}finally{if(button)button.disabled=false;}},{capture:true});
+  if (window.__forgeCommandCenterInitialized) return;
+  window.__forgeCommandCenterInitialized = true;
+
+  const style = document.createElement('style');
+  style.textContent = `#forge-command-center{position:fixed;right:20px;bottom:20px;z-index:9999;width:min(700px,calc(100vw - 40px));background:#111827;color:#f8fafc;border:1px solid #334155;border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.45);font:14px/1.45 system-ui,sans-serif;overflow:hidden}#forge-command-center[hidden],#forge-command-toggle[hidden]{display:none!important}#forge-command-center .head{display:flex;justify-content:space-between;align-items:center;padding:12px 15px;border-bottom:1px solid #334155}#forge-command-center .body{padding:14px}#forge-command-center textarea{width:100%;min-height:92px;box-sizing:border-box;background:#020617;color:#f8fafc;border:1px solid #475569;border-radius:12px;padding:10px;font:inherit;resize:vertical}#forge-command-center button,#forge-command-center select{background:#1e293b;color:#f8fafc;border:1px solid #475569;border-radius:10px;padding:9px 12px;font:inherit;cursor:pointer}.fcc-row{display:flex;gap:8px;align-items:center;margin-bottom:9px}.fcc-primary{background:#2563eb!important;border-color:#3b82f6!important;font-weight:700}.fcc-recording{background:#991b1b!important;border-color:#ef4444!important}.fcc-result{margin-top:10px;background:#020617;border-radius:10px;padding:10px;white-space:pre-wrap;max-height:260px;overflow:auto;color:#cbd5e1}.fcc-status{font-size:12px;color:#94a3b8}#forge-command-toggle{position:fixed;right:20px;bottom:20px;z-index:9998;border:1px solid #475569;border-radius:999px;background:#111827;color:#fff;padding:12px 16px;font-weight:800;box-shadow:0 12px 35px rgba(0,0,0,.35);cursor:pointer}`;
+  document.head.appendChild(style);
+
+  const root = document.createElement('section');
+  root.id = 'forge-command-center';
+  root.setAttribute('aria-label', 'Forge Command Center');
+  root.innerHTML = `<div class="head"><div><strong>FORGE COMMAND CENTER</strong><div class="fcc-status" id="fcc-status">Typed + voice + real AI boundary</div></div><button id="fcc-close" type="button" aria-label="Close command center">×</button></div><div class="body"><div class="fcc-row"><select id="fcc-mode" aria-label="AI collaboration mode"><option value="co-pilot">Co-pilot</option><option value="partner">Partner</option><option value="director">Director</option><option value="autonomous">Autonomous</option><option value="editor">Editor</option></select><button id="fcc-mic" type="button">🎙 Start mic</button><button id="fcc-run" class="fcc-primary" type="button">Run command</button></div><textarea id="fcc-command" aria-label="Forge command" placeholder="Tell Forge what to do."></textarea><div class="fcc-result" id="fcc-result" hidden></div></div>`;
+  document.body.appendChild(root);
+  const toggle = document.createElement('button');
+  toggle.id = 'forge-command-toggle';
+  toggle.type = 'button';
+  toggle.textContent = '🎙 Forge';
+  toggle.setAttribute('aria-label', 'Open Forge Command Center');
+  document.body.appendChild(toggle);
+
+  const command = $('#fcc-command');
+  const result = $('#fcc-result');
+  const mic = $('#fcc-mic');
+  const mode = $('#fcc-mode');
+  let recognition = null;
+  let originalTranscript = '';
+
+  function startMic() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      show('Chrome SpeechRecognition is unavailable. Use typed commands or browser voice input.');
+      setStatus('Voice unavailable');
+      return;
+    }
+    if (recognition) { recognition.stop(); return; }
+
+    recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    originalTranscript = command.value.trim();
+    let finalTranscript = originalTranscript;
+
+    recognition.onstart = () => {
+      mic.classList.add('fcc-recording');
+      mic.textContent = '■ Stop mic';
+      setStatus('Listening…');
+    };
+    recognition.onresult = (event) => {
+      let interim = '';
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const text = event.results[index][0].transcript;
+        if (event.results[index].isFinal) finalTranscript = `${finalTranscript} ${text}`.trim();
+        else interim += text;
+      }
+      command.value = `${finalTranscript}${interim ? ` ${interim}` : ''}`.trim();
+    };
+    recognition.onerror = (event) => setStatus(`Voice error: ${event.error}`);
+    recognition.onend = () => {
+      originalTranscript = finalTranscript.trim();
+      recognition = null;
+      mic.classList.remove('fcc-recording');
+      mic.textContent = '🎙 Start mic';
+      if (originalTranscript) localStorage.setItem(`forge-original-transcript:${projectId}`, originalTranscript);
+      if (!$('#fcc-status').textContent.startsWith('Voice error')) setStatus('Original transcript captured');
+    };
+    recognition.start();
+  }
+
+  async function run() {
+    const instruction = command.value.trim();
+    if (!instruction) { show('Enter or dictate a command first.'); return; }
+    const lower = instruction.toLowerCase();
+    const direct = routes.find((route) => lower === `open ${route}` || lower.includes(`take me to ${route}`) || lower.includes(`go to ${route}`));
+    if (direct && navigate(direct)) {
+      setStatus(`Opened ${direct}`);
+      show(`Navigation executed: ${direct}`);
+      return;
+    }
+
+    setStatus('Interpreting command…');
+    try {
+      const workspace = await api(projectUrl('/workspace'));
+      const book = workspace.books?.find((item) => item.id === workspace.activeBookId) || workspace.books?.[0];
+      if (!book) { show('No book exists yet. Open Manuscript to create one.'); navigate('manuscript'); setStatus('Book structure required'); return; }
+      const chapter = book.chapters?.[0];
+      if (!chapter) { show('The active book has no chapter yet. Create a chapter in Manuscript before asking Forge to draft prose.'); navigate('manuscript'); setStatus('Chapter structure required'); return; }
+
+      const payload = await api(projectUrl('/ai/draft'), {
+        method: 'POST',
+        body: JSON.stringify({
+          bookId: book.id,
+          chapterId: chapter.id,
+          instruction: `[${mode.value}] Author command:\n${instruction}`,
+          focus: chapter.synopsis || instruction,
+          maxOutputTokens: 6000
+        })
+      });
+
+      const ai = $('#ai-result');
+      if (ai) ai.value = payload.text || '';
+      const direction = $('#ai-instruction');
+      if (direction) direction.value = instruction;
+      const transcript = originalTranscript || localStorage.getItem(`forge-original-transcript:${projectId}`) || instruction;
+      show(`${payload.provider || 'provider'} / ${payload.model || 'model'}\n\nOriginal transcript:\n${transcript}\n\nAI candidate:\n${payload.text || ''}\n\nThis candidate has NOT been saved as canon. It is NOT saved automatically. Author approval is required.`);
+      setStatus('Real AI candidate ready');
+      navigate('writing');
+    } catch (error) {
+      show(error.message);
+      setStatus('Command failed safely');
+    }
+  }
+
+  mic.addEventListener('click', startMic);
+  $('#fcc-run').addEventListener('click', run);
+  $('#fcc-close').addEventListener('click', () => { root.hidden = true; toggle.hidden = false; });
+  toggle.addEventListener('click', () => { root.hidden = false; toggle.hidden = true; command.focus(); });
+  command.addEventListener('keydown', (event) => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') run(); });
+  window.addEventListener('beforeunload', () => { if (recognition) recognition.stop(); });
+
+  const script = document.createElement('script');
+  script.src = '/forge-workbench.js';
+  script.defer = true;
+  document.body.appendChild(script);
 })();
