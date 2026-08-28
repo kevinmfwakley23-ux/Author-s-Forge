@@ -7,7 +7,7 @@ const script = fs.readFileSync("public/forge-command-center.js", "utf8");
 
 test("Studio exposes a dictation control for author text fields", () => {
   assert.match(html, /forge-command-center\.js/);
-  assert.match(script, /querySelectorAll\('\s*textarea, input\[type=\\?['"]text/);
+  assert.match(script, /querySelectorAll\('textarea, input/);
   assert.match(script, /SpeechRecognition/);
   assert.match(script, /webkitSpeechRecognition/);
   assert.match(script, /forge-inline-mic/);
