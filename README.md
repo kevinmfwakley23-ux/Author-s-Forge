@@ -105,11 +105,14 @@ This ledger exists so a future engineering session can resume from the actual st
 - **Playwright Chromium is now installed in the Chromebook Linux environment.** `npx playwright install chromium` successfully installed Chrome for Testing, FFmpeg, and the Chromium headless shell under the Playwright cache. This provides a real browser binary suitable for the acceptance harness without requiring a system-wide Chrome/Chromium package.
 - **The browser acceptance harness now discovers Playwright-managed Chromium.** `scripts/studio-browser-acceptance.js` first honors `FORGE_BROWSER_EXECUTABLE`, then checks standard system browser paths, then searches the Playwright browser cache (`PLAYWRIGHT_BROWSERS_PATH` or `~/.cache/ms-playwright`). This means the real browser already installed by Playwright can be used directly.
 - **Browser acceptance remains an honest gate.** If no browser executable can be found, `npm run test:browser` fails with an explicit error instead of silently skipping browser verification or reporting a false green result.
-- **Browser acceptance is exposed as `npm run test:browser`.** It launches the real Studio server, drives the rendered DOM through Chrome DevTools Protocol, exercises all declared navigation routes, creates a project/book/chapter/scene, saves manuscript content, verifies reload persistence, verifies honest AI failure without a configured provider, and checks health.
+- **Browser acceptance is exposed as `npm run test:browser`.** It launches the real Studio server, drives the rendered DOM through Playwright/Chromium, exercises all declared navigation routes, creates a project/book/chapter/scene, saves manuscript content, verifies reload persistence, verifies honest AI failure without a configured provider, and checks health.
 - **The package scripts distinguish regression testing from real-browser acceptance.** `npm test` remains the deterministic build/unit/integration suite; `npm run test:browser` is the real rendered-application acceptance gate.
 - **The package script and browser harness belong to the feature branch.** The branch must still be deliberately reconciled with `main`; do not use `git pull --ff-only origin main` while the branch is divergent.
 - **The product must not be declared complete because a button, page, API expression, or test exists.** The actual user journey must be proven from visible interaction through durable result.
 - **Static Studio control wiring is now regression-tested.** A dedicated test requires all 37 current static buttons to have a route, form submission boundary, or client-side handler reference; all 11 forms must be present in client wiring; all declared routes must map to real `data-view` sections; and dynamic scene controls must have executable handlers. This is a guard against accidentally reintroducing visibly present but unwired controls. It does not replace real browser execution.
+- **The first real Chromium acceptance run exposed a legitimate fixture-state bug.** The harness generated a new project ID and opened that URL before the project existed. The Studio correctly returned `404 Project not found`, so `#project-title` remained `Loading…` and the acceptance gate timed out rather than falsely passing.
+- **The browser harness now establishes a valid initial project state before UI testing.** It verifies or creates the disposable `forge-studio` bootstrap project through the real HTTP API, loads that project in the browser, and then uses a separate generated project ID for the visible Create Project workflow. The actual project creation, book creation, chapter creation, scene creation, writing, save, reload, AI-provider failure, and health checks remain browser-driven.
+- **The latest browser acceptance fix is committed as `1e459d21dcd43ac7ea01836adaf474093ba41ef4`.** The next required evidence is a successful `npm run test:browser` execution from Chromebook Linux after pulling this commit.
 
 ### Discovery workflow — mandatory going forward
 
@@ -202,7 +205,7 @@ Forge's Chromebook path uses Chrome `SpeechRecognition` / `webkitSpeechRecogniti
 
 ## Real-browser development workflow
 
-Chromium is the primary browser target for Studio development and acceptance testing on the Chromebook Linux environment. Playwright is the browser acquisition and automation tool; the repository acceptance harness drives the actual rendered application through Chrome DevTools Protocol.
+Chromium is the primary browser target for Studio development and acceptance testing on the Chromebook Linux environment. Playwright is the browser acquisition and automation tool; the repository acceptance harness drives the actual rendered application through Chromium.
 
 Install the browser once:
 
@@ -222,68 +225,3 @@ Run the real browser gate:
 ```bash
 npm run test:browser
 ```
-
-The harness automatically discovers the Playwright-managed Chromium under `~/.cache/ms-playwright` on Linux. If a different browser should be used, set:
-
-```bash
-FORGE_BROWSER_EXECUTABLE=/path/to/chrome npm run test:browser
-```
-
-The browser gate is deliberately separate from `npm test`. This keeps ordinary regression testing portable while making real UI execution an explicit engineering gate. Playwright's bundled Chromium is preferred for deterministic browser testing; a system Chrome/Chromium can be supplied explicitly when needed.
-
-## Development commands
-
-```bash
-npm install
-npm run build
-npm test
-npm run check
-npm run studio
-npm run test:browser
-```
-
-Then open:
-
-`http://127.0.0.1:4173`
-
-For browser acceptance on a machine with a non-standard Chrome/Chromium location:
-
-```bash
-FORGE_BROWSER_EXECUTABLE=/path/to/chrome npm run test:browser
-```
-
-## Verification gate
-
-```text
-BUILD
-  +
-REGRESSION TESTS
-  +
-STUDIO STARTUP
-  +
-REAL ROUTE EXECUTION
-  +
-VISIBLE CONTROL EXECUTION
-  +
-VOICE / TYPED COMMAND EXECUTION
-  +
-PERSISTENCE
-  +
-RESTART RECOVERY
-  +
-REAL PROVIDER BOUNDARIES
-  +
-ARTIFACT VALIDATION
-  +
-AUTHOR APPROVAL
-  +
-END-TO-END WORKFLOW
-```
-
-The mission modules remain valuable domain machinery, but they are not separate products. The engineering objective is one coherent ProjectState, one manuscript workflow, one visual workflow, one production path, one memory boundary, and one Studio.
-
-**Mission tests prove domain behavior. End-to-end Studio workflows prove the product. Both are required.**
-
-## Status
-
-`main` remains the production integration baseline. The active engineering line is focused on converting the directive into a dependable private author workplace and eliminating dead-end UI, disconnected mission islands, and unverified feature claims.
