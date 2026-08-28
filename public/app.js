@@ -2,6 +2,8 @@
 (() => {
   "use strict";
   const projectId = new URLSearchParams(location.search).get("project") || localStorage.getItem("forge-project") || "forge-studio";
+  if (window.__forgeInitialized) return;
+  window.__forgeInitialized = true;
   localStorage.setItem("forge-project", projectId);
   const state = { project: null, workspace: null, selected: {}, recognition: null, lastVoice: null };
   const $ = (s) => document.querySelector(s);

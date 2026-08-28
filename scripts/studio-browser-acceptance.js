@@ -141,15 +141,15 @@ async function main() {
       return document.readyState === "complete" && title && title.textContent !== "Loading…";
     });
 
-    const routes = await page.locator("a[data-route]").evaluateAll((elements) => elements.map((el) => el.dataset.route));
+    const routes = await page.locator("nav a[data-route]").evaluateAll((elements) => elements.map((el) => el.dataset.route));
     assert.deepEqual(routes, ["dashboard", "manuscript", "writing", "architecture", "characters", "world", "research", "editing", "voice", "art", "cover", "marketing", "publishing", "genome", "health", "versions", "settings", "governance"]);
 
     for (const route of routes) {
-      await page.locator(`a[data-route="${route}"]`).click();
+      await page.locator(`nav a[data-route="${route}"]`).click();
       await page.waitForFunction((expectedRoute) => location.hash === `#${expectedRoute}` && document.querySelector(`#${expectedRoute}`)?.hidden === false, route);
     }
 
-    await page.locator('a[data-route="dashboard"]').click();
+    await page.locator('nav a[data-route="dashboard"]').click();
     await page.waitForFunction(() => location.hash === "#dashboard");
     await page.locator("#project-form [name=id]").fill(projectId);
     await page.locator("#project-form [name=title]").fill("Browser Acceptance Book");
