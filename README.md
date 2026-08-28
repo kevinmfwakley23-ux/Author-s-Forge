@@ -102,7 +102,10 @@ This ledger exists so a future engineering session can resume from the actual st
 - **The repository is currently on `feature/reference-image-pipeline`, not `main`.** Local branch history contains the reference-image work while `origin/main` has newer platform/documentation commits. A fast-forward pull from `main` is therefore expected to fail until the branch divergence is deliberately reconciled.
 - **The local working tree contains generated/untracked output.** Current inspection showed `.forge-data/`, `dist/`, and `package-lock.json` as untracked, plus local modifications to `public/app.js` and `src/application/illustration-reference-pipeline.ts`. These must be handled deliberately; generated state must not be mistaken for source-of-truth product implementation.
 - **The development environment is Chromebook Linux with Node 24.19.0 and npm 11.17.0.** No supported browser executable was found through the checked Linux command names (`google-chrome`, `google-chrome-stable`, `chromium`, `chromium-browser`, `chrome`). Therefore browser verification cannot be claimed from that Linux shell inspection alone.
-- **The package scripts currently provide build, test, check, and Studio startup paths.** `npm run studio` builds and starts `dist/studio-server.js`; the configured Studio URL is `http://127.0.0.1:4173`.
+- **A real-browser acceptance harness is now part of the repository.** `scripts/studio-browser-acceptance.js` launches the real Studio server, drives the actual rendered DOM through Chrome DevTools Protocol, exercises all declared navigation routes, creates a project/book/chapter/scene, saves manuscript content, verifies reload persistence, verifies honest AI failure without a configured provider, and checks health. It intentionally exits non-zero when no browser executable is available rather than producing a false green result.
+- **Browser acceptance is exposed as `npm run test:browser`.** It is intentionally separate from `npm test` because the normal regression suite must remain runnable in environments without a browser, while the browser gate must fail honestly when a browser is required but unavailable. Set `FORGE_BROWSER_EXECUTABLE` when Chrome/Chromium is installed at a non-standard path.
+- **The package scripts now distinguish regression testing from real-browser acceptance.** `npm test` remains the deterministic build/unit/integration suite; `npm run test:browser` is the real rendered-application acceptance gate.
+- **The package script change and browser harness were committed directly to `feature/reference-image-pipeline`.** They still require the branch to be deliberately reconciled with `main` before integration.
 - **The product must not be declared complete because a button, page, API expression, or test exists.** The actual user journey must be proven from visible interaction through durable result.
 
 ### Discovery workflow — mandatory going forward
@@ -202,11 +205,18 @@ npm run build
 npm test
 npm run check
 npm run studio
+npm run test:browser
 ```
 
 Then open:
 
 `http://127.0.0.1:4173`
+
+For browser acceptance on a machine with a non-standard Chrome/Chromium location:
+
+```bash
+FORGE_BROWSER_EXECUTABLE=/path/to/chrome npm run test:browser
+```
 
 ## Verification gate
 
