@@ -30,6 +30,19 @@ export class ProjectPackageService {
     return deserializeProjectPackage(serialized);
   }
 
+  restoreSnapshot(pkg:ForgeProjectPackage, expectedProjectId?:string):unknown {
+    const validated = this.validate(pkg);
+    if (expectedProjectId !== undefined && validated.manifest.projectId !== expectedProjectId) throw new Error("Project package id does not match the restore target.");
+    const stateFile = validated.files.find((file) => file.path === "project-state.json" && file.encoding === "utf8");
+    if (!stateFile) throw new Error("Forge project package does not contain a UTF-8 project-state.json snapshot.");
+    const state = JSON.parse(stateFile.content) as unknown;
+    const stateRecord = state && typeof state === "object" && !Array.isArray(state) ? state as Record<string, unknown> : null;
+    const metadata = stateRecord?.metadata;
+    const metadataId = metadata && typeof metadata === "object" && !Array.isArray(metadata) ? (metadata as Record<string, unknown>).id : undefined;
+    if (metadataId !== undefined && metadataId !== validated.manifest.projectId) throw new Error("Project package snapshot metadata id does not match the package project id.");
+    return state;
+  }
+
   validate(pkg:ForgeProjectPackage):ForgeProjectPackage {
     return validateProjectPackage(pkg);
   }
