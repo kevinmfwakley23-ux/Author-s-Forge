@@ -215,6 +215,12 @@ CHROMEBOOK / ANDROID DEVICE VERIFICATION
 
 This section is permanent engineering memory. **Whenever a material discovery is made about progress, a missing capability, an architectural constraint, a platform requirement, a verification weakness, or unfinished work, record it here.** This is mandatory restart context.
 
+### 2026-08-28 — Portable package contract verification
+
+- The repository already contains the version-2 portable project package domain contract with manifest metadata, traversal-safe relative paths, SHA-256 file integrity, deterministic serialization, and validation on deserialization.
+- Added dedicated contract coverage for successful round-trip serialization plus rejection of traversal, tampering, and unsupported package versions.
+- The Studio `/api/projects/{projectId}/package` route is still a simpler application snapshot envelope; integrating the full version-2 package service into that route remains an application-level portability task.
+
 ### 2026-08-28 — Command-center regression hardening
 
 - GitHub access to the private `kevinmfwakley23-ux/Author-s-Forge` repository is operational again.
