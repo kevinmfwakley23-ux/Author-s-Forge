@@ -21,15 +21,19 @@ test('Studio loads the command center and integrated workbench', () => {
 });
 
 test('Studio retains real application controls and provider boundaries', () => {
-  // The command center/workbench is the active Studio surface. Verify the
-  // actual provider-backed routes at their source of truth rather than
-  // requiring the legacy app shell to contain routes it no longer owns.
   assert.match(server, /\/api\/projects\/\$\{projectId\}\/ai\/draft/);
   assert.match(server, /\/api\/projects\/\$\{projectId\}\/ai\/image/);
   assert.match(server, /\/api\/projects\/\$\{projectId\}\/export/);
   assert.match(command, /\/api\/projects\/\$\{encodeURIComponent\(projectId\)\}\/ai\/draft/);
   assert.match(command, /SpeechRecognition/);
   assert.match(workbench, /\/api\/projects\/\$\{projectId\}\/memory/);
+});
+
+test('Studio project export is bound to the canonical v2 package endpoint', () => {
+  assert.match(workbench, /api\(projectUrl\('\/package'\)\)/);
+  assert.match(workbench, /pkg\.manifest\?\.formatVersion/);
+  assert.doesNotMatch(workbench, /formatVersion:1/);
+  assert.doesNotMatch(workbench, /payload=\{packageName/);
 });
 
 test('Studio workbench contains no fake provider result path', () => {
