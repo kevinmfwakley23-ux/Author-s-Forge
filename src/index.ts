@@ -22,3 +22,5 @@ export { createReleaseGateReport, validateReleaseGateReport, RELEASE_GATE_FORMAT
 export type { ReleaseGateReport, ReleaseGateInput, ReleaseGateBlocker, ReleaseGateStatus, ReleaseBlockerKind } from "./domain/release-gate";
 export { createWorkflowGateReport, canAdvanceWorkflow, validateWorkflowGateReport, FORGE_WORKFLOW_STAGES, WORKFLOW_GATE_FORMAT_VERSION } from "./domain/workflow-gate";
 export type { WorkflowGateReport, WorkflowGateInput, WorkflowGateCheck, WorkflowStageGate, WorkflowGateStatus, ForgeWorkflowStage } from "./domain/workflow-gate";
+export { advanceWorkflow, WORKFLOW_ADVANCE_FORMAT_VERSION } from "./application/workflow-advance";
+export type { WorkflowAdvanceRequest, WorkflowAdvanceResult, WorkflowAdvanceDecision } from "./application/workflow-advance";
