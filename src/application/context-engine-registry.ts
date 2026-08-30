@@ -15,13 +15,27 @@ export interface ContextEngineResult {
   readonly savingsRatio: number;
 }
 
+export interface ContextEngineResultDraft {
+  readonly text: string;
+  readonly changed: boolean;
+  readonly strategy: readonly string[];
+}
+
+export function finalizeContextEngineResult(originalText: string, result: ContextEngineResultDraft): ContextEngineResult {
+  const originalLength = originalText.length;
+  const optimizedLength = result.text.length;
+  const changed = result.text !== originalText;
+  const savingsRatio = originalLength === 0 ? 0 : (originalLength - optimizedLength) / originalLength;
+  return { ...result, changed, originalLength, optimizedLength, savingsRatio };
+}
+
 export interface ContextCompressionEngine {
   readonly id: string;
   readonly priority: number;
   readonly enabled: boolean;
   readonly supportedKinds: readonly ContextPayloadKind[];
   supports(input: ContextEngineInput): boolean;
-  apply(input: ContextEngineInput): ContextEngineResult;
+  apply(input: ContextEngineInput): ContextEngineResultDraft;
 }
 
 export class ContextEngineRegistry {
@@ -44,7 +58,6 @@ export class ContextEngineRegistry {
   }
 
   optimize(input: ContextEngineInput): ContextEngineResult {
-    const originalLength = input.text.length;
     let current = input.text;
     const strategy: string[] = [];
 
@@ -56,9 +69,10 @@ export class ContextEngineRegistry {
       strategy.push(engine.id, ...result.strategy);
     }
 
-    const optimizedLength = current.length;
-    const changed = current !== input.text;
-    const savingsRatio = originalLength === 0 ? 0 : (originalLength - optimizedLength) / originalLength;
-    return { text: current, changed, strategy, originalLength, optimizedLength, savingsRatio };
+    return finalizeContextEngineResult(input.text, {
+      text: current,
+      changed: current !== input.text,
+      strategy,
+    });
   }
 }
