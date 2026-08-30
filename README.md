@@ -140,9 +140,9 @@ Structured JSON, code, and diffs remain protected from lossy rewriting. Tool-res
 
 ### Open-source research decision
 
-Forge will selectively adopt proven open-source techniques rather than import an entire gateway or agent stack. Current research confirms LLMLingua-2 as a credible optional semantic-compression candidate, with published work describing substantially faster compression than the original LLMLingua and practical prompt-reduction use cases. Adoption remains gated on fidelity, local runtime footprint, latency, licensing, and measured Forge workload savings rather than headline percentages. citeturn0search0
+Forge will selectively adopt proven open-source techniques rather than import an entire gateway or agent stack. Current research confirms LLMLingua-2 as a credible optional semantic-compression candidate. Adoption remains gated on fidelity, local runtime footprint, latency, licensing, and measured Forge workload savings rather than headline percentages.
 
-The reviewed OmniRoute architecture remains the principal reference for composable compression engines, session deduplication, retrieve-on-demand context, RTK-style tool reduction, structured-data compaction, relevance reduction, optional LLMLingua-2, adaptive compression, and measured stacked pipelines. OmniRoute itself identifies RTK, Caveman, Headroom, LLMLingua, and related projects as architectural lineage rather than treating the whole stack as original code. Forge therefore reimplements interfaces and algorithms natively when direct code reuse is not independently justified. citeturn0search1turn0search5
+The reviewed OmniRoute architecture remains a reference for composable compression engines, session deduplication, retrieve-on-demand context, RTK-style tool reduction, structured-data compaction, relevance reduction, optional semantic compression, adaptive compression, and measured stacked pipelines. Forge reimplements interfaces and algorithms natively when direct code reuse is not independently justified.
 
 Forge does **not** copy third-party savings claims. Every optimization stage must report actual input/output estimates, savings, strategy, cache behavior where applicable, and fallback reason. Lossy compression remains prohibited for manuscript canon, author-approved prose, structured machine data, URLs, identifiers, constraints, and other machine-critical material.
 
@@ -152,26 +152,27 @@ AI-generated changes are represented as reviewable proposals rather than silent 
 
 ## Mission 042 — Evidence-Gated Marketing Campaigns
 
-Author's Forge now has a Forge-native marketing campaign contract designed to connect **Book Positioning → campaign planning → channel assets → author approval → scheduling** without turning unsupported claims into published marketing copy.
-
-Marketing campaigns contain a project/book identity, objective, audience, reader promise, and reusable assets. Assets support author-site, email, social, reader-community, advertising, press, and retailer channels. Each asset carries evidence records with an explicit confidence class: known, source-supported, inference, or creative.
-
-The campaign boundary enforces two critical rules:
-
-- inference-only claims cannot be scheduled or published;
-- only explicitly approved assets can be scheduled.
-
-This creates the foundation for the full promotion workflow while keeping commercial claims evidence-aware and author-controlled. It deliberately does not promise sales, rankings, revenue, or platform acceptance.
+Forge-native marketing campaigns connect **Book Positioning → campaign planning → channel assets → author approval → scheduling** without turning unsupported claims into published marketing copy. Assets carry evidence and confidence classes; inference-only claims cannot be scheduled or published.
 
 ## Mission 043 — Workflow Quality Gates
 
-Forge now has a versioned **lifecycle quality-gate contract** spanning `concept → architecture → canon → manuscript → editing → visuals → production → positioning → marketing → release`.
+Forge has a versioned **lifecycle quality-gate contract** spanning `concept → architecture → canon → manuscript → editing → visuals → production → positioning → marketing → release`. Stage readiness derives from explicit checks and remediation. The domain contract is tested in `test/workflow-gate.test.js` and remains subject to Studio/device verification under the Functional-Truth Rule.
 
-Each stage derives its readiness from explicit checks and optional remediation instructions. `canAdvanceWorkflow` prevents a workflow from being considered ready for the next stage when its current gate is blocked, and report validation rejects inconsistent or out-of-order gate state.
+## Mission 044 — Governed Workflow Advancement
 
-This architecture incorporates a useful idea from current open-source book-production systems: long-form AI workflows benefit from explicit phase gates and human-confirmed progression rather than allowing an autonomous agent to run through unresolved stages. Forge keeps that idea inside its existing durable-state, provenance, and author-control architecture rather than adopting another repository's agent model.
+The workflow gate is now consumable through `src/application/workflow-advance.ts`. The advancement service derives the next canonical stage, permits only sequential progression, blocks advancement when the current stage has failed checks, and returns explicit blocker IDs alongside the gate report that justified the decision.
 
-The domain contract is tested in `test/workflow-gate.test.js`. It is intentionally documented as a domain capability until an actual Studio route and rendered workflow consume it; this preserves the repository's Functional-Truth Rule.
+This creates the application-level boundary needed for the eventual Studio command:
+
+```text
+CURRENT STAGE → RUN GATE → SHOW BLOCKERS / REMEDIATION → AUTHOR APPROVAL → ADVANCE ONE STAGE
+```
+
+Automated regression coverage is in `test/workflow-advance.test.js`. This milestone is **implemented, not yet claimed as production-verified** until repository CI and Studio/device verification provide evidence.
+
+## Engineering progress history
+
+`docs/BUILD_HISTORY.md` is the durable chronological record of major Author's Forge engineering milestones. Future major additions must update both this history and the README so the repository always contains a current product-state summary plus an auditable build history.
 
 ## End-to-end release target
 
