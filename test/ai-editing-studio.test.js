@@ -39,20 +39,10 @@ test("Studio editing boundary persists a governed manuscript-edit proposal", asy
       assert.equal(proposal.target.sceneId, "scene-1");
       assert.equal(proposal.proposedContent, "Revised scene.");
       assert.match(proposal.baseContentSha256, /^[a-f0-9]{64}$/);
-
-      const reloaded = new FileAiProposalStore(join(storeFileDirectory(store), "proposals.json"));
-      const records = await reloaded.load();
-      assert.equal(records.get("proposal-edit-1")?.id, "proposal-edit-1");
+      assert.equal((await store.load()).get("proposal-edit-1")?.id, "proposal-edit-1");
     },
   );
 });
-
-function storeFileDirectory(store) {
-  // FileAiProposalStore intentionally keeps its path private. The persistence
-  // assertion above is completed by the adapter's save operation; this helper
-  // exists only to keep the test's path construction explicit in one place.
-  return store.filePathForTesting ?? "";
-}
 
 test("Studio editing boundary rejects an invalid finding range before provider work", async () => {
   await withService(
