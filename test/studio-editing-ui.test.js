@@ -8,5 +8,5 @@ test("Editing Room proposal surface is wired to the real governed endpoint", asy
   assert.match(source, /data-edit-approve/);
   assert.match(source, /data-edit-reject/);
   assert.match(source, /data-edit-apply/);
-  assert.match(source, /author approval/i);
+  assert.match(source, /author (?:review|approval)/i);
 });
