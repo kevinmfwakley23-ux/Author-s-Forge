@@ -10,3 +10,5 @@ export { createProductionContextEngineRegistry, CONTEXT_ENGINE_CAPABILITIES } fr
 export type { ContextEngineCapability } from "./application/context-engine-stack";
 export { InMemoryContextOptimizationLedger } from "./application/context-optimization-ledger";
 export type { ContextOptimizationLedger, ContextOptimizationLedgerEntry, ContextOptimizationLedgerSummary } from "./application/context-optimization-ledger";
+export { createCostGuardedAiGateway, estimateAiRequestCost, AiCostGuardError } from "./application/ai-cost-guard";
+export type { AiCostPolicy, AiCostEstimate } from "./application/ai-cost-guard";

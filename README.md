@@ -220,3 +220,15 @@ OmniRoute's engine contract/registry is particularly useful because it makes opt
 The OmniRoute repository is an architectural reference, not a promise of universal savings. Open issues and provider-specific behavior reinforce the requirement that Forge benchmark each engine and fail open when an optimization is unsafe or ineffective.
 
 Direct code reuse is limited to components whose license, provenance, security, maintenance, runtime footprint, and Chromebook/Android compatibility are verified. Otherwise Forge reimplements the proven algorithm/interface natively.
+
+### Mission 038 — Provider Cost Guard
+
+The provider boundary now has an optional cost-governance decorator. Forge can estimate request input/output tokens, calculate an estimated USD cost from provider/model policy, enforce a maximum input-token limit, enforce a maximum estimated-cost limit before upstream execution, and record blocked/allowed requests in the existing optimization ledger.
+
+This follows the useful cost-governance pattern seen in current AI gateway projects: enforce budgets before provider execution and expose cost telemetry, while keeping Forge's implementation provider-neutral. Forge does not inherit third-party pricing or savings claims; pricing policy remains explicit and configurable.
+
+The guard is fail-safe for author spending: requests exceeding configured policy are rejected before the real provider call, with an actionable `AI_COST_GUARD_BLOCKED` error. Successful requests remain observable through the existing ledger without changing durable project content.
+
+## End-to-end release target
+
+The first private release remains governed by the Master Product Directive: a real author must be able to carry a project from concept through manuscript, editing, visual work, production, marketing, publishing preparation, and portable recovery without losing canon, voice, continuity, provenance, or author control. The optimization layer is an enabling subsystem of that larger workflow, not the product itself.
