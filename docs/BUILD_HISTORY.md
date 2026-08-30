@@ -2,6 +2,33 @@
 
 This file is the durable, chronological engineering history for the repository. It complements the README: the README records the current product truth; this ledger records how the current truth was built.
 
+## Mission 048 — Source-Bound AI Editing Proposals
+
+**Status:** Implemented in `main`; canonical build/regression and browser acceptance are required evidence for the next Studio integration checkpoint.
+
+### Direction
+
+Extend the governed AI proposal boundary from writing into intelligent editing. Editorial findings remain evidence; an AI rewrite remains a candidate; neither can silently mutate manuscript state.
+
+### Delivered
+
+- Added `AiEditingProposalService` to turn deterministic editorial findings into durable AI rewrite proposals.
+- Validates the exact finding range before any provider call.
+- Sends the finding, recommendation, targeted excerpt, author instruction, and complete source scene to the provider.
+- Persists the complete proposed scene as a `manuscript-edit` proposal.
+- Binds the proposal to the exact source scene revision with SHA-256.
+- Reuses the existing author-review and stale-write application boundary.
+- Exposed the editing proposal service through the canonical Forge API.
+- Added regression tests for proposal creation, source binding, and provider short-circuiting on malformed ranges.
+
+### Governance
+
+The editing engine is not an autonomous editor. It produces evidence and candidates. Author approval remains mandatory, and stale candidates cannot overwrite newer manuscript work.
+
+### Next integration target
+
+Wire `AiEditingProposalService` into the running Editing Room with explicit "Generate rewrite proposal", "Approve", "Reject", and "Apply" controls tied to selected findings.
+
 ## Mission 047 — Governed Studio AI Writing Loop
 
 **Status:** Implemented in `main`; canonical build/regression and browser acceptance are required evidence for each subsequent integration checkpoint.
