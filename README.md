@@ -162,14 +162,14 @@ K.I.N.G.S. / OPENAI / OLLAMA / OPENAI-COMPATIBLE GATEWAY
 
 ### Current implementation status
 
-The context architecture now has an explicit production engine registry and a governed context-selection layer. Deterministic lossless optimization and structured-data compaction are production-safe paths. Context governance now provides five value tiers, canonical-first budget selection, normalized duplicate-fragment elimination, and immutable optimization-ledger accounting. Higher-risk semantic compression, archival retrieval, and optional model-based engines remain explicitly gated until measured and verified.
+The context architecture now has an explicit production engine registry and a governed context-selection layer. Deterministic lossless optimization and structured-data compaction are production-safe paths. Context governance now provides five value tiers, canonical-first budget selection, normalized duplicate-fragment elimination, and immutable optimization-ledger accounting. The project context pipeline now consumes the governance deduplication boundary before budget selection, so duplicate memory payloads are removed before they compete for model context budget. Higher-risk semantic compression, archival retrieval, and optional model-based engines remain explicitly gated until measured and verified.
 
 ### Required optimization principles
 
 - **Context stratification:** separate essential system rules, project canon, current book/chapter/scene, characters, world/canon memories, research, recent workflow state, and low-value historical material so only relevant context is sent.
 - **Retrieval over wholesale replay:** retrieve relevant project knowledge instead of repeatedly sending the entire project to every AI request.
 - **Session deduplication:** content-address repeated material across turns so unchanged context does not repeatedly consume input budget.
-- **Fetch-once / reuse:** retain normalized context artifacts and reuse unchanged context rather than reconstructing or transmitting it repeatedly.
+- **Fetch-once / reuse:** retain normalized context artifacts and reuse unchanged context rather than reconstructing or transmitting them repeatedly.
 - **Retrieve-on-demand archival:** large derived context may be archived behind an internal retrieval handle and fetched only when relevant; retrieval handles must never leak into model prompts as fake source content.
 - **Deterministic optimization first:** deduplicate repeated material, compact metadata and tool output, remove boilerplate, and use deltas for unchanged state before invoking model-based compression.
 - **Content-aware engines:** JSON, code, diffs, logs, structured results, and prose require different compression policies.
@@ -202,6 +202,12 @@ Approved engine families include:
 12. **Experimental context-as-image encoding** — not part of the current Forge production path; provider-specific experiments remain isolated until independently verified.
 
 All engines must preserve author-critical data and expose measurable optimization results. Forge does **not** inherit third-party headline savings claims; actual savings are benchmarked on Forge workloads.
+
+### Context Optimization Observability
+
+The context layer now exposes a typed optimization ledger contract for every provider request. Each entry can record the request identifier, original and optimized estimated token counts, tokens saved, compression ratio, cache outcome, retrieved-context count, strategies applied, provider/model, estimated request cost, optimization latency, and any fail-open/fallback reason. The in-memory implementation also provides aggregate totals for requests, token savings, cache hits/misses, fallbacks, estimated cost, and optimization latency.
+
+This makes the README's token/cost observability requirement an explicit application boundary rather than a documentation-only promise. The ledger remains derived telemetry: it never replaces durable project state or author content.
 
 ### Open-source compatibility decision
 
