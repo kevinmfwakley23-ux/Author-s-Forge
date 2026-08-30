@@ -2,30 +2,9 @@
 
 **Author's Forge** is a local-first author workplace for taking books from idea to finished, edited, illustrated, produced, and publication-ready material.
 
-## Locked Competitive-Benchmark Engineering Workflow
+## Canonical Product Directive
 
-**Permanent rule:** Forge continuously learns from real, working applications and open-source projects that share its capabilities, then builds the strongest applicable ideas into Forge as better native implementations.
-
-For every major capability the chief-engineering workflow is:
-
-1. Identify the strongest working products, open-source projects, libraries, and proven UX patterns.
-2. Study their actual workflow, UX, architecture, data model, persistence, provider boundaries, failure handling, recovery, accessibility, performance, and device behavior.
-3. Compare those proven approaches against Forge's implementation and `AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md`.
-4. Preserve proven strengths, reject weak patterns, and improve useful ideas rather than copying competitors blindly.
-5. Implement the capability natively inside Forge's governed architecture.
-6. Add deterministic, application/integration, and human/device regression coverage.
-7. Run the canonical build and acceptance gates.
-8. Immediately advance to the next highest-value capability.
-
-Benchmarking is an engineering input, not permission to dilute Forge's architecture. Author authority, durable project state, real provider boundaries, proposal/review/apply safety, portability, Chromebook/Android targets, and the Master Product Directive remain authoritative.
-
-The benchmark set should include direct competitors and adjacent best-in-class tools for long-form writing, outlining, research, knowledge retrieval, editing, versioning, visual planning, publishing, collaboration, accessibility, PWA/mobile behavior, and AI agent workflows. Current or future examples may include Novelist, Linetta, OpenWriter, xnovelist, Writer Studio, Scrivener, Atticus, Plottr, Sudowrite, and other relevant systems discovered during implementation. Their current behavior must be verified before being treated as evidence.
-
-**Engineering objective:** make Forge better than the individual tools it learns from by integrating their strongest proven capabilities into one coherent author operating environment.
-
-## Canonical Product Directive — READ THIS FIRST
-
-**`AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md` is the canonical product contract and engineering source of truth.** It defines the complete target: concept → architecture → canon → characters → timeline → research → manuscript → editing → illustrations → cover → formatting → metadata → positioning → marketing → publishing preparation → portable archive/recovery.
+**`AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md` is the canonical product contract and engineering source of truth.** It defines the target author journey: concept → architecture → canon → characters → timeline → research → manuscript → editing → illustrations → cover → formatting → metadata → positioning → marketing → publishing preparation → portable archive/recovery.
 
 ## Chief Engineering Standard
 
@@ -44,9 +23,15 @@ Non-negotiable:
 - no weakening/deleting tests to make builds green;
 - major autonomous actions observable, reversible, attributable, and author-controlled.
 
-A green unit-test suite is evidence, not proof. Every major capability must be reachable from Studio, read/write durable project state, survive reload/restart, participate downstream, report real errors, and have end-to-end coverage.
+A green unit-test suite is evidence, not proof. Major capabilities must be reachable from Studio, use durable project state, survive reload/restart, participate downstream, report real errors, and have end-to-end evidence.
 
-## Permanent Functional-Truth Rule
+## Permanent Platform Targets
+
+**Chromebook and Android are first-class product targets.** Forge uses one platform-neutral web architecture with reusable domain/application/API boundaries, responsive desktop/tablet/phone layouts, touch interaction, PWA installability, conservative offline shell behavior, durable persistence independent of browser process state, and portable recovery.
+
+The service worker may cache the application shell but must not cache `/api/` project data as durable state.
+
+## Functional-Truth Rule
 
 Every major capability is verified at three levels:
 
@@ -56,17 +41,15 @@ Every major capability is verified at three levels:
 
 Source-pattern tests alone are never end-to-end proof.
 
-## Permanent Platform Targets
+## Competitive-Benchmark Engineering Workflow
 
-**Chromebook and Android are first-class product targets.** The primary architecture is one platform-neutral web application with reusable domain/application/API boundaries.
+Forge continuously learns from real working applications and open-source projects that share its capabilities. For each major capability:
 
-Requirements include responsive desktop/tablet/phone layouts, touch interaction, browser device APIs, PWA installability, conservative offline shell behavior, durable persistence independent of browser process state, portable recovery, and future-shell reuse.
+**research → architecture → implementation → regression coverage → build/acceptance verification → README/build-history update → next capability.**
 
-The service worker may cache the application shell but must not cache `/api/` project data as durable state.
+Research is an engineering input, not permission to copy disconnected feature lists. Proven strengths are rebuilt natively around Forge's durable state, provenance, Project Brain, Book Genome, author control, proposal review, workflow gates, production, and recovery.
 
-## Functional Reality Standard
-
-Every visible Studio control must terminate in a durable state transition, real provider/service operation, deterministic calculation, real artifact, real navigation, or explicit actionable error. Buttons, forms, AI controls, image controls, exports, settings, and navigation may never merely appear functional.
+Recent benchmark signals include visual planning and Story Bible patterns from Plottr/Sudowrite, manuscript-aware continuity from Storybible/Novilot, goal and habit feedback from current writing tools, specialist editorial triage from FireQuill, and propose-only author-control patterns from newer authoring products. Current external behavior must be verified before being treated as evidence.
 
 ## Integrated Studio Direction
 
@@ -81,9 +64,9 @@ ARCHITECTURE
   ↓
 CANON / CHARACTERS / WORLD / TIMELINE / RESEARCH / VOICE
   ↓
-WRITING DESK + PROJECT BRAIN
+STORY MAP + WRITING DESK + PROJECT BRAIN
   ↓
-EDITORIAL ANALYSIS
+EDITORIAL ANALYSIS + CRAFT LENS
   ↓
 VISUAL / ILLUSTRATION / COVER
   ↓
@@ -93,67 +76,79 @@ MARKETING
   ↓
 DOCX / PDF / EPUB PRODUCTION
   ↓
-13-CATEGORY DELIVERY AUDIT
+DELIVERY AUDIT
   ↓
 PORTABLE PROJECT PACKAGE
 ```
 
-The integrated product is expected to connect durable manuscript state, provider-backed AI writing/editing, typed and voice commands, collaboration modes, Character Bible, provenance-aware memory/research, editing analysis, voice fingerprinting, real image generation when configured, cover planning, Book Genome/impact analysis, document production, health reporting, portable export, and delivery audit.
+## AI Context and Author-Controlled Mutation
 
-## AI Context Optimization & Model Intelligence
-
-Context efficiency is a first-class AI concern. Forge uses hierarchical context assembly, deduplication, protected structured data, deterministic compression before lossy methods, semantic caching where justified, token/cost governance, provider routing boundaries, and measurable optimization telemetry. Optimization fails open to authoritative context.
-
-Forge's AI Model Broker direction is to discover actual model capability, context/output capacity, reasoning/vision/tool support, health, latency, quota/cost, and task requirements before selecting a real resource. Provider credentials never belong in manuscript/project state.
-
-Approved optional intelligence boundaries include K.I.N.G.S., OmniRoute/OpenAI-compatible gateways, direct OpenAI, and local Ollama where configured and verified. Forge never claims a provider/model is available without runtime verification and never fabricates unavailable AI output.
-
-## AI Proposal and Author-Controlled Mutation
+Context efficiency is first-class: hierarchical context assembly, deduplication, protected structured data, deterministic compression before lossy methods, semantic caching where justified, token/cost governance, provider routing boundaries, and measurable optimization telemetry.
 
 AI changes are reviewable durable proposals, never silent manuscript/canon mutation. Proposals carry rationale, provenance, status, review state, and source-revision binding. Writing Desk and Editing Room expose deterministic line-level diffs and word-count impact before explicit author approval/application. Server-side revision protection remains authoritative against stale writes.
 
+Forge never claims a provider/model is available without runtime verification and never fabricates unavailable AI output.
+
+## Mission 054 — Author Goals Foundation
+
+Forge now contains a deterministic Author Goals domain/application foundation designed around the real manuscript rather than an isolated progress counter.
+
+`src/domain/author-goals.ts` provides:
+
+- validated word, scene, and chapter goals;
+- daily, weekly, session, and project goal periods;
+- deterministic progress percentages;
+- remaining-work calculations;
+- completion state;
+- manuscript progress snapshots.
+
+The application boundary is `AuthorGoalsService` in `src/application/author-goals.ts`.
+
+Word progress is deliberately supplied from the authoritative manuscript/workspace word-count source instead of guessed from incomplete domain records. This prevents the goal system from becoming a second manuscript database.
+
+The next integration step is a durable Studio goal surface backed by project persistence, including session history, streak/progress history, and actionable “what should I work on next?” signals derived from Story Map state.
+
+## Mission 053 — Live Story Map
+
+The Story Map is a live Studio planning surface derived from the existing durable book/chapter/scene hierarchy. It provides visual hierarchy, lifecycle status, chapter/book/project completion, refresh behavior, and direct scene navigation.
+
+The Story Map does **not** create a second planning database. Its deterministic foundation is `src/domain/story-map.ts` and `src/application/story-map.ts`; the live surface is `public/forge-story-map.js`.
+
+A follow-up functional-integrity fix now makes every Story Map scene card a real action: selecting a scene updates the manuscript selectors, switches to the Manuscript/Writing surface, and emits `forge:story-map-open-scene` for integration listeners. Regression coverage lives in `test/story-map-actions.test.js`.
+
+Future Story Map increments remain scene attributes, plotlines/character arcs, durable drag/reorder with impact analysis, continuity/canon warnings, and series-level planning.
+
 ## Mission 052 — Competitive Advantage Research
 
-Forge now treats competitive research as an active engineering input. Research compared proven patterns from products including Plottr and Sudowrite: Plottr's visual timelines, scene cards, scene stacks, plotlines, filters, story bibles, and series planning; Sudowrite's Story Bible source-of-truth model, localized rewrite workflow, outline/scene generation, and context-aware character/worldbuilding.
+Forge converted competitive research into an implementation sequence:
 
-The implementation rule is to import **capabilities and lessons, not disconnected feature copies**. Forge combines visual planning and Story Bible-like context with its durable project truth, canon controls, Project Brain, provenance, downstream impact, governed AI proposals, production, publishing, and recovery.
+1. Story Map.
+2. Author Goals.
+3. Knowledge Gap Radar.
+4. Craft Lens.
+5. Production Preview.
+6. Collaboration Review.
 
-## Mission 053 — Story Map
-
-The first competitive capability has been converted into a live Studio surface. The new `public/forge-story-map.js` creates a **Story Map** directly from `window.forgeWorkspaceState`, so the visual plan is derived from the same durable books, chapters, and scenes used by the manuscript editor. There is deliberately no second planning database.
-
-The Story Map provides:
-
-- visual book → chapter → scene hierarchy;
-- scene lifecycle status;
-- chapter completion percentage;
-- book completion percentage;
-- project totals for books, chapters, scenes, and completed-scene percentage;
-- direct scene opening from the map into the Writing Desk;
-- empty-state guidance when structure does not exist;
-- live refresh when the workspace is refreshed;
-- PWA shell inclusion for Chromebook/Android continuity.
-
-This is the beginning of Forge's visual planning layer: future iterations will add richer scene attributes, plotlines, character arcs, filters, drag/reorder operations, and downstream canon/impact indicators while keeping manuscript state authoritative.
-
-The underlying deterministic domain/application foundation is `src/domain/story-map.ts` and `src/application/story-map.ts`, with regression coverage in `test/story-map.test.js` and `test/story-map-ui.test.js`.
+The goal is not to reproduce six separate apps. Forge should integrate their strongest proven workflows into one coherent author operating environment.
 
 ## Mission 051 — Editing Room Proposal Review Diff
 
-The Editing Room provides deterministic review of durable AI rewrite proposals. Authors can inspect line-level added/removed/unchanged content and before/after word counts. Approval remains separate from application, and server-side source-revision checks remain authoritative.
+The Editing Room provides deterministic review of durable AI rewrite proposals. Authors can inspect line-level added/removed/unchanged content and before/after word counts. Approval remains separate from application, with server-side source-revision protection.
 
-## CI and PWA Integrity
+## CI / PWA Integrity
 
-The canonical CI path includes build, tests, completion measurement, client syntax checks, browser acceptance, and mobile acceptance. The service worker is now `authors-forge-shell-v5` and includes the Story Map client while continuing to exclude `/api/` project data from caching.
+Canonical CI covers installation, build, tests, completion measurement, client syntax checks, browser acceptance, and mobile acceptance. The PWA shell remains separate from durable `/api/` project state.
 
-## Delivery Standard
+## Current Build Priorities
 
-The goal is not to maximize the number of feature labels. The goal is to deliver the **best dependable author operating environment we can build**, using verified lessons from working products while preserving Forge's architecture and author-first principles.
+1. Integrate Author Goals into durable Studio project state.
+2. Build Knowledge Gap Radar from provenance-aware research and project-memory signals.
+3. Build Craft Lens around measurable narrative/craft dimensions and reviewable revision strategies.
+4. Strengthen Story Map with scene attributes, plotlines, character arcs, and continuity indicators.
+5. Build Production Preview so formatting/export problems are caught before release.
+6. Expand collaboration/review only after the core author journey remains durable and verifiable.
+7. Verify the complete running product on Chromebook and Android, including recovery and real configured AI providers.
 
-## Current Build Rule
+## Definition of Complete
 
-After every major capability:
-
-**research → architecture → implementation → regression coverage → build/acceptance verification → README/build-history update → next capability.**
-
-A capability is not declared complete merely because code was committed. The repository must prove the running behavior at domain, application, and human/device levels before the capability is considered production-ready.
+Forge is complete only when a real author can create or restore a project and carry it through the intended Studio journey — concept, architecture, canon, characters, research, manuscript, editing, visual work, cover, production, positioning, marketing, publishing preparation, delivery audit, and portable recovery — with durable state, real provider boundaries, author approval, truthful failures, and verified Chromebook/Android operation.
