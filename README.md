@@ -85,11 +85,33 @@ DELIVERY AUDIT
 PORTABLE PROJECT PACKAGE
 ```
 
+## Mission 058 — Saliency-Aware Character Memory Retrieval
+
+Forge's living Character Bible now has a retrieval boundary that can supply **only the most relevant character state needed for a drafting task**, instead of dumping an entire character database into every AI request.
+
+`CharacterBibleService.memory()` provides:
+
+- project-scoped character retrieval;
+- optional character targeting;
+- optional point-in-time historical reconstruction;
+- field-scoped context selection;
+- query-term relevance scoring;
+- deterministic ranking and limits;
+- human-readable evidence for why a character was selected;
+- current emotional state and location when broad context is requested;
+- defensive cloning so retrieval cannot mutate authoritative character state.
+
+This is the first concrete bridge between Forge's **scene-versioned character memory** and the saliency/context architecture required for high-quality AI drafting. It intentionally returns a compact memory view rather than the full Character Bible.
+
+Regression coverage now verifies explicit relevance ranking and historical snapshot retrieval.
+
+The next completion gate for this feature is application integration: the Writing Desk/AI context assembler must consume these memory hits and combine them with canon, timeline, voice, and research under the same provenance and author-control rules.
+
 ## Mission 057 — Versioned Character State Memory
 
-Forge's character system is now moving beyond a static character bible toward a **living, scene-aware character memory**. The existing Character Bible already stores a complete structured profile, field history, effective timestamps, reasons and actor attribution. fileciteturn187file0L2-L2
+Forge's character system is moving beyond a static character bible toward a **living, scene-aware character memory**. The existing Character Bible stores a complete structured profile, field history, effective timestamps, reasons and actor attribution.
 
-`src/domain/character-state-memory.ts` adds the next layer:
+`src/domain/character-state-memory.ts` adds:
 
 - scene-specific character snapshots;
 - project/character ownership enforcement;
@@ -100,15 +122,13 @@ Forge's character system is now moving beyond a static character bible toward a 
 - changed-field attribution for each scene snapshot;
 - validation against corrupt or cross-character state.
 
-This directly adopts and improves the strongest current pattern seen in FireQuill: character **voice, psychology, knowledge, relationships and arc state need to evolve with the manuscript rather than remain a static prompt card**. citeturn0search2turn0search8
+This directly adopts and improves the strongest current pattern seen in FireQuill: character **voice, psychology, knowledge, relationships and arc state need to evolve with the manuscript rather than remain a static prompt card**.
 
-Forge's improvement is to keep this state subordinate to the existing author-controlled Character Bible and proposal/approval model. A system can propose a state change, but it must not silently rewrite canon or character truth.
-
-The next integration target is automatic scene extraction: after a manuscript change, Forge should identify candidate character-state changes, show evidence and confidence, allow the author to accept/defer/dismiss them, and then snapshot the approved state for future AI context retrieval.
+Forge keeps this state subordinate to the authoritative Character Bible and proposal/approval model. A system can propose a state change, but it must not silently rewrite canon or character truth.
 
 ## Mission 056 — Author Voice Memory + Drift Preservation
 
-Forge's voice system is designed around a critical product promise: **AI assistance must not gradually erase the author's authorship signals.** Recent research found that heavy AI rewriting can substantially reduce measurable authorship attribution, making voice preservation a real engineering problem rather than a cosmetic prompt feature. citeturn0search15
+Forge's voice system is designed around a critical product promise: **AI assistance must not gradually erase the author's authorship signals.**
 
 Forge maintains an explicit approved author corpus rather than a single style prompt. `src/domain/author-voice-memory.ts` provides:
 
@@ -124,9 +144,7 @@ Forge maintains an explicit approved author corpus rather than a single style pr
 - actionable drift warnings and revision recommendations;
 - reusable author-voice context for governed AI generation.
 
-`src/application/author-voice-memory.ts` enforces the project/author ownership boundary so one author's voice corpus cannot accidentally be applied to another project or author.
-
-**Design rule:** Forge never tells an AI to imitate another named author. It learns from the user's own approved corpus and treats voice preservation as a constraint alongside canon, character state, continuity, meaning, and author intent.
+**Design rule:** Forge learns from the user's own approved corpus and treats voice preservation as a constraint alongside canon, character state, continuity, meaning, and author intent.
 
 ## Mission 055 — Craft Lens Foundation
 
@@ -157,9 +175,9 @@ The Editing Room provides deterministic review of durable AI rewrite proposals. 
 
 ## Production, KDP and Promotion Benchmark
 
-Forge is intentionally expanding beyond writing. Current all-in-one publishing products increasingly connect research, writing, editing, illustration, covers, formatting, publishing listings and promotion in one workflow. KDP-focused products also emphasize print-ready EPUB/PDF output, full-wrap cover constraints, metadata and listing preparation. citeturn0search3turn0search6turn0search12
+Forge is intentionally expanding beyond writing. Current all-in-one publishing products increasingly connect research, writing, editing, illustration, covers, formatting, publishing listings and promotion in one workflow. KDP-focused products emphasize print-ready EPUB/PDF output, full-wrap cover constraints, metadata and listing preparation.
 
-Cover benchmarking reinforces that professional KDP output requires more than attractive artwork: trim, bleed, spine math, typography, barcode space and full-wrap export must be validated as production artifacts. citeturn0search4turn0search11
+Cover benchmarking reinforces that professional KDP output requires more than attractive artwork: trim, bleed, spine math, typography, barcode space and full-wrap export must be validated as production artifacts.
 
 Forge's product goal is to connect these concerns to the same authoritative Book Genome and production state so metadata, cover, blurb, audience, launch plan, retailer readiness, and promotion evidence remain synchronized rather than becoming separate spreadsheets.
 
@@ -169,7 +187,7 @@ Canonical CI covers installation, build, tests, completion measurement, client s
 
 ## Current Build Priorities
 
-1. Integrate Versioned Character State Memory into automatic scene extraction and author-approved state updates.
+1. Complete application integration for Versioned Character State Memory and Saliency-Aware Character Retrieval.
 2. Integrate Author Voice Memory into live AI drafting/proposal generation and make voice drift visible before application.
 3. Build saliency-aware retrieval across character memory, canon, timeline, research, and author voice.
 4. Integrate Author Goals into durable Studio project state.
@@ -182,4 +200,4 @@ Canonical CI covers installation, build, tests, completion measurement, client s
 
 ## Definition of Complete
 
-Forge is complete only when a real author can create or restore a project and carry it through the intended Studio journey — concept, architecture, canon, characters, research, manuscript, editing, visual work, cover, production, positioning, marketing, publishing preparation, delivery audit, and portable recovery — with durable state, real provider boundaries, author approval, truthful failures, preserved author voice, coherent scene-versioned character memory, and verified Chromebook/Android operation.
+Forge is complete only when a real author can create or restore a project and carry it through the intended Studio journey — concept, architecture, canon, characters, research, manuscript, editing, visual work, cover, production, positioning, marketing, publishing preparation, delivery audit, and portable recovery — with durable state, real provider boundaries, author approval, truthful failures, preserved author voice, coherent scene-versioned character memory, salient context retrieval, and verified Chromebook/Android operation.
