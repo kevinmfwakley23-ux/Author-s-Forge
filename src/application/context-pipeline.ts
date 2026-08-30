@@ -37,11 +37,7 @@ export function buildProjectContext(
     includeWorkingState: options.includeWorkingState ?? options.query.includeWorkingState,
   });
 
-  const all = [
-    ...brain.authoritative,
-    ...brain.working,
-    ...brain.changed,
-  ];
+  const all = [...brain.authoritative, ...brain.working, ...brain.changed];
   const unique = new Map(all.map((memory) => [memory.id, memory]));
   const sections: ContextSection[] = [...unique.values()].map((memory, index) => ({
     id: memory.id,
@@ -52,14 +48,17 @@ export function buildProjectContext(
 
   const budgeted = selectContextBudget(sections, options.budget);
   const context = budgeted.sections.map((section) => section.content).join("\n\n");
-  const optimized = optimizeContext({ system: "Project context:\n" + context, user: "Use the supplied project context faithfully." });
+  const originalSystem = "Project context:\n" + context;
+  const originalUser = "Use the supplied project context faithfully.";
+  const optimized = optimizeContext({ system: originalSystem, user: originalUser });
+  const originalEstimatedTokens = estimateTokens(originalSystem) + estimateTokens(originalUser);
 
   return {
     system: optimized.system,
     user: optimized.user,
     selectedMemoryIds: budgeted.includedIds,
     omittedMemoryIds: budgeted.omittedIds,
-    originalEstimatedTokens: estimateTokens("Project context:\n" + context),
+    originalEstimatedTokens,
     optimizedEstimatedTokens: optimized.optimizedEstimatedTokens,
     tokensSaved: optimized.tokensSaved + budgeted.tokensSaved,
     compressionRatio: optimized.compressionRatio,
