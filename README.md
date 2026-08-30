@@ -273,6 +273,40 @@ CURRENT STAGE → RUN GATE → SHOW BLOCKERS / REMEDIATION → AUTHOR APPROVAL �
 
 Automated regression coverage is in `test/workflow-advance.test.js`. This milestone is **implemented, not yet claimed as production-verified** until repository CI and Studio/device verification provide evidence.
 
+## Current Repository State — 2026-08-30
+
+The canonical `main` branch is currently the integration baseline. The latest recorded commit is `06560bf3` (`ci: establish canonical build and browser regression pipeline`). Recent work also strengthened the Android PWA install shell and exposed the AI Model Broker through the public Forge API.
+
+The repository has a substantial domain/application foundation and a running Studio. The latest local verification reported to the engineering log passed the browser acceptance suite: **18 routes plus durable book/chapter/scene behavior, manuscript save/reload, character, canon, and honest AI failure handling**. This is useful evidence, but it is not a substitute for fresh execution on every checkout and physical-device verification.
+
+The immediate known engineering risk is **integration drift between the current `main` source exports and older local test/build artifacts**. The current source `src/index.ts` exposes the manuscript, project, publishing, version-control, collaboration, health, relationship-memory, delivery-audit, and related APIs required by the regression tests. If a local checkout still reports `createManuscriptState is not a function`, `createProject is not a function`, or similar export errors, rebuild from the current `main` before diagnosing the domain implementation. The canonical build path is `npm run build`.
+
+### Completion meter
+
+Forge now includes a deterministic repository inspection command:
+
+```bash
+npm run completion
+```
+
+It reports two separate numbers:
+
+- **Engineering capability completion** — implementation plus matching automated evidence across the major product capabilities.
+- **Verification/evidence readiness** — browser harness, mobile harness, real-provider boundary, honest failure behavior, and product documentation evidence.
+
+The meter intentionally does **not** claim that source files equal a finished product. 100% is reserved for a complete, verified author journey. Physical Android/Chromebook verification and real configured-provider execution remain separate evidence requirements.
+
+### Current build priorities
+
+1. Rebuild and continuously verify the canonical `main` baseline.
+2. Eliminate remaining export/build/test drift and restore the complete regression suite to green.
+3. Drive every major existing capability through the real Studio rather than adding disconnected domain contracts.
+4. Complete the core author loop: project → book → chapter → scene → write → AI assist → review → approve → continue.
+5. Complete visual production with durable character/reference/illustration/cover state and real provider boundaries.
+6. Complete production, positioning, marketing, publishing preparation, portable recovery, and delivery audit as one traceable workflow.
+7. Run browser and mobile acceptance continuously, then perform real Chromebook and Android device verification.
+8. Only after the working journey is stable, expand provider breadth, advanced semantic compression, automation, and other secondary enhancements.
+
 ## Locked Next Build Direction — Mission 045: Functional-Truth Completion
 
 **This is the active engineering direction. Do not start unrelated feature missions while this boundary remains open.**
