@@ -17,6 +17,7 @@ export function inspectForgeCore(core: ForgeCore, now = new Date().toISOString()
     { name: 'memory', ok: readiness.memoryAvailable, detail: readiness.memoryAvailable ? 'memory store available' : 'memory store unavailable' },
     { name: 'ai-routing', ok: readiness.aiRoutingAvailable, detail: readiness.aiRoutingAvailable ? 'AI broker available' : 'AI broker unavailable' },
     { name: 'ai-capacity', ok: readiness.aiConfigured, detail: readiness.aiConfigured ? `${readiness.modelCount} configured model(s)` : 'no configured AI model' },
+    { name: 'durable-project-store', ok: readiness.projectStoreAvailable, detail: readiness.projectStoreAvailable ? 'durable project store bound' : 'durable project store unbound' },
     { name: 'context', ok: true, detail: 'context pipeline available' },
     { name: 'recovery', ok: true, detail: 'portable core snapshots available' }
   ];
