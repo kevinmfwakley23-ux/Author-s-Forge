@@ -2,6 +2,37 @@
 
 This file is the durable, chronological engineering history for the repository. It complements the README: the README records the current product truth; this ledger records how the current truth was built.
 
+## Mission 045 — Functional-Truth Completion
+
+**Status:** Direction locked; baseline repair in progress.
+
+### Direction
+
+Mission 045 closes the gap between Forge's domain/application foundation and a genuinely usable author workplace. The priority is integrated product behavior rather than accumulation of disconnected feature contracts.
+
+### Locked execution order
+
+1. Restore a continuously green canonical `main` baseline.
+2. Wire existing capabilities into one real Studio workflow with durable persistence and explicit errors.
+3. Complete the core author loop: project → book → chapter → scene → write → AI assist → review → approve → continue.
+4. Make visual production a durable path across character continuity, references, illustration, asset reuse, and covers.
+5. Make production and release a traceable path through artifacts, positioning, marketing, readiness, delivery audit, and recovery.
+6. Verify the running application at domain, application, and human/device levels, including Chromebook and Android.
+7. Harden recovery, provider failure, interrupted operations, stale state, and offline behavior.
+8. Expand breadth only after the integrated author journey is working.
+
+### Repository integrity rule
+
+`main` is the canonical integration baseline. Divergent branches are candidate work, not alternate product truth. Generated build/runtime output must remain out of source control unless explicitly required. Candidate changes must be compared against current `main`, selectively integrated, and verified by the full build/regression path.
+
+### Baseline repair
+
+The current `main` snapshot exposed a TypeScript contract mismatch in the context-engine stack and an implicit-typing regression in the workflow-gate validator. The context-engine registry now owns final result metrics through a dedicated result-draft boundary, and workflow-gate checks are explicitly typed. This restores separation of responsibilities: engines produce transformations; the registry measures the complete optimization result.
+
+### Verification requirement
+
+Mission 045 is not verified by compilation alone. Completion requires successful build/regression tests plus running Studio/browser and supported-device evidence for the integrated author journey.
+
 ## Mission 044 — Governed Workflow Advancement
 
 **Status:** Implemented in `main`; CI verification remains required before calling the capability production-verified.
