@@ -4,7 +4,7 @@ This file is the durable, chronological engineering history for the repository. 
 
 ## Mission 045 — Functional-Truth Completion
 
-**Status:** Direction locked; baseline repair in progress.
+**Status:** Active — canonical baseline repair and integrated Studio verification are in progress.
 
 ### Direction
 
@@ -28,6 +28,14 @@ Mission 045 closes the gap between Forge's domain/application foundation and a g
 ### Baseline repair
 
 The current `main` snapshot exposed a TypeScript contract mismatch in the context-engine stack and an implicit-typing regression in the workflow-gate validator. The context-engine registry now owns final result metrics through a dedicated result-draft boundary, and workflow-gate checks are explicitly typed. This restores separation of responsibilities: engines produce transformations; the registry measures the complete optimization result.
+
+### Current implementation checkpoint
+
+The canonical public Forge API is now explicitly regression-tested for the major domain/application capabilities used by the manuscript, project, publishing, version-control, series, voice, collaboration, health, memory-relationship, delivery-audit, and workflow layers. A second build-output integrity test verifies that the production `dist` tree preserves the same public API as `.forge-build`, preventing the exact class of runtime-export regression that can otherwise hide behind a successful TypeScript build.
+
+The governed project workflow boundary is now also exposed by the running Studio server. `GET /api/projects/:projectId/workflow` reports the durable workflow stage, while `POST /api/projects/:projectId/workflow/advance` consumes stage checks, enforces sequential advancement, requires explicit author approval, persists successful stage transitions, and returns blocker details on refused advancement. Project health now reports the current workflow stage as well.
+
+The real-browser acceptance harness now exercises this workflow boundary against the running production build and verifies that an unapproved transition is refused, an approved transition advances exactly one stage, and the resulting stage survives a subsequent API read. This is application-level evidence in addition to the domain tests; device-level verification remains open.
 
 ### Verification requirement
 
