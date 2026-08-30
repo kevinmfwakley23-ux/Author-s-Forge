@@ -1,4 +1,4 @@
-const CACHE = "authors-forge-shell-v1";
+const CACHE = "authors-forge-shell-v2";
 const SHELL = [
   "/",
   "/index.html",
@@ -6,8 +6,11 @@ const SHELL = [
   "/app.js",
   "/forge-command-center.js",
   "/forge-workbench.js",
+  "/forge-ai-proposals.js",
   "/manifest.webmanifest",
-  "/icon.svg"
+  "/icon.svg",
+  "/icon-192.svg",
+  "/icon-512.svg"
 ];
 
 self.addEventListener("install", (event) => {
