@@ -101,6 +101,34 @@ async function main() {
     await page.locator("#scene-form").evaluate((form) => form.requestSubmit());
     await page.waitForFunction(() => document.querySelector("#editor-scene option"));
 
+    const workspaceResponse = await fetch(`${baseUrl}/api/projects/${projectId}/workspace`);
+    assert.equal(workspaceResponse.ok, true);
+    const workspace = await workspaceResponse.json();
+    const bookId = workspace.books?.[0]?.id;
+    assert.equal(typeof bookId, "string");
+
+    const workflowBlocked = await fetch(`${baseUrl}/api/projects/${projectId}/workflow/advance`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ bookId, checks: { concept: [{ id: "concept.ready", label: "Concept approved", passed: true }] } }),
+    });
+    assert.equal(workflowBlocked.status, 409);
+    const blockedPayload = await workflowBlocked.json();
+    assert.deepEqual(blockedPayload.workflow.blockers, ["AUTHOR_APPROVAL_REQUIRED"]);
+
+    const workflowAdvanced = await fetch(`${baseUrl}/api/projects/${projectId}/workflow/advance`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ bookId, checks: { concept: [{ id: "concept.ready", label: "Concept approved", passed: true }] }, authorApproved: true, now: "2026-08-30T03:00:00.000Z" }),
+    });
+    assert.equal(workflowAdvanced.ok, true, await workflowAdvanced.text());
+    const advancedPayload = await workflowAdvanced.json();
+    assert.equal(advancedPayload.workflow.toStage, "architecture");
+    assert.equal(advancedPayload.project.workflowStage, "architecture");
+
+    const persistedWorkflow = await (await fetch(`${baseUrl}/api/projects/${projectId}/workflow`)).json();
+    assert.equal(persistedWorkflow.currentStage, "architecture");
+
     await page.locator('nav a[data-route="writing"]').click();
     await page.locator("#editor-content").fill("A real browser-driven manuscript scene.");
     await page.locator("#save-scene").click();
@@ -133,7 +161,7 @@ async function main() {
     await page.locator('nav a[data-route="world"]').click();
     await page.waitForFunction(() => document.querySelector("#memory-list")?.textContent.includes("Acceptance character is canonically based in Ogden."));
 
-    console.log(`REAL BROWSER ACCEPTANCE PASSED: ${routes.length} routes + durable book/chapter/scene + manuscript save/reload + character + canon + honest AI failure.`);
+    console.log(`REAL BROWSER ACCEPTANCE PASSED: ${routes.length} routes + durable book/chapter/scene + governed workflow advancement + manuscript save/reload + character + canon + honest AI failure.`);
   } finally {
     if (browser) await browser.close().catch(() => {});
     server.kill("SIGTERM");
