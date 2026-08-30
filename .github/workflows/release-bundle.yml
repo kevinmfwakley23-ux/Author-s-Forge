@@ -1,0 +1,80 @@
+name: Forge Release Bundle
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build canonical Forge
+        run: npm run build
+
+      - name: Run completion meter
+        run: npm run completion
+
+      - name: Validate browser-side JavaScript
+        run: |
+          node --check public/app.js
+          node --check public/forge-command-center.js
+          node --check public/forge-workbench.js
+          node --check public/forge-ai-proposals.js
+          node --check public/forge-pwa.js
+          bash -n scripts/termux-forge.sh
+
+      - name: Assemble Android/Chromebook portable bundle
+        run: |
+          set -euo pipefail
+          rm -rf release-bundle
+          mkdir -p release-bundle/forge
+          cp -R dist release-bundle/forge/dist
+          cp -R public release-bundle/forge/public
+          cp package.json package-lock.json release-bundle/forge/
+          cp -R scripts release-bundle/forge/scripts
+          cp README.md AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md release-bundle/forge/
+          cat > release-bundle/forge/RUN-FORGE.md <<'EOF'
+          # Run Author's Forge
+
+          ## Chromebook/Linux
+          npm install
+          npm run studio
+          Then open http://127.0.0.1:4173/
+
+          ## Android / Termux
+          npm install
+          npm run studio:android
+          Open the Chromebook/Android-accessible LAN address shown by the running device, or use `scripts/termux-forge.sh`.
+
+          Forge project data is persisted by the Forge server. The PWA shell may be installed by the browser, but service-worker caching never replaces server-side project persistence.
+          EOF
+          tar -C release-bundle -czf "authors-forge-${GITHUB_SHA::12}.tar.gz" forge
+          sha256sum "authors-forge-${GITHUB_SHA::12}.tar.gz" > "authors-forge-${GITHUB_SHA::12}.sha256"
+
+      - name: Upload portable bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: authors-forge-${{ github.sha }}
+          path: |
+            authors-forge-*.tar.gz
+            authors-forge-*.sha256
+          if-no-files-found: error
+          retention-days: 30
