@@ -45,11 +45,20 @@ test("Studio exposes the governed AI editing proposal route and validates findin
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ number: 1, title: "Opening", synopsis: "Opening" }),
     }).then((r) => r.json());
-    const scene = await fetch(`${base}/api/projects/${projectId}/workspace/books/${book.id}/chapters/${chapter.id}/scenes`, {
+    const chapterWithScene = await fetch(`${base}/api/projects/${projectId}/workspace/books/${book.id}/chapters/${chapter.id}/scenes`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ number: 1, title: "Scene", synopsis: "Scene" }),
     }).then((r) => r.json());
+    const scene = chapterWithScene.scenes.at(-1);
+    assert.ok(scene?.id);
+
+    const contentResponse = await fetch(`${base}/api/projects/${projectId}/workspace/books/${book.id}/chapters/${chapter.id}/scenes/${scene.id}/content`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ content: "A real scene gives the editing boundary source text to validate." }),
+    });
+    assert.equal(contentResponse.status, 200);
 
     const response = await fetch(`${base}/api/projects/${projectId}/ai/editing/propose`, {
       method: "POST",
@@ -66,7 +75,8 @@ test("Studio exposes the governed AI editing proposal route and validates findin
       }),
     });
     assert.equal(response.status, 400);
-    assert.match((await response.json()).error, /finding range is invalid|AI editing source content is required/);
+    const payload = await response.json();
+    assert.match(payload.error, /finding range is invalid/);
   } finally {
     server.kill("SIGTERM");
     await new Promise((resolve) => server.exitCode !== null ? resolve() : server.once("exit", resolve));
