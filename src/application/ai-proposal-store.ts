@@ -18,6 +18,7 @@ export interface AiProposal {
   readonly sourceMemoryIds: readonly string[];
   readonly createdAt: string;
   readonly target?: AiProposalTarget;
+  readonly baseContentSha256?: string;
   readonly reviewedAt?: string;
   readonly reviewedBy?: "author" | "system";
   readonly reviewNote?: string;
@@ -44,6 +45,7 @@ export class AiProposalStore {
     if (!input.proposedContent.trim()) throw new Error("AI proposal content is required.");
     if (this.proposals.has(input.id)) throw new Error(`Duplicate AI proposal id \"${input.id}\".`);
     validateTarget(input.target);
+    if (input.baseContentSha256 !== undefined && !/^[a-f0-9]{64}$/.test(input.baseContentSha256)) throw new Error("AI proposal base content hash is invalid.");
     const { now, ...fields } = input;
     const proposal: AiProposal = {
       ...fields,
@@ -54,6 +56,7 @@ export class AiProposalStore {
       status: "pending",
       createdAt: now ?? new Date().toISOString(),
       ...(input.target ? { target: { ...input.target } } : {}),
+      ...(input.baseContentSha256 ? { baseContentSha256: input.baseContentSha256 } : {}),
     };
     this.proposals.set(proposal.id, cloneProposal(proposal));
     return cloneProposal(proposal);
@@ -93,6 +96,7 @@ export class AiProposalStore {
       if (ids.has(proposal.id)) throw new Error(`Duplicate AI proposal id \"${proposal.id}\".`);
       ids.add(proposal.id);
       validateTarget(proposal.target);
+      if (proposal.baseContentSha256 !== undefined && !/^[a-f0-9]{64}$/.test(proposal.baseContentSha256)) throw new Error("AI proposal base content hash is invalid.");
       this.proposals.set(proposal.id, cloneProposal(proposal));
     }
   }
@@ -106,5 +110,5 @@ function validateTarget(target: AiProposalTarget | undefined): void {
 }
 
 function cloneProposal(proposal: AiProposal): AiProposal {
-  return { ...proposal, sourceMemoryIds: [...proposal.sourceMemoryIds], ...(proposal.target ? { target: { ...proposal.target } } : {}) };
+  return { ...proposal, sourceMemoryIds: [...proposal.sourceMemoryIds], ...(proposal.target ? { target: { ...proposal.target } } : {}), ...(proposal.baseContentSha256 ? { baseContentSha256: proposal.baseContentSha256 } : {}) };
 }
