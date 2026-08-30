@@ -1,5 +1,5 @@
 import { classifyContextPayload } from "./context-payload-classifier";
-import { compressContextPayload } from "./context-compressor";
+import { createDefaultContextEngineRegistry } from "./context-engines";
 
 export interface ContextOptimizationInput {
   readonly system: string;
@@ -19,6 +19,7 @@ export interface ContextOptimizationResult {
 }
 
 const TOKEN_CHARS = 4;
+const DEFAULT_ENGINE_REGISTRY = createDefaultContextEngineRegistry();
 
 export function estimateTokens(text: string): number {
   const normalized = text.trim();
@@ -28,11 +29,11 @@ export function estimateTokens(text: string): number {
 
 function optimizePayload(text: string, sourceName: string) {
   const classification = classifyContextPayload(text, sourceName);
-  const compressed = compressContextPayload(classification.kind, text);
-  return {
-    text: compressed.text,
-    strategy: [`payload:${classification.kind}`, `confidence:${classification.confidence}`, ...compressed.strategy],
-  };
+  return DEFAULT_ENGINE_REGISTRY.optimize({
+    text,
+    kind: classification.kind,
+    sourceName,
+  });
 }
 
 export function optimizeContext(input: ContextOptimizationInput): ContextOptimizationResult {
