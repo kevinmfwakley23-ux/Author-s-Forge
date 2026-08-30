@@ -132,6 +132,20 @@ Author's Forge treats **context efficiency as a first-class AI architecture conc
 
 The production pipeline includes hierarchical context assembly, session deduplication, content-aware compression boundaries, semantic caching, token/cost governance, provider routing boundaries, and measurable optimization telemetry. Deterministic optimization is preferred before model-based compression, structured/canonical data is protected from lossy transformations, and optimization always fails open to the original context.
 
+### Compression implementation status
+
+Forge now has a governed `ContextEngineRegistry` with explicit engine identity, priority, enablement, supported payload kinds, capability checks, composable stages, and an inflation guard. The production stack includes deterministic lossless-first normalization, lossless JSON compaction, and an integrated RTK-style tool-output engine. The RTK-style layer is command-aware, removes safe repeated diagnostic noise, preserves important error/test/failure lines, bounds oversized derived output, and refuses to replace output when it does not produce measurable savings.
+
+Structured JSON, code, and diffs remain protected from lossy rewriting. Tool-result compression operates only on derived output and is fail-open. The original tool result and all canonical project state remain authoritative.
+
+### Open-source research decision
+
+Forge will selectively adopt proven open-source techniques rather than import an entire gateway or agent stack. Current research confirms LLMLingua-2 as a credible optional semantic-compression candidate, with published work describing substantially faster compression than the original LLMLingua and practical prompt-reduction use cases. Adoption remains gated on fidelity, local runtime footprint, latency, licensing, and measured Forge workload savings rather than headline percentages. citeturn0search0
+
+The reviewed OmniRoute architecture remains the principal reference for composable compression engines, session deduplication, retrieve-on-demand context, RTK-style tool reduction, structured-data compaction, relevance reduction, optional LLMLingua-2, adaptive compression, and measured stacked pipelines. OmniRoute itself identifies RTK, Caveman, Headroom, LLMLingua, and related projects as architectural lineage rather than treating the whole stack as original code. Forge therefore reimplements interfaces and algorithms natively when direct code reuse is not independently justified. citeturn0search1turn0search5
+
+Forge does **not** copy third-party savings claims. Every optimization stage must report actual input/output estimates, savings, strategy, cache behavior where applicable, and fallback reason. Lossy compression remains prohibited for manuscript canon, author-approved prose, structured machine data, URLs, identifiers, constraints, and other machine-critical material.
+
 ## AI Proposal and Author-Controlled Mutation
 
 AI-generated changes are represented as reviewable proposals rather than silent manuscript/canon mutation. Proposals carry rationale, provenance, status, and review state; only explicit author approval can move an AI suggestion into an authoritative workflow.
