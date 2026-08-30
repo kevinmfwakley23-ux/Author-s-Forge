@@ -10,6 +10,9 @@ export interface ContextEngineResult {
   readonly text: string;
   readonly changed: boolean;
   readonly strategy: readonly string[];
+  readonly originalLength: number;
+  readonly optimizedLength: number;
+  readonly savingsRatio: number;
 }
 
 export interface ContextCompressionEngine {
@@ -41,19 +44,21 @@ export class ContextEngineRegistry {
   }
 
   optimize(input: ContextEngineInput): ContextEngineResult {
+    const originalLength = input.text.length;
     let current = input.text;
     const strategy: string[] = [];
-    let changed = false;
 
     for (const engine of this.engines) {
       if (!engine.enabled || !engine.supports({ ...input, text: current })) continue;
       const result = engine.apply({ ...input, text: current });
-      if (!result.changed) continue;
+      if (!result.changed || result.text.length >= current.length) continue;
       current = result.text;
-      changed = true;
       strategy.push(engine.id, ...result.strategy);
     }
 
-    return { text: current, changed, strategy };
+    const optimizedLength = current.length;
+    const changed = current !== input.text;
+    const savingsRatio = originalLength === 0 ? 0 : (originalLength - optimizedLength) / originalLength;
+    return { text: current, changed, strategy, originalLength, optimizedLength, savingsRatio };
   }
 }
