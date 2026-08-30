@@ -70,6 +70,30 @@ test("Project Brain assembles task-relevant authoritative and working context wi
   assert.deepEqual(context.changed.map((m) => m.id), ["canon", "note"]);
 });
 
+test("Project Brain ranks salient memory before unrelated memory under a tight limit", () => {
+  const store = new ProjectMemoryStore();
+  store.register(createMemoryRecord({ id: "a-unrelated", projectId: "p1", class: "story-canon", authority: "authoritative", summary: "Weather", content: "It is raining.", provenance: [{ kind: "author", reference: "canon-weather", recordedAt: "2026-01-01T00:00:00.000Z" }], relevanceTags: ["weather"] }));
+  store.register(createMemoryRecord({ id: "z-opening", projectId: "p1", class: "story-canon", authority: "authoritative", summary: "Opening confrontation", content: "Daniel confronts Elias at the warehouse.", provenance: [{ kind: "author", reference: "canon-opening", recordedAt: "2026-01-01T00:00:00.000Z" }], relevanceTags: ["opening", "warehouse"] }));
+
+  const context = assembleProjectBrainContext(store, { projectId: "p1", relevanceTags: ["opening", "missing-tag"], queryTerms: ["Elias"], limit: 1 });
+
+  assert.deepEqual(context.authoritative.map((m) => m.id), ["z-opening"]);
+  assert.equal(context.evidence[0].memoryId, "z-opening");
+  assert.ok(context.evidence[0].reasons.some((reason) => reason.includes("tags:opening")));
+  assert.ok(context.evidence[0].reasons.some((reason) => reason.includes("terms:elias")));
+});
+
+test("Project Brain uses related-memory links as a saliency signal", () => {
+  const store = new ProjectMemoryStore();
+  store.register(createMemoryRecord({ id: "character", projectId: "p1", class: "character-memory", authority: "working", summary: "Daniel", content: "Daniel distrusts Elias.", relatedMemoryIds: ["scene-7"] }));
+  store.register(createMemoryRecord({ id: "location", projectId: "p1", class: "location-memory", authority: "working", summary: "Warehouse", content: "The warehouse is abandoned.", relatedMemoryIds: ["scene-2"] }));
+
+  const context = assembleProjectBrainContext(store, { projectId: "p1", relatedMemoryIds: ["scene-7"], includeWorkingState: true, limit: 1 });
+
+  assert.deepEqual(context.working.map((m) => m.id), ["character"]);
+  assert.ok(context.evidence[0].reasons.some((reason) => reason.includes("related:scene-7")));
+});
+
 test("Project Brain exposes changed state through changedSince", () => {
   const store = new ProjectMemoryStore();
   store.register(createMemoryRecord({ id: "old", projectId: "p1", class: "story-canon", authority: "authoritative", summary: "Old", content: "Old.", provenance: [{ kind: "author", reference: "old", recordedAt: "2026-01-01T00:00:00.000Z" }], now: "2026-01-02T00:00:00.000Z" }));
@@ -77,6 +101,11 @@ test("Project Brain exposes changed state through changedSince", () => {
   const context = assembleProjectBrainContext(store, { projectId: "p1", changedSince: "2026-02-01T00:00:00.000Z" });
   assert.deepEqual(context.changed.map((m) => m.id), ["new"]);
   assert.deepEqual(context.authoritative.map((m) => m.id), ["new"]);
+});
+
+test("Project Brain rejects invalid changedSince timestamps", () => {
+  const store = new ProjectMemoryStore();
+  assert.throws(() => assembleProjectBrainContext(store, { projectId: "p1", changedSince: "not-a-date" }), /valid timestamp/);
 });
 
 test("portable memory snapshot restores identity, authority, provenance, lifecycle, and project isolation", () => {
