@@ -73,6 +73,21 @@ export class AiProposalStore {
   }
 
   pending(projectId?: string): AiProposal[] { return this.list(projectId).filter((proposal) => proposal.status === "pending"); }
+
+  /** Return immutable-by-convention records for a persistence adapter. */
+  snapshot(): AiProposal[] { return this.list(); }
+
+  /** Restore a previously validated ledger without changing proposal timestamps. */
+  restore(proposals: readonly AiProposal[]): void {
+    if (this.proposals.size > 0) throw new Error("AI proposal store is already populated.");
+    const ids = new Set<string>();
+    for (const proposal of proposals) {
+      if (!proposal.id.trim()) throw new Error("AI proposal id is required.");
+      if (ids.has(proposal.id)) throw new Error(`Duplicate AI proposal id \"${proposal.id}\".`);
+      ids.add(proposal.id);
+      this.proposals.set(proposal.id, cloneProposal(proposal));
+    }
+  }
 }
 
 function cloneProposal(proposal: AiProposal): AiProposal { return { ...proposal, sourceMemoryIds: [...proposal.sourceMemoryIds] }; }
