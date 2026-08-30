@@ -15,6 +15,20 @@ export interface ContextEngineResult {
   readonly savingsRatio: number;
 }
 
+export interface ContextEngineResultDraft {
+  readonly text: string;
+  readonly changed: boolean;
+  readonly strategy: readonly string[];
+}
+
+export function finalizeContextEngineResult(originalText: string, result: ContextEngineResultDraft): ContextEngineResult {
+  const originalLength = originalText.length;
+  const optimizedLength = result.text.length;
+  const changed = result.text !== originalText;
+  const savingsRatio = originalLength === 0 ? 0 : (originalLength - optimizedLength) / originalLength;
+  return { ...result, changed, originalLength, optimizedLength, savingsRatio };
+}
+
 export interface ContextCompressionEngine {
   readonly id: string;
   readonly priority: number;
