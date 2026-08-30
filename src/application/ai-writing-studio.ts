@@ -1,6 +1,7 @@
 import type { AiProposal } from "./ai-proposal-store";
 import { AiWritingCoordinator } from "./ai-writing-coordinator";
 import { assembleWritingContext, type ContextAssemblyRequest } from "../domain/context-assembly";
+import { assessVoiceDrift, buildAuthorVoiceContext, type AuthorVoiceMemory, type VoiceDriftReport } from "../domain/author-voice-memory";
 import { saveSceneContent, validateStudioWorkspace, type StudioWorkspaceState } from "../domain/studio-workspace";
 import type { FileProjectStore } from "../infrastructure/file-project-store";
 import { createHash } from "node:crypto";
@@ -8,12 +9,13 @@ import { createHash } from "node:crypto";
 export interface StudioAiProjectState {
   readonly metadata: { readonly id: string };
   readonly studioWorkspace?: StudioWorkspaceState;
+  readonly authorVoiceMemory?: AuthorVoiceMemory;
   readonly [key: string]: unknown;
 }
 
 export type StudioAiContextOptions = Pick<ContextAssemblyRequest, "policies" | "query" | "characterIds" | "characterAsOf" | "characterMemoryLimit">;
 
-export type StudioAiWritingRequest = Omit<Parameters<AiWritingCoordinator["generate"]>[0], "assembledContext" | "sourceMemoryIds"> & {
+export type StudioAiWritingRequest = Omit<Parameters<AiWritingCoordinator["generate"]>[0], "assembledContext" | "sourceMemoryIds" | "voiceDrift"> & {
   readonly context?: StudioAiContextOptions;
 };
 
@@ -49,7 +51,7 @@ export class AiWritingStudioService {
   /**
    * Production Studio entry point: builds governed context from the authoritative
    * project immediately before generation. Callers cannot accidentally supply a
-   * stale character dump as the source of truth.
+   * stale character or author-voice dump as the source of truth.
    */
   async generateWithProjectContext(request: StudioAiWritingRequest) {
     const project = await this.requireProject(request.projectId);
@@ -63,15 +65,24 @@ export class AiWritingStudioService {
       characterMemoryLimit: request.context?.characterMemoryLimit,
       policies: request.context?.policies,
     });
+    const voiceMemory = project.authorVoiceMemory;
+    if (voiceMemory && voiceMemory.projectId !== request.projectId) throw new Error("Author voice memory belongs to another project.");
     const existingContent = request.existingContent ?? scene.content;
-    const result = await this.coordinator.generate({
+    const assembledContext = formatContext(context, voiceMemory);
+    const generated = await this.coordinator.generate({
       ...request,
       existingContent,
-      assembledContext: formatContext(context),
+      assembledContext,
       sourceMemoryIds: context.sourceIds,
       baseContentSha256: request.baseContentSha256 ?? sha256(existingContent),
     });
-    return { ...result, context };
+    let proposal = generated.proposal;
+    let voiceDrift: VoiceDriftReport | undefined;
+    if (voiceMemory) {
+      voiceDrift = assessVoiceDrift(proposal.proposedContent, voiceMemory);
+      proposal = await this.attachVoiceDrift(request.projectId, proposal, voiceDrift);
+    }
+    return { ...generated, proposal, context, ...(voiceDrift ? { voiceDrift } : {}) };
   }
 
   async review(projectId: string, proposalId: string, decision: "accepted" | "rejected", note?: string, now?: string) {
@@ -94,7 +105,7 @@ export class AiWritingStudioService {
     const scene = chapter.scenes.find((item) => item.id === target.sceneId);
     if (!scene) throw new Error(`AI proposal target scene "${target.sceneId}" no longer exists.`);
 
-    const expectedBaseHash = (proposal as AiProposal & { baseContentSha256?: string }).baseContentSha256;
+    const expectedBaseHash = proposal.baseContentSha256;
     if (expectedBaseHash && sha256(scene.content) !== expectedBaseHash && scene.content !== proposal.proposedContent) {
       throw new Error(`AI proposal "${proposalId}" is stale because the target scene changed after the proposal was generated.`);
     }
@@ -103,6 +114,25 @@ export class AiWritingStudioService {
     const updated = saveSceneContent(workspace, target.bookId, target.chapterId, target.sceneId, proposal.proposedContent, now);
     await this.projects.save({ ...project, studioWorkspace: updated, metadata: { ...project.metadata, updatedAt: now ?? new Date().toISOString() } } as never);
     return { proposal, workspace: updated };
+  }
+
+  private async attachVoiceDrift(projectId: string, proposal: AiProposal, voiceDrift: VoiceDriftReport): Promise<AiProposal> {
+    const store = this.coordinator.ledger;
+    const all = store.snapshot();
+    const updated = all.map((item) => item.id === proposal.id ? { ...item, voiceDrift } : item);
+    if (!updated.some((item) => item.id === proposal.id && item.projectId === projectId)) throw new Error(`AI proposal "${proposal.id}" not found in project "${projectId}".`);
+    store.clear?.();
+    return this.replaceProposalStore(updated, proposal.id);
+  }
+
+  private async replaceProposalStore(proposals: readonly AiProposal[], proposalId: string): Promise<AiProposal> {
+    const durable = (this.coordinator as unknown as { durableStore?: { save(): Promise<void>; ledger?: { restore(proposals: readonly AiProposal[]): void } } }).durableStore;
+    if (!durable?.ledger) throw new Error("AI proposal durable store is unavailable for voice drift persistence.");
+    durable.ledger.restore(proposals);
+    await durable.save();
+    const proposal = await this.coordinator.get(proposalId);
+    if (!proposal) throw new Error(`AI proposal "${proposalId}" was not persisted after voice drift assessment.`);
+    return proposal;
   }
 
   private async requireProject(projectId: string): Promise<StudioAiProjectState> {
@@ -129,8 +159,10 @@ function findScene(workspace: StudioWorkspaceState, bookId: string, chapterId: s
   return scene;
 }
 
-function formatContext(context: Awaited<ReturnType<typeof assembleWritingContext>>): string {
-  return context.sections.map((section) => `## ${section.title}\n${section.text}`).join("\n\n");
+function formatContext(context: Awaited<ReturnType<typeof assembleWritingContext>>, voiceMemory?: AuthorVoiceMemory): string {
+  const sections = context.sections.map((section) => `## ${section.title}\n${section.text}`);
+  if (voiceMemory) sections.push(`## Author Voice Memory\n${buildAuthorVoiceContext(voiceMemory)}`);
+  return sections.join("\n\n");
 }
 
 export function sha256(value: string): string { return createHash("sha256").update(value, "utf8").digest("hex"); }
