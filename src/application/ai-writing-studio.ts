@@ -15,8 +15,13 @@ export interface StudioAiProjectState {
 
 export type StudioAiContextOptions = Pick<ContextAssemblyRequest, "policies" | "query" | "characterIds" | "characterAsOf" | "characterMemoryLimit">;
 
-export type StudioAiWritingRequest = Omit<Parameters<AiWritingCoordinator["generate"]>[0], "assembledContext" | "sourceMemoryIds" | "voiceDrift"> & {
+export type StudioAiWritingRequest = Omit<Parameters<AiWritingCoordinator["generate"]>[0], "assembledContext" | "sourceMemoryIds"> & {
   readonly context?: StudioAiContextOptions;
+};
+
+export type StudioAiWritingResult = Awaited<ReturnType<AiWritingCoordinator["generate"]>> & {
+  readonly context: Awaited<ReturnType<typeof assembleWritingContext>>;
+  readonly voiceDrift?: VoiceDriftReport;
 };
 
 /**
@@ -53,7 +58,7 @@ export class AiWritingStudioService {
    * project immediately before generation. Callers cannot accidentally supply a
    * stale character or author-voice dump as the source of truth.
    */
-  async generateWithProjectContext(request: StudioAiWritingRequest) {
+  async generateWithProjectContext(request: StudioAiWritingRequest): Promise<StudioAiWritingResult> {
     const project = await this.requireProject(request.projectId);
     const workspace = project.studioWorkspace ? validateStudioWorkspace(project.studioWorkspace) : validateStudioWorkspace({ formatVersion: 1, activeBookId: null, books: [] });
     const scene = findScene(workspace, request.bookId, request.chapterId, request.sceneId);
@@ -68,21 +73,15 @@ export class AiWritingStudioService {
     const voiceMemory = project.authorVoiceMemory;
     if (voiceMemory && voiceMemory.projectId !== request.projectId) throw new Error("Author voice memory belongs to another project.");
     const existingContent = request.existingContent ?? scene.content;
-    const assembledContext = formatContext(context, voiceMemory);
     const generated = await this.coordinator.generate({
       ...request,
       existingContent,
-      assembledContext,
+      assembledContext: formatContext(context, voiceMemory),
       sourceMemoryIds: context.sourceIds,
       baseContentSha256: request.baseContentSha256 ?? sha256(existingContent),
-    });
-    let proposal = generated.proposal;
-    let voiceDrift: VoiceDriftReport | undefined;
-    if (voiceMemory) {
-      voiceDrift = assessVoiceDrift(proposal.proposedContent, voiceMemory);
-      proposal = await this.attachVoiceDrift(request.projectId, proposal, voiceDrift);
-    }
-    return { ...generated, proposal, context, ...(voiceDrift ? { voiceDrift } : {}) };
+    }, voiceMemory ? (candidate) => assessVoiceDrift(candidate, voiceMemory) : undefined);
+    const voiceDrift = generated.proposal.voiceDrift;
+    return { ...generated, context, ...(voiceDrift ? { voiceDrift } : {}) };
   }
 
   async review(projectId: string, proposalId: string, decision: "accepted" | "rejected", note?: string, now?: string) {
@@ -114,25 +113,6 @@ export class AiWritingStudioService {
     const updated = saveSceneContent(workspace, target.bookId, target.chapterId, target.sceneId, proposal.proposedContent, now);
     await this.projects.save({ ...project, studioWorkspace: updated, metadata: { ...project.metadata, updatedAt: now ?? new Date().toISOString() } } as never);
     return { proposal, workspace: updated };
-  }
-
-  private async attachVoiceDrift(projectId: string, proposal: AiProposal, voiceDrift: VoiceDriftReport): Promise<AiProposal> {
-    const store = this.coordinator.ledger;
-    const all = store.snapshot();
-    const updated = all.map((item) => item.id === proposal.id ? { ...item, voiceDrift } : item);
-    if (!updated.some((item) => item.id === proposal.id && item.projectId === projectId)) throw new Error(`AI proposal "${proposal.id}" not found in project "${projectId}".`);
-    store.clear?.();
-    return this.replaceProposalStore(updated, proposal.id);
-  }
-
-  private async replaceProposalStore(proposals: readonly AiProposal[], proposalId: string): Promise<AiProposal> {
-    const durable = (this.coordinator as unknown as { durableStore?: { save(): Promise<void>; ledger?: { restore(proposals: readonly AiProposal[]): void } } }).durableStore;
-    if (!durable?.ledger) throw new Error("AI proposal durable store is unavailable for voice drift persistence.");
-    durable.ledger.restore(proposals);
-    await durable.save();
-    const proposal = await this.coordinator.get(proposalId);
-    if (!proposal) throw new Error(`AI proposal "${proposalId}" was not persisted after voice drift assessment.`);
-    return proposal;
   }
 
   private async requireProject(projectId: string): Promise<StudioAiProjectState> {
