@@ -13,7 +13,11 @@ test('PWA shell has a platform-neutral install manifest', () => {
   assert.equal(manifest.display, 'standalone');
   assert.equal(manifest.orientation, 'any');
   assert.equal(manifest.start_url, '/?project=forge-studio');
-  assert.ok(Array.isArray(manifest.icons) && manifest.icons.length > 0);
+  assert.ok(Array.isArray(manifest.icons) && manifest.icons.length >= 2);
+  const iconSizes = new Set(manifest.icons.map((icon) => icon.sizes));
+  assert.ok(iconSizes.has('192x192'), 'manifest must expose a 192x192 install icon');
+  assert.ok(iconSizes.has('512x512'), 'manifest must expose a 512x512 install icon');
+  for (const icon of manifest.icons) assert.equal(typeof icon.src, 'string');
   assert.match(index, /manifest\.webmanifest/);
 });
 
