@@ -29,6 +29,28 @@
       return `<article class="card story-map-book"><div class="section-title"><div><h3>${esc(book.title)}</h3><small>${esc(book.kind || book.lifecycle || "book")} • ${pct(done, bookScenes.length)}% scene completion</small></div></div><div class="story-map-timeline">${(book.chapters || []).map((chapter) => { const cs = chapter.scenes || [], cd = cs.filter((s) => s.lifecycle === "complete").length; return `<section class="story-map-chapter"><header><strong>${esc(chapter.number)}. ${esc(chapter.title)}</strong><span>${pct(cd, cs.length)}%</span></header><div class="story-map-scenes">${cs.length ? cs.map((scene) => `<button type="button" class="story-map-scene ${scene.lifecycle === "complete" ? "complete" : ""}" data-open-scene="${esc(book.id)}|${esc(chapter.id)}|${esc(scene.id)}"><b>${esc(scene.number)}</b><span>${esc(scene.title)}</span><small>${esc(scene.lifecycle)}</small></button>`).join("") : '<span class="muted">No scenes yet.</span>'}</div></section>`; }).join("")}</div></article>`;
     }).join("");
   }
+  function openScene(bookId, chapterId, sceneId) {
+    const workspace = window.forgeWorkspaceState;
+    const book = workspace?.books?.find((item) => item.id === bookId);
+    const chapter = book?.chapters?.find((item) => item.id === chapterId);
+    const scene = chapter?.scenes?.find((item) => item.id === sceneId);
+    if (!book || !chapter || !scene) return;
+    window.forgeStoryMapSelection = { bookId, chapterId, sceneId };
+    const bookSelect = document.querySelector("#edit-source-book");
+    const sceneSelect = document.querySelector("#edit-source-scene");
+    if (bookSelect) { bookSelect.value = bookId; bookSelect.dispatchEvent(new Event("change", { bubbles: true })); }
+    if (sceneSelect) sceneSelect.value = sceneId;
+    location.hash = "#manuscript";
+    window.dispatchEvent(new CustomEvent("forge:story-map-open-scene", { detail: { bookId, chapterId, sceneId } }));
+    document.querySelector("#edit-text")?.focus();
+  }
+  document.addEventListener("click", (event) => {
+    const target = event.target instanceof Element ? event.target.closest("[data-open-scene]") : null;
+    if (!target) return;
+    event.preventDefault();
+    const [bookId, chapterId, sceneId] = String(target.getAttribute("data-open-scene") || "").split("|");
+    if (bookId && chapterId && sceneId) openScene(bookId, chapterId, sceneId);
+  });
   window.addEventListener("forge:workspace-ready", render);
   window.addEventListener("load", render);
   window.addEventListener("hashchange", () => { if (location.hash === "#story-map") render(); });
