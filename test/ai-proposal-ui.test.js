@@ -17,13 +17,13 @@ test("Writing Desk exposes the governed durable AI proposal workflow", async () 
   assert.match(script, /Line-level review/);
   assert.match(script, /addedLines/);
   assert.match(script, /removedLines/);
+  assert.match(script, /forge-editing-proposals\.js/);
 });
 
 test("Editing Room is wired into the live shell and service worker", async () => {
   const html = await readFile("public/index.html", "utf8");
-  const app = await readFile("public/app.js", "utf8");
   const sw = await readFile("public/sw.js", "utf8");
   assert.match(html, /id="editing"/);
-  assert.match(app, /forge-editing-proposals\.js/);
   assert.match(sw, /forge-editing-proposals\.js/);
+  assert.match(sw, /authors-forge-shell-v4/);
 });
