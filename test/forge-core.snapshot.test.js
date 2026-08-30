@@ -1,6 +1,6 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { createForgeCore, FORGE_CORE_FORMAT_VERSION } from '../dist/application/forge-core.js';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { createForgeCore, FORGE_CORE_FORMAT_VERSION } = require('../.forge-build/application/forge-core.js');
 
 test('core readiness requires configured AI resources', () => {
  const core=createForgeCore();
