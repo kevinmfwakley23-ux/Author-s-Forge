@@ -1,4 +1,4 @@
-import { AiWritingService, type AiWritingRequest, type AiWritingResult } from "./ai-writing";
+import { AiWritingService, type AiWritingCandidateAssessor, type AiWritingRequest, type AiWritingResult } from "./ai-writing";
 import type { AiProposal, AiProposalStore, ProposalReviewDecision } from "./ai-proposal-store";
 import { FileAiProposalStore } from "../infrastructure/file-ai-proposal-store";
 import { generateText, type AiGenerationResult } from "../infrastructure/ai-provider";
@@ -14,7 +14,7 @@ export class AiWritingCoordinator {
     this.generator = generator;
   }
 
-  async generate(request: AiWritingRequest): Promise<AiWritingResult> {
+  async generate(request: AiWritingRequest, assessCandidate?: AiWritingCandidateAssessor): Promise<AiWritingResult> {
     const proposals = await this.durableStore.load();
     const service = new AiWritingService({
       generate: async (providerRequest) => {
@@ -31,7 +31,7 @@ export class AiWritingCoordinator {
         });
         return result.text;
       },
-    }, proposals);
+    }, proposals, assessCandidate);
     const result = await service.generate({ ...request, baseContentSha256: request.baseContentSha256 ?? sha256(request.existingContent) });
     await this.durableStore.save();
     return result;
