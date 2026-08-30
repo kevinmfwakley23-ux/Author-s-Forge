@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-30  
 **Canonical branch:** `main`  
-**Latest recorded commit:** `06560bf3` — `ci: establish canonical build and browser regression pipeline`
+**Latest engineering baseline:** current `main` includes the completion-meter correction plus the PWA install lifecycle work described below.
 
 ## Current condition
 
@@ -13,6 +13,22 @@ The latest local result reported during engineering work was:
 > REAL BROWSER ACCEPTANCE PASSED: 18 routes + durable book/chapter/scene + manuscript save/reload + character + canon + honest AI failure.
 
 That result is treated as evidence, not as a blanket completion claim. Fresh build/test execution is required after checkout/integration, and physical Chromebook/Android verification remains a separate release gate.
+
+## Current PWA/mobile build
+
+The Android/PWA surface has been strengthened from a manifest-and-harness-only boundary into an explicit install lifecycle:
+
+- real `beforeinstallprompt` handling;
+- an install control created in the live Studio when supported;
+- explicit standalone/app-installed status;
+- service-worker registration from the live browser client;
+- service-worker upgrade messaging;
+- versioned shell cache (`authors-forge-shell-v3`);
+- continued exclusion of `/api/` project data from service-worker caching;
+- mobile acceptance coverage for touch navigation, phone viewport, overflow, manuscript persistence, and reload;
+- dedicated PWA lifecycle tests covering install, safe storage boundaries, and shell upgrades.
+
+The PWA layer deliberately does not create a second project-state store. Durable project data remains behind Forge's server/domain persistence boundary.
 
 ## Immediate engineering condition
 
@@ -35,6 +51,8 @@ npm run completion
 ```
 
 The meter reports engineering capability completion and verification/evidence readiness. It intentionally refuses to treat a source file, route label, or green unit test as proof of a complete user capability. 100% means the full author journey is implemented and verified across the required evidence levels.
+
+The Android/PWA capability now measures the actual `manifest.webmanifest`, service worker, live PWA lifecycle module, and matching automated evidence instead of looking for the obsolete `public/manifest.json` path.
 
 ## Cross-repository architecture adopted
 
@@ -83,7 +101,7 @@ Forge does not fork K.I.N.G.S. internals or require its private runtime for core
 
 ### Phase E — Device proof
 - Chromebook responsive/touch verification;
-- Android browser/PWA installation;
+- Android browser/PWA installation using the live install control or browser install flow;
 - Android persistence and file handling;
 - offline shell and recovery;
 - long-running project continuity;
