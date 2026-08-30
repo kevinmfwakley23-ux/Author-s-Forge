@@ -6,7 +6,6 @@ const pwa = fs.readFileSync('public/forge-pwa.js', 'utf8');
 const sw = fs.readFileSync('public/sw.js', 'utf8');
 const manifest = JSON.parse(fs.readFileSync('public/manifest.webmanifest', 'utf8'));
 
-
 test('PWA lifecycle exposes a real install prompt boundary and app-installed state', () => {
   assert.match(pwa, /beforeinstallprompt/);
   assert.match(pwa, /prompt\(\)/);
@@ -23,7 +22,7 @@ test('PWA lifecycle does not persist project data in browser storage', () => {
 });
 
 test('service worker upgrades safely and excludes API project state from caching', () => {
-  assert.match(sw, /authors-forge-shell-v3/);
+  assert.match(sw, /authors-forge-shell-v4/);
   assert.match(sw, /SKIP_WAITING/);
   assert.match(sw, /url\.pathname\.startsWith\("\/api\/"\)/);
   assert.match(sw, /request\.method !== "GET"/);
