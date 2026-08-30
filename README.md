@@ -89,18 +89,30 @@ AI changes are reviewable durable proposals, never silent manuscript/canon mutat
 
 Forge never claims a provider/model is available without runtime verification and never fabricates unavailable AI output.
 
+## Mission 055 — Craft Lens Foundation
+
+Forge now has a deterministic Craft Lens domain/application boundary for targeted manuscript feedback instead of a single opaque “quality score.”
+
+`src/domain/craft-lens.ts` measures concrete signals including:
+
+- sentence length and unusually long sentences;
+- possible passive constructions;
+- dialogue presence and dialogue-heavy passages;
+- concentrated vocabulary/repetition signals;
+- sensory-anchor signals;
+- sentence-rhythm uniformity.
+
+Each finding includes a craft dimension, severity, concrete evidence, and multiple possible revision strategies. The lens never rewrites the author's prose and does not declare stylistic choices objectively wrong.
+
+`CraftLensService` in `src/application/craft-lens.ts` provides the application boundary, with deterministic regression coverage in `test/craft-lens.test.js`.
+
+The next integration step is to run Craft Lens against a selected manuscript passage in the Editing Room and turn findings into the existing governed AI proposal/diff/review/apply workflow.
+
 ## Mission 054 — Author Goals Foundation
 
 Forge now contains a deterministic Author Goals domain/application foundation designed around the real manuscript rather than an isolated progress counter.
 
-`src/domain/author-goals.ts` provides:
-
-- validated word, scene, and chapter goals;
-- daily, weekly, session, and project goal periods;
-- deterministic progress percentages;
-- remaining-work calculations;
-- completion state;
-- manuscript progress snapshots.
+`src/domain/author-goals.ts` provides validated word, scene, and chapter goals; daily/weekly/session/project periods; deterministic progress percentages; remaining-work calculations; completion state; and manuscript progress snapshots.
 
 The application boundary is `AuthorGoalsService` in `src/application/author-goals.ts`.
 
@@ -114,7 +126,7 @@ The Story Map is a live Studio planning surface derived from the existing durabl
 
 The Story Map does **not** create a second planning database. Its deterministic foundation is `src/domain/story-map.ts` and `src/application/story-map.ts`; the live surface is `public/forge-story-map.js`.
 
-A follow-up functional-integrity fix now makes every Story Map scene card a real action: selecting a scene updates the manuscript selectors, switches to the Manuscript/Writing surface, and emits `forge:story-map-open-scene` for integration listeners. Regression coverage lives in `test/story-map-actions.test.js`.
+A functional-integrity fix now makes every Story Map scene card a real action: selecting a scene updates the manuscript selectors, switches to the Manuscript/Writing surface, and emits `forge:story-map-open-scene` for integration listeners. Regression coverage lives in `test/story-map-actions.test.js`.
 
 Future Story Map increments remain scene attributes, plotlines/character arcs, durable drag/reorder with impact analysis, continuity/canon warnings, and series-level planning.
 
@@ -142,8 +154,8 @@ Canonical CI covers installation, build, tests, completion measurement, client s
 ## Current Build Priorities
 
 1. Integrate Author Goals into durable Studio project state.
-2. Build Knowledge Gap Radar from provenance-aware research and project-memory signals.
-3. Build Craft Lens around measurable narrative/craft dimensions and reviewable revision strategies.
+2. Integrate Craft Lens into Editing Room and governed proposal review.
+3. Build Knowledge Gap Radar from provenance-aware research and project-memory signals.
 4. Strengthen Story Map with scene attributes, plotlines, character arcs, and continuity indicators.
 5. Build Production Preview so formatting/export problems are caught before release.
 6. Expand collaboration/review only after the core author journey remains durable and verifiable.
