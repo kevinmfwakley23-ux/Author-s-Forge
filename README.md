@@ -253,6 +253,12 @@ Compression quality is workload- and model-dependent. Forge must measure actual 
 
 AI-generated changes are represented as reviewable proposals rather than silent manuscript/canon mutation. Proposals carry rationale, provenance, status, and review state; only explicit author approval can move an AI suggestion into an authoritative workflow.
 
+### Proposal review integrity
+
+The canonical Writing Desk and Editing Room now use the same governed proposal-review model. Proposals are durable records bound to their source manuscript revision. The Writing Desk exposes deterministic line-level diffs; the Editing Room now does the same for manuscript-edit proposals, showing added, removed, and unchanged lines plus word-count impact before approval/application.
+
+Review and application remain separate author actions. The client never treats an AI suggestion as authoritative merely because generation succeeded, and server-side source-revision protection remains the final authority against stale writes.
+
 ## Mission 042 — Evidence-Gated Marketing Campaigns
 
 Forge-native marketing campaigns connect **Book Positioning → campaign planning → channel assets → author approval → scheduling** without turning unsupported claims into published marketing copy. Assets carry evidence and confidence classes; inference-only claims cannot be scheduled or published.
@@ -273,17 +279,33 @@ CURRENT STAGE → RUN GATE → SHOW BLOCKERS / REMEDIATION → AUTHOR APPROVAL �
 
 Automated regression coverage is in `test/workflow-advance.test.js`. This milestone is **implemented, not yet claimed as production-verified** until repository CI and Studio/device verification provide evidence.
 
+## Mission 051 — Editing Room Proposal Review Diff
+
+The Editing Room now provides deterministic review of durable AI rewrite proposals. Authors can select a manuscript-edit proposal and inspect a line-level comparison against the currently loaded scene, including added/removed/unchanged lines and before/after word counts. Approval remains separate from application, and the server's source-revision checks remain authoritative.
+
+This closes the immediate review-integrity gap between Writing Desk AI proposals and Editing Room AI rewrites: **AI proposes → Forge shows exactly what changes → author approves/rejects → only then can the approved proposal be applied.**
+
+## CI hardening — 2026-08-30
+
+The canonical GitHub CI workflow now syntax-checks `public/forge-editing-proposals.js` alongside the existing Studio client modules before browser and mobile acceptance. The required verification path remains:
+
+```text
+npm ci → npm run build → npm test → npm run completion → client syntax checks → browser acceptance → mobile acceptance
+```
+
+A commit is not treated as verified merely because the workflow file exists; GitHub Actions must actually execute and report success.
+
 ## Current Repository State — 2026-08-30
 
-The canonical `main` branch is currently the integration baseline. The latest recorded commit is `06560bf3` (`ci: establish canonical build and browser regression pipeline`). Recent work also strengthened the Android PWA install shell and exposed the AI Model Broker through the public Forge API.
+The canonical `main` branch is the integration baseline. Recent engineering work strengthened the governed AI proposal path, added deterministic Editing Room review diffs, and hardened the CI pipeline to syntax-check the new production client module.
 
-The repository has a substantial domain/application foundation and a running Studio. The latest local verification reported to the engineering log passed the browser acceptance suite: **18 routes plus durable book/chapter/scene behavior, manuscript save/reload, character, canon, and honest AI failure handling**. This is useful evidence, but it is not a substitute for fresh execution on every checkout and physical-device verification.
+The repository has a substantial domain/application foundation and a running Studio. Previous local verification reported successful browser acceptance for 18 routes plus durable book/chapter/scene behavior, manuscript save/reload, character, canon, and honest AI failure handling. That is useful evidence, but it is not a substitute for fresh execution on every checkout and physical-device verification.
 
-The immediate known engineering risk is **integration drift between the current `main` source exports and older local test/build artifacts**. The current source `src/index.ts` exposes the manuscript, project, publishing, version-control, collaboration, health, relationship-memory, delivery-audit, and related APIs required by the regression tests. If a local checkout still reports `createManuscriptState is not a function`, `createProject is not a function`, or similar export errors, rebuild from the current `main` before diagnosing the domain implementation. The canonical build path is `npm run build`.
+The immediate engineering standard is **functional truth**: source patterns and unit tests are evidence, not proof that the rendered application works end to end. The canonical build path remains `npm install` / `npm run build` / `npm test`, followed by browser/mobile acceptance.
 
-### Completion meter
+## Completion meter
 
-Forge now includes a deterministic repository inspection command:
+Forge includes a deterministic repository inspection command:
 
 ```bash
 npm run completion
@@ -291,61 +313,52 @@ npm run completion
 
 It reports two separate numbers:
 
-- **Engineering capability completion** — implementation plus matching automated evidence across the major product capabilities.
+- **Engineering capability completion** — implementation plus matching automated evidence across major product capabilities.
 - **Verification/evidence readiness** — browser harness, mobile harness, real-provider boundary, honest failure behavior, and product documentation evidence.
 
 The meter intentionally does **not** claim that source files equal a finished product. 100% is reserved for a complete, verified author journey. Physical Android/Chromebook verification and real configured-provider execution remain separate evidence requirements.
 
-### Current build priorities
+## Current build priorities
 
-1. Rebuild and continuously verify the canonical `main` baseline.
-2. Eliminate remaining export/build/test drift and restore the complete regression suite to green.
-3. Drive every major existing capability through the real Studio rather than adding disconnected domain contracts.
-4. Complete the core author loop: project → book → chapter → scene → write → AI assist → review → approve → continue.
-5. Complete visual production with durable character/reference/illustration/cover state and real provider boundaries.
-6. Complete production, positioning, marketing, publishing preparation, portable recovery, and delivery audit as one traceable workflow.
-7. Run browser and mobile acceptance continuously, then perform real Chromebook and Android device verification.
+1. Restore and continuously verify a green canonical baseline.
+2. Drive every major existing capability through the real Studio rather than adding disconnected domain contracts.
+3. Complete the core author loop: project → book → chapter → scene → write → AI assist → review → approve → continue.
+4. Complete visual production with durable character/reference/illustration/cover state and real provider boundaries.
+5. Complete production, positioning, marketing, publishing preparation, portable recovery, and delivery audit as one traceable workflow.
+6. Run browser and mobile acceptance continuously, then perform real Chromebook and Android device verification.
+7. Harden recovery, stale-state handling, provider failures, and interrupted workflows without losing authoritative author data.
 8. Only after the working journey is stable, expand provider breadth, advanced semantic compression, automation, and other secondary enhancements.
 
-## Locked Next Build Direction — Mission 045: Functional-Truth Completion
+## Locked Build Direction — Functional-Truth Completion
 
-**This is the active engineering direction. Do not start unrelated feature missions while this boundary remains open.**
+**Do not start unrelated feature missions while the core author journey remains open.** The objective is to make existing capabilities work together through the real Studio and survive real user/device workflows.
 
-Mission 045 exists to close the gap between Forge's strong domain/application foundation and a genuinely usable author workplace. The immediate objective is not to accumulate more contracts; it is to make the existing contracts work together through the real Studio and survive real user/device workflows.
+The execution order is:
 
-### Mission 045 order of execution
+1. maintain a continuously verified canonical baseline;
+2. wire existing capabilities into one real Studio workflow;
+3. complete the project/book/chapter/scene writing loop with Project Brain, canon, voice, research, and workflow gates;
+4. make visual production real and durable;
+5. make production and release real;
+6. verify running-server, browser, mobile, Chromebook, and Android behavior;
+7. harden recovery and failure behavior;
+8. expand breadth only after the author journey is working.
 
-1. **Restore a continuously green canonical baseline.** The `main` branch is the canonical integration baseline. Divergent feature branches are treated as candidate work, not as an alternate product truth. Preserve useful work by selective, verified integration rather than wholesale branch merges.
-2. **Wire the existing capabilities into one real Studio workflow.** Every major existing service must have a reachable UI path, real request/response behavior, durable persistence, reload/restart continuity, explicit errors, and downstream impact where applicable.
-3. **Complete the author workspace around the core loop.** The highest-value loop is `project → book → chapter → scene → write → AI assist → review → approve → continue`, with Project Brain, canon, voice, research, and workflow gates participating without silent mutation.
-4. **Make visual production real.** Character/visual continuity, reference images, illustration generation/editing, asset reuse, and cover work must share durable project state and real provider boundaries rather than isolated demonstrations.
-5. **Make production and release real.** DOCX/PDF/EPUB generation, metadata/positioning, marketing, publishing readiness, workflow advancement, delivery audit, and portable recovery must operate as one traceable path.
-6. **Verify the actual application.** Domain tests are necessary but insufficient. Add/maintain running-server acceptance and browser-level regression coverage for real user flows, then verify responsive touch behavior and persistence on Chromebook and Android.
-7. **Harden recovery and failure behavior.** Offline shell, project package export/restore, provider failure, partial operations, stale state, and interrupted workflows must fail safely and recover without losing authoritative author data.
-8. **Only then expand breadth.** New AI providers, advanced semantic compression, additional automation, and other enhancements are subordinate to the working author journey unless a new capability directly removes a verified blocker in that journey.
-
-### Mission 045 completion gate
-
-Mission 045 is not complete when the TypeScript compiler is green or when isolated tests pass. It is complete only when a real project can be carried through the integrated Studio workflow on the supported browser/device targets, with durable state, real provider boundaries, author approval, recoverability, production artifacts, and release audit all demonstrably functioning.
-
-### Repository synchronization rule
+## Repository synchronization rule
 
 The repository must always have one clearly identified canonical product state. Before substantial engineering work:
 
-- fetch and prune all remotes;
-- inspect `main`, the active feature branch, recent commits, and build/test status;
-- preserve local runtime data outside Git;
-- never commit generated runtime/build output unless explicitly required by the product contract;
-- do not merge a stale/divergent branch blindly;
+- inspect `main`, recent commits, and build/test status;
+- preserve runtime data outside Git;
+- never commit generated runtime/build output unless explicitly required;
+- do not merge stale/divergent branches blindly;
 - compare candidate work against current `main` and integrate only verified changes;
 - run build and the complete regression suite after integration;
 - record major direction changes in both this README and `docs/BUILD_HISTORY.md`.
 
-This rule exists specifically to prevent branch divergence, duplicate implementation, generated-output pollution, and loss of the repository's actual current state.
-
 ## Engineering progress history
 
-`docs/BUILD_HISTORY.md` is the durable chronological record of major Author's Forge engineering milestones. Future major additions must update both this history and the README so the repository always contains a current product-state summary plus an auditable build history.
+`docs/BUILD_HISTORY.md` is the durable chronological record of major Author's Forge engineering milestones. Major additions must update both this history and the README so the repository always contains a current product-state summary plus an auditable build history.
 
 ## End-to-end release target
 
