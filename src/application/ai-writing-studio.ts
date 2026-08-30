@@ -1,5 +1,6 @@
 import type { AiProposal } from "./ai-proposal-store";
 import { AiWritingCoordinator } from "./ai-writing-coordinator";
+import { assembleWritingContext, type ContextAssemblyRequest } from "../domain/context-assembly";
 import { saveSceneContent, validateStudioWorkspace, type StudioWorkspaceState } from "../domain/studio-workspace";
 import type { FileProjectStore } from "../infrastructure/file-project-store";
 import { createHash } from "node:crypto";
@@ -9,6 +10,12 @@ export interface StudioAiProjectState {
   readonly studioWorkspace?: StudioWorkspaceState;
   readonly [key: string]: unknown;
 }
+
+export type StudioAiContextOptions = Pick<ContextAssemblyRequest, "policies" | "query" | "characterIds" | "characterAsOf" | "characterMemoryLimit">;
+
+export type StudioAiWritingRequest = Omit<Parameters<AiWritingCoordinator["generate"]>[0], "assembledContext" | "sourceMemoryIds"> & {
+  readonly context?: StudioAiContextOptions;
+};
 
 /**
  * Application boundary for the Studio's author-controlled AI writing loop.
@@ -37,6 +44,34 @@ export class AiWritingStudioService {
   async generate(request: Parameters<AiWritingCoordinator["generate"]>[0]) {
     await this.requireTarget(request.projectId, request.bookId, request.chapterId, request.sceneId);
     return this.coordinator.generate(request);
+  }
+
+  /**
+   * Production Studio entry point: builds governed context from the authoritative
+   * project immediately before generation. Callers cannot accidentally supply a
+   * stale character dump as the source of truth.
+   */
+  async generateWithProjectContext(request: StudioAiWritingRequest) {
+    const project = await this.requireProject(request.projectId);
+    const workspace = project.studioWorkspace ? validateStudioWorkspace(project.studioWorkspace) : validateStudioWorkspace({ formatVersion: 1, activeBookId: null, books: [] });
+    const scene = findScene(workspace, request.bookId, request.chapterId, request.sceneId);
+    const context = assembleWritingContext(project as never, {
+      projectId: request.projectId,
+      query: request.context?.query ?? request.instruction,
+      characterIds: request.context?.characterIds,
+      characterAsOf: request.context?.characterAsOf,
+      characterMemoryLimit: request.context?.characterMemoryLimit,
+      policies: request.context?.policies,
+    });
+    const existingContent = request.existingContent ?? scene.content;
+    const result = await this.coordinator.generate({
+      ...request,
+      existingContent,
+      assembledContext: formatContext(context),
+      sourceMemoryIds: context.sourceIds,
+      baseContentSha256: request.baseContentSha256 ?? sha256(existingContent),
+    });
+    return { ...result, context };
   }
 
   async review(projectId: string, proposalId: string, decision: "accepted" | "rejected", note?: string, now?: string) {
@@ -80,12 +115,22 @@ export class AiWritingStudioService {
   private async requireTarget(projectId: string, bookId: string, chapterId: string, sceneId: string): Promise<void> {
     const project = await this.requireProject(projectId);
     const workspace = project.studioWorkspace ? validateStudioWorkspace(project.studioWorkspace) : validateStudioWorkspace({ formatVersion: 1, activeBookId: null, books: [] });
-    const book = workspace.books.find((item) => item.id === bookId);
-    if (!book) throw new Error(`AI writing target book "${bookId}" not found.`);
-    const chapter = book.chapters.find((item) => item.id === chapterId);
-    if (!chapter) throw new Error(`AI writing target chapter "${chapterId}" not found.`);
-    if (!chapter.scenes.some((item) => item.id === sceneId)) throw new Error(`AI writing target scene "${sceneId}" not found.`);
+    findScene(workspace, bookId, chapterId, sceneId);
   }
+}
+
+function findScene(workspace: StudioWorkspaceState, bookId: string, chapterId: string, sceneId: string) {
+  const book = workspace.books.find((item) => item.id === bookId);
+  if (!book) throw new Error(`AI writing target book "${bookId}" not found.`);
+  const chapter = book.chapters.find((item) => item.id === chapterId);
+  if (!chapter) throw new Error(`AI writing target chapter "${chapterId}" not found.`);
+  const scene = chapter.scenes.find((item) => item.id === sceneId);
+  if (!scene) throw new Error(`AI writing target scene "${sceneId}" not found.`);
+  return scene;
+}
+
+function formatContext(context: Awaited<ReturnType<typeof assembleWritingContext>>): string {
+  return context.sections.map((section) => `## ${section.title}\n${section.text}`).join("\n\n");
 }
 
 export function sha256(value: string): string { return createHash("sha256").update(value, "utf8").digest("hex"); }
