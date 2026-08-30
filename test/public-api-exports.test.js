@@ -8,7 +8,7 @@ const requiredFunctions = [
   "createBookSnapshot", "createSeries", "createVoiceProfile", "analyzeVoice",
   "createAiCollaborationPolicy", "createProjectHealthReport", "createMemoryRelationship",
   "createDeliveryAuditReport", "advanceProjectWorkflow", "AiWritingCoordinator",
-  "AiWritingStudioService", "AiEditingProposalService"
+  "AiWritingStudioService", "AiEditingProposalService", "AiModelBroker"
 ];
 
 const requiredConstructors = ["FileProjectStore", "AuthorControlService"];
