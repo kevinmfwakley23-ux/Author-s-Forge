@@ -1,6 +1,12 @@
 export type AiProposalKind = "memory" | "manuscript-edit" | "research-note" | "continuity-finding" | "creative-alternative";
 export type AiProposalStatus = "pending" | "accepted" | "rejected" | "superseded";
 
+export interface AiProposalTarget {
+  readonly bookId: string;
+  readonly chapterId: string;
+  readonly sceneId: string;
+}
+
 export interface AiProposal {
   readonly id: string;
   readonly projectId: string;
@@ -11,6 +17,7 @@ export interface AiProposal {
   readonly proposedContent: string;
   readonly sourceMemoryIds: readonly string[];
   readonly createdAt: string;
+  readonly target?: AiProposalTarget;
   readonly reviewedAt?: string;
   readonly reviewedBy?: "author" | "system";
   readonly reviewNote?: string;
@@ -36,6 +43,7 @@ export class AiProposalStore {
     if (!input.title.trim()) throw new Error("AI proposal title is required.");
     if (!input.proposedContent.trim()) throw new Error("AI proposal content is required.");
     if (this.proposals.has(input.id)) throw new Error(`Duplicate AI proposal id \"${input.id}\".`);
+    validateTarget(input.target);
     const { now, ...fields } = input;
     const proposal: AiProposal = {
       ...fields,
@@ -45,6 +53,7 @@ export class AiProposalStore {
       sourceMemoryIds: [...new Set(input.sourceMemoryIds)].sort(),
       status: "pending",
       createdAt: now ?? new Date().toISOString(),
+      ...(input.target ? { target: { ...input.target } } : {}),
     };
     this.proposals.set(proposal.id, cloneProposal(proposal));
     return cloneProposal(proposal);
@@ -74,10 +83,8 @@ export class AiProposalStore {
 
   pending(projectId?: string): AiProposal[] { return this.list(projectId).filter((proposal) => proposal.status === "pending"); }
 
-  /** Return immutable-by-convention records for a persistence adapter. */
   snapshot(): AiProposal[] { return this.list(); }
 
-  /** Restore a previously validated ledger without changing proposal timestamps. */
   restore(proposals: readonly AiProposal[]): void {
     if (this.proposals.size > 0) throw new Error("AI proposal store is already populated.");
     const ids = new Set<string>();
@@ -85,9 +92,19 @@ export class AiProposalStore {
       if (!proposal.id.trim()) throw new Error("AI proposal id is required.");
       if (ids.has(proposal.id)) throw new Error(`Duplicate AI proposal id \"${proposal.id}\".`);
       ids.add(proposal.id);
+      validateTarget(proposal.target);
       this.proposals.set(proposal.id, cloneProposal(proposal));
     }
   }
 }
 
-function cloneProposal(proposal: AiProposal): AiProposal { return { ...proposal, sourceMemoryIds: [...proposal.sourceMemoryIds] }; }
+function validateTarget(target: AiProposalTarget | undefined): void {
+  if (!target) return;
+  for (const [name, value] of Object.entries(target)) {
+    if (!value.trim()) throw new Error(`AI proposal target ${name} is required.`);
+  }
+}
+
+function cloneProposal(proposal: AiProposal): AiProposal {
+  return { ...proposal, sourceMemoryIds: [...proposal.sourceMemoryIds], ...(proposal.target ? { target: { ...proposal.target } } : {}) };
+}
