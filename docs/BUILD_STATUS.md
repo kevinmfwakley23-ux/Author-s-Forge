@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-30  
 **Canonical branch:** `main`  
-**Latest engineering baseline:** `46271800f6adede9147f7360e8c5aff3b6715d6a` — portable release-bundle CI added.
+**Latest engineering baseline:** `9e8b9ea22a9529428a7fd1552a600613337d197e` — canonical verification workflow plus deterministic AI proposal review diff.
 
 ## Current condition
 
@@ -13,6 +13,16 @@ The latest local result reported during engineering work was:
 > REAL BROWSER ACCEPTANCE PASSED: 18 routes + durable book/chapter/scene + manuscript save/reload + character + canon + honest AI failure.
 
 That result is treated as evidence, not as a blanket completion claim. Fresh build/test execution is required after checkout/integration, and physical Chromebook/Android verification remains a separate release gate.
+
+## Mission 049 — Proposal review integrity
+
+The AI proposal boundary now has a deterministic review-diff service. `createAiProposalDiff` produces line-level added/removed/unchanged records, exact base/proposed SHA-256 bindings, character/word counts, and explicit line-number mapping. The capability is review-only and cannot mutate manuscript state. Regression coverage is in `test/ai-proposal-diff.test.js` and the capability is exported from `src/index.ts`.
+
+The next integration step is to surface this diff directly inside the Writing Desk and Editing Room so authors can inspect a candidate before acceptance/application.
+
+## Canonical verification
+
+The repository now contains `.github/workflows/canonical-verification.yml`, which runs on pushes to `main` and manual dispatch. It installs dependencies and Chromium, then runs the build/regression suite, completion meter, browser acceptance, and mobile acceptance. This makes the canonical verification path reproducible from the repository itself.
 
 ## Current PWA/mobile build
 
@@ -30,15 +40,15 @@ The Android/PWA surface has been strengthened from a manifest-and-harness-only b
 
 The PWA layer deliberately does not create a second project-state store. Durable project data remains behind the Forge server/domain persistence boundary.
 
-## Portable release bundle — newly added
+## Portable release bundle
 
-The repository now contains `.github/workflows/release-bundle.yml`. It builds the canonical Forge, runs the completion meter and browser-side syntax checks, then packages `dist`, `public`, the Termux launcher, package metadata, README/directive documentation, and Android/Chromebook run instructions into a versioned tarball with SHA-256 checksum.
+The repository contains `.github/workflows/release-bundle.yml`. It builds the canonical Forge, runs the completion meter and browser-side syntax checks, then packages `dist`, `public`, the Termux launcher, package metadata, README/directive documentation, and Android/Chromebook run instructions into a versioned tarball with SHA-256 checksum.
 
 The workflow runs on demand and on `v*` tags. This establishes a repeatable path from the repository's verified build to a portable package that can be transferred to the Chromebook or Android/Termux environment. It does not pretend to be a native APK; Forge's Android target remains the platform-neutral PWA/web application.
 
 ## Immediate engineering condition
 
-The next priority is functional truth, not feature accumulation. The repository already contains the public API exports required by the manuscript, project foundation, publishing, version-control, collaboration, health, relationship-memory, and delivery-audit regression suites. If an older local checkout reports errors such as `createManuscriptState is not a function`, `createProject is not a function`, or similar export errors, rebuild from current `main` with:
+The next priority is functional truth, not feature accumulation. The repository already contains the public API exports required by the manuscript, project foundation, publishing, version-control, collaboration, health, relationship-memory, delivery-audit, and workflow regression suites. If an older local checkout reports errors such as `createManuscriptState is not a function`, `createProject is not a function`, or similar export errors, rebuild from current `main` with:
 
 ```bash
 npm install
@@ -88,6 +98,7 @@ Forge does not fork K.I.N.G.S. internals or require its private runtime for core
 - Project Brain, canon, character, voice, and research context;
 - AI assist through the Model Broker;
 - proposal review and explicit author approval;
+- deterministic proposal diffs in the live Studio;
 - durable continuation after reload/restart.
 
 ### Phase C — Visual production
