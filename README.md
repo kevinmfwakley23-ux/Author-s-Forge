@@ -2,97 +2,73 @@
 
 **Author's Forge** is a local-first author workplace for taking books from idea to finished, edited, illustrated, produced, and publication-ready material.
 
-It is intended to support children's books, memoir, psychological thrillers, guided journals, comic books, training manuals, novels, and future long-form projects without replacing the author's authority.
+## Locked Competitive-Benchmark Engineering Workflow
+
+**Permanent rule:** Forge continuously learns from real, working applications and open-source projects that share its capabilities, then builds the strongest applicable ideas into Forge as better native implementations.
+
+For every major capability the chief-engineering workflow is:
+
+1. Identify the strongest working products, open-source projects, libraries, and proven UX patterns.
+2. Study their actual workflow, UX, architecture, data model, persistence, provider boundaries, failure handling, recovery, accessibility, performance, and device behavior.
+3. Compare those proven approaches against Forge's implementation and `AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md`.
+4. Preserve proven strengths, reject weak patterns, and improve useful ideas rather than copying competitors blindly.
+5. Implement the capability natively inside Forge's governed architecture.
+6. Add deterministic, application/integration, and human/device regression coverage.
+7. Run the canonical build and acceptance gates.
+8. Immediately advance to the next highest-value capability.
+
+Benchmarking is an engineering input, not permission to dilute Forge's architecture. Author authority, durable project state, real provider boundaries, proposal/review/apply safety, portability, Chromebook/Android targets, and the Master Product Directive remain authoritative.
+
+The benchmark set should include direct competitors and adjacent best-in-class tools for long-form writing, outlining, research, knowledge retrieval, editing, versioning, visual planning, publishing, collaboration, accessibility, PWA/mobile behavior, and AI agent workflows. Current or future examples may include Novalist, Linetta, OpenWriter, xnovelist, Writer Studio, Scrivener, Atticus, Plottr, Sudowrite, and other relevant systems discovered during implementation. Their current behavior must be verified before being treated as evidence.
+
+**Engineering objective:** make Forge better than the individual tools it learns from by integrating their strongest proven capabilities into one coherent author operating environment.
 
 ## Canonical Product Directive — READ THIS FIRST
 
-**`AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md` is the canonical product contract.** It is checked into this repository and is the engineering source of truth.
+**`AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md` is the canonical product contract and engineering source of truth.** It defines the complete target: concept → architecture → canon → characters → timeline → research → manuscript → editing → illustrations → cover → formatting → metadata → positioning → marketing → publishing preparation → portable archive/recovery.
 
-The directive defines the complete target: concept → architecture → canon → characters → timeline → research → manuscript → editing → illustrations → cover → formatting → metadata → positioning → marketing → publishing preparation → portable archive/recovery. It explicitly calls for hierarchical memory, anti-drift controls, relationship-aware memory, voice input, five AI collaboration modes, a Book Genome, real provider boundaries, and an author-controlled publishing workflow.
+## Chief Engineering Standard
 
-The final product standard is not a feature list. It is a complete working path from story concept through architecture, canon, character system, timeline, research, manuscript, editing, illustrations, cover, formatting, metadata, positioning, promotion, publishing preparation, and portable project state.
+Forge must be a **real working author workplace**, not a mission gallery or collection of promises.
 
-## Chief engineering standard
-
-The lead engineering responsibility for this repository is to turn the directive into a **real working author workplace**, not a mission gallery or collection of promises.
-
-Non-negotiable rules:
+Non-negotiable:
 
 - real implementation only;
 - real provider calls only;
 - real persistence only;
 - no fake AI responses;
 - no fake image generation;
-- no placeholder controls presented as completed features;
+- no placeholder controls presented as complete;
 - no dead navigation;
 - no silent canon mutation;
-- no weakening or deleting tests to make the build green;
-- major autonomous actions must be observable, reversible, attributable, and author-controlled.
+- no weakening/deleting tests to make builds green;
+- major autonomous actions observable, reversible, attributable, and author-controlled.
 
-A green unit-test suite is **not** proof that Forge works. A capability is complete only when it is reachable from Studio, reads/writes durable project state, survives reload/restart, participates in downstream workflows, reports real errors, and has end-to-end regression coverage.
+A green unit-test suite is evidence, not proof. Every major capability must be reachable from Studio, read/write durable project state, survive reload/restart, participate downstream, report real errors, and have end-to-end coverage.
 
 ## Permanent Functional-Truth Rule
 
-A green test suite is evidence, not proof of product completion. Source-pattern assertions can prove that a route, handler, or label exists without proving that a user can actually operate the rendered application and obtain the promised result.
+Every major capability is verified at three levels:
 
-Therefore every major capability must ultimately be verified at three levels:
+1. **Domain/contract** — deterministic services, persistence, validation, provider boundaries.
+2. **Application** — real server, routes, state transitions, artifacts, errors, recovery.
+3. **Human/device** — rendered Studio UI on supported Chromebook and Android environments.
 
-1. **Domain/contract level** — deterministic services, persistence rules, validation, and provider boundaries.
-2. **Application level** — the real running server, routes, state transitions, artifacts, errors, and recovery behavior.
-3. **Human/device level** — the actual Studio UI on the supported Chromebook and Android environments.
-
-Never weaken or remove a test simply to make the build green. When a regression is exposed, repair the implementation or deliberately revise the contract with architectural justification.
+Source-pattern tests alone are never end-to-end proof.
 
 ## Permanent Platform Targets
 
-**Chromebook and Android are first-class Author's Forge product targets.** They are not later compatibility work.
+**Chromebook and Android are first-class product targets.** The primary architecture is one platform-neutral web application with reusable domain/application/API boundaries.
 
-The primary architecture is one platform-neutral web application first. Chromebook and Android use the same product through browser/PWA surfaces while the domain, application, and API boundaries remain reusable for future dedicated shells.
+Requirements include responsive desktop/tablet/phone layouts, touch interaction, browser device APIs, PWA installability, conservative offline shell behavior, durable persistence independent of browser process state, portable recovery, and future-shell reuse.
 
-Permanent platform requirements include:
-
-- Asus Chromebook support;
-- Android phone support;
-- responsive desktop/tablet/phone layouts;
-- touch-friendly interaction;
-- browser-standard device APIs;
-- PWA installability and offline shell behavior;
-- durable project persistence independent of browser process state;
-- portable project export/recovery;
-- shared API/domain boundaries so future shells do not require rewriting Forge's core behavior.
-
-The PWA is **not considered complete merely because a manifest and service worker exist**. Actual installation, mobile interaction, persistent data behavior, file handling, offline/recovery behavior, and device-level testing remain verification requirements.
-
-The service worker must remain deliberately conservative: it may cache the application shell, but it must **not cache `/api/` project data as if it were durable application state**.
+The service worker may cache the application shell but must not cache `/api/` project data as durable state.
 
 ## Functional Reality Standard
 
-Every visible Studio control must terminate in a real result:
+Every visible Studio control must terminate in a durable state transition, real provider/service operation, deterministic calculation, real artifact, real navigation, or explicit actionable error. Buttons, forms, AI controls, image controls, exports, settings, and navigation may never merely appear functional.
 
-- durable state transition;
-- real provider/service operation;
-- deterministic calculation;
-- real artifact creation;
-- real navigation;
-- or an explicit actionable error.
-
-The following are prohibited:
-
-- buttons that only look active;
-- navigation that changes labels but does not change the actual view;
-- forms that accept input without persisting it;
-- AI controls that produce fabricated text;
-- image controls that display fake/generated-looking placeholders;
-- export controls that claim success without a real artifact;
-- settings that have no downstream effect;
-- feature descriptions mistaken for implemented functionality;
-- tests that inspect source code and call that end-to-end proof.
-
-The target is the **Forge a real author can use**, not the Forge a test suite can describe.
-
-## Current Integrated Studio
-
-The Studio is one coherent application surface rather than a mission gallery or collection of disconnected screens. Its intended workflow is:
+## Integrated Studio Direction
 
 ```text
 AUTHOR
@@ -122,244 +98,20 @@ DOCX / PDF / EPUB PRODUCTION
 PORTABLE PROJECT PACKAGE
 ```
 
-The integrated surface includes durable project/book/chapter/scene state, real scene editing and persistence, real provider-backed AI drafting, typed and browser-microphone commands, five collaboration modes, structured Character Bible records, provenance-aware memory/research, intelligent editing analysis, voice fingerprinting, real image generation when configured, KDP cover planning, Book Genome and impact analysis, document production, health reporting, portable export, and delivery audit.
+The integrated product is expected to connect durable manuscript state, provider-backed AI writing/editing, typed and voice commands, collaboration modes, Character Bible, provenance-aware memory/research, editing analysis, voice fingerprinting, real image generation when configured, cover planning, Book Genome/impact analysis, document production, health reporting, portable export, and delivery audit.
 
-No button is considered complete merely because it exists in HTML. Every control must terminate in a real state transition, provider operation, calculation, artifact, navigation action, or explicit actionable error.
+## AI Context Optimization & Model Intelligence
 
-## AI Context Optimization & Token Efficiency
+Context efficiency is a first-class AI concern. Forge uses hierarchical context assembly, deduplication, protected structured data, deterministic compression before lossy methods, semantic caching where justified, token/cost governance, provider routing boundaries, and measurable optimization telemetry. Optimization fails open to authoritative context.
 
-Author's Forge treats **context efficiency as a first-class AI architecture concern**. The goal is to reduce unnecessary model input, latency, and operating cost without sacrificing canon, author intent, reasoning quality, or recoverability.
+Forge's AI Model Broker direction is to discover actual model capability, context/output capacity, reasoning/vision/tool support, health, latency, quota/cost, and task requirements before selecting a real resource. Provider credentials never belong in manuscript/project state.
 
-The production pipeline includes hierarchical context assembly, session deduplication, content-aware compression boundaries, semantic caching, token/cost governance, provider routing boundaries, and measurable optimization telemetry. Deterministic optimization is preferred before model-based compression, structured/canonical data is protected from lossy transformations, and optimization always fails open to the original context.
-
-### Compression implementation status
-
-Forge now has a governed `ContextEngineRegistry` with explicit engine identity, priority, enablement, supported payload kinds, capability checks, composable stages, and an inflation guard. The production stack includes deterministic lossless-first normalization, lossless JSON compaction, and an integrated RTK-style tool-output engine. The RTK-style layer is command-aware, removes safe repeated diagnostic noise, preserves important error/test/failure lines, bounds oversized derived output, and refuses to replace output when it does not produce measurable savings.
-
-Structured JSON, code, and diffs remain protected from lossy rewriting. Tool-result compression operates only on derived output and is fail-open. The original tool result and all canonical project state remain authoritative.
-
-### Open-source research decision
-
-Forge will selectively adopt proven open-source techniques rather than import an entire gateway or agent stack. Current research confirms LLMLingua-2 as a credible optional semantic-compression candidate. Adoption remains gated on fidelity, local runtime footprint, latency, licensing, and measured Forge workload savings.
-
-The reviewed OmniRoute architecture remains a reference for composable compression engines, session deduplication, retrieve-on-demand context, RTK-style tool reduction, structured-data compaction, relevance reduction, optional semantic compression, adaptive compression, and measured stacked pipelines. Forge reimplements interfaces and algorithms natively when direct code reuse is not independently justified.
-
-Forge does **not** copy third-party savings claims. Every optimization stage must report actual input/output estimates, savings, strategy, cache behavior where applicable, and fallback reason. Lossy compression remains prohibited for manuscript canon, author-approved prose, structured machine data, URLs, identifiers, constraints, and other machine-critical material.
-
-### OmniRoute as an external AI resource
-
-Forge may use a separately running **OmniRoute-compatible gateway as an optional external AI routing and cost-optimization layer**. This is deliberately above the provider boundary and below Forge's context-intelligence layer.
-
-When configured, Forge can route real requests through OmniRoute to take advantage of its available provider/model combinations, local models, cost-aware routing, and any genuinely available free or low-cost model resources. Forge never assumes that a model or free quota exists: availability is discovered from the running gateway and verified by real requests.
-
-The external boundary is configured with:
-
-- `OMNIROUTE_BASE_URL` — running OmniRoute/OpenAI-compatible endpoint;
-- `OMNIROUTE_MODEL` — optional explicit model override;
-- `OMNIROUTE_API_KEY` — optional gateway credential when required.
-
-OmniRoute remains optional. If it is unavailable, Forge uses its independently governed provider routes. No OmniRoute-specific browser session, credential interception, or provider-session storage is part of Forge core.
-
-### OmniRoute Agent Extension research decision
-
-The reviewed `md-riaz/omniroute-agent-extension` is an approved architectural reference for **model catalog discovery, capability metadata, reasoning support, vision detection, provider health monitoring, connection diagnostics, usage/quota visibility, automatic model synchronization, and OpenAI-compatible streaming/tool-call handling**.
-
-Forge will use these concepts to strengthen its own AI Model Broker rather than importing the VS Code/agent extension itself. The broker should be able to discover what a connected model can actually do before selecting it for writing, editing, image analysis, cover work, research, or tool use.
-
-Model selection must consider capability, context window, output capacity, reasoning support, vision/input modalities, health, latency, quota/cost, and task requirements. Provider credentials remain outside manuscript/project state.
-
-### AI Model Broker direction
-
-```text
-                    FORGE AI MODEL BROKER
-                              │
-        ┌─────────────────────┼─────────────────────┐
-        │                     │                     │
-   K.I.N.G.S.             OmniRoute             Direct
-   intelligence           gateway               providers
-        │                     │                     │
-        └─────────────────────┼─────────────────────┘
-                              ↓
-                 MODEL CAPABILITY CATALOG
-                              ↓
-                 HEALTH / COST / QUOTA CHECK
-                              ↓
-                    TASK-AWARE ROUTING
-                              ↓
-                     REAL AI RESOURCE
-```
-
-The broker is intended to answer: **what is the best real AI resource available for this job right now?** It must not select a model solely because it is the default or because its name appears in configuration.
-
-### K.I.N.G.S. integration decision
-
-**K.I.N.G.S. is an approved optional intelligence resource for Author's Forge.** Forge may call K.I.N.G.S. whenever a task benefits from its workforce, knowledge, routing, local intelligence, verification, context optimization, or other governed capabilities.
-
-The integration boundary is deliberately explicit:
-
-- `KINGS_AI_ENDPOINT` selects a running K.I.N.G.S. bridge endpoint;
-- `KINGS_AI_MODEL` identifies the model/resource exposed through that bridge;
-- `KINGS_AI_API_KEY` is optional and only used when the bridge requires authentication;
-- the bridge uses an OpenAI-Responses-compatible request/response contract;
-- if K.I.N.G.S. is unavailable, Forge can fall back to independently governed providers;
-- Forge never claims K.I.N.G.S. is connected without successful runtime verification.
-
-K.I.N.G.S. remains a source of reusable architecture for context building, knowledge selection, task-state selection, safe compression, checkpointing, context budgets, provider/model routing, and cost/quality policy. Forge adopts compatible capabilities at explicit boundaries rather than forking K.I.N.G.S. internals.
-
-### OpenAI-compatible gateway decision
-
-OpenAI-compatible gateways are an approved optional provider boundary for Forge. Protocol, streaming, tool-call normalization, provider adapters, and routing patterns may be reused when license, security, runtime, and maintenance review approves them.
-
-Browser credential interception, browser-session automation, and provider-session storage are excluded from Forge core.
-
-## Real Provider Boundaries
-
-### AI writing
-Forge supports real provider-backed generation through:
-
-- K.I.N.G.S. bridge;
-- OmniRoute/OpenAI-compatible gateway;
-- OpenAI;
-- local Ollama.
-
-If no real provider is configured, generation fails explicitly. Forge does not fabricate an answer.
-
-### Real image generation
-Illustration generation uses the configured real image provider. Without required credentials, the Studio reports the missing configuration instead of showing fake output.
-
-## Voice as a First-Class Input
-
-Forge's command center supports typed commands and browser `SpeechRecognition` / `webkitSpeechRecognition`. The original transcript remains editable before execution. Voice commands use the same real project and provider boundary as typed commands.
-
-## Token and Cost Observability
-
-Every provider request should ultimately expose an optimization ledger containing, where available:
-
-- original estimated token count;
-- optimized token count;
-- tokens saved;
-- compression ratio;
-- cache hit/miss;
-- retrieved context count;
-- optimization strategies used;
-- provider and model;
-- estimated request cost;
-- optimization latency;
-- fallback/skip reason.
-
-Compression quality is workload- and model-dependent. Forge must measure actual results rather than promise fixed percentages.
+Approved optional intelligence boundaries include K.I.N.G.S., OmniRoute/OpenAI-compatible gateways, direct OpenAI, and local Ollama where configured and verified. Forge never claims a provider/model is available without runtime verification and never fabricates unavailable AI output.
 
 ## AI Proposal and Author-Controlled Mutation
 
-AI-generated changes are represented as reviewable proposals rather than silent manuscript/canon mutation. Proposals carry rationale, provenance, status, and review state; only explicit author approval can move an AI suggestion into an authoritative workflow.
+AI changes are reviewable durable proposals, never silent manuscript/canon mutation. Proposals carry rationale, provenance, status, review state, and source-revision binding. Writing Desk and Editing Room expose deterministic line-level diffs and word-count impact before explicit author approval/application. Server-side revision protection remains authoritative against stale writes.
 
-### Proposal review integrity
+## Delivery Standard
 
-The canonical Writing Desk and Editing Room now use the same governed proposal-review model. Proposals are durable records bound to their source manuscript revision. The Writing Desk exposes deterministic line-level diffs; the Editing Room now does the same for manuscript-edit proposals, showing added, removed, and unchanged lines plus word-count impact before approval/application.
-
-Review and application remain separate author actions. The client never treats an AI suggestion as authoritative merely because generation succeeded, and server-side source-revision protection remains the final authority against stale writes.
-
-## Mission 042 — Evidence-Gated Marketing Campaigns
-
-Forge-native marketing campaigns connect **Book Positioning → campaign planning → channel assets → author approval → scheduling** without turning unsupported claims into published marketing copy. Assets carry evidence and confidence classes; inference-only claims cannot be scheduled or published.
-
-## Mission 043 — Workflow Quality Gates
-
-Forge has a versioned **lifecycle quality-gate contract** spanning `concept → architecture → canon → manuscript → editing → visuals → production → positioning → marketing → release`. Stage readiness derives from explicit checks and remediation. The domain contract is tested in `test/workflow-gate.test.js` and remains subject to Studio/device verification under the Functional-Truth Rule.
-
-## Mission 044 — Governed Workflow Advancement
-
-The workflow gate is consumable through `src/application/workflow-advance.ts`. The advancement service derives the next canonical stage, permits only sequential progression, blocks advancement when the current stage has failed checks, and returns explicit blocker IDs alongside the gate report that justified the decision.
-
-This creates the application-level boundary needed for the eventual Studio command:
-
-```text
-CURRENT STAGE → RUN GATE → SHOW BLOCKERS / REMEDIATION → AUTHOR APPROVAL → ADVANCE ONE STAGE
-```
-
-Automated regression coverage is in `test/workflow-advance.test.js`. This milestone is **implemented, not yet claimed as production-verified** until repository CI and Studio/device verification provide evidence.
-
-## Mission 051 — Editing Room Proposal Review Diff
-
-The Editing Room now provides deterministic review of durable AI rewrite proposals. Authors can select a manuscript-edit proposal and inspect a line-level comparison against the currently loaded scene, including added/removed/unchanged lines and before/after word counts. Approval remains separate from application, and the server's source-revision checks remain authoritative.
-
-This closes the immediate review-integrity gap between Writing Desk AI proposals and Editing Room AI rewrites: **AI proposes → Forge shows exactly what changes → author approves/rejects → only then can the approved proposal be applied.**
-
-## CI hardening — 2026-08-30
-
-The canonical GitHub CI workflow now syntax-checks `public/forge-editing-proposals.js` alongside the existing Studio client modules before browser and mobile acceptance. The required verification path remains:
-
-```text
-npm ci → npm run build → npm test → npm run completion → client syntax checks → browser acceptance → mobile acceptance
-```
-
-A commit is not treated as verified merely because the workflow file exists; GitHub Actions must actually execute and report success.
-
-## Current Repository State — 2026-08-30
-
-The canonical `main` branch is the integration baseline. Recent engineering work strengthened the governed AI proposal path, added deterministic Editing Room review diffs, and hardened the CI pipeline to syntax-check the new production client module.
-
-The repository has a substantial domain/application foundation and a running Studio. Previous local verification reported successful browser acceptance for 18 routes plus durable book/chapter/scene behavior, manuscript save/reload, character, canon, and honest AI failure handling. That is useful evidence, but it is not a substitute for fresh execution on every checkout and physical-device verification.
-
-The immediate engineering standard is **functional truth**: source patterns and unit tests are evidence, not proof that the rendered application works end to end. The canonical build path remains `npm install` / `npm run build` / `npm test`, followed by browser/mobile acceptance.
-
-## Completion meter
-
-Forge includes a deterministic repository inspection command:
-
-```bash
-npm run completion
-```
-
-It reports two separate numbers:
-
-- **Engineering capability completion** — implementation plus matching automated evidence across major product capabilities.
-- **Verification/evidence readiness** — browser harness, mobile harness, real-provider boundary, honest failure behavior, and product documentation evidence.
-
-The meter intentionally does **not** claim that source files equal a finished product. 100% is reserved for a complete, verified author journey. Physical Android/Chromebook verification and real configured-provider execution remain separate evidence requirements.
-
-## Current build priorities
-
-1. Restore and continuously verify a green canonical baseline.
-2. Drive every major existing capability through the real Studio rather than adding disconnected domain contracts.
-3. Complete the core author loop: project → book → chapter → scene → write → AI assist → review → approve → continue.
-4. Complete visual production with durable character/reference/illustration/cover state and real provider boundaries.
-5. Complete production, positioning, marketing, publishing preparation, portable recovery, and delivery audit as one traceable workflow.
-6. Run browser and mobile acceptance continuously, then perform real Chromebook and Android device verification.
-7. Harden recovery, stale-state handling, provider failures, and interrupted workflows without losing authoritative author data.
-8. Only after the working journey is stable, expand provider breadth, advanced semantic compression, automation, and other secondary enhancements.
-
-## Locked Build Direction — Functional-Truth Completion
-
-**Do not start unrelated feature missions while the core author journey remains open.** The objective is to make existing capabilities work together through the real Studio and survive real user/device workflows.
-
-The execution order is:
-
-1. maintain a continuously verified canonical baseline;
-2. wire existing capabilities into one real Studio workflow;
-3. complete the project/book/chapter/scene writing loop with Project Brain, canon, voice, research, and workflow gates;
-4. make visual production real and durable;
-5. make production and release real;
-6. verify running-server, browser, mobile, Chromebook, and Android behavior;
-7. harden recovery and failure behavior;
-8. expand breadth only after the author journey is working.
-
-## Repository synchronization rule
-
-The repository must always have one clearly identified canonical product state. Before substantial engineering work:
-
-- inspect `main`, recent commits, and build/test status;
-- preserve runtime data outside Git;
-- never commit generated runtime/build output unless explicitly required;
-- do not merge stale/divergent branches blindly;
-- compare candidate work against current `main` and integrate only verified changes;
-- run build and the complete regression suite after integration;
-- record major direction changes in both this README and `docs/BUILD_HISTORY.md`.
-
-## Engineering progress history
-
-`docs/BUILD_HISTORY.md` is the durable chronological record of major Author's Forge engineering milestones. Major additions must update both this history and the README so the repository always contains a current product-state summary plus an auditable build history.
-
-## End-to-end release target
-
-The first private release remains governed by the Master Product Directive: a real author must be able to carry a project from concept through manuscript, editing, visual work, production, marketing, publishing preparation, and portable recovery without losing canon, voice, continuity, provenance, or author control. Optimization, proposal review, publishing readiness, marketing, and workflow gates are enabling subsystems of that larger workflow, not the product itself.
+The goal is not to maximize the number of feature labels. The goal is to deliver the **best dependable author operating environment we can build**, using verified lessons from working products while preserving Forge's architecture and author-first principles.
