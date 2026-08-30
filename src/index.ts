@@ -24,6 +24,8 @@ export { createWorkflowGateReport, canAdvanceWorkflow, validateWorkflowGateRepor
 export type { WorkflowGateReport, WorkflowGateInput, WorkflowGateCheck, WorkflowStageGate, WorkflowGateStatus, ForgeWorkflowStage } from "./domain/workflow-gate";
 export { advanceWorkflow, WORKFLOW_ADVANCE_FORMAT_VERSION } from "./application/workflow-advance";
 export type { WorkflowAdvanceRequest, WorkflowAdvanceResult, WorkflowAdvanceDecision } from "./application/workflow-advance";
+export { advanceProjectWorkflow } from "./application/project-workflow";
+export type { ProjectWorkflowAdvanceRequest, ProjectWorkflowAdvanceResult } from "./application/project-workflow";
 export { createProject, touchProject, withProjectMemories, withProjectCharacters, withProjectVisualIdentities, withProjectIllustrationAssetLibrary, withProjectBookCoverPlans, withProjectPublishingReadinessReports, withProjectKdpMarketIntelligenceReports, withProjectBookPositioningReports, withProjectBookVersionHistories, withProjectAuthorDecisions, withProjectSeries, withProjectVoiceProfiles, withProjectAiCollaborationPolicy, withProjectHealthReports, withProjectMemoryRelationships, withProjectDeliveryAudits, withProjectBookGenome, PROJECT_FORMAT_VERSION } from "./domain/project";
 export type { ProjectMetadata, ProjectState, ProjectStatus } from "./domain/project";
 export { FileProjectStore } from "./infrastructure/file-project-store";
