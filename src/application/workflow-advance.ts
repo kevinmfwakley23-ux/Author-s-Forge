@@ -1,4 +1,5 @@
 import {
+  FORGE_WORKFLOW_STAGES,
   canAdvanceWorkflow,
   createWorkflowGateReport,
   type ForgeWorkflowStage,
@@ -6,14 +7,10 @@ import {
   type WorkflowGateReport,
 } from "../domain/workflow-gate";
 
-export const WORKFLOW_ADVANCE_FORMAT_VERSION = 1;
-
-export type WorkflowAdvanceDecision =
-  | "advanced"
-  | "blocked";
+export const WORKFLOW_ADVANCE_FORMAT_VERSION = 1 as const;
+export type WorkflowAdvanceDecision = "advanced" | "blocked";
 
 export interface WorkflowAdvanceRequest extends WorkflowGateInput {
-  readonly currentStage: ForgeWorkflowStage;
   readonly requestedStage?: ForgeWorkflowStage;
 }
 
@@ -26,31 +23,17 @@ export interface WorkflowAdvanceResult {
   readonly blockers: readonly string[];
 }
 
-const stageIndex = (stage: ForgeWorkflowStage): number => {
-  const stages: readonly ForgeWorkflowStage[] = [
-    "concept",
-    "architecture",
-    "canon",
-    "manuscript",
-    "editing",
-    "visuals",
-    "production",
-    "positioning",
-    "marketing",
-    "release",
-  ];
-  return stages.indexOf(stage);
-};
-
 export function advanceWorkflow(request: WorkflowAdvanceRequest): WorkflowAdvanceResult {
   const report = createWorkflowGateReport(request);
-  const requestedStage = request.requestedStage ??
-    (stageIndex(request.currentStage) < stageIndex("release")
-      ? (["concept", "architecture", "canon", "manuscript", "editing", "visuals", "production", "positioning", "marketing", "release"] as const)[stageIndex(request.currentStage) + 1]
-      : request.currentStage);
-
-  const sequential = stageIndex(requestedStage) === stageIndex(request.currentStage) + 1;
-  const allowed = sequential && canAdvanceWorkflow(report);
+  const currentIndex = FORGE_WORKFLOW_STAGES.indexOf(request.currentStage);
+  const nextStage = currentIndex < FORGE_WORKFLOW_STAGES.length - 1
+    ? FORGE_WORKFLOW_STAGES[currentIndex + 1]
+    : request.currentStage;
+  const requestedStage = request.requestedStage ?? nextStage;
+  const sequential = requestedStage === nextStage;
+  const allowed = sequential && canAdvanceWorkflow(report, request.currentStage);
+  const currentGate = report.stages.find((stage) => stage.stage === request.currentStage);
+  const blockers = currentGate?.checks.filter((check) => !check.passed).map((check) => check.id) ?? [];
 
   return {
     formatVersion: WORKFLOW_ADVANCE_FORMAT_VERSION,
@@ -60,7 +43,7 @@ export function advanceWorkflow(request: WorkflowAdvanceRequest): WorkflowAdvanc
     report,
     blockers: allowed ? [] : [
       ...(sequential ? [] : ["WORKFLOW_STAGE_ORDER_INVALID"]),
-      ...report.checks.filter((check) => !check.passed).map((check) => check.id),
+      ...blockers,
     ],
   };
 }
