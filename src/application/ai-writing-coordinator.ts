@@ -1,22 +1,23 @@
 import { AiWritingService, type AiWritingRequest, type AiWritingResult } from "./ai-writing";
 import type { AiProposal, AiProposalStore, ProposalReviewDecision } from "./ai-proposal-store";
 import { FileAiProposalStore } from "../infrastructure/file-ai-proposal-store";
-import { generateText } from "../infrastructure/ai-provider";
+import { generateText, type AiGenerationResult } from "../infrastructure/ai-provider";
 
-/**
- * Application boundary for Studio writing assistance. It combines the real
- * configured provider boundary with the durable author-controlled proposal
- * ledger. Generation never mutates manuscript state; review is the only
- * transition exposed here and it is author-only by policy.
- */
+export type AiWritingGenerator = (request: { system: string; user: string; temperature?: number; maxOutputTokens?: number }) => Promise<AiGenerationResult>;
+
+/** Durable application boundary for real Studio writing assistance. */
 export class AiWritingCoordinator {
-  constructor(private readonly durableStore: FileAiProposalStore) {}
+  private readonly generator: AiWritingGenerator;
+
+  constructor(private readonly durableStore: FileAiProposalStore, generator: AiWritingGenerator = generateText) {
+    this.generator = generator;
+  }
 
   async generate(request: AiWritingRequest): Promise<AiWritingResult> {
     const proposals = await this.durableStore.load();
     const service = new AiWritingService({
       generate: async (providerRequest) => {
-        const result = await generateText({
+        const result = await this.generator({
           system: "You are Author's Forge's writing engine. Produce candidate material only. Preserve supplied canon and author intent. Never present generated material as authoritative canon.",
           user: [
             `TASK: ${providerRequest.task}`,
@@ -42,13 +43,7 @@ export class AiWritingCoordinator {
     return result;
   }
 
-  async get(proposalId: string): Promise<AiProposal | undefined> {
-    return (await this.durableStore.load()).get(proposalId);
-  }
-
-  async list(projectId?: string): Promise<AiProposal[]> {
-    return (await this.durableStore.load()).list(projectId);
-  }
-
+  async get(proposalId: string): Promise<AiProposal | undefined> { return (await this.durableStore.load()).get(proposalId); }
+  async list(projectId?: string): Promise<AiProposal[]> { return (await this.durableStore.load()).list(projectId); }
   get ledger(): AiProposalStore { return this.durableStore.ledger; }
 }
