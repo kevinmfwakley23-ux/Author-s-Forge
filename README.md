@@ -149,8 +149,16 @@ The campaign boundary enforces two critical rules:
 
 This creates the foundation for the full promotion workflow while keeping commercial claims evidence-aware and author-controlled. It deliberately does not promise sales, rankings, revenue, or platform acceptance.
 
-The design is informed by current end-to-end publishing products, which increasingly treat marketing as part of the same book lifecycle as writing, editing, packaging, and release preparation. Forge keeps the stronger author-control/provenance model instead of allowing marketing generation to become an uncontrolled autonomous publishing action.
+## Mission 043 — Workflow Quality Gates
+
+Forge now has a versioned **lifecycle quality-gate contract** spanning `concept → architecture → canon → manuscript → editing → visuals → production → positioning → marketing → release`.
+
+Each stage derives its readiness from explicit checks and optional remediation instructions. `canAdvanceWorkflow` prevents a workflow from being considered ready for the next stage when its current gate is blocked, and report validation rejects inconsistent or out-of-order gate state.
+
+This architecture incorporates a useful idea from current open-source book-production systems: long-form AI workflows benefit from explicit phase gates and human-confirmed progression rather than allowing an autonomous agent to run through unresolved stages. Forge keeps that idea inside its existing durable-state, provenance, and author-control architecture rather than adopting another repository's agent model.
+
+The domain contract is tested in `test/workflow-gate.test.js`. It is intentionally documented as a domain capability until an actual Studio route and rendered workflow consume it; this preserves the repository's Functional-Truth Rule.
 
 ## End-to-end release target
 
-The first private release remains governed by the Master Product Directive: a real author must be able to carry a project from concept through manuscript, editing, visual work, production, marketing, publishing preparation, and portable recovery without losing canon, voice, continuity, provenance, or author control. Optimization, proposal review, publishing readiness, and marketing are enabling subsystems of that larger workflow, not the product itself.
+The first private release remains governed by the Master Product Directive: a real author must be able to carry a project from concept through manuscript, editing, visual work, production, marketing, publishing preparation, and portable recovery without losing canon, voice, continuity, provenance, or author control. Optimization, proposal review, publishing readiness, marketing, and workflow gates are enabling subsystems of that larger workflow, not the product itself.
