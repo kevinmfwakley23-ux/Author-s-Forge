@@ -2,6 +2,7 @@ import { AiWritingService, type AiWritingRequest, type AiWritingResult } from ".
 import type { AiProposal, AiProposalStore, ProposalReviewDecision } from "./ai-proposal-store";
 import { FileAiProposalStore } from "../infrastructure/file-ai-proposal-store";
 import { generateText, type AiGenerationResult } from "../infrastructure/ai-provider";
+import { createHash } from "node:crypto";
 
 export type AiWritingGenerator = (request: { system: string; user: string; temperature?: number; maxOutputTokens?: number }) => Promise<AiGenerationResult>;
 
@@ -31,7 +32,7 @@ export class AiWritingCoordinator {
         return result.text;
       },
     }, proposals);
-    const result = await service.generate(request);
+    const result = await service.generate({ ...request, baseContentSha256: request.baseContentSha256 ?? sha256(request.existingContent) });
     await this.durableStore.save();
     return result;
   }
@@ -47,3 +48,5 @@ export class AiWritingCoordinator {
   async list(projectId?: string): Promise<AiProposal[]> { return (await this.durableStore.load()).list(projectId); }
   get ledger(): AiProposalStore { return this.durableStore.ledger; }
 }
+
+export function sha256(value: string): string { return createHash("sha256").update(value, "utf8").digest("hex"); }
