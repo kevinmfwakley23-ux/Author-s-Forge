@@ -21,6 +21,7 @@ jobs:
       - run: node --check public/app.js
       - run: node --check public/forge-command-center.js
       - run: node --check public/forge-workbench.js
+      - run: node --check public/forge-ai-proposals.js
 
   browser-acceptance:
     runs-on: ubuntu-latest
