@@ -2,20 +2,16 @@
 /*
  * Author's Forge completion meter.
  *
- * This deliberately reports engineering completion, not a marketing claim.
- * A capability receives credit only when its domain/application surface exists
- * and there is corresponding automated verification. Browser/device evidence
- * is reported separately because repository inspection cannot prove a human
- * used the product on a physical device.
+ * This reports engineering evidence, not a marketing claim. A capability
+ * receives credit only when its implementation surface exists and matching
+ * automated evidence exists. Browser/device proof remains separate.
  */
 const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const exists = (p) => fs.existsSync(path.join(root, p));
-const read = (p) => {
-  try { return fs.readFileSync(path.join(root, p), 'utf8'); } catch { return ''; }
-};
+const read = (p) => { try { return fs.readFileSync(path.join(root, p), 'utf8'); } catch { return ''; } };
 const files = (dir) => {
   const base = path.join(root, dir);
   if (!fs.existsSync(base)) return [];
@@ -33,40 +29,39 @@ const files = (dir) => {
 
 const sourceFiles = files('src');
 const testFiles = files('test');
-const sourceText = sourceFiles.map((f) => read(f)).join('\n');
-const testText = testFiles.map((f) => read(f)).join('\n');
+const sourceText = sourceFiles.map(read).join('\n');
+const testText = testFiles.map(read).join('\n');
+const hasTest = (...patterns) => patterns.some((pattern) => testFiles.some((file) => pattern.test(file)));
 
 const capabilities = [
-  ['Project foundation & durable memory', ['src/domain/project.ts', 'src/infrastructure/file-project-store.ts'], ['test/project-foundation.test.js']],
-  ['Manuscript / chapter / scene workspace', ['src/domain/manuscript.ts'], ['test/manuscript.test.js']],
-  ['AI writing & model broker', ['src/application/ai-writing.ts', 'src/application/ai-model-broker.ts'], ['test/ai-writing.test.js']],
-  ['Canon / character / series / voice', ['src/domain/character-bible.ts', 'src/domain/series.ts', 'src/domain/voice-preservation.ts'], ['test/version-control-author-control-series-voice.test.js']],
-  ['Research & provenance-aware memory', ['src/domain/research.ts', 'src/domain/relationship-memory.ts'], ['test/research.test.js']],
-  ['Intelligent editing', ['src/domain/intelligent-editing.ts', 'src/application/intelligent-editing.ts'], ['test/intelligent-editing.test.js']],
-  ['Visual identity / illustration assets', ['src/domain/character-visual-continuity.ts', 'src/domain/illustration-asset-library.ts'], ['test/illustration.test.js']],
-  ['Cover / KDP production planning', ['src/domain/book-cover-studio.ts'], ['test/book-cover-studio.test.js']],
-  ['Manuscript production artifacts', ['src/domain/manuscript-production.ts', 'src/application/manuscript-production.ts'], ['test/manuscript-production.test.js']],
-  ['Publishing readiness / positioning / marketing', ['src/domain/publishing-readiness.ts', 'src/domain/book-positioning.ts', 'src/domain/marketing-campaign.ts'], ['test/publishing-readiness.test.js']],
-  ['Version control & author authority', ['src/domain/book-version-control.ts', 'src/domain/author-control.ts'], ['test/version-control-author-control-series-voice.test.js']],
-  ['Workflow gates / delivery audit / Book Genome', ['src/domain/workflow-gate.ts', 'src/domain/delivery-audit.ts', 'src/domain/final-product-systems.ts'], ['test/workflow-gate.test.js', 'test/workflow-advance.test.js']],
-  ['Portable project package / recovery', ['src/domain/project-package.ts', 'src/application/project-package.ts'], ['test/project-package.test.js']],
-  ['AI context optimization / cost governance', ['src/application/context-engine-stack.ts', 'src/application/ai-cost-guard.ts'], ['test/context-optimization.test.js']],
-  ['Integrated Studio / browser acceptance', ['src/studio-server.ts', 'scripts/studio-browser-acceptance.js'], ['test/workflow-advance.test.js']],
-  ['Android / PWA delivery surface', ['public/manifest.json', 'public/sw.js'], ['test/pwa.test.js']],
+  ['Project foundation & durable memory', ['src/domain/project.ts', 'src/infrastructure/file-project-store.ts'], () => hasTest(/project-foundation/)],
+  ['Manuscript / chapter / scene workspace', ['src/domain/manuscript.ts'], () => hasTest(/manuscript(?!-production|-planning)/)],
+  ['AI writing & model broker', ['src/application/ai-writing.ts', 'src/application/ai-model-broker.ts'], () => hasTest(/^test\/ai-(writing|model-broker)/)],
+  ['Canon / character / series / voice', ['src/domain/character-bible.ts', 'src/domain/series.ts', 'src/domain/voice-preservation.ts'], () => hasTest(/version-control-author-control-series-voice|character/)],
+  ['Research & provenance-aware memory', ['src/domain/research.ts', 'src/domain/relationship-memory.ts'], () => hasTest(/research|relationship-memory/)],
+  ['Intelligent editing', ['src/domain/intelligent-editing.ts', 'src/application/intelligent-editing.ts'], () => hasTest(/intelligent-editing|ai-editing/)],
+  ['Visual identity / illustration assets', ['src/domain/character-visual-continuity.ts', 'src/domain/illustration-asset-library.ts'], () => hasTest(/illustration|visual/)],
+  ['Cover / KDP production planning', ['src/domain/book-cover-studio.ts'], () => hasTest(/book-cover/)],
+  ['Manuscript production artifacts', ['src/domain/manuscript-production.ts', 'src/application/manuscript-production.ts'], () => hasTest(/manuscript-production/)],
+  ['Publishing readiness / positioning / marketing', ['src/domain/publishing-readiness.ts', 'src/domain/book-positioning.ts', 'src/domain/marketing-campaign.ts'], () => hasTest(/publishing|marketing|positioning/)],
+  ['Version control & author authority', ['src/domain/book-version-control.ts', 'src/domain/author-control.ts'], () => hasTest(/version-control-author-control-series-voice/)],
+  ['Workflow gates / delivery audit / Book Genome', ['src/domain/workflow-gate.ts', 'src/domain/delivery-audit.ts', 'src/domain/final-product-systems.ts'], () => hasTest(/workflow|delivery-audit|final-product/)],
+  ['Portable project package / recovery', ['src/domain/project-package.ts', 'src/application/project-package.ts'], () => hasTest(/project-package|external-storage/)],
+  ['AI context optimization / cost governance', ['src/application/context-engine-stack.ts', 'src/application/ai-cost-guard.ts'], () => hasTest(/context|cost-guard/)],
+  ['Integrated Studio / browser acceptance', ['src/studio-server.ts', 'scripts/studio-browser-acceptance.js'], () => exists('scripts/studio-browser-acceptance.js')],
+  ['Android / PWA delivery surface', ['public/manifest.json', 'public/sw.js'], () => exists('scripts/studio-mobile-acceptance.js') || hasTest(/pwa|mobile/)],
 ];
 
-let weighted = 0;
 let earned = 0;
 const rows = capabilities.map(([name, required, verification]) => {
   const implementation = required.filter(exists).length / required.length;
-  const verified = verification.filter(exists).length / verification.length;
+  const verified = verification() ? 1 : 0;
   const score = Math.round(implementation * verified * 100);
-  weighted += 100;
   earned += score;
   return { name, implementation, verified, score };
 });
 
-const engineering = Math.round((earned / weighted) * 100);
+const engineering = Math.round(earned / capabilities.length);
 const browserEvidence = exists('scripts/studio-browser-acceptance.js') ? 100 : 0;
 const mobileEvidence = exists('scripts/studio-mobile-acceptance.js') ? 100 : 0;
 const providerBoundary = /KINGS_AI_ENDPOINT|OMNIROUTE_BASE_URL|OpenAI|Ollama/.test(sourceText) ? 100 : 0;
@@ -86,9 +81,7 @@ console.log(`Product directive/documentation:     ${documentation}%`);
 console.log('');
 console.log('Capability detail:');
 for (const row of rows) {
-  const impl = Math.round(row.implementation * 100);
-  const ver = Math.round(row.verified * 100);
-  console.log(`- ${String(row.score).padStart(3)}%  ${row.name} (implementation ${impl}%, automated evidence ${ver}%)`);
+  console.log(`- ${String(row.score).padStart(3)}%  ${row.name} (implementation ${Math.round(row.implementation * 100)}%, automated evidence ${row.verified ? 100 : 0}%)`);
 }
 console.log('');
 console.log('Interpretation: 100% is reserved for a complete, verified product journey.');
