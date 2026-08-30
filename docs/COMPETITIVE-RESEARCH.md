@@ -5,176 +5,117 @@
 
 ## Executive conclusion
 
-Forge should not try to become a pile of every feature found in author software. The products that work best have a clear center of gravity:
+Forge should not become a pile of every feature found in author software. The strongest products have a clear center of gravity:
 
-- **Reedsy Studio:** low-friction author workspace, clean chapter navigation, collaboration, revision/comments, previews, and professional EPUB/PDF output.
+- **Reedsy Studio:** low-friction author workspace, clean chapter navigation, collaboration, revision/comments, previews, goals, and professional EPUB/PDF output. citeturn0search0turn0search1
 - **Plottr:** visual planning that makes scenes, plotlines, characters, places, filters, and timelines easy to see and rearrange.
-- **Sudowrite:** Story Bible as an explicit source of truth for both author and AI, plus localized rewrite tools rather than forcing every task through one giant generation command.
-- **Atticus:** author-focused writing plus production formatting, with the ability to move an existing manuscript into a publishing workflow.
-- **KDP Cover Creator:** production constraints are built into the workflow rather than discovered after the design is finished.
-- **Recent research:** proactive knowledge-gap detection and source-anchored knowledge cards can help authors discover missing domain knowledge while preserving author control; feature-grounded story evaluation can make revision more specific than generic "make it better" prompts.
+- **Sudowrite:** Story Bible as an explicit source of truth for author and AI, plus localized rewrite tools rather than one giant generation command.
+- **Atticus:** author-focused writing plus production formatting, preview, publishing exports, and recovery. citeturn0search14
+- **KDP Cover Creator:** production constraints are built into the workflow rather than discovered after design. KDP publishes explicit cover requirements and currently identifies 2,560 × 1,600 pixels as ideal Kindle eBook dimensions. citeturn0search12turn0search8
+- **BookBub:** promotion succeeds through audience-aware targeting, creative testing, budget/bid control, performance reporting, and iterative optimization; Featured Deals add editorial selection and retailer coordination. citeturn0search4turn0search6turn0search9
 
-Forge's advantage should be the combination these products generally keep separate: **durable project truth + visual planning + grounded research + AI assistance + governed review + production + publishing readiness**, all under author authority.
+Forge's advantage should be the combination these products generally keep separate: **durable project truth + visual planning + grounded research + AI assistance + governed review + production + publishing readiness + measurable promotion**, all under author authority.
 
 ## What makes the proven products work
 
-### 1. Reedsy Studio — frictionless author workplace
+### Reedsy Studio — frictionless author workplace
 
-Reedsy emphasizes a clean editor, chapter sidebar, writing goals, import, flexible Boards, real-time collaboration, tracked changes/comments, previews, and direct EPUB/PDF production. Its core product succeeds because the author does not have to assemble multiple tools just to move from manuscript to publishable artifact. Reedsy also keeps the interface approachable rather than exposing every advanced capability at once.
+Reedsy combines writing, planning Boards, goals/stats, collaboration, previews, version history, and PDF/EPUB production. Its strength is that an author does not have to assemble several tools merely to move from manuscript to publishable artifact. It also emphasizes automatic saving/sync and device flexibility. citeturn0search0turn0search1
 
-**Forge import/adaptation:**
+**Forge response:** integrate goals, planning, review, preview, and production into the same durable project rather than creating disconnected counters or utilities. Forge should add canon/continuity impact, provenance, governed AI, and recovery.
 
-- add a first-class writing-progress surface with daily/weekly goals and history;
-- make chapter navigation and scene navigation extremely fast;
-- strengthen collaborator/editor review with explicit suggestions/comments rather than unrestricted mutation;
-- provide a read-only manuscript preview mode with scoped/expiring access when collaboration infrastructure is ready;
-- make production preview part of the writing workflow, not a final afterthought.
+### Plottr — visual cognition
 
-**Forge improvement:** unlike a simple editor, every change remains connected to Project Brain, canon, provenance, workflow stage, and the proposal/review ledger. A collaborator suggestion should be evidence and a candidate, not silent truth.
+The key pattern is spatial story reasoning: scenes, chapters, plotlines, characters, locations, timelines, filters, and relationships should be visible together.
 
-Sources: Reedsy Studio public product pages and 2026 comparison material.
+**Forge response:** Story Map must grow from the authoritative chapter/scene model into scene attributes, plotlines, character arcs, continuity indicators, and durable reorder operations with impact analysis.
 
-### 2. Plottr — visual cognition
+### Sudowrite — contextual AI
 
-Plottr's strength is not merely having a timeline. It makes story structure spatial: scene cards, plotlines, character arcs, chapter stacks, filters, custom attributes, tags, images, and series views can be rearranged and inspected at a glance.
+The important lesson is not merely AI generation. Story context and localized rewriting keep AI aligned with author intent.
 
-**Forge import/adaptation:**
+**Forge response:** Project Brain/Book Genome should supply controlled context; selected text/scene actions should be local and constrained; consequential AI output remains a durable proposal with rationale, provenance, deterministic diff, review state, and explicit application.
 
-- build a real visual Story Map over the existing chapter/scene model;
-- filter scenes by character, location, plotline, POV, timeline, status, and unresolved thread;
-- drag/reorder scenes while preserving authoritative manuscript identity;
-- surface continuity conflicts and downstream impacts directly on scene cards;
-- give series writers one visual view above individual books.
+### Atticus — production quality and recovery
 
-**Forge improvement:** Plottr is primarily an organization/visualization layer. Forge can connect the visual map to Project Brain, canon, research evidence, AI context selection, workflow gates, and impact analysis.
+Atticus combines writing with formatting and publishing output, and supports DOCX export and downloadable JSON snapshots for additional recovery. citeturn0search14
 
-### 3. Sudowrite — AI grounded in a story source of truth
+**Forge response:** Production Preview becomes a preflight layer: validate trim, pagination, front/back matter, headings, images, metadata, and output artifacts before delivery. Portable project packages remain restorable.
 
-Sudowrite's Story Bible explicitly exists to keep both author and AI organized and on track. It supports structured story elements, worldbuilding, characters, visibility controls, and importing character information from existing material. Its Rewrite tool operates on highlighted text and offers targeted transformations such as rephrase, shorter, more descriptive, and show-not-tell.
+### Amazon KDP / Cover Creator — constraints first
 
-**Forge import/adaptation:**
+KDP Cover Creator supports eBook, paperback, and hardcover covers with layouts, fonts, supplied/gallery images, and ISBN/barcode handling. KDP also publishes explicit file and dimension requirements. citeturn0search12turn0search8
 
-- make Project Brain/Book Genome behave as a true source-of-truth layer for AI context;
-- expose localized AI actions on selected text/scene rather than only whole-scene generation;
-- add reusable rewrite intents with explicit scope and constraints;
-- allow authors to control which canon/memory elements an AI action can see;
-- retain every AI candidate as a durable proposal with a deterministic diff.
+**Forge response:** Cover Studio must calculate edition-aware dimensions, preserve title/author/series metadata, distinguish front-only from full-wrap designs, expose safe areas, and validate the actual artifact before release.
 
-**Forge improvement:** Forge should go further on provenance, stale-write protection, proposal review, canon locking, and evidence. AI can suggest; it cannot silently become canon.
+### BookBub — measurable promotion
 
-### 4. Atticus — production quality close to the writing surface
+BookBub provides Featured Deals plus self-serve Ads. Ads support author/category/retailer/region targeting, budget/bid controls, creative customization, and iterative performance optimization. citeturn0search4turn0search6
 
-Atticus combines writing with book formatting and emphasizes importing existing work and producing professional publication layouts. Its strength is reducing the gap between "manuscript complete" and "book ready."
+**Forge response:** Marketing should become a measurable campaign system: positioning → audience hypothesis → retailer/category evidence → creative variants → campaign plan → approval → performance capture → iteration. Forge must never invent sales, audience, or ad results; external integrations require real configured providers.
 
-**Forge import/adaptation:**
-
-- production preview directly beside manuscript workflow;
-- stronger import normalization for existing drafts;
-- persistent front/back matter and publishing metadata;
-- format validation before export;
-- format-specific warnings before a book reaches the delivery gate.
-
-**Forge improvement:** use Forge's Book Genome and Delivery Audit to make production requirements traceable to the exact book state, cover, metadata, and manuscript revision.
-
-### 5. KDP Cover Creator — constraints first
-
-Amazon KDP's Cover Creator takes book details, layouts, fonts, and uploaded/gallery imagery and incorporates publishing information such as ISBN/barcode areas. The important lesson is that output constraints are part of the design workflow.
-
-**Forge import/adaptation:**
-
-- calculate dimensions from trim size, binding, interior type, paper, and page count;
-- keep safe zones and required publishing areas visible during design;
-- validate the actual cover artifact before release;
-- connect cover state to publishing metadata and delivery audit.
-
-**Forge improvement:** Forge can make cover validation part of the same governed Book Genome rather than a disconnected design utility.
-
-## New research worth building into Forge
+## Research directions
 
 ### Proactive knowledge-gap detection
 
-A 2026 research system, VeriForge, explores proactive inline highlighting of potential knowledge gaps, paired with source-anchored Knowledge Cards and a spatial Knowledge Canvas. The important product lesson is that authors often do not know what they need to ask until the system points out a missing detail.
+Recent research explores inline knowledge-gap detection, source-anchored Knowledge Cards, and spatial knowledge canvases. The product lesson is that authors often do not know what they need to research until the system exposes a missing detail.
 
-**Forge implementation direction:**
-
-1. detect candidate factual/domain knowledge gaps while drafting;
-2. mark them as review signals, never as automatic corrections;
-3. retrieve sources through the existing governed research boundary;
-4. create a Knowledge Card containing claim, source, evidence strength, and project relevance;
-5. let the author pin/promote useful knowledge into durable project memory;
-6. allow AI writing to consume only approved/appropriate research context.
-
-This should become a first-class Forge research workflow, not an AI hallucination layer.
+**Forge implementation:** detect candidate gaps → show author-visible signals → retrieve through governed research → create source/evidence/relevance cards → author promotes useful knowledge into durable memory → approved context becomes available to writing/AI.
 
 ### Feature-grounded narrative revision
 
-The 2026 CraftAlign research argues for evaluating explicit writing/narrative features and using those features to guide revision instead of relying only on generic holistic scores. It highlights problems such as cliché, over-explanation, formulaic progression, and stereotyped endings.
+Recent narrative-evaluation research argues for explicit writing/craft dimensions instead of generic holistic scores.
 
-**Forge implementation direction:**
+**Forge implementation:** measurable craft dimensions → concrete evidence → multiple revision strategies → proposal → deterministic diff → author decision.
 
-- expand editorial findings into measurable craft dimensions;
-- show authors why a passage was flagged;
-- offer multiple revision strategies rather than one authoritative rewrite;
-- compare proposed revisions against the selected craft objective;
-- keep the author in control of the final choice.
+## Promotion intelligence target
 
-Forge already has a deterministic intelligent-editing foundation and governed AI editing proposals. This research strengthens the direction: **specific editorial evidence → targeted candidate → deterministic diff → author decision**.
+Forge should go beyond a generic marketing copy generator. A complete promotion workspace should connect:
+
+- book positioning and audience promise;
+- genre/category and comparable-author evidence;
+- retailer metadata and keyword hypotheses;
+- cover/creative variants;
+- launch, preorder, discount, and backlist campaign plans;
+- channel-specific copy;
+- budget and bid assumptions;
+- UTM/link attribution where configured;
+- actual campaign metrics;
+- experiment history and next-test recommendations.
+
+BookBub demonstrates why targeting, testing, and feedback loops matter. citeturn0search6 Forge should make those loops project-aware and connect them back to the book's actual metadata, creative assets, and author-approved positioning.
 
 ## Competitive gap matrix
 
 | Capability | Proven product strength | Forge target | Better Forge version |
 |---|---|---|---|
 | Writing | Reedsy clean editor | Existing Studio | Focus mode + scene context + goals + durable project truth |
-| Planning | Plottr visual timeline | Book/scene model exists | Interactive Story Map connected to canon and impact |
-| Story Bible | Sudowrite source of truth | Project Brain/Book Genome | Author-controlled context visibility + provenance |
-| AI rewrite | Sudowrite localized Rewrite | Governed proposal system | Multiple craft strategies + diff + stale protection |
-| Research | Research tools vary | Research Engine exists | Proactive knowledge gaps + source-anchored Knowledge Cards |
-| Editing | AI/editorial tools | Intelligent Editing exists | Feature-grounded craft analysis + evidence-backed proposals |
-| Collaboration | Reedsy real-time editing | Collaboration domain exists | Suggestion/comment/review authority model |
-| Production | Reedsy/Atticus | Production domain exists | Live preview + validation + delivery audit |
-| Covers | KDP constraints/templates | Cover Studio exists | Constraint-aware design + artifact validation |
-| Import | Reedsy/Atticus | Project package/import work exists | DOCX/ODT/project import with canonical normalization |
-| Mobile | Reedsy mobile web / Plottr web | PWA exists | Offline shell + durable state + Android/Chromebook acceptance |
-| Continuity | Plottr/Sudowrite organization | Project Brain/Genome | Cross-book impact + canon-aware AI routing |
+| Planning | Plottr visual timeline | Story Map | Interactive map connected to canon and impact |
+| Story Bible | Sudowrite | Project Brain/Book Genome | Controlled context visibility + provenance |
+| AI rewrite | Sudowrite localized Rewrite | Governed proposals | Multiple craft strategies + diff + stale protection |
+| Research | Research tools | Research Engine | Proactive gaps + source-anchored Knowledge Cards |
+| Editing | AI/editorial tools | Craft Lens | Evidence-backed craft findings + proposals |
+| Collaboration | Reedsy review | Collaboration domain | Suggestions/comments + authority model |
+| Production | Reedsy/Atticus | Production domain | Live preview + preflight + delivery audit |
+| Covers | KDP Cover Creator | Cover Studio | Edition constraints + artifact validation |
+| KDP | Retailer requirements | Publishing readiness | Edition-aware metadata + preflight + evidence |
+| Promotion | BookBub | Marketing domain | Targeting hypotheses + creative tests + measured feedback |
+| Import | Reedsy/Atticus | Project package/import | Canonical normalization + provenance |
+| Mobile | Browser/PWA tools | PWA | Offline shell + durable state + Android/Chromebook acceptance |
+| Continuity | Plottr/Sudowrite organization | Project Brain/Genome | Cross-book impact + canon-aware routing |
 
-## Mission 052 — Competitive Advantage Build
+## Build order
 
-The next competitive build order is deliberately limited to improvements that strengthen the core author loop:
+1. Author Goals durable Studio integration.
+2. Craft Lens → Editing Room proposal workflow.
+3. Knowledge Gap Radar → provenance-aware research workflow.
+4. Story Map attributes/plotlines/arcs/continuity.
+5. Production Preview / KDP-oriented preflight.
+6. Cover Studio generation + edition validation.
+7. Marketing intelligence and campaign planning.
+8. Collaboration/review expansion.
+9. End-to-end Chromebook/Android and real-provider verification.
 
-1. **Story Map:** visual chapter/scene timeline with filters and scene attributes.
-2. **Author Goals:** daily/weekly writing goals, progress history, and manuscript momentum without replacing the manuscript as source of truth.
-3. **Knowledge Gap Radar:** author-visible research signals that can become source-anchored Knowledge Cards.
-4. **Craft Lens:** feature-grounded editorial dimensions and multi-strategy rewrite proposals.
-5. **Production Preview:** make final-format validation visible before release.
-6. **Collaboration Review:** comments, suggestions, scoped access, and author-controlled acceptance.
-
-The implementation order is not "copy the competitors." It is to take the interaction patterns that reduce friction and connect them to Forge's stronger architecture.
-
-## Design rule
-
-Do not import a feature merely because another product has it. Import the **reason it works**:
-
-- reduce cognitive load;
-- keep the next useful action obvious;
-- preserve direct manipulation where visualization helps;
-- keep AI local to the author's current intent;
-- make source truth explicit;
-- make review reversible;
-- make production constraints visible early;
-- make persistence and recovery invisible but dependable.
-
-## Sources
-
-- Reedsy Studio: https://reedsy.com/studio/
-- Reedsy Studio formatting: https://reedsy.com/studio/format-a-book/
-- Reedsy Studio collaboration: https://reedsy.com/studio/resources/collaborative-writing-tools/
-- Plottr features: https://plottr.com/features/
-- Plottr timeline: https://docs.plottr.com/article/54-timeline-overview
-- Sudowrite Story Bible: https://docs.sudowrite.com/using-sudowrite/1ow1qkGqof9rtcyGnrWUBS/what-is-story-bible/jmWepHcQdJetNrE991fjJC
-- Sudowrite Rewrite: https://docs.sudowrite.com/using-sudowrite/1ow1qkGqof9rtcyGnrWUBS/rewrite/9hkeezeUsCiUCG4dRdEqjS
-- Atticus: https://www.atticus.io/
-- KDP Cover Creator: https://kdp.amazon.com/en_US/help/topic/G201113520
-- CraftAlign: https://arxiv.org/abs/2608.01377
-- VeriForge: https://arxiv.org/abs/2608.09698
+**Rule:** research informs implementation; it never substitutes for functional proof.
 
 External product names and research are references only. Forge does not copy proprietary code or assets.
