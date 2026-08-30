@@ -1,18 +1,9 @@
-import { compressContextPayload } from "./context-compressor";
-import type { ContextPayloadKind } from "./context-payload-classifier";
-import { ContextEngineRegistry, type ContextCompressionEngine } from "./context-engine-registry";
+export { createProductionContextEngineRegistry, CONTEXT_ENGINE_CAPABILITIES } from "./context-engine-stack";
+export type { ContextEngineCapability } from "./context-engine-stack";
 
-const ALL_KINDS: readonly ContextPayloadKind[] = ["json", "code", "diff", "log", "text"];
+import { createProductionContextEngineRegistry } from "./context-engine-stack";
 
-const deterministicCompressionEngine: ContextCompressionEngine = {
-  id: "deterministic-lossless-first",
-  priority: 100,
-  enabled: true,
-  supportedKinds: ALL_KINDS,
-  supports: ({ kind }) => ALL_KINDS.includes(kind),
-  apply: ({ kind, text }) => compressContextPayload(kind, text),
-};
-
-export function createDefaultContextEngineRegistry(): ContextEngineRegistry {
-  return new ContextEngineRegistry([deterministicCompressionEngine]);
+/** Backward-compatible factory used by the context optimizer. */
+export function createDefaultContextEngineRegistry() {
+  return createProductionContextEngineRegistry();
 }
