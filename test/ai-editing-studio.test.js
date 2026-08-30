@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { AiEditingStudioService } from "../src/application/ai-editing-studio.js";
-import { FileAiProposalStore } from "../src/infrastructure/file-ai-proposal-store.js";
+import { AiEditingStudioService } from "../dist/application/ai-editing-studio.js";
+import { FileAiProposalStore } from "../dist/infrastructure/file-ai-proposal-store.js";
 
 async function withService(generator, callback) {
   const directory = await mkdtemp(join(tmpdir(), "forge-editing-studio-test-"));
