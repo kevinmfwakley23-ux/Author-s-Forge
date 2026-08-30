@@ -3,10 +3,12 @@ export interface AiModelCapabilities { readonly contextWindow?: number; readonly
 export interface AiModelResource { readonly provider: string; readonly model: string; readonly capabilities: AiModelCapabilities; readonly configured: boolean; readonly healthy?: boolean; readonly estimatedInputCostPerMillion?: number; readonly estimatedOutputCostPerMillion?: number; readonly remainingQuota?: number; readonly usedTokens?: number; readonly quotaLimit?: number; readonly quotaResetAt?: string; readonly cooldownUntil?: string; readonly consecutiveFailures?: number; readonly latencyMs?: number; }
 export interface AiModelSelectionRequest { readonly task: AiTask; readonly minimumContextWindow?: number; readonly minimumOutputTokens?: number; readonly requiresReasoning?: boolean; readonly requiresVision?: boolean; readonly requiresToolCalls?: boolean; readonly requiresStreaming?: boolean; readonly requiresCreativeWriting?: boolean; readonly requiresInstructionFollowing?: boolean; readonly preferProvider?: string; readonly preferModel?: string; readonly maxInputCostPerMillion?: number; readonly maxOutputCostPerMillion?: number; readonly estimatedInputTokens?: number; readonly quotaSafetyFraction?: number; readonly now?: string; }
 export interface AiModelSelection { readonly resource: AiModelResource; readonly score: number; readonly reasons: readonly string[]; }
+export interface AiRoutingTelemetry { readonly provider:string; readonly model:string; readonly consecutiveFailures:number; readonly totalTokens:number; readonly lastLatencyMs?:number; readonly cooldownUntil?:string; }
 
 export class AiModelBroker {
  private resources: AiModelResource[]=[];
  setResources(resources:readonly AiModelResource[]):void { this.resources=resources.filter(r=>r.configured); }
+ applyRoutingTelemetry(telemetry:readonly AiRoutingTelemetry[]):void { const byKey=new Map(telemetry.map(t=>[`${t.provider}::${t.model}`,t])); this.resources=this.resources.map(r=>{const t=byKey.get(`${r.provider}::${r.model}`);return t?{...r,consecutiveFailures:t.consecutiveFailures,usedTokens:Math.max(r.usedTokens??0,t.totalTokens),latencyMs:t.lastLatencyMs,cooldownUntil:t.cooldownUntil}:r;}); }
  listResources():AiModelResource[]{ return this.resources.map(r=>({...r,capabilities:{...r.capabilities}})); }
  select(request:AiModelSelectionRequest):AiModelSelection { return this.rank(request)[0] ?? (()=>{throw new Error(`No healthy configured AI model satisfies the ${request.task} requirements.`);})(); }
  rank(request:AiModelSelectionRequest):AiModelSelection[]{
