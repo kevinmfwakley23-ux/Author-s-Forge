@@ -47,7 +47,7 @@ Forge continuously learns from real working applications, current research, and 
 
 **research → architecture → implementation → regression coverage → build/acceptance verification → README/build-history update → next capability.**
 
-Recent benchmarking reinforces several principles: leading author tools emphasize persistent story context and character memory; FireQuill emphasizes scene-versioned character state, voice/arc continuity and author-approved extractor updates; Story Editor emphasizes reviewing newly written material and curating proposed memory before it becomes canon; Novel Studio AI combines structured story state, retrieval memory and continuity checks; and current research emphasizes time-aware story memory rather than relying on a static bible or embeddings alone. citeturn0search10turn0search2turn0search3turn0search4
+Recent benchmarking reinforces several principles: leading author tools emphasize persistent story context and character memory; FireQuill emphasizes scene-versioned character state, voice/arc continuity and author-approved extractor updates; Story Editor emphasizes reviewing newly written material and curating proposed memory before it becomes canon; Novel Studio AI combines structured story state, retrieval memory and continuity checks; and current research emphasizes time-aware story memory rather than relying on a static bible or embeddings alone.
 
 Research is an engineering input, not permission to copy disconnected feature lists. Proven strengths are rebuilt natively around Forge's durable state, provenance, Project Brain, Book Genome, author control, proposal review, workflow gates, production, and recovery.
 
@@ -101,65 +101,40 @@ Forge's living Character Bible now has an application-integrated retrieval bound
 - current emotional state and location when broad context is requested;
 - defensive cloning so retrieval cannot mutate authoritative character state.
 
-`assembleWritingContext()` now consumes this saliency layer for the `characters` context section. Character context is no longer a raw `JSON.stringify()` dump. It is restored through the authoritative Character Bible service, queried by task terms, ranked, limited, and emitted with relevance evidence and source IDs.
+`assembleWritingContext()` consumes this saliency layer for the `characters` context section. Character context is restored through the authoritative Character Bible service, queried by task terms, ranked, limited, and emitted with relevance evidence and source IDs.
 
-The context assembler now supports:
+`AiWritingStudioService.generateWithProjectContext()` is now the governed Studio application boundary for Mission 058. It:
 
-- `characterIds` for explicit character targeting;
-- `characterAsOf` for historical point-in-time context;
-- `characterMemoryLimit` for deterministic context budgets;
-- tokenized multi-term character relevance queries.
+- loads the authoritative project immediately before generation;
+- validates the real manuscript target;
+- assembles character context from current project state;
+- accepts explicit character targeting and historical `characterAsOf` context;
+- applies deterministic character-memory limits;
+- passes the assembled context and source IDs into the real AI writing coordinator;
+- creates the same durable author-reviewable proposal as the existing AI loop;
+- computes a fresh base-content hash so stale manuscript protection remains active.
 
-This creates the first real application path from **scene-aware character memory → salient retrieval → Writing Desk context**. The implementation intentionally keeps the authoritative Character Bible separate from the compact context projection.
+The AI provider therefore receives a **salient character projection derived immediately from authoritative project state**, rather than a caller-supplied static character dump.
 
-Regression coverage now verifies:
-
-- irrelevant characters are excluded when the context budget is constrained;
-- explicit character targeting works;
-- historical character state can be reconstructed for context;
-- relevance evidence survives into the assembled context;
-- existing canon/open-thread context behavior remains intact.
+Regression coverage verifies the application boundary, including salient character selection, source-ID provenance, historical context, proposal creation, and existing author-approval/stale-content protections.
 
 ### Mission 058 completion gate
 
-This feature is **not marked complete until CI/build verification passes and the live AI drafting path demonstrably consumes this assembled character context**. The remaining gate is the real Studio/provider path: Writing Desk request → context assembly → capability-routed model → governed proposal → author review, with character continuity evidence available before application.
+Mission 058 remains active until the live Studio route/provider execution is wired to this governed application boundary and CI/build verification proves the complete request path. The required final path is:
+
+**Writing Desk request → authoritative project load → character retrieval → assembled context → real model/provider → durable proposal → character continuity evidence before application → author review.**
+
+No subsequent mission is promoted until that path is proven.
 
 ## Mission 057 — Versioned Character State Memory
 
 Forge's character system is moving beyond a static character bible toward a **living, scene-aware character memory**. The existing Character Bible stores a complete structured profile, field history, effective timestamps, reasons and actor attribution.
 
-`src/domain/character-state-memory.ts` adds:
-
-- scene-specific character snapshots;
-- project/character ownership enforcement;
-- sequence-ordered memory history;
-- author vs approved-system provenance;
-- point-in-time state resolution;
-- deterministic relevance ranking across historical character states;
-- changed-field attribution for each scene snapshot;
-- validation against corrupt or cross-character state.
-
-This directly adopts and improves the strongest current pattern seen in FireQuill: character **voice, psychology, knowledge, relationships and arc state need to evolve with the manuscript rather than remain a static prompt card**.
-
-Forge keeps this state subordinate to the authoritative Character Bible and proposal/approval model. A system can propose a state change, but it must not silently rewrite canon or character truth.
+`src/domain/character-state-memory.ts` adds scene-specific snapshots, project/character ownership, sequence-ordered memory history, provenance, point-in-time state resolution, deterministic relevance ranking, changed-field attribution, and validation.
 
 ## Mission 056 — Author Voice Memory + Drift Preservation
 
-Forge's voice system is designed around a critical product promise: **AI assistance must not gradually erase the author's authorship signals.**
-
-Forge maintains an explicit approved author corpus rather than a single style prompt. `src/domain/author-voice-memory.ts` provides:
-
-- multiple approved writing samples;
-- sample provenance (`author` or `approved-manuscript`);
-- optional genre and purpose metadata;
-- weighted samples and canonical sample selection;
-- an aggregated voice fingerprint;
-- interpretable voice dimensions for sentence rhythm, vocabulary, dialogue, description, emotional intensity, and narrative distance;
-- corpus updates without losing sample provenance;
-- deterministic voice-drift assessment;
-- nearest-reference sample matching;
-- actionable drift warnings and revision recommendations;
-- reusable author-voice context for governed AI generation.
+Forge's voice system maintains an explicit approved author corpus with provenance, genre/purpose metadata, weighting, canonical sample selection, aggregated voice fingerprinting, interpretable voice dimensions, corpus updates, drift detection, reference matching, actionable recommendations, and reusable author-voice context.
 
 **Design rule:** Forge learns from the user's own approved corpus and treats voice preservation as a constraint alongside canon, character state, continuity, meaning, and author intent.
 
