@@ -1,3 +1,10 @@
+export { FORGE_CORE_FORMAT_VERSION, ForgeCore, createForgeCore } from "./application/forge-core";
+export type { ForgeCoreDependencies, ForgeCoreSnapshot, ForgeCoreReadiness } from "./application/forge-core";
+export type { ProjectStorePort } from "./application/project-store-port";
+export { inspectForgeCore } from "./application/forge-core-health";
+export type { ForgeCoreHealthStatus, ForgeCoreHealthReport } from "./application/forge-core-health";
+export { createAuthorVoiceMemory, updateAuthorVoiceMemory, assessVoiceDrift, buildAuthorVoiceContext, AUTHOR_VOICE_MEMORY_FORMAT_VERSION } from "./domain/author-voice-memory";
+export type { VoiceMemorySample, VoiceDimensionScores, VoiceMemoryEvolutionEvent, AuthorVoiceMemory, VoiceDriftReport } from "./domain/author-voice-memory";
 export type { MemoryClass, MemoryAuthority, MemoryProvenance, MemoryRecord, MemoryQuery } from "./domain/memory";
 export { createMemoryRecord, MEMORY_FORMAT_VERSION } from "./domain/memory";
 export { ProjectMemoryStore } from "./application/project-memory-store";
