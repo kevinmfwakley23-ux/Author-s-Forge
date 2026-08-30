@@ -49,7 +49,7 @@ Forge continuously learns from real working applications and open-source project
 
 Research is an engineering input, not permission to copy disconnected feature lists. Proven strengths are rebuilt natively around Forge's durable state, provenance, Project Brain, Book Genome, author control, proposal review, workflow gates, production, and recovery.
 
-Recent benchmark signals include visual planning and Story Bible patterns from Plottr/Sudowrite, manuscript-aware continuity from Storybible/Novilot, goal and habit feedback from current writing tools, specialist editorial triage from FireQuill, and propose-only author-control patterns from newer authoring products. Current external behavior must be verified before being treated as evidence.
+Recent benchmark signals include visual planning and Story Bible patterns from Plottr/Sudowrite, manuscript-aware continuity from Storybible/Novilot, goal and habit feedback from current writing tools, specialist editorial triage from FireQuill, manuscript-level developmental analysis from ProWritingAid, and propose-only author-control patterns from newer authoring products. Current external behavior must be verified before being treated as evidence.
 
 ## Integrated Studio Direction
 
@@ -62,11 +62,11 @@ PROJECT + BOOK BINDER
   ↓
 ARCHITECTURE
   ↓
-CANON / CHARACTERS / WORLD / TIMELINE / RESEARCH / VOICE
+CANON / CHARACTERS / WORLD / TIMELINE / RESEARCH / VOICE MEMORY
   ↓
 STORY MAP + WRITING DESK + PROJECT BRAIN
   ↓
-EDITORIAL ANALYSIS + CRAFT LENS
+EDITORIAL ANALYSIS + CRAFT LENS + VOICE DRIFT CHECK
   ↓
 VISUAL / ILLUSTRATION / COVER
   ↓
@@ -88,6 +88,31 @@ Context efficiency is first-class: hierarchical context assembly, deduplication,
 AI changes are reviewable durable proposals, never silent manuscript/canon mutation. Proposals carry rationale, provenance, status, review state, and source-revision binding. Writing Desk and Editing Room expose deterministic line-level diffs and word-count impact before explicit author approval/application. Server-side revision protection remains authoritative against stale writes.
 
 Forge never claims a provider/model is available without runtime verification and never fabricates unavailable AI output.
+
+## Mission 056 — Author Voice Memory + Drift Preservation
+
+Forge now has a dedicated author-voice memory layer designed to solve a harder problem than generic style prompting: preserving the **author's own established voice across AI-assisted drafting**.
+
+The competitive research showed that leading fiction systems treat character cards, voice samples, story memory, POV/tense controls, and persistent story context as active generation constraints. Sudowrite's Story Bible is explicitly a source of truth for both author and AI, while its character system uses personality, physical detail, dialogue style, and samples to maintain consistency across long manuscripts. ProWritingAid demonstrates the complementary value of manuscript-wide character/plot/style analysis and targeted evidence rather than opaque quality scores. citeturn0search11turn0search3turn0search8turn0search5
+
+Forge's implementation goes further by separating the author's **approved reference corpus** from generated prose. `src/domain/author-voice-memory.ts` provides:
+
+- multiple approved writing samples instead of one style prompt;
+- weighted samples and canonical sample selection;
+- an aggregated voice fingerprint;
+- corpus updates without losing sample provenance;
+- deterministic voice-drift assessment;
+- nearest-reference sample matching;
+- actionable drift warnings for narrative distance and sentence-pattern divergence;
+- a reusable author-voice context block for governed AI generation.
+
+`src/application/author-voice-memory.ts` provides the project/author ownership boundary so a voice corpus cannot accidentally be applied across projects or authors.
+
+The existing `voice-preservation` capability remains the lower-level measurement layer. The new memory corpus turns that measurement into a durable multi-sample reference system.
+
+**Design rule:** Forge must never tell an AI to imitate another named author. It learns from the user's own approved corpus and treats voice preservation as a constraint alongside canon, character, continuity, and author intent.
+
+The next integration step is to connect this memory directly to the live Writing Desk/AI drafting pipeline so every generated proposal can be scored for voice drift before the author sees the diff, with an optional author-controlled “voice preservation” gate.
 
 ## Mission 055 — Craft Lens Foundation
 
@@ -153,13 +178,14 @@ Canonical CI covers installation, build, tests, completion measurement, client s
 
 ## Current Build Priorities
 
-1. Integrate Author Goals into durable Studio project state.
-2. Integrate Craft Lens into Editing Room and governed proposal review.
-3. Build Knowledge Gap Radar from provenance-aware research and project-memory signals.
-4. Strengthen Story Map with scene attributes, plotlines, character arcs, and continuity indicators.
-5. Build Production Preview so formatting/export problems are caught before release.
-6. Expand collaboration/review only after the core author journey remains durable and verifiable.
-7. Verify the complete running product on Chromebook and Android, including recovery and real configured AI providers.
+1. Integrate Author Voice Memory into the live AI drafting/proposal pipeline and make voice drift visible before application.
+2. Integrate Character Bible + relationship memory + voice memory into context assembly with saliency-aware retrieval.
+3. Integrate Author Goals into durable Studio project state.
+4. Integrate Craft Lens into Editing Room and governed proposal review.
+5. Build Knowledge Gap Radar from provenance-aware research and project-memory signals.
+6. Strengthen Story Map with scene attributes, plotlines, character arcs, and continuity indicators.
+7. Build Production Preview so formatting/export problems are caught before release.
+8. Verify the complete running product on Chromebook and Android, including recovery and real configured AI providers.
 
 ## Definition of Complete
 
