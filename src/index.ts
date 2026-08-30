@@ -14,3 +14,5 @@ export { createCostGuardedAiGateway, estimateAiRequestCost, AiCostGuardError } f
 export type { AiCostPolicy, AiCostEstimate } from "./application/ai-cost-guard";
 export { AiProposalStore } from "./application/ai-proposal-store";
 export type { AiProposal, AiProposalKind, AiProposalStatus, ProposalReviewDecision } from "./application/ai-proposal-store";
+export { createMarketingCampaign, approveMarketingAsset, scheduleMarketingAsset, MARKETING_CHANNELS } from "./domain/marketing-campaign";
+export type { MarketingCampaign, MarketingAsset, MarketingEvidence, MarketingChannel, MarketingAssetStatus } from "./domain/marketing-campaign";
