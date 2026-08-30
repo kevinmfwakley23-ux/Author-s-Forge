@@ -18,7 +18,6 @@ export interface AiWritingRequest {
   readonly sourceMemoryIds: readonly string[];
   readonly proposalId: string;
   readonly baseContentSha256?: string;
-  readonly voiceDrift?: VoiceDriftReport;
   readonly now?: string;
 }
 
@@ -40,9 +39,15 @@ export interface AiWritingResult {
   readonly target: AiProposalTarget;
 }
 
+export type AiWritingCandidateAssessor = (candidate: string) => VoiceDriftReport | undefined;
+
 /** The writing boundary produces an author-reviewable proposal and never mutates manuscript state. */
 export class AiWritingService {
-  constructor(private readonly provider: AiWritingProvider, private readonly proposals: AiProposalStore) {}
+  constructor(
+    private readonly provider: AiWritingProvider,
+    private readonly proposals: AiProposalStore,
+    private readonly assessCandidate?: AiWritingCandidateAssessor,
+  ) {}
 
   async generate(request: AiWritingRequest): Promise<AiWritingResult> {
     validateRequest(request);
@@ -54,6 +59,7 @@ export class AiWritingService {
     })).trim();
     if (!proposedContent) throw new Error("AI writing provider returned empty content.");
 
+    const voiceDrift = this.assessCandidate?.(proposedContent);
     const kind: AiProposalKind = request.task === "brainstorm" || request.task === "outline" ? "creative-alternative" : "manuscript-edit";
     const target: AiProposalTarget = { bookId: request.bookId, chapterId: request.chapterId, sceneId: request.sceneId };
     const proposal = this.proposals.propose({
@@ -66,7 +72,7 @@ export class AiWritingService {
       sourceMemoryIds: request.sourceMemoryIds,
       target,
       ...(request.baseContentSha256 ? { baseContentSha256: request.baseContentSha256 } : {}),
-      ...(request.voiceDrift ? { voiceDrift: request.voiceDrift } : {}),
+      ...(voiceDrift ? { voiceDrift } : {}),
       now: request.now,
     });
     return { formatVersion: AI_WRITING_FORMAT_VERSION, proposal, task: request.task, target };
