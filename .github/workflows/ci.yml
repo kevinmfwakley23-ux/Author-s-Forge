@@ -14,9 +14,23 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: npm install
+          cache: npm
+      - run: npm ci
       - run: npm run build
       - run: npm test
       - run: node --check public/app.js
       - run: node --check public/forge-command-center.js
       - run: node --check public/forge-workbench.js
+
+  browser-acceptance:
+    runs-on: ubuntu-latest
+    needs: verify
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser
