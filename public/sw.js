@@ -1,4 +1,4 @@
-const CACHE = "authors-forge-shell-v3";
+const CACHE = "authors-forge-shell-v4";
 const SHELL = [
   "/",
   "/index.html",
@@ -7,6 +7,7 @@ const SHELL = [
   "/forge-command-center.js",
   "/forge-workbench.js",
   "/forge-ai-proposals.js",
+  "/forge-editing-proposals.js",
   "/forge-pwa.js",
   "/manifest.webmanifest",
   "/icon.svg",
