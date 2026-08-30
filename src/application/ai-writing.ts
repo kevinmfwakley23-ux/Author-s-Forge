@@ -1,5 +1,6 @@
 import type { AiProposal, AiProposalKind, AiProposalTarget } from "./ai-proposal-store";
 import type { AiProposalStore } from "./ai-proposal-store";
+import type { VoiceDriftReport } from "../domain/author-voice-memory";
 
 export const AI_WRITING_FORMAT_VERSION = 1 as const;
 
@@ -17,6 +18,7 @@ export interface AiWritingRequest {
   readonly sourceMemoryIds: readonly string[];
   readonly proposalId: string;
   readonly baseContentSha256?: string;
+  readonly voiceDrift?: VoiceDriftReport;
   readonly now?: string;
 }
 
@@ -64,6 +66,7 @@ export class AiWritingService {
       sourceMemoryIds: request.sourceMemoryIds,
       target,
       ...(request.baseContentSha256 ? { baseContentSha256: request.baseContentSha256 } : {}),
+      ...(request.voiceDrift ? { voiceDrift: request.voiceDrift } : {}),
       now: request.now,
     });
     return { formatVersion: AI_WRITING_FORMAT_VERSION, proposal, task: request.task, target };
