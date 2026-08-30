@@ -25,25 +25,27 @@ export interface ProposalReviewDecision {
   readonly reviewedAt: string;
 }
 
+type ProposalInput = Omit<AiProposal, "status" | "createdAt"> & { now?: string };
+
 export class AiProposalStore {
   private readonly proposals = new Map<string, AiProposal>();
 
-  propose(input: Omit<AiProposal, "status" | "createdAt"> & { now?: string }): AiProposal {
+  propose(input: ProposalInput): AiProposal {
     if (!input.id.trim()) throw new Error("AI proposal id is required.");
     if (!input.projectId.trim()) throw new Error("AI proposal project id is required.");
     if (!input.title.trim()) throw new Error("AI proposal title is required.");
     if (!input.proposedContent.trim()) throw new Error("AI proposal content is required.");
     if (this.proposals.has(input.id)) throw new Error(`Duplicate AI proposal id \"${input.id}\".`);
+    const { now, ...fields } = input;
     const proposal: AiProposal = {
-      ...input,
+      ...fields,
       title: input.title.trim(),
       rationale: input.rationale.trim(),
       proposedContent: input.proposedContent,
       sourceMemoryIds: [...new Set(input.sourceMemoryIds)].sort(),
       status: "pending",
-      createdAt: input.now ?? new Date().toISOString(),
+      createdAt: now ?? new Date().toISOString(),
     };
-    delete (proposal as { now?: string }).now;
     this.proposals.set(proposal.id, cloneProposal(proposal));
     return cloneProposal(proposal);
   }
