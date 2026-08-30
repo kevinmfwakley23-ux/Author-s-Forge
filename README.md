@@ -130,59 +130,18 @@ No button is considered complete merely because it exists in HTML. Every control
 
 Author's Forge treats **context efficiency as a first-class AI architecture concern**. The goal is to reduce unnecessary model input, latency, and operating cost without sacrificing canon, author intent, reasoning quality, or recoverability.
 
-This capability explicitly reuses compatible K.I.N.G.S. architecture and open-source research where appropriate while remaining provider-neutral and independently deployable inside Forge. Forge receives reusable optimization capabilities; it does not become structurally dependent on K.I.N.G.S.
+The production stack now exposes a governed context-engine registry with deterministic lossless-first optimization and lossless structured-data compaction. The registry is intentionally extensible while higher-risk semantic and experimental engines remain explicitly catalogued but outside the default production path until their fidelity, latency, device footprint, and economics are benchmarked.
 
-### Context Optimization Pipeline
+### Current production engine stack
 
-```text
-AUTHOR REQUEST
-      ↓
-AI REQUEST PLANNER
-      ↓
-CONTEXT BUDGET MANAGER
-      ↓
-PROJECT CONTEXT RETRIEVER
-      ↓
-SESSION DEDUPLICATION
-      ↓
-CONTEXT STRATIFIER
-      ↓
-COMPRESSION ENGINE REGISTRY
-      ↓
-CONTENT-AWARE COMPRESSION
-      ↓
-SEMANTIC CACHE
-      ↓
-TOKEN / COST GUARD
-      ↓
-PROVIDER ROUTER
-      ↓
-K.I.N.G.S. / OPENAI / OLLAMA / OPENAI-COMPATIBLE GATEWAY
-```
+- deterministic lossless-first context optimization;
+- lossless JSON/structured-data compaction;
+- explicit engine priorities and supported payload kinds;
+- inflation guards that preserve the original context when optimization produces no gain;
+- capability metadata distinguishing production-safe, derived, optional-model, and experimental engines;
+- package-level exports so the optimization layer can be consumed without coupling the core domain to a provider.
 
-### Required optimization principles
-
-- **Context stratification:** separate essential system rules, project canon, current book/chapter/scene, characters, world/canon memories, research, recent workflow state, and low-value historical material so only relevant context is sent.
-- **Retrieval over wholesale replay:** retrieve relevant project knowledge instead of repeatedly sending the entire project to every AI request.
-- **Session deduplication:** content-address repeated material across turns so unchanged context does not repeatedly consume input budget.
-- **Fetch-once / reuse:** retain normalized context artifacts and reuse unchanged context rather than reconstructing or transmitting it repeatedly.
-- **Retrieve-on-demand archival:** large derived context may be archived behind an internal retrieval handle and fetched only when relevant; retrieval handles must never leak into model prompts as fake source content.
-- **Deterministic optimization first:** deduplicate repeated material, compact metadata and tool output, remove boilerplate, and use deltas for unchanged state before invoking model-based compression.
-- **Content-aware engines:** JSON, code, diffs, logs, structured results, and prose require different compression policies.
-- **Semantic caching:** avoid paying for equivalent or sufficiently similar requests when a valid reusable result exists and the cache policy permits it.
-- **Optional model-based compression:** support open-source prompt/context compression techniques such as LLMLingua-style compression where they provide a measurable benefit.
-- **Compression economics:** do not compress blindly. Estimate whether expected savings justify preprocessing cost and latency.
-- **Inflation guard:** if optimized context is not meaningfully smaller, discard the optimization and use the original context.
-- **Structured-data protection:** JSON, identifiers, canon facts, constraints, tool arguments, URLs, code blocks, and other machine-critical structures must not be lossy-compressed in ways that can change meaning.
-- **Immutable source context:** optimization must never destroy original project information. Compressed context is derived state, never the source of truth.
-- **Author authority:** optimization may shorten context sent to a model but may never silently alter canon or author-approved project state.
-- **Fail-open behavior:** if an optimization engine cannot safely operate, Forge uses the original context rather than failing the author's workflow.
-
-### Compression Engine Registry
-
-Forge is adopting an **engine-based compression architecture** inspired by the reviewed OmniRoute implementation. Each engine is independently identifiable, configurable, prioritized, validated, target-aware, and replaceable rather than being hard-wired into the provider layer.
-
-Approved engine families include:
+### Planned/optional engine families
 
 1. **Session-Dedup** — content-addressed repeated-context elimination across turns.
 2. **CCR-style retrieval** — archive large derived blocks and retrieve them on demand through Forge's internal context system.
@@ -191,37 +150,13 @@ Approved engine families include:
 5. **Lossless Structured Output** — preserve JSON/structured tool results while reducing redundant representation where safe.
 6. **Structured Data Compaction** — lossless-first compaction of repetitive arrays/tables when supported.
 7. **Relevance Extraction** — query-aware extractive reduction for temporary research/context material.
-8. **Conservative Prose Compression** — Caveman-style reduction only for temporary/non-canonical context, never as a silent manuscript rewrite.
+8. **Conservative Prose Compression** — reduction only for temporary/non-canonical context, never as a silent manuscript rewrite.
 9. **Progressive Aging** — summarize/age low-value historical turns when context pressure requires it.
 10. **Optional LLMLingua-2 / ONNX** — semantic pruning behind an explicit optional dependency and fail-open boundary.
 11. **Optional stronger heuristic/SLM tier** — only when measured savings justify the runtime and quality cost.
-12. **Experimental context-as-image encoding** — not part of the current Forge production path; provider-specific experiments remain isolated until independently verified.
+12. **Experimental context-as-image encoding** — isolated provider experiment, not part of the production path.
 
 All engines must preserve author-critical data and expose measurable optimization results. Forge does **not** inherit third-party headline savings claims; actual savings are benchmarked on Forge workloads.
-
-### Open-source compatibility decision
-
-The first production optimization layer is **deterministic and dependency-light**. Forge has an internal context optimizer with token estimation, whitespace normalization, duplicate-line reduction, savings measurement, and an inflation guard. This provides immediate savings without adding a heavy runtime dependency.
-
-Open-source semantic compression remains an optional second stage. LLMLingua/LongLLMLingua is a strong candidate, but adoption requires licensing, runtime footprint, local-device viability, fidelity, latency, and measured savings to be verified for Forge workloads. Semantic caching and tool-output compression are likewise candidates, not automatic dependencies.
-
-### OmniRoute research decision — 2026-08-28
-
-The reviewed `diegosouzapw/OmniRoute` implementation is now an approved architectural reference for Forge's optimization layer. Its useful ideas are adopted selectively and Forge-native: independently registered engines; session deduplication; retrieve-on-demand archival; lightweight cleanup; RTK-style tool-result filtering; lossless-first structured output; structured-data compaction; relevance reduction; conservative prose compression; progressive context aging; optional LLMLingua-2/ONNX semantic pruning; stronger optional heuristic/SLM tiers; stacked presets; cache-aware optimization; and measured savings.
-
-OmniRoute's engine contract/registry is particularly useful because it makes optimization stages independently toggleable and target-aware. Forge adopts that architecture without coupling its domain or provider implementation to OmniRoute.
-
-The OmniRoute repository is an architectural reference, not a promise of universal savings. Open issues and provider-specific behavior reinforce the requirement that Forge benchmark each engine and fail open when an optimization is unsafe or ineffective.
-
-Direct code reuse is limited to components whose license, provenance, security, maintenance, runtime footprint, and Chromebook/Android compatibility are verified. Otherwise Forge reimplements the proven algorithm/interface natively.
-
-### Other repository research decisions
-
-- `JuliusBrussee/caveman`: useful references for typed payload handling, content-aware compression, context packing, and recoverable originals.
-- `clacky-ai/openclacky`: useful references for cache reuse, insert-then-compress, background compression, and minimal-tool principles.
-- `decolua/9router`: useful references for RTK/Headroom-style tool-result compression and provider routing.
-- `linuxhsj/openclaw-zero-token`: useful provider-gateway and conditional-tool concepts; browser/session interception is excluded from Forge core.
-- `andeya/token-free-gateway`: useful OpenAI-compatible protocol, SSE streaming, tool-call normalization, provider-adapter, and routing concepts; browser credential interception and provider-session storage are excluded from Forge core.
 
 ### K.I.N.G.S. integration decision
 
@@ -236,41 +171,10 @@ The integration boundary is deliberately explicit:
 - If K.I.N.G.S. is unavailable, Forge can fall back to independently governed OpenAI/Ollama providers rather than becoming unusable.
 - Forge must never pretend K.I.N.G.S. is connected merely because the adapter exists; an actual configured endpoint and successful runtime verification are required.
 
-K.I.N.G.S. remains the source of reusable architecture for context building, knowledge selection, task-state selection, safe compression, checkpointing, context budgets, provider/model routing, and cost/quality policy. Forge adopts compatible capabilities at explicit boundaries rather than forking K.I.N.G.S. internals.
-
-### OpenAI-compatible gateway decision
-
-**OpenAI-compatible gateways are an approved optional provider boundary for Forge.** The reviewed `andeya/token-free-gateway` project demonstrates useful protocol infrastructure including OpenAI-compatible request/response types, SSE streaming, tool-call normalization, provider adapters, and routing concepts.
-
-The gateway architecture is:
-
-```text
-FORGE CONTEXT INTELLIGENCE
-        ↓
-FORGE PROVIDER ROUTER
-        ↓
-OPENAI-COMPATIBLE GATEWAY ADAPTER
-        ↓
-LOCAL / EXTERNAL GATEWAY
-        ↓
-UNDERLYING PROVIDER(S)
-```
-
-The gateway is an **execution option, not the token-optimization system**. Context optimization remains above the provider layer.
-
-Forge will **not** import browser credential interception, browser-session automation, or provider-session storage into the core product. Those mechanisms create unnecessary security, policy, browser-runtime, and maintenance coupling.
-
 ## Real Provider Boundaries
 
 ### AI writing
-Forge supports real provider-backed generation through:
-
-- K.I.N.G.S. bridge: `KINGS_AI_ENDPOINT` + `KINGS_AI_MODEL` when a governed K.I.N.G.S. bridge is running.
-- OpenAI: `OPENAI_API_KEY` + explicit `OPENAI_MODEL`.
-- Local Ollama: `OLLAMA_BASE_URL` + explicit `OLLAMA_MODEL`.
-- Optional OpenAI-compatible gateway through the provider abstraction.
-
-If no provider is configured, generation fails explicitly. Forge does not fabricate an answer.
+Forge supports real provider-backed generation through K.I.N.G.S., OpenAI, local Ollama, and optional OpenAI-compatible gateways. If no provider is configured, generation fails explicitly. Forge does not fabricate an answer.
 
 ### Real image generation
 Illustration generation uses the configured OpenAI image provider. Without `OPENAI_API_KEY`, the Studio reports the missing configuration instead of showing fake output.
@@ -281,21 +185,7 @@ Forge's command center supports typed commands and browser `SpeechRecognition` /
 
 ## Token and Cost Observability
 
-Every provider request should ultimately expose an optimization ledger containing, where available:
-
-- original estimated token count;
-- optimized token count;
-- tokens saved;
-- compression ratio;
-- cache hit/miss;
-- retrieved context count;
-- optimization strategies used;
-- provider and model;
-- estimated request cost;
-- optimization latency;
-- fallback/skip reason.
-
-Compression quality is workload- and model-dependent. Forge must measure actual results rather than promise fixed percentages.
+Every provider request should ultimately expose an optimization ledger containing, where available: original estimated token count; optimized token count; tokens saved; compression ratio; cache hit/miss; retrieved context count; optimization strategies; provider/model; estimated request cost; optimization latency; and fallback/skip reason.
 
 ## Non-Negotiable Optimization Safety Rule
 
