@@ -18,3 +18,5 @@ export { createMarketingCampaign, approveMarketingAsset, scheduleMarketingAsset,
 export type { MarketingCampaign, MarketingAsset, MarketingEvidence, MarketingChannel, MarketingAssetStatus } from "./domain/marketing-campaign";
 export { createReleaseGateReport, validateReleaseGateReport, RELEASE_GATE_FORMAT_VERSION } from "./domain/release-gate";
 export type { ReleaseGateReport, ReleaseGateInput, ReleaseGateBlocker, ReleaseGateStatus, ReleaseBlockerKind } from "./domain/release-gate";
+export { createWorkflowGateReport, canAdvanceWorkflow, validateWorkflowGateReport, FORGE_WORKFLOW_STAGES, WORKFLOW_GATE_FORMAT_VERSION } from "./domain/workflow-gate";
+export type { WorkflowGateReport, WorkflowGateInput, WorkflowGateCheck, WorkflowStageGate, WorkflowGateStatus, ForgeWorkflowStage } from "./domain/workflow-gate";
