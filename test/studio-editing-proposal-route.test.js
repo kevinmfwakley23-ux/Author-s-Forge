@@ -47,7 +47,10 @@ test("Studio exposes the governed AI editing proposal route and validates findin
     const response = await fetch(`${base}/api/projects/${projectId}/ai/editing/propose`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ bookId: book.id, chapterId: chapter.id, sceneId: scene.id, findingMessage: "Weak opening", recommendation: "Increase tension", findingStart: 0, findingEnd: sourceContent.length + 1, proposalId: "invalid-editing-proposal" }) });
     assert.equal(response.status, 400);
     const raw = await response.text();
-    if (raw.trim()) { const payload = JSON.parse(raw); assert.match(String(payload.error ?? payload.message ?? ""), /finding range is invalid/i); }
+    if (raw.trim()) {
+      const payload = JSON.parse(raw);
+      assert.match(String(payload.error ?? payload.message ?? ""), /finding range is invalid/i);
+    }
   } finally {
     server.kill("SIGTERM");
     await new Promise((resolve) => server.exitCode !== null ? resolve() : server.once("exit", resolve));
