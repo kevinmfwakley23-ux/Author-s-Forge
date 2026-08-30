@@ -140,11 +140,114 @@ Structured JSON, code, and diffs remain protected from lossy rewriting. Tool-res
 
 ### Open-source research decision
 
-Forge will selectively adopt proven open-source techniques rather than import an entire gateway or agent stack. Current research confirms LLMLingua-2 as a credible optional semantic-compression candidate. Adoption remains gated on fidelity, local runtime footprint, latency, licensing, and measured Forge workload savings rather than headline percentages.
+Forge will selectively adopt proven open-source techniques rather than import an entire gateway or agent stack. Current research confirms LLMLingua-2 as a credible optional semantic-compression candidate. Adoption remains gated on fidelity, local runtime footprint, latency, licensing, and measured Forge workload savings.
 
 The reviewed OmniRoute architecture remains a reference for composable compression engines, session deduplication, retrieve-on-demand context, RTK-style tool reduction, structured-data compaction, relevance reduction, optional semantic compression, adaptive compression, and measured stacked pipelines. Forge reimplements interfaces and algorithms natively when direct code reuse is not independently justified.
 
 Forge does **not** copy third-party savings claims. Every optimization stage must report actual input/output estimates, savings, strategy, cache behavior where applicable, and fallback reason. Lossy compression remains prohibited for manuscript canon, author-approved prose, structured machine data, URLs, identifiers, constraints, and other machine-critical material.
+
+### OmniRoute as an external AI resource
+
+Forge may use a separately running **OmniRoute-compatible gateway as an optional external AI routing and cost-optimization layer**. This is deliberately above the provider boundary and below Forge's context-intelligence layer.
+
+When configured, Forge can route real requests through OmniRoute to take advantage of its available provider/model combinations, local models, cost-aware routing, and any genuinely available free or low-cost model resources. Forge never assumes that a model or free quota exists: availability is discovered from the running gateway and verified by real requests.
+
+The external boundary is configured with:
+
+- `OMNIROUTE_BASE_URL` — running OmniRoute/OpenAI-compatible endpoint;
+- `OMNIROUTE_MODEL` — optional explicit model override;
+- `OMNIROUTE_API_KEY` — optional gateway credential when required.
+
+OmniRoute remains optional. If it is unavailable, Forge uses its independently governed provider routes. No OmniRoute-specific browser session, credential interception, or provider-session storage is part of Forge core.
+
+### OmniRoute Agent Extension research decision
+
+The reviewed `md-riaz/omniroute-agent-extension` is an approved architectural reference for **model catalog discovery, capability metadata, reasoning support, vision detection, provider health monitoring, connection diagnostics, usage/quota visibility, automatic model synchronization, and OpenAI-compatible streaming/tool-call handling**.
+
+Forge will use these concepts to strengthen its own AI Model Broker rather than importing the VS Code/agent extension itself. The broker should be able to discover what a connected model can actually do before selecting it for writing, editing, image analysis, cover work, research, or tool use.
+
+Model selection must consider capability, context window, output capacity, reasoning support, vision/input modalities, health, latency, quota/cost, and task requirements. Provider credentials remain outside manuscript/project state.
+
+### AI Model Broker direction
+
+```text
+                    FORGE AI MODEL BROKER
+                              │
+        ┌─────────────────────┼─────────────────────┐
+        │                     │                     │
+   K.I.N.G.S.             OmniRoute             Direct
+   intelligence           gateway               providers
+        │                     │                     │
+        └─────────────────────┼─────────────────────┘
+                              ↓
+                 MODEL CAPABILITY CATALOG
+                              ↓
+                 HEALTH / COST / QUOTA CHECK
+                              ↓
+                    TASK-AWARE ROUTING
+                              ↓
+                     REAL AI RESOURCE
+```
+
+The broker is intended to answer: **what is the best real AI resource available for this job right now?** It must not select a model solely because it is the default or because its name appears in configuration.
+
+### K.I.N.G.S. integration decision
+
+**K.I.N.G.S. is an approved optional intelligence resource for Author's Forge.** Forge may call K.I.N.G.S. whenever a task benefits from its workforce, knowledge, routing, local intelligence, verification, context optimization, or other governed capabilities.
+
+The integration boundary is deliberately explicit:
+
+- `KINGS_AI_ENDPOINT` selects a running K.I.N.G.S. bridge endpoint;
+- `KINGS_AI_MODEL` identifies the model/resource exposed through that bridge;
+- `KINGS_AI_API_KEY` is optional and only used when the bridge requires authentication;
+- the bridge uses an OpenAI-Responses-compatible request/response contract;
+- if K.I.N.G.S. is unavailable, Forge can fall back to independently governed providers;
+- Forge never claims K.I.N.G.S. is connected without successful runtime verification.
+
+K.I.N.G.S. remains a source of reusable architecture for context building, knowledge selection, task-state selection, safe compression, checkpointing, context budgets, provider/model routing, and cost/quality policy. Forge adopts compatible capabilities at explicit boundaries rather than forking K.I.N.G.S. internals.
+
+### OpenAI-compatible gateway decision
+
+OpenAI-compatible gateways are an approved optional provider boundary for Forge. Protocol, streaming, tool-call normalization, provider adapters, and routing patterns may be reused when license, security, runtime, and maintenance review approves them.
+
+Browser credential interception, browser-session automation, and provider-session storage are excluded from Forge core.
+
+## Real Provider Boundaries
+
+### AI writing
+Forge supports real provider-backed generation through:
+
+- K.I.N.G.S. bridge;
+- OmniRoute/OpenAI-compatible gateway;
+- OpenAI;
+- local Ollama.
+
+If no real provider is configured, generation fails explicitly. Forge does not fabricate an answer.
+
+### Real image generation
+Illustration generation uses the configured real image provider. Without required credentials, the Studio reports the missing configuration instead of showing fake output.
+
+## Voice as a First-Class Input
+
+Forge's command center supports typed commands and browser `SpeechRecognition` / `webkitSpeechRecognition`. The original transcript remains editable before execution. Voice commands use the same real project and provider boundary as typed commands.
+
+## Token and Cost Observability
+
+Every provider request should ultimately expose an optimization ledger containing, where available:
+
+- original estimated token count;
+- optimized token count;
+- tokens saved;
+- compression ratio;
+- cache hit/miss;
+- retrieved context count;
+- optimization strategies used;
+- provider and model;
+- estimated request cost;
+- optimization latency;
+- fallback/skip reason.
+
+Compression quality is workload- and model-dependent. Forge must measure actual results rather than promise fixed percentages.
 
 ## AI Proposal and Author-Controlled Mutation
 
@@ -160,7 +263,7 @@ Forge has a versioned **lifecycle quality-gate contract** spanning `concept → 
 
 ## Mission 044 — Governed Workflow Advancement
 
-The workflow gate is now consumable through `src/application/workflow-advance.ts`. The advancement service derives the next canonical stage, permits only sequential progression, blocks advancement when the current stage has failed checks, and returns explicit blocker IDs alongside the gate report that justified the decision.
+The workflow gate is consumable through `src/application/workflow-advance.ts`. The advancement service derives the next canonical stage, permits only sequential progression, blocks advancement when the current stage has failed checks, and returns explicit blocker IDs alongside the gate report that justified the decision.
 
 This creates the application-level boundary needed for the eventual Studio command:
 
