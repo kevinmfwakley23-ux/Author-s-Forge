@@ -2,6 +2,31 @@
 
 This file is the durable, chronological engineering history for the repository. It complements the README: the README records the current product truth; this ledger records how the current truth was built.
 
+## Mission 046 — Durable AI Proposal Ledger
+
+**Status:** Implemented in `main`; local build/regression verification required.
+
+### Direction
+
+AI-generated writing and editing output must remain observable, attributable, recoverable, and explicitly author-controlled even when the Studio process restarts.
+
+### Delivered
+
+- Added `FileAiProposalStore` as a filesystem-backed persistence adapter for the existing proposal ledger.
+- Added snapshot/restore boundaries to `AiProposalStore`.
+- Added versioned persistence validation and duplicate/record integrity checks.
+- Added atomic temporary-file writes followed by rename for interruption-safe persistence.
+- Added recovery and corruption tests.
+- Exported the durable proposal adapter from the canonical Forge API.
+
+### Governance
+
+Durability does not create authority. AI proposals remain pending until an author explicitly accepts or rejects them. System actors cannot accept proposals.
+
+### Next integration target
+
+Bind durable proposals directly into the running Studio AI-writing and editing workflow so provider output is recorded with provenance before it can become manuscript state.
+
 ## Mission 045 — Functional-Truth Completion
 
 **Status:** Active — canonical baseline repair and integrated Studio verification are in progress.
