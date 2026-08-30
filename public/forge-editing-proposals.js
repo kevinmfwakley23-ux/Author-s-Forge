@@ -32,7 +32,6 @@
     const rows = diff.lines.map((line) => { const prefix = line.kind === "added" ? "+" : line.kind === "removed" ? "−" : " "; return `<div class="proposal-diff-line ${esc(line.kind)}"><span>${prefix}</span><code>${esc(line.text || " ")}</code></div>`; }).join("");
     host.innerHTML = `<div class="proposal-diff-summary"><strong>${diff.changed ? "Changes detected" : "No changes"}</strong><span>+${diff.addedLines} added</span><span>−${diff.removedLines} removed</span><span>${diff.unchangedLines} unchanged</span><span>${diff.baseWords} → ${diff.proposedWords} words</span></div><details open><summary>Line-level review</summary><div class="proposal-diff" aria-label="Editing proposal line-level diff">${rows || '<p class="muted">No lines.</p>'}</div></details><small class="muted">The diff compares the currently loaded scene with the durable proposal. Applying remains a separate explicit author action and server-side source-revision protection remains authoritative.</small>`;
   }
-
   function installPanel() {
     const result = $("#edit-result");
     if (!result || $("#ai-editing-proposal-panel")) return;
@@ -44,7 +43,6 @@
     $("#ai-editing-propose")?.addEventListener("click", propose);
     refresh();
   }
-
   async function propose() {
     const { book, chapter, scene } = current();
     if (!book || !chapter || !scene) return notify("Select a book and scene before creating an AI editing proposal.");
@@ -63,7 +61,6 @@
     } catch (error) { notify(error.message); }
     finally { if (button) button.disabled = false; }
   }
-
   async function refresh(selectedId) {
     const host = $("#ai-editing-proposal-list"); if (!host) return;
     try {
@@ -73,7 +70,6 @@
       renderDiff(selected || null);
     } catch (error) { host.innerHTML = `<p class="muted">${esc(error.message)}</p>`; renderDiff(null); }
   }
-
   document.addEventListener("click", async (event) => {
     const target = event.target instanceof Element ? event.target : null; if (!target) return;
     const select = target.closest("[data-edit-select]"), approve = target.closest("[data-edit-approve]"), reject = target.closest("[data-edit-reject]"), apply = target.closest("[data-edit-apply]");
@@ -84,8 +80,12 @@
       if (apply) { await api(projectUrl(`/ai/proposals/${encodeURIComponent(apply.dataset.editApply)}/apply`), { method: "POST", body: JSON.stringify({}) }); notify("Approved editing proposal applied to the manuscript and persisted.", true); $("#refresh")?.click(); await refresh(apply.dataset.editApply); }
     } catch (error) { notify(error.message); }
   });
-
   window.addEventListener("forge:workspace-ready", installPanel);
   window.addEventListener("load", installPanel);
   window.addEventListener("hashchange", installPanel);
+  function loadStoryMap() {
+    if (document.querySelector('script[data-forge-story-map]')) return;
+    const script = document.createElement("script"); script.src = "/forge-story-map.js"; script.dataset.forgeStoryMap = "true"; script.defer = true; document.head.appendChild(script);
+  }
+  window.addEventListener("load", loadStoryMap, { once: true });
 })();
