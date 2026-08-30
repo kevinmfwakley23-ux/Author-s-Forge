@@ -1,11 +1,14 @@
 import { join } from "node:path";
 import { FileProjectStore } from "./file-project-store";
 import { createForgeCore, type ForgeCore } from "../application/forge-core";
+import { discoverConfiguredAiModelResources } from "./ai-model-resources";
 
 /** Production composition root for the shared Forge Brain. */
 export function createForgeCoreRuntime(dataRoot: string): ForgeCore {
   const projectStore = new FileProjectStore(dataRoot);
-  return createForgeCore({ projectStore });
+  const core = createForgeCore({ projectStore });
+  core.registerAiModels(discoverConfiguredAiModelResources());
+  return core;
 }
 
 /** Standard runtime location used by Studio and device launchers. */
