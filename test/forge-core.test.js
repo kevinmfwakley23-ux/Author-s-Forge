@@ -15,22 +15,12 @@ function projectStore() {
 }
 
 function project() {
-  return {
-    formatVersion: 4,
-    metadata: { id: "project-1", title: "Core Test", createdAt: "2026-08-30T00:00:00.000Z", updatedAt: "2026-08-30T00:00:00.000Z", status: "active" },
-    memories: [],
-  };
+  return { formatVersion: 4, metadata: { id: "project-1", title: "Core Test", createdAt: "2026-08-30T00:00:00.000Z", updatedAt: "2026-08-30T00:00:00.000Z", status: "active" }, memories: [] };
 }
 
 function configuredCore() {
   const core = createForgeCore({ projectStore: projectStore() });
-  core.registerAiModels([{
-    provider: "test-provider",
-    model: "test-model",
-    configured: true,
-    healthy: true,
-    capabilities: { contextWindow: 128000, maxOutputTokens: 16000, creativeWriting: true, instructionFollowing: true },
-  }]);
+  core.registerAiModels([{ provider: "test-provider", model: "test-model", configured: true, healthy: true, capabilities: { contextWindow: 128000, maxOutputTokens: 16000, creativeWriting: true, instructionFollowing: true } }]);
   return core;
 }
 
@@ -45,8 +35,7 @@ test("Forge Core owns one shared memory store and AI broker", () => {
 });
 
 test("Forge Core becomes ready only after durable project storage and a real configured AI resource are present", () => {
-  const core = configuredCore();
-  const readiness = core.readiness();
+  const readiness = configuredCore().readiness();
   assert.equal(readiness.ready, true);
   assert.equal(readiness.aiConfigured, true);
   assert.equal(readiness.projectStoreAvailable, true);
@@ -54,44 +43,37 @@ test("Forge Core becomes ready only after durable project storage and a real con
 });
 
 test("Forge Core injects existing infrastructure instead of duplicating it", () => {
-  const memory = new ProjectMemoryStore();
-  const broker = new AiModelBroker();
-  const store = projectStore();
+  const memory = new ProjectMemoryStore(); const broker = new AiModelBroker(); const store = projectStore();
   const core = createForgeCore({ memoryStore: memory, modelBroker: broker, projectStore: store });
-  assert.strictEqual(core.memory, memory);
-  assert.strictEqual(core.ai, broker);
-  assert.strictEqual(core.projectStore, store);
+  assert.strictEqual(core.memory, memory); assert.strictEqual(core.ai, broker); assert.strictEqual(core.projectStore, store);
 });
 
 test("Forge Core exposes shared durable project persistence through its port", async () => {
-  const core = createForgeCore({ projectStore: projectStore() });
-  const state = project();
-  await core.createProject(state);
-  assert.equal(await core.projectExists("project-1"), true);
-  assert.deepEqual(await core.loadProject("project-1"), state);
-  const updated = { ...state, metadata: { ...state.metadata, title: "Updated" } };
-  await core.saveProject(updated);
-  assert.equal((await core.loadProject("project-1")).metadata.title, "Updated");
+  const core = createForgeCore({ projectStore: projectStore() }); const state = project();
+  await core.createProject(state); assert.equal(await core.projectExists("project-1"), true); assert.deepEqual(await core.loadProject("project-1"), state);
+  await core.saveProject({ ...state, metadata: { ...state.metadata, title: "Updated" } }); assert.equal((await core.loadProject("project-1")).metadata.title, "Updated");
 });
 
-test("Forge Core refuses durable project operations when no store is configured", async () => {
-  const core = createForgeCore();
-  await assert.rejects(() => core.loadProject("project-1"), /durable project store is not configured/);
-});
+test("Forge Core refuses durable project operations when no store is configured", async () => { await assert.rejects(() => createForgeCore().loadProject("project-1"), /durable project store is not configured/); });
 
 test("Forge Core exposes shared AI registration and durable memory snapshot boundaries", () => {
-  const core = createForgeCore();
-  core.registerAiModels([{
-    provider: "test-provider",
-    model: "test-model",
-    configured: true,
-    healthy: true,
-    capabilities: { contextWindow: 128000, maxOutputTokens: 16000, creativeWriting: true, instructionFollowing: true },
-  }]);
-  assert.equal(core.readiness().modelCount, 1);
-  const snapshot = core.snapshotMemory("project-1");
-  assert.equal(snapshot.projectId, "project-1");
-  const restored = createForgeCore();
-  restored.restoreMemory(snapshot);
-  assert.deepEqual(restored.memory.list(), []);
+  const core = createForgeCore(); core.registerAiModels([{ provider: "test-provider", model: "test-model", configured: true, healthy: true, capabilities: { contextWindow: 128000, maxOutputTokens: 16000, creativeWriting: true, instructionFollowing: true } }]);
+  const snapshot = core.snapshotMemory("project-1"); const restored = createForgeCore(); restored.restoreMemory(snapshot);
+  assert.equal(core.readiness().modelCount, 1); assert.equal(snapshot.projectId, "project-1"); assert.deepEqual(restored.memory.list(), []);
+});
+
+test("Forge Core durable snapshot captures project state for restart recovery", async () => {
+  const core = createForgeCore({ projectStore: projectStore() }); await core.createProject(project()); const snapshot = await core.snapshotDurable("project-1");
+  assert.equal(snapshot.formatVersion, FORGE_CORE_FORMAT_VERSION); assert.equal(snapshot.projectId, "project-1"); assert.equal(snapshot.project.metadata.title, "Core Test"); assert.equal(snapshot.memory.projectId, "project-1");
+});
+
+test("Forge Core durable restore writes project and restores shared memory and routing state", async () => {
+  const source = configuredCore(); await source.createProject(project()); const snapshot = await source.snapshotDurable("project-1");
+  const target = createForgeCore({ projectStore: projectStore() }); await target.restoreDurable(snapshot);
+  assert.deepEqual(await target.loadProject("project-1"), project()); assert.deepEqual(target.memory.list(), []); assert.deepEqual(target.routing.snapshot(), snapshot.routing);
+});
+
+test("Forge Core durable restore rejects a snapshot whose project identity does not match", async () => {
+  const source = configuredCore(); await source.createProject(project()); const snapshot = await source.snapshotDurable("project-1");
+  const target = createForgeCore({ projectStore: projectStore() }); await assert.rejects(() => target.restoreDurable({ ...snapshot, projectId: "other-project" }), /project identity mismatch/);
 });
