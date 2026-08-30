@@ -2,8 +2,10 @@ import { advanceWorkflow, type WorkflowAdvanceRequest, type WorkflowAdvanceResul
 import type { ProjectState } from "../domain/project";
 import type { ForgeWorkflowStage, WorkflowGateCheck } from "../domain/workflow-gate";
 
+type ProjectWithWorkflowStage = ProjectState & { readonly workflowStage?: ForgeWorkflowStage };
+
 export interface ProjectWorkflowAdvanceRequest {
-  readonly project: ProjectState;
+  readonly project: ProjectWithWorkflowStage;
   readonly bookId: string;
   readonly checks: Readonly<Partial<Record<ForgeWorkflowStage, readonly WorkflowGateCheck[]>>>;
   readonly requestedStage?: ForgeWorkflowStage;
@@ -12,7 +14,7 @@ export interface ProjectWorkflowAdvanceRequest {
 }
 
 export interface ProjectWorkflowAdvanceResult {
-  readonly project: ProjectState;
+  readonly project: ProjectWithWorkflowStage;
   readonly workflow: WorkflowAdvanceResult;
 }
 
