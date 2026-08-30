@@ -4,7 +4,7 @@ This file is the durable, chronological engineering history for the repository. 
 
 ## Mission 047 — Governed Studio AI Writing Loop
 
-**Status:** Implemented in `main`; local build/regression and running Studio/device verification required.
+**Status:** Implemented in `main`; canonical build/regression and browser acceptance are required evidence for each subsequent integration checkpoint.
 
 ### Direction
 
@@ -20,8 +20,11 @@ Connect durable AI writing proposals to the manuscript boundary without allowing
 - Application is idempotent when the target already contains the approved proposal.
 - Stale proposal protection refuses to overwrite newer author edits.
 - Exposed the coordinator and Studio AI writing service through the canonical Forge API.
-- Added application and Studio integration tests for pending generation, author approval, durable application, restart recovery, and stale-write rejection.
 - Added Studio HTTP endpoints for proposal listing, proposal retrieval, author review, explicit application, and governed AI writing generation.
+- Added a first-class Writing Desk proposal panel with durable candidate review, approval/rejection, explicit manuscript application, and visible stale-write protection.
+- The existing direct AI-writing button is captured by the governed proposal UI so provider output cannot silently bypass the proposal boundary.
+- Added UI syntax verification to CI.
+- Corrected the browser acceptance workflow's double-read of the workflow response body so real-browser verification can continue past the workflow gate.
 
 ### Governance
 
@@ -37,11 +40,11 @@ npm run test:browser
 npm run test:browser:mobile
 ```
 
-The mission is not production-verified until the complete build/regression path and running Studio/device acceptance pass.
+The mission is not production-verified until the complete build/regression path and running Studio/device acceptance pass on the current `main` checkpoint.
 
 ### Next integration target
 
-Replace the remaining direct candidate insertion path in the Writing Desk with durable proposal review/apply controls, then extend the same governed proposal pattern to intelligent editing.
+Extend the same durable proposal pattern to intelligent editing: AI-generated rewrites should become reviewable editing proposals tied to the exact source revision, then enter manuscript state only through explicit author approval and application.
 
 ## Mission 046 — Durable AI Proposal Ledger
 
