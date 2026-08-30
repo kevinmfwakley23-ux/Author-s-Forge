@@ -27,6 +27,8 @@ export { AiWritingStudioService, sha256 as sha256AiWritingContent } from "./appl
 export type { StudioAiProjectState } from "./application/ai-writing-studio";
 export { AiEditingProposalService, sha256EditingContent } from "./application/ai-editing-proposals";
 export type { AiEditingProposalRequest } from "./application/ai-editing-proposals";
+export { createAiProposalDiff, AI_PROPOSAL_DIFF_FORMAT_VERSION } from "./application/ai-proposal-diff";
+export type { AiProposalDiff, AiProposalDiffLine, AiProposalDiffLineKind } from "./application/ai-proposal-diff";
 export { createMarketingCampaign, approveMarketingAsset, scheduleMarketingAsset, MARKETING_CHANNELS } from "./domain/marketing-campaign";
 export type { MarketingCampaign, MarketingAsset, MarketingEvidence, MarketingChannel, MarketingAssetStatus } from "./domain/marketing-campaign";
 export { createReleaseGateReport, validateReleaseGateReport, RELEASE_GATE_FORMAT_VERSION } from "./domain/release-gate";
