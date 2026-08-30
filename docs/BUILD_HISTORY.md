@@ -2,6 +2,36 @@
 
 This file is the durable, chronological engineering history for the repository. It complements the README: the README records the current product truth; this ledger records how the current truth was built.
 
+## Mission 053 — Live Story Map
+
+**Status:** Implemented in `main`; canonical build/regression and browser/device verification required.
+
+### Delivered
+
+- Added deterministic `StoryMap` domain projection from the existing durable manuscript hierarchy.
+- Added `StoryMapService` application boundary.
+- Added a live Studio Story Map surface derived directly from `window.forgeWorkspaceState`.
+- Added visual book → chapter → scene hierarchy with lifecycle status and completion percentages.
+- Added project-level book/chapter/scene totals.
+- Added direct scene opening from the Story Map into the Writing Desk.
+- Added empty-state and refresh behavior.
+- Added Story Map PWA shell caching and advanced the service-worker cache version to v5.
+- Added `test/story-map-ui.test.js` covering live workspace integration and PWA shell inclusion.
+
+### Competitive rationale
+
+The capability is based on proven visual-planning patterns from Plottr—visual timelines, scene cards, plotlines, filters, story-bible organization, and series planning—but is implemented natively around Forge's authoritative manuscript state rather than introducing a second planning store.
+
+Sudowrite's current Story Bible and localized Rewrite patterns reinforce the same architectural direction: persistent story truth should guide focused AI operations without turning every AI result into authoritative manuscript state.
+
+### Next Story Map increments
+
+1. Scene attributes: POV, location, time, goal, conflict, outcome, emotional beat.
+2. Plotlines and character arcs with cross-scene filtering.
+3. Drag/reorder with explicit durable mutation and downstream impact analysis.
+4. Visual continuity/canon warnings directly on affected scene cards.
+5. Series-level map and multi-book progress.
+
 ## Mission 052 — Competitive Advantage Research
 
 **Status:** Research integrated; implementation sequence locked in `docs/COMPETITIVE-RESEARCH.md`.
@@ -60,17 +90,9 @@ Forge will not copy proprietary products or import unrelated application stacks.
 
 This capability is review-only. It does not apply, accept, reject, or otherwise mutate manuscript state. The persisted manuscript and existing author-review/application boundary remain authoritative.
 
-### Next integration target
-
-Expose proposal diffs in the running Writing Desk and Editing Room so an author can inspect exact changes before acceptance/application. The UI must use the hashes and current scene revision to refuse stale or mismatched candidates.
-
 ## Mission 048 — Source-Bound AI Editing Proposals
 
 **Status:** Implemented in `main`; canonical build/regression and browser acceptance are required evidence for the next Studio integration checkpoint.
-
-### Direction
-
-Extend the governed AI proposal boundary from writing into intelligent editing. Editorial findings remain evidence; an AI rewrite remains a candidate; neither can silently mutate manuscript state.
 
 ### Delivered
 
