@@ -38,3 +38,39 @@ test("blocks non-sequential jumps", () => {
   assert.equal(result.decision, "blocked");
   assert.deepEqual(result.blockers, ["WORKFLOW_STAGE_ORDER_INVALID"]);
 });
+
+test("rejects duplicate check identifiers within a stage", () => {
+  assert.throws(
+    () => advanceWorkflow({
+      ...base,
+      checks: {
+        concept: [
+          { id: "concept.ready", label: "Concept is approved", passed: true },
+          { id: "concept.ready", label: "Duplicate", passed: true },
+        ],
+      },
+    }),
+    /Duplicate workflow check id/
+  );
+});
+
+test("rejects malformed workflow checks instead of treating them as ready", () => {
+  assert.throws(
+    () => advanceWorkflow({
+      ...base,
+      checks: { concept: [{ id: "concept.ready", label: "Concept is approved", passed: "yes" }] },
+    }),
+    /must declare passed as a boolean/
+  );
+});
+
+test("cannot advance beyond the release stage", () => {
+  const result = advanceWorkflow({
+    ...base,
+    currentStage: "release",
+    checks: { release: [{ id: "release.ready", label: "Release is approved", passed: true }] },
+  });
+  assert.equal(result.decision, "blocked");
+  assert.equal(result.toStage, "release");
+  assert.deepEqual(result.blockers, ["WORKFLOW_STAGE_ORDER_INVALID", "WORKFLOW_FINAL_STAGE_REACHED"]);
+});
