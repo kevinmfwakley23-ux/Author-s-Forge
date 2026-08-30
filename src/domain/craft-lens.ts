@@ -23,7 +23,7 @@ export function analyzeCraft(text: string): CraftLensReport {
   const normalized = text.replace(/\r\n?/g, "\n").trim();
   const words = normalized ? normalized.split(/\s+/u).filter(Boolean) : [];
   const sentences = normalized.split(/[.!?]+(?:\s+|$)/u).map((s) => s.trim()).filter(Boolean);
-  const dialogueMatches = normalized.match(/[“\"][^”\"]*[”\"]/gu) ?? [];
+  const dialogueMatches = normalized.match(/[“"][^”"]*[”"]/gu) ?? [];
   const passiveMatches = normalized.match(/\b(?:was|were|been|being|is|are|be)\s+(?:\w+ed|\w+en)\b/giu) ?? [];
   const longSentences = sentences.filter((sentence) => sentence.split(/\s+/u).length > 35);
   const findings: CraftFinding[] = [];

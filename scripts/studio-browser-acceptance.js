@@ -18,6 +18,26 @@ const { chromium } = require("@playwright/test");
 const HOST = "127.0.0.1";
 const APP_PORT = 4800 + Math.floor(Math.random() * 200);
 const projectId = `browser-acceptance-${Date.now()}`;
+const REQUIRED_ROUTES = [
+  "dashboard",
+  "manuscript",
+  "writing",
+  "architecture",
+  "characters",
+  "world",
+  "research",
+  "editing",
+  "voice",
+  "art",
+  "cover",
+  "marketing",
+  "publishing",
+  "genome",
+  "health",
+  "versions",
+  "settings",
+  "governance",
+];
 
 function findBrowser() {
   if (process.env.FORGE_BROWSER_EXECUTABLE) {
@@ -77,7 +97,8 @@ async function main() {
     await page.waitForFunction(() => document.readyState === "complete" && document.querySelector("#project-title")?.textContent !== "Loading…");
 
     const routes = await page.locator("nav a[data-route]").evaluateAll((elements) => elements.map((el) => el.dataset.route));
-    assert.equal(routes.length, 18);
+    assert.equal(new Set(routes).size, routes.length, "Studio navigation contains duplicate route identifiers.");
+    for (const route of REQUIRED_ROUTES) assert.equal(routes.includes(route), true, `Studio is missing required route: ${route}`);
     for (const route of routes) {
       await page.locator(`nav a[data-route="${route}"]`).click();
       await page.waitForFunction((expected) => location.hash === `#${expected}` && document.querySelector(`#${expected}`)?.hidden === false, route);
@@ -153,7 +174,7 @@ async function main() {
     await page.locator('nav a[data-route="world"]').click();
     await page.waitForFunction(() => document.querySelector("#memory-list")?.textContent.includes("Acceptance character is canonically based in Ogden."));
 
-    console.log(`REAL BROWSER ACCEPTANCE PASSED: ${routes.length} routes + durable book/chapter/scene + governed workflow advancement + manuscript save/reload + character + canon + honest AI failure.`);
+    console.log(`REAL BROWSER ACCEPTANCE PASSED: ${routes.length} routes (${REQUIRED_ROUTES.length} canonical required) + durable book/chapter/scene + governed workflow advancement + manuscript save/reload + character + canon + honest AI failure.`);
   } finally {
     if (browser) await browser.close().catch(() => {});
     server.kill("SIGTERM");

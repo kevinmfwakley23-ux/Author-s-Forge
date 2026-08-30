@@ -22,7 +22,7 @@ test('PWA lifecycle does not persist project data in browser storage', () => {
 });
 
 test('service worker upgrades safely and excludes API project state from caching', () => {
-  assert.match(sw, /authors-forge-shell-v4/);
+  assert.match(sw, /const CACHE = "authors-forge-shell-v\d+"/);
   assert.match(sw, /SKIP_WAITING/);
   assert.match(sw, /url\.pathname\.startsWith\("\/api\/"\)/);
   assert.match(sw, /request\.method !== "GET"/);

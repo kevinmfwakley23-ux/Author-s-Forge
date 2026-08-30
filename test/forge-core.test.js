@@ -70,7 +70,7 @@ test("Forge Core durable snapshot captures project state for restart recovery", 
 test("Forge Core durable restore writes project and restores shared memory and routing state", async () => {
   const source = configuredCore(); await source.createProject(project()); const snapshot = await source.snapshotDurable("project-1");
   const target = createForgeCore({ projectStore: projectStore() }); await target.restoreDurable(snapshot);
-  assert.deepEqual(await target.loadProject("project-1"), project()); assert.deepEqual(target.memory.list(), []); assert.deepEqual(target.routing.snapshot(), snapshot.routing);
+  assert.deepEqual(await target.loadProject("project-1"), project()); assert.deepEqual(target.memory.list(), []); assert.deepEqual(target.routing.createSnapshot(), snapshot.routing);
 });
 
 test("Forge Core durable restore rejects a snapshot whose project identity does not match", async () => {

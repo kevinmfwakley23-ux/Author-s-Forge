@@ -40,5 +40,5 @@ test("Editing Room is wired into the live shell and service worker", async () =>
   const sw = await readFile("public/sw.js", "utf8");
   assert.match(html, /id="editing"/);
   assert.match(sw, /forge-editing-proposals\.js/);
-  assert.match(sw, /authors-forge-shell-v4/);
+  assert.match(sw, /const CACHE = "authors-forge-shell-v\d+"/);
 });
