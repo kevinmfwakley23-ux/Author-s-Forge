@@ -245,9 +245,21 @@ The review contract is intentionally strict:
 - proposal state is attributable and timestamped;
 - rejected/pending proposals remain separate from authoritative memory.
 
-This follows the strongest pattern identified in current open-source AI writing and agent systems: **draft/propose first, review second, mutate durable knowledge only after approval**. Novel Studio AI similarly separates draft work from accepted canon, while xnovelist exposes AI results as proposals that require explicit acceptance. Vouch applies the same review-gated persistence idea to agent knowledge. Forge adopts the principle while retaining its own domain model, provenance rules, and author authority. 
+This follows the strongest pattern identified in current open-source AI writing and agent systems: **draft/propose first, review second, mutate durable knowledge only after approval**. Novel Studio AI similarly separates draft work from accepted canon, while xnovelist exposes AI results as proposals that require explicit acceptance. Vouch applies the same review-gated persistence idea to agent knowledge. Forge adopts the principle while retaining its own domain model, provenance rules, and author authority.
 
 This is the foundation for the next Studio-level Agent/Forge Assistant workflow: model output will become reviewable cards/diffs rather than silently changing manuscript, canon, or memory.
+
+## Mission 040 — Proposal Review Integrity
+
+Forge's proposal boundary now records an **append-only review audit** and provides a deterministic line-level diff contract for manuscript-edit proposals.
+
+The review audit records the proposal, transition, author reviewer, timestamp, sequence number, and optional review note. The store exposes copies of the audit history rather than mutable internal entries. This makes the author decision itself an attributable artifact instead of merely a final status flag.
+
+The diff service is deliberately presentation-only. It compares original and proposed text without mutating manuscript state and reports equal/added/removed lines with old/new line numbers plus aggregate counts. This gives Studio a reliable foundation for a future side-by-side proposal card where the author can inspect exactly what AI wants to change before accepting it.
+
+The design incorporates a useful idea from current review-gated AI systems: **the reviewer must see the actual proposed change and the evidence/audit context, not merely click an approval button**. Forge therefore keeps proposal content, provenance, diff data, and review decisions as separate inspectable artifacts. citeturn0search0turn0search1turn0search6
+
+This remains an enabling layer. Studio integration must still connect these artifacts to the real running writing workflow before the capability is considered product-complete under the Functional-Truth Rule.
 
 ## End-to-end release target
 
