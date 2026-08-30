@@ -1,10 +1,18 @@
 import type { ProjectState } from "./project";
+import { CharacterBibleService } from "../application/character-bible";
 
-export const CONTEXT_ASSEMBLY_FORMAT_VERSION = 1 as const;
+export const CONTEXT_ASSEMBLY_FORMAT_VERSION = 2 as const;
 export const CONTEXT_INCLUSION_MODES = ["full", "brief", "extended", "custom", "off"] as const;
 export type ContextInclusionMode = typeof CONTEXT_INCLUSION_MODES[number];
 export interface ContextSectionPolicy { readonly key: string; readonly mode: ContextInclusionMode; readonly maxWords?: number; }
-export interface ContextAssemblyRequest { readonly projectId: string; readonly policies?: readonly ContextSectionPolicy[]; readonly query?: string; readonly characterIds?: readonly string[]; }
+export interface ContextAssemblyRequest {
+  readonly projectId: string;
+  readonly policies?: readonly ContextSectionPolicy[];
+  readonly query?: string;
+  readonly characterIds?: readonly string[];
+  readonly characterAsOf?: string;
+  readonly characterMemoryLimit?: number;
+}
 export interface ContextSection { readonly key: string; readonly title: string; readonly mode: ContextInclusionMode; readonly text: string; readonly sourceIds: readonly string[]; readonly wordCount: number; }
 export interface AssembledWritingContext { readonly formatVersion: typeof CONTEXT_ASSEMBLY_FORMAT_VERSION; readonly projectId: string; readonly sections: readonly ContextSection[]; readonly totalWords: number; readonly sourceIds: readonly string[]; }
 const DEFAULT_POLICIES: readonly ContextSectionPolicy[] = [
@@ -36,8 +44,34 @@ function selectRecords(project: ProjectState, key: string, request: ContextAssem
   if (key === "research") return memories("research-memory");
   if (key === "unresolved-threads") return memories("open-thread");
   if (key === "voice") return memories("style-memory");
-  if (key === "characters") return (project.characters ?? []).filter((character) => request.characterIds?.length ? request.characterIds.includes(character.id) : true).filter((character) => matches(JSON.stringify(character.profile), query)).map((character) => ({ id: character.id, text: JSON.stringify(character.profile, null, 2) }));
+  if (key === "characters") return selectCharacterMemory(project, request);
   return [];
+}
+function selectCharacterMemory(project: ProjectState, request: ContextAssemblyRequest): Array<{ id: string; text: string }> {
+  const characters = project.characters ?? [];
+  if (!characters.length) return [];
+  const service = new CharacterBibleService();
+  service.restoreProject(project.metadata.id, characters);
+  const hits = service.memory({
+    projectId: project.metadata.id,
+    characterIds: request.characterIds,
+    asOf: request.characterAsOf,
+    queryTerms: tokenizeQuery(request.query),
+    limit: request.characterMemoryLimit ?? 8,
+  });
+  return hits.map((hit) => ({
+    id: hit.characterId,
+    text: [
+      `Character: ${hit.characterName}`,
+      `Relevance: ${hit.score}`,
+      ...(hit.evidence.length ? [`Evidence: ${hit.evidence.join("; ")}`] : []),
+      JSON.stringify(hit.profile, null, 2),
+    ].join("\n"),
+  }));
+}
+function tokenizeQuery(query: string | undefined): string[] {
+  if (!query) return [];
+  return [...new Set(query.toLowerCase().split(/[^\p{L}\p{N}]+/u).map((term) => term.trim()).filter((term) => term.length >= 3))].slice(0, 16);
 }
 function matches(value: string, query: string | undefined): boolean { return !query || value.toLowerCase().includes(query); }
 function countWords(value: string): number { return value.trim() ? value.trim().split(/\s+/).length : 0; }
