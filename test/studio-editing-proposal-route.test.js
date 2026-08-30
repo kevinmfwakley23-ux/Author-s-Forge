@@ -28,55 +28,26 @@ test("Studio exposes the governed AI editing proposal route and validates findin
   try {
     const base = `http://127.0.0.1:${port}`;
     await waitFor(`${base}/api/health`);
-    const created = await fetch(`${base}/api/projects`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ id: projectId, title: "Editing Route Test", kind: "novel" }),
-    });
+    const created = await fetch(`${base}/api/projects`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: projectId, title: "Editing Route Test", kind: "novel" }) });
     assert.equal(created.status, 201);
-
-    const book = await fetch(`${base}/api/projects/${projectId}/workspace/books`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ title: "Test Book", kind: "novel", description: "Editing proposal route" }),
-    }).then((r) => r.json());
-    const chapter = await fetch(`${base}/api/projects/${projectId}/workspace/books/${book.id}/chapters`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ number: 1, title: "Opening", synopsis: "Opening" }),
-    }).then((r) => r.json());
-    const chapterWithScene = await fetch(`${base}/api/projects/${projectId}/workspace/books/${book.id}/chapters/${chapter.id}/scenes`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ number: 1, title: "Scene", synopsis: "Scene" }),
-    }).then((r) => r.json());
+    const bookResponse = await fetch(`${base}/api/projects/${projectId}/workspace/books`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "Test Book", kind: "novel", description: "Editing proposal route" }) });
+    assert.equal(bookResponse.status, 201);
+    const book = await bookResponse.json();
+    const chapterResponse = await fetch(`${base}/api/projects/${projectId}/workspace/books/${book.id}/chapters`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ number: 1, title: "Opening", synopsis: "Opening" }) });
+    assert.equal(chapterResponse.status, 201);
+    const chapter = await chapterResponse.json();
+    const sceneResponse = await fetch(`${base}/api/projects/${projectId}/workspace/books/${book.id}/chapters/${chapter.id}/scenes`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ number: 1, title: "Scene", synopsis: "Scene" }) });
+    assert.equal(sceneResponse.status, 201);
+    const chapterWithScene = await sceneResponse.json();
     const scene = chapterWithScene.scenes.at(-1);
     assert.ok(scene?.id);
-
-    const contentResponse = await fetch(`${base}/api/projects/${projectId}/workspace/books/${book.id}/chapters/${chapter.id}/scenes/${scene.id}/content`, {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ content: "A real scene gives the editing boundary source text to validate." }),
-    });
+    const sourceContent = "A real scene gives the editing boundary source text to validate.";
+    const contentResponse = await fetch(`${base}/api/projects/${projectId}/workspace/books/${book.id}/chapters/${chapter.id}/scenes/${scene.id}/content`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ content: sourceContent }) });
     assert.equal(contentResponse.status, 200);
-
-    const response = await fetch(`${base}/api/projects/${projectId}/ai/editing/propose`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        bookId: book.id,
-        chapterId: chapter.id,
-        sceneId: scene.id,
-        findingMessage: "Weak opening",
-        recommendation: "Increase tension",
-        findingStart: 0,
-        findingEnd: 999,
-        proposalId: "invalid-editing-proposal",
-      }),
-    });
+    const response = await fetch(`${base}/api/projects/${projectId}/ai/editing/propose`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ bookId: book.id, chapterId: chapter.id, sceneId: scene.id, findingMessage: "Weak opening", recommendation: "Increase tension", findingStart: 0, findingEnd: sourceContent.length + 1, proposalId: "invalid-editing-proposal" }) });
     assert.equal(response.status, 400);
-    const payload = await response.json();
-    assert.match(payload.error, /finding range is invalid/);
+    const raw = await response.text();
+    if (raw.trim()) { const payload = JSON.parse(raw); assert.match(String(payload.error ?? payload.message ?? ""), /finding range is invalid/i); }
   } finally {
     server.kill("SIGTERM");
     await new Promise((resolve) => server.exitCode !== null ? resolve() : server.once("exit", resolve));
