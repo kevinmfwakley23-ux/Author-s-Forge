@@ -1,1 +1,0 @@
-Mission 042 publishing readiness gate foundation.
