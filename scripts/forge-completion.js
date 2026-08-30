@@ -49,7 +49,7 @@ const capabilities = [
   ['Portable project package / recovery', ['src/domain/project-package.ts', 'src/application/project-package.ts'], () => hasTest(/project-package|external-storage/)],
   ['AI context optimization / cost governance', ['src/application/context-engine-stack.ts', 'src/application/ai-cost-guard.ts'], () => hasTest(/context|cost-guard/)],
   ['Integrated Studio / browser acceptance', ['src/studio-server.ts', 'scripts/studio-browser-acceptance.js'], () => exists('scripts/studio-browser-acceptance.js')],
-  ['Android / PWA delivery surface', ['public/manifest.json', 'public/sw.js'], () => exists('scripts/studio-mobile-acceptance.js') || hasTest(/pwa|mobile/)],
+  ['Android / PWA delivery surface', ['public/manifest.webmanifest', 'public/sw.js', 'public/forge-pwa.js'], () => exists('scripts/studio-mobile-acceptance.js') && hasTest(/pwa|mobile/)],
 ];
 
 let earned = 0;
