@@ -20,6 +20,21 @@ test("Writing Desk exposes the governed durable AI proposal workflow", async () 
   assert.match(script, /forge-editing-proposals\.js/);
 });
 
+test("Editing Room exposes durable rewrite proposals with a deterministic review diff", async () => {
+  const html = await readFile("public/index.html", "utf8");
+  const script = await readFile("public/forge-editing-proposals.js", "utf8");
+  assert.match(html, /id="editing"/);
+  assert.match(script, /\/ai\/editing\/propose/);
+  assert.match(script, /deterministicDiff/);
+  assert.match(script, /Proposal Review Diff/);
+  assert.match(script, /Line-level review/);
+  assert.match(script, /addedLines/);
+  assert.match(script, /removedLines/);
+  assert.match(script, /data-edit-select/);
+  assert.match(script, /data-edit-apply/);
+  assert.match(script, /source revision bound/);
+});
+
 test("Editing Room is wired into the live shell and service worker", async () => {
   const html = await readFile("public/index.html", "utf8");
   const sw = await readFile("public/sw.js", "utf8");
