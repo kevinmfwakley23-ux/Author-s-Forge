@@ -29,3 +29,13 @@
   window.addEventListener("forge:workspace-ready", () => { void loadProposals(); });
   window.addEventListener("load", () => { void loadProposals(); });
 })();
+
+/* PWA install lifecycle is loaded from a separately testable module. */
+(() => {
+  "use strict";
+  const script = document.createElement("script");
+  script.src = "/forge-pwa.js";
+  script.async = true;
+  script.onload = () => window.dispatchEvent(new Event("forge:pwa-ready"));
+  document.head.appendChild(script);
+})();
