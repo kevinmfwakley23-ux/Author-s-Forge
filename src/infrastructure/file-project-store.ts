@@ -28,7 +28,7 @@ export class FileProjectStore {
     await mkdir(dirname(path), { recursive: true });
     const temporaryPath = `${path}.tmp`;
     const persisted = JSON.parse(JSON.stringify(project)) as Record<string, unknown>;
-    persisted.formatVersion = LEGACY_PROJECT_FORMAT_VERSION;
+    persisted.formatVersion = PROJECT_FORMAT_VERSION;
     await writeFile(temporaryPath, `${JSON.stringify(persisted, null, 2)}\n`, "utf8");
     await rename(temporaryPath, path);
   }

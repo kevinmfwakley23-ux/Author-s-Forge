@@ -9,7 +9,23 @@ test("Forge Core owns one shared memory store and AI broker", () => {
   assert.ok(core.memory instanceof ProjectMemoryStore);
   assert.ok(core.ai instanceof AiModelBroker);
   assert.equal(core.readiness().formatVersion, FORGE_CORE_FORMAT_VERSION);
-  assert.equal(core.readiness().ready, true);
+  assert.equal(core.readiness().ready, false);
+  assert.equal(core.readiness().aiConfigured, false);
+});
+
+test("Forge Core becomes ready only after a real configured AI resource is registered", () => {
+  const core = createForgeCore();
+  core.registerAiModels([{
+    provider: "test-provider",
+    model: "test-model",
+    configured: true,
+    healthy: true,
+    capabilities: { contextWindow: 128000, maxOutputTokens: 16000, creativeWriting: true, instructionFollowing: true },
+  }]);
+  const readiness = core.readiness();
+  assert.equal(readiness.ready, true);
+  assert.equal(readiness.aiConfigured, true);
+  assert.equal(readiness.modelCount, 1);
 });
 
 test("Forge Core injects existing infrastructure instead of duplicating it", () => {

@@ -47,7 +47,7 @@ test("persists and restores project metadata and Project Brain memory without hi
     assert.deepEqual(await store.load(enriched.metadata.id), updated);
 
     const persisted = await readFile(join(root, "projects", "journal-001", "project.json"), "utf8");
-    assert.match(persisted, /\"formatVersion\": 2/);
+    assert.match(persisted, /\"formatVersion\": 4/);
     assert.match(persisted, /\"canon-1\"/);
     assert.doesNotMatch(persisted, new RegExp(root.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   } finally {
