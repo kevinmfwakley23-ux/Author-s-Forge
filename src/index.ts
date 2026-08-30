@@ -24,54 +24,86 @@ export { createWorkflowGateReport, canAdvanceWorkflow, validateWorkflowGateRepor
 export type { WorkflowGateReport, WorkflowGateInput, WorkflowGateCheck, WorkflowStageGate, WorkflowGateStatus, ForgeWorkflowStage } from "./domain/workflow-gate";
 export { advanceWorkflow, WORKFLOW_ADVANCE_FORMAT_VERSION } from "./application/workflow-advance";
 export type { WorkflowAdvanceRequest, WorkflowAdvanceResult, WorkflowAdvanceDecision } from "./application/workflow-advance";
-
-// Canonical manuscript model.
-export {
-  createManuscriptState, createBook, createChapter, createScene,
-  addBook, addChapter, addScene, insertChapter, insertScene,
-  validateManuscriptState, MANUSCRIPT_FORMAT_VERSION
-} from "./domain/manuscript";
-export type { ManuscriptState, BookRecord, ChapterRecord, SceneRecord, BookLifecycle, ChapterLifecycle, SceneLifecycle } from "./domain/manuscript";
-
-// Durable project foundation.
-export {
-  createProject, touchProject, withProjectMemories, withProjectCharacters,
-  withProjectVisualIdentities, withProjectIllustrationAssetLibrary, withProjectBookCoverPlans,
-  withProjectPublishingReadinessReports, withProjectKdpMarketIntelligenceReports,
-  withProjectBookPositioningReports, withProjectBookVersionHistories, withProjectAuthorDecisions,
-  withProjectSeries, withProjectVoiceProfiles, withProjectAiCollaborationPolicy,
-  withProjectHealthReports, withProjectMemoryRelationships, withProjectDeliveryAudits,
-  withProjectBookGenome, PROJECT_FORMAT_VERSION
-} from "./domain/project";
-export type { ProjectState, ProjectMetadata, ProjectStatus } from "./domain/project";
+export { createProject, touchProject, withProjectMemories, withProjectCharacters, withProjectVisualIdentities, withProjectIllustrationAssetLibrary, withProjectBookCoverPlans, withProjectPublishingReadinessReports, withProjectKdpMarketIntelligenceReports, withProjectBookPositioningReports, withProjectBookVersionHistories, withProjectAuthorDecisions, withProjectSeries, withProjectVoiceProfiles, withProjectAiCollaborationPolicy, withProjectHealthReports, withProjectMemoryRelationships, withProjectDeliveryAudits, withProjectBookGenome, PROJECT_FORMAT_VERSION } from "./domain/project";
+export type { ProjectMetadata, ProjectState, ProjectStatus } from "./domain/project";
 export { FileProjectStore } from "./infrastructure/file-project-store";
-
-// Portable project packages.
-export { createProjectPackage, validateProjectPackage, serializeProjectPackage, deserializeProjectPackage, PROJECT_PACKAGE_FORMAT_VERSION, PROJECT_PACKAGE_NAME } from "./domain/project-package";
-export type { ForgeProjectPackage, ProjectPackageManifest, ProjectPackageFile, ProjectPackageEncoding } from "./domain/project-package";
+export { MANUSCRIPT_FORMAT_VERSION, createManuscriptState, createBook, createChapter, createScene, addBook, addChapter, addScene, insertChapter, insertScene, validateManuscriptState } from "./domain/manuscript";
+export type { BookLifecycle, ChapterLifecycle, SceneLifecycle, BookRecord, ChapterRecord, SceneRecord, ManuscriptState } from "./domain/manuscript";
+export { MANUSCRIPT_PLAN_FORMAT_VERSION, createManuscriptPlanningState, createManuscriptPlan, addManuscriptPlan, replaceManuscriptPlan, getCurrentManuscriptPlan, validateManuscriptPlanningState } from "./domain/manuscript-planning";
+export type { ManuscriptPlan, ManuscriptPlanningState, PlanLifecycle, PlanTargetType } from "./domain/manuscript-planning";
+export { ManuscriptPlanningService } from "./application/manuscript-planning";
+export { EDITING_FORMAT_VERSION, EDITOR_ROLES, FINDING_KINDS, createEditingDocument, createEditorialFinding, createEditorialReport, validateEditorialReport } from "./domain/intelligent-editing";
+export type { EditorRole, FindingSeverity, FindingKind, EditingTarget, EditingDocument, EditorialFinding, EditorialReport } from "./domain/intelligent-editing";
+export { IntelligentEditingService } from "./application/intelligent-editing";
+export type { EditingRequest } from "./application/intelligent-editing";
+export { RESEARCH_FORMAT_VERSION, RESEARCH_DOMAINS, createResearchClaim, createResearchRecord } from "./domain/research";
+export type { ResearchDomain, ResearchConfidence, ResearchRelevance, ResearchSource, ResearchClaim, ResearchRecord } from "./domain/research";
+export { ResearchEngine, StaticResearchProvider } from "./application/research-engine";
+export type { ResearchRequest, ResearchProvider, ResearchProviderRequest, ResearchProviderResult, ResearchSearchResult } from "./application/research-engine";
+export { RESEARCH_HONESTY_FORMAT_VERSION, RESEARCH_HONESTY_CLASSES, createResearchHonestyRecord, isResearchHonest, assertResearchHonest } from "./domain/research-honesty";
+export type { ResearchHonestyClass, EvidenceStrength, ResearchHonestyAssessment, ResearchHonestyRecord, ResearchHonestyInput } from "./domain/research-honesty";
+export { ResearchHonestyService } from "./application/research-honesty";
+export type { ResearchHonestyQuery, ResearchHonestySummary } from "./application/research-honesty";
+export { CHARACTER_BIBLE_FORMAT_VERSION, CHARACTER_FIELDS, createCharacter, updateCharacter, getCharacterAt, getCharacterFieldHistory, getCharacterChanges, validateCharacterRecord } from "./domain/character-bible";
+export type { CharacterField, CharacterRelationship, CharacterProfile, CharacterFieldValue, CharacterFieldVersion, CharacterChange, CharacterRecord, CharacterProfileUpdate, CharacterUpdateInput } from "./domain/character-bible";
+export { CharacterBibleService } from "./application/character-bible";
+export type { CharacterQuery, CharacterHistoryQuery } from "./application/character-bible";
+export { VISUAL_IDENTITY_FORMAT_VERSION, VISUAL_REFERENCE_KINDS, createVisualCharacterIdentity, updateVisualCharacterIdentity, resolveVisualCharacterIdentity, generateVisualCharacterIdentityPackage, validateVisualCharacterIdentity } from "./domain/character-visual-continuity";
+export type { VisualReferenceKind, VisualReference, VisualIdentityState, VisualIdentitySnapshot, VisualCharacterIdentity, VisualIdentityUpdateInput, VisualIdentityPackage } from "./domain/character-visual-continuity";
+export { CharacterVisualContinuityService } from "./application/character-visual-continuity";
+export type { VisualIdentityQuery } from "./application/character-visual-continuity";
+export { ILLUSTRATION_ASSET_LIBRARY_FORMAT_VERSION, ILLUSTRATION_APPROVAL_STATUSES, createIllustrationAsset, updateIllustrationAsset, createCharacterDesignLock, resolveCharacterDesignLock, reuseIllustrationAsset, validateIllustrationAssetLibraryState } from "./domain/illustration-asset-library";
+export type { IllustrationApprovalStatus, IllustrationAssetReference, IllustrationGenerationSettingValue, IllustrationAsset, CharacterDesignLock, IllustrationAssetLibraryState, CreateIllustrationAssetInput, UpdateIllustrationAssetInput, CreateCharacterDesignLockInput } from "./domain/illustration-asset-library";
+export { IllustrationAssetLibraryService } from "./application/illustration-asset-library";
+export type { IllustrationAssetQuery } from "./application/illustration-asset-library";
+export { FileIllustrationAssetLibraryStore } from "./infrastructure/file-illustration-asset-library-store";
+export { BOOK_COVER_STUDIO_FORMAT_VERSION, COVER_FORMATS, BINDINGS, INTERIOR_TYPES, PAPER_TYPES, COVER_APPROVAL_STATUSES, calculateKdpCoverLayout, validatePublishingConfiguration, validateBookCoverFile, createBookCoverPlan } from "./domain/book-cover-studio";
+export type { CoverFormat, Binding, InteriorType, PaperType, CoverApprovalStatus, PublishingConfiguration, CoverDimensions, CoverZones, CoverValidationIssue, BookCoverPlan, CreateBookCoverPlanInput } from "./domain/book-cover-studio";
+export { BookCoverStudioService } from "./application/book-cover-studio";
+export { MANUSCRIPT_PRODUCTION_FORMAT_VERSION, PRODUCTION_FORMATS, FRONT_MATTER_KINDS, BACK_MATTER_KINDS, validateProductionManuscript, validateProductionOptions, normalizeProductionManuscript, validateProductionArtifact, mimeFor, extensionFor, requiredFrontMatter, requiredBackMatter } from "./domain/manuscript-production";
+export type { ProductionFormat, FrontMatterKind, BackMatterKind, ProductionSection, ProductionChapter, ProductionScene, ProductionManuscript, ProductionOptions, ProductionArtifact, ProductionValidationIssue } from "./domain/manuscript-production";
+export { ManuscriptProductionService } from "./application/manuscript-production";
+export { PUBLISHING_READINESS_FORMAT_VERSION, createPublishingReadinessReport, validatePublishingReadinessReport } from "./domain/publishing-readiness";
+export type { ReadinessStatus, ReadinessSeverity, ReadinessCategory, ReadinessCheck, PublishingReadinessInput, PublishingReadinessReport } from "./domain/publishing-readiness";
+export { PublishingReadinessService } from "./application/publishing-readiness";
+export type { PublishingReadinessStore } from "./application/publishing-readiness";
+export { KDP_MARKET_INTELLIGENCE_FORMAT_VERSION, MARKET_INTELLIGENCE_TOPICS, createKdpMarketIntelligenceReport, validateKdpMarketIntelligenceReport, summarizeMarketIntelligence } from "./domain/kdp-market-intelligence";
+export type { MarketIntelligenceTopic, SignalDirection, EvidenceStrength as MarketEvidenceStrength, OpportunityLevel, MarketEvidence, MarketSignal, ComparableTitle, MarketOpportunityAssessment, KdpMarketIntelligenceReport, CreateMarketIntelligenceReportInput } from "./domain/kdp-market-intelligence";
+export { BOOK_POSITIONING_FORMAT_VERSION, BOOK_POSITIONING_DISCLAIMER, createBookPositioningReport, validateBookPositioningReport } from "./domain/book-positioning";
+export type { PositioningComparable, PositioningAnswer, PositioningConcepts, BookPositioningReport, CreateBookPositioningReportInput } from "./domain/book-positioning";
+export { BookPositioningService, StaticBookPositioningProvider } from "./application/book-positioning";
+export type { BookPositioningRequest, BookPositioningProviderRequest, BookPositioningProviderResult, BookPositioningProvider } from "./application/book-positioning";
+export { CONTENT_RANDOMIZER_FORMAT_VERSION, randomizeContent, validateRandomizerResult } from "./domain/content-randomizer";
+export type { RandomizerItem, RandomizerSet, RandomizerRequest, RandomizerResult } from "./domain/content-randomizer";
+export { ContentRandomizerService } from "./application/content-randomizer";
+export { PROJECT_PACKAGE_FORMAT_VERSION, PROJECT_PACKAGE_NAME, createProjectPackage, validateProjectPackage, serializeProjectPackage, deserializeProjectPackage } from "./domain/project-package";
+export type { ProjectPackageEncoding, ProjectPackageManifest, ForgeProjectPackage, ProjectPackageFile } from "./domain/project-package";
 export { ProjectPackageService } from "./application/project-package";
-
-// Publication readiness and project health.
-export { createPublishingReadinessReport, validatePublishingReadinessReport, PUBLISHING_READINESS_FORMAT_VERSION } from "./domain/publishing-readiness";
-export type { PublishingReadinessReport, PublishingReadinessInput, ReadinessCheck, ReadinessCategory, ReadinessStatus, ReadinessSeverity } from "./domain/publishing-readiness";
-export { createProjectHealthReport, validateProjectHealthReport, PROJECT_HEALTH_FORMAT_VERSION } from "./domain/project-health";
-export type { ProjectHealthReport, ProjectHealthMetrics } from "./domain/project-health";
-
-// Collaboration, relationship memory, and delivery audit.
-export { createAiCollaborationPolicy, validateAiCollaborationPolicy, AI_COLLABORATION_FORMAT_VERSION, AI_COLLABORATION_MODES } from "./domain/ai-collaboration";
-export type { AiCollaborationPolicy, AiCollaborationMode } from "./domain/ai-collaboration";
-export { createMemoryRelationship, validateMemoryRelationship, RELATIONSHIP_MEMORY_FORMAT_VERSION } from "./domain/relationship-memory";
-export type { MemoryRelationship } from "./domain/relationship-memory";
-export { createDeliveryAuditReport, validateDeliveryAuditReport, DELIVERY_AUDIT_FORMAT_VERSION, DELIVERY_AUDIT_CATEGORIES } from "./domain/delivery-audit";
-export type { DeliveryAuditReport, DeliveryAuditCheck, DeliveryAuditCategory, DeliveryAuditSeverity } from "./domain/delivery-audit";
-
-// Author control, versions, series, and voice preservation.
-export { createBookSnapshot, validateBookSnapshot, compareBookVersions, rollbackVersion, branchVersion, mergeVersions, BOOK_VERSION_CONTROL_FORMAT_VERSION } from "./domain/book-version-control";
-export type { BookSnapshot, BookVersionComparison, BookVersionBranch, BookVersionHistory, VersionChange, BookVersionLabel } from "./domain/book-version-control";
+export { EXTERNAL_STORAGE_FORMAT_VERSION, createProjectStorageBinding, validateProjectStorageBinding, createDownloadableProjectPackageFilename, MemoryStorageProvider } from "./domain/external-storage";
+export type { StorageProviderId, StoredObject, StorageProvider, ProjectStorageBinding } from "./domain/external-storage";
+export { ExternalStorageService } from "./application/external-storage";
+export { BOOK_VERSION_CONTROL_FORMAT_VERSION, createBookSnapshot, validateBookSnapshot, compareBookVersions, rollbackVersion, branchVersion, mergeVersions } from "./domain/book-version-control";
+export type { BookVersionLabel, BookSnapshot, VersionChange, BookVersionComparison, BookVersionBranch, BookVersionHistory } from "./domain/book-version-control";
+export { AUTHOR_CONTROL_FORMAT_VERSION, createAuthorDecision, validateAuthorDecision, applyAuthorOverride, lockCanon, resolveAuthorControl, isCanonLocked } from "./domain/author-control";
+export type { AuthorDecisionStatus, AuthorDecision } from "./domain/author-control";
 export { AuthorControlService } from "./application/author-control";
-export { createAuthorDecision, validateAuthorDecision, applyAuthorOverride, lockCanon, resolveAuthorControl, isCanonLocked, AUTHOR_CONTROL_FORMAT_VERSION } from "./domain/author-control";
-export type { AuthorDecision, AuthorDecisionStatus } from "./domain/author-control";
-export { createSeries, validateSeriesState, addBookToSeries, addSeriesTimelineEvent, SERIES_FORMAT_VERSION } from "./domain/series";
+export { SERIES_FORMAT_VERSION, createSeries, validateSeriesState, addBookToSeries, addSeriesTimelineEvent } from "./domain/series";
 export type { SeriesState, SeriesTimelineEvent } from "./domain/series";
-export { analyzeVoice, createVoiceProfile, compareVoiceToProfile, buildVoiceRewriteBrief, VOICE_PRESERVATION_FORMAT_VERSION } from "./domain/voice-preservation";
+export { SeriesService } from "./application/series";
+export { VOICE_PRESERVATION_FORMAT_VERSION, analyzeVoice, createVoiceProfile, compareVoiceToProfile, buildVoiceRewriteBrief } from "./domain/voice-preservation";
 export type { VoiceFingerprint, VoiceProfile, VoiceAnalysis, VoiceRewriteRequest } from "./domain/voice-preservation";
+export { VoicePreservationService } from "./application/voice-preservation";
+export { AI_COLLABORATION_FORMAT_VERSION, AI_COLLABORATION_MODES, createAiCollaborationPolicy, validateAiCollaborationPolicy } from "./domain/ai-collaboration";
+export type { AiCollaborationMode, AiCollaborationPolicy } from "./domain/ai-collaboration";
+export { AiCollaborationService } from "./application/ai-collaboration";
+export { PROJECT_HEALTH_FORMAT_VERSION, createProjectHealthReport, validateProjectHealthReport } from "./domain/project-health";
+export type { ProjectHealthMetrics, ProjectHealthReport } from "./domain/project-health";
+export { ProjectHealthService } from "./application/project-health";
+export { RELATIONSHIP_MEMORY_FORMAT_VERSION, createMemoryRelationship, validateMemoryRelationship } from "./domain/relationship-memory";
+export type { MemoryRelationship } from "./domain/relationship-memory";
+export { RelationshipMemoryService } from "./application/relationship-memory";
+export { DELIVERY_AUDIT_FORMAT_VERSION, DELIVERY_AUDIT_CATEGORIES, createDeliveryAuditReport, validateDeliveryAuditReport } from "./domain/delivery-audit";
+export type { DeliveryAuditCategory, DeliveryAuditSeverity, DeliveryAuditCheck, DeliveryAuditReport } from "./domain/delivery-audit";
+export { FINAL_PRODUCT_FORMAT_VERSION, BOOK_GENOME_COMPONENTS, DELIVERY_AUDIT_CATEGORIES as FINAL_DELIVERY_AUDIT_CATEGORIES, createCapabilityGap, advanceCapabilityGap, defaultOwnershipPolicy, defaultAccessibilityProfile, createVoiceCommand, createCreativeProvenance, createBookGenome, identifyGenomeImpact, createFinalProductAudit } from "./domain/final-product-systems";
+export type { BookGenomeComponent, CapabilityGapStatus, CapabilityGap, OwnershipPolicy, AccessibilityProfile, VoiceCommand, ProvenanceKind, CreativeProvenance, BookGenomeNode, BookGenome, GenomeImpact, FinalDeliveryAuditCategory, FinalDeliveryCheck, FinalProductAudit } from "./domain/final-product-systems";
+export { CapabilityEscalationService, GovernanceService, BookGenomeService, FinalProductAuditService } from "./application/final-product-systems";
