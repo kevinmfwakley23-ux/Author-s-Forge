@@ -13,6 +13,8 @@ test('PWA lifecycle exposes a real install prompt boundary and app-installed sta
   assert.match(pwa, /userChoice/);
   assert.match(pwa, /appinstalled/);
   assert.match(pwa, /serviceWorker\.register\("\/sw\.js"/);
+  assert.match(pwa, /id = "install-forge"/);
+  assert.match(pwa, /Install Forge/);
 });
 
 test('PWA lifecycle does not persist project data in browser storage', () => {
