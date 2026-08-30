@@ -14,35 +14,22 @@ export class VisualProductionPipeline {
     plan: VisualGenerationPlan;
     operation?: VisualProviderRequest['operation'];
     references?: readonly string[];
-    quality: {
-      expectedCharacterTraits: readonly string[];
-      expectedStyleTags: readonly string[];
-      requiredSignatureItems?: readonly string[];
-      expectedCostumeRules?: readonly string[];
-    };
-    inspect: (asset: VisualProviderResult) => Promise<{
-      observedCharacterTraits: readonly string[];
-      observedStyleTags: readonly string[];
-      observedSignatureItems?: readonly string[];
-      observedCostumeRules?: readonly string[];
-    }>;
+    quality: { expectedCharacterTraits: readonly string[]; expectedStyleTags: readonly string[]; requiredSignatureItems?: readonly string[]; expectedCostumeRules?: readonly string[]; minimumScore?: number };
+    inspect: (asset: VisualProviderResult) => Promise<{ observedCharacterTraits: readonly string[]; observedStyleTags: readonly string[]; observedSignatureItems?: readonly string[]; observedCostumeRules?: readonly string[] }>;
     maxProviderAttempts?: number;
   }): Promise<VisualProductionResult> {
     const attempts: string[] = [];
     const maxAttempts = Math.max(1, Math.min(input.maxProviderAttempts ?? this.providers.length, this.providers.length));
-    const providers = this.providers.filter((provider) => provider.healthy !== false).slice(0, maxAttempts);
     let lastError: unknown = new Error('No healthy visual providers are configured.');
-    for (const provider of providers) {
+    for (const provider of this.providers.filter((p) => p.healthy !== false).slice(0, maxAttempts)) {
       attempts.push(provider.id);
       try {
         const asset = await provider.generate({ plan: input.plan, operation: input.operation ?? 'generate', referenceUris: input.references ?? input.plan.references.map((r) => r.uri) });
         const observed = await input.inspect(asset);
         const quality = scoreVisualContinuity({ ...input.quality, ...observed });
-        if (quality.passed) return { asset, quality, providerAttempts: attempts };
-        lastError = new Error(`Visual quality gate failed: ${quality.failures.join(', ')}`);
-      } catch (error) {
-        lastError = error;
-      }
+        if (quality.passed && quality.score >= (input.quality.minimumScore ?? 100)) return { asset, quality, providerAttempts: attempts };
+        lastError = new Error(`Visual quality gate failed (${quality.score}%): ${quality.failures.join(', ') || 'score below required threshold'}`);
+      } catch (error) { lastError = error; }
     }
     throw new Error(`Visual production exhausted ${attempts.length} provider attempt(s): ${lastError instanceof Error ? lastError.message : String(lastError)}`);
   }
