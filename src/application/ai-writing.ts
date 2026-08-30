@@ -16,6 +16,7 @@ export interface AiWritingRequest {
   readonly assembledContext: string;
   readonly sourceMemoryIds: readonly string[];
   readonly proposalId: string;
+  readonly baseContentSha256?: string;
   readonly now?: string;
 }
 
@@ -37,12 +38,7 @@ export interface AiWritingResult {
   readonly target: AiProposalTarget;
 }
 
-/**
- * The writing boundary deliberately produces a proposal instead of mutating
- * manuscript state. The caller must obtain explicit author approval before
- * applying the candidate to a scene. The target is persisted with the
- * proposal so approval remains recoverable after a process restart.
- */
+/** The writing boundary produces an author-reviewable proposal and never mutates manuscript state. */
 export class AiWritingService {
   constructor(private readonly provider: AiWritingProvider, private readonly proposals: AiProposalStore) {}
 
@@ -67,6 +63,7 @@ export class AiWritingService {
       proposedContent,
       sourceMemoryIds: request.sourceMemoryIds,
       target,
+      ...(request.baseContentSha256 ? { baseContentSha256: request.baseContentSha256 } : {}),
       now: request.now,
     });
     return { formatVersion: AI_WRITING_FORMAT_VERSION, proposal, task: request.task, target };
@@ -78,10 +75,9 @@ function validateRequest(request: AiWritingRequest): void {
     if (!value.trim()) throw new Error(`AI writing ${name} is required.`);
   }
   if (!request.instruction.trim()) throw new Error("AI writing instruction is required.");
-  if (!request.existingContent.trim() && request.task !== "draft" && request.task !== "outline" && request.task !== "brainstorm") {
-    throw new Error(`AI writing task \"${request.task}\" requires existing scene content.`);
-  }
+  if (!request.existingContent.trim() && request.task !== "draft" && request.task !== "outline" && request.task !== "brainstorm") throw new Error(`AI writing task \"${request.task}\" requires existing scene content.`);
   if (!Array.isArray(request.sourceMemoryIds)) throw new Error("AI writing source memory ids must be an array.");
+  if (request.baseContentSha256 !== undefined && !/^[a-f0-9]{64}$/.test(request.baseContentSha256)) throw new Error("AI writing base content hash is invalid.");
 }
 
 function labelForTask(task: AiWritingTask): string { return task.charAt(0).toUpperCase() + task.slice(1); }
