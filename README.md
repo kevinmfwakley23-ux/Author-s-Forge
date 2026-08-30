@@ -47,7 +47,7 @@ Forge continuously learns from real working applications, current research, and 
 
 **research → architecture → implementation → regression coverage → build/acceptance verification → README/build-history update → next capability.**
 
-Recent benchmarking reinforces several principles: leading author tools emphasize persistent story context and character memory; FireQuill emphasizes scene-versioned character state, voice/arc continuity and author-approved extractor updates; Typewriter emphasizes a browsable structured story bible; CharmWriter emphasizes automatic story-bible extraction with approval cards; current all-in-one publishing tools increasingly connect writing to covers, KDP-ready exports, listings and promotion; and current research shows that heavy AI rewriting can erase measurable authorship signals. citeturn0search2turn0search7turn0search10turn0search3turn0search0
+Recent benchmarking reinforces several principles: leading author tools emphasize persistent story context and character memory; FireQuill emphasizes scene-versioned character state, voice/arc continuity and author-approved extractor updates; Story Editor emphasizes reviewing newly written material and curating proposed memory before it becomes canon; Novel Studio AI combines structured story state, retrieval memory and continuity checks; and current research emphasizes time-aware story memory rather than relying on a static bible or embeddings alone. citeturn0search10turn0search2turn0search3turn0search4
 
 Research is an engineering input, not permission to copy disconnected feature lists. Proven strengths are rebuilt natively around Forge's durable state, provenance, Project Brain, Book Genome, author control, proposal review, workflow gates, production, and recovery.
 
@@ -87,7 +87,7 @@ PORTABLE PROJECT PACKAGE
 
 ## Mission 058 — Saliency-Aware Character Memory Retrieval
 
-Forge's living Character Bible now has a retrieval boundary that can supply **only the most relevant character state needed for a drafting task**, instead of dumping an entire character database into every AI request.
+Forge's living Character Bible now has an application-integrated retrieval boundary that can supply **only the most relevant character state needed for a drafting task**, instead of dumping every character into every AI request.
 
 `CharacterBibleService.memory()` provides:
 
@@ -101,11 +101,28 @@ Forge's living Character Bible now has a retrieval boundary that can supply **on
 - current emotional state and location when broad context is requested;
 - defensive cloning so retrieval cannot mutate authoritative character state.
 
-This is the first concrete bridge between Forge's **scene-versioned character memory** and the saliency/context architecture required for high-quality AI drafting. It intentionally returns a compact memory view rather than the full Character Bible.
+`assembleWritingContext()` now consumes this saliency layer for the `characters` context section. Character context is no longer a raw `JSON.stringify()` dump. It is restored through the authoritative Character Bible service, queried by task terms, ranked, limited, and emitted with relevance evidence and source IDs.
 
-Regression coverage now verifies explicit relevance ranking and historical snapshot retrieval.
+The context assembler now supports:
 
-The next completion gate for this feature is application integration: the Writing Desk/AI context assembler must consume these memory hits and combine them with canon, timeline, voice, and research under the same provenance and author-control rules.
+- `characterIds` for explicit character targeting;
+- `characterAsOf` for historical point-in-time context;
+- `characterMemoryLimit` for deterministic context budgets;
+- tokenized multi-term character relevance queries.
+
+This creates the first real application path from **scene-aware character memory → salient retrieval → Writing Desk context**. The implementation intentionally keeps the authoritative Character Bible separate from the compact context projection.
+
+Regression coverage now verifies:
+
+- irrelevant characters are excluded when the context budget is constrained;
+- explicit character targeting works;
+- historical character state can be reconstructed for context;
+- relevance evidence survives into the assembled context;
+- existing canon/open-thread context behavior remains intact.
+
+### Mission 058 completion gate
+
+This feature is **not marked complete until CI/build verification passes and the live AI drafting path demonstrably consumes this assembled character context**. The remaining gate is the real Studio/provider path: Writing Desk request → context assembly → capability-routed model → governed proposal → author review, with character continuity evidence available before application.
 
 ## Mission 057 — Versioned Character State Memory
 
@@ -187,7 +204,7 @@ Canonical CI covers installation, build, tests, completion measurement, client s
 
 ## Current Build Priorities
 
-1. Complete application integration for Versioned Character State Memory and Saliency-Aware Character Retrieval.
+1. **Finish Mission 058** — prove the live Studio/provider drafting path consumes saliency-aware character context and exposes character continuity evidence before proposal application.
 2. Integrate Author Voice Memory into live AI drafting/proposal generation and make voice drift visible before application.
 3. Build saliency-aware retrieval across character memory, canon, timeline, research, and author voice.
 4. Integrate Author Goals into durable Studio project state.
