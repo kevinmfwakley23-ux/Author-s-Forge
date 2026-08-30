@@ -18,6 +18,9 @@ export interface AiModelResource {
   readonly estimatedInputCostPerMillion?: number;
   readonly estimatedOutputCostPerMillion?: number;
   readonly remainingQuota?: number;
+  readonly usedTokens?: number;
+  readonly quotaLimit?: number;
+  readonly quotaResetAt?: string;
 }
 
 export interface AiModelSelectionRequest {
@@ -32,6 +35,8 @@ export interface AiModelSelectionRequest {
   readonly preferModel?: string;
   readonly maxInputCostPerMillion?: number;
   readonly maxOutputCostPerMillion?: number;
+  readonly estimatedInputTokens?: number;
+  readonly quotaSafetyFraction?: number;
 }
 
 export interface AiModelSelection {
@@ -40,7 +45,7 @@ export interface AiModelSelection {
   readonly reasons: readonly string[];
 }
 
-/** Provider-neutral selection over resources discovered from real health checks. */
+/** Provider-neutral selection over resources discovered from real health/quota signals. */
 export class AiModelBroker {
   private resources: AiModelResource[] = [];
 
@@ -53,6 +58,8 @@ export class AiModelBroker {
   }
 
   select(request: AiModelSelectionRequest): AiModelSelection {
+    const safetyFraction = Math.min(0.99, Math.max(0, request.quotaSafetyFraction ?? 0.1));
+    const estimatedTokens = Math.max(0, request.estimatedInputTokens ?? 0);
     const candidates = this.resources.filter((resource) => {
       const c = resource.capabilities;
       if (resource.healthy === false) return false;
@@ -64,6 +71,9 @@ export class AiModelBroker {
       if (request.requiresStreaming && !c.streaming) return false;
       if (request.maxInputCostPerMillion !== undefined && resource.estimatedInputCostPerMillion !== undefined && resource.estimatedInputCostPerMillion > request.maxInputCostPerMillion) return false;
       if (request.maxOutputCostPerMillion !== undefined && resource.estimatedOutputCostPerMillion !== undefined && resource.estimatedOutputCostPerMillion > request.maxOutputCostPerMillion) return false;
+      const remaining = this.remainingQuota(resource);
+      if (remaining !== undefined && remaining <= 0) return false;
+      if (remaining !== undefined && estimatedTokens > 0 && remaining - estimatedTokens < Math.ceil(remaining * safetyFraction)) return false;
       return true;
     });
 
@@ -72,12 +82,15 @@ export class AiModelBroker {
     return candidates.map((resource) => {
       let score = 0;
       const reasons: string[] = [];
+      const remaining = this.remainingQuota(resource);
       if (resource.provider === request.preferProvider) { score += 100; reasons.push('preferred provider'); }
       if (resource.model === request.preferModel) { score += 75; reasons.push('preferred model'); }
       if (resource.healthy === true) { score += 25; reasons.push('healthy'); }
-      if (resource.remainingQuota !== undefined) {
-        if (resource.remainingQuota > 0) { score += 10; reasons.push('reported quota available'); }
-        else score -= 50;
+      if (remaining !== undefined) {
+        score += 10;
+        reasons.push(`quota available (${remaining.toLocaleString()} tokens)`);
+        if (estimatedTokens > 0 && remaining - estimatedTokens >= Math.ceil(remaining * safetyFraction)) reasons.push('pre-exhaustion safety reserve protected');
+        if (resource.quotaLimit && resource.quotaLimit > 0) score += Math.min(30, Math.round((remaining / resource.quotaLimit) * 30));
       }
       if (resource.estimatedInputCostPerMillion !== undefined) { score += Math.max(0, 20 - Math.min(20, resource.estimatedInputCostPerMillion)); reasons.push('input cost metadata available'); }
       if (request.task === 'vision' && resource.capabilities.vision) { score += 30; reasons.push('vision capable'); }
@@ -88,5 +101,11 @@ export class AiModelBroker {
       if (resource.capabilities.maxOutputTokens) score += Math.min(10, Math.floor(resource.capabilities.maxOutputTokens / 10000));
       return { resource, score, reasons };
     }).sort((a, b) => b.score - a.score || a.resource.provider.localeCompare(b.resource.provider) || a.resource.model.localeCompare(b.resource.model))[0];
+  }
+
+  private remainingQuota(resource: AiModelResource): number | undefined {
+    if (resource.remainingQuota !== undefined) return Math.max(0, resource.remainingQuota);
+    if (resource.quotaLimit !== undefined && resource.usedTokens !== undefined) return Math.max(0, resource.quotaLimit - resource.usedTokens);
+    return undefined;
   }
 }
