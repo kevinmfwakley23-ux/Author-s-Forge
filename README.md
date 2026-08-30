@@ -112,6 +112,48 @@ Approved optional intelligence boundaries include K.I.N.G.S., OmniRoute/OpenAI-c
 
 AI changes are reviewable durable proposals, never silent manuscript/canon mutation. Proposals carry rationale, provenance, status, review state, and source-revision binding. Writing Desk and Editing Room expose deterministic line-level diffs and word-count impact before explicit author approval/application. Server-side revision protection remains authoritative against stale writes.
 
+## Mission 052 — Competitive Advantage Research
+
+Forge now treats competitive research as an active engineering input. Research compared proven patterns from products including Plottr and Sudowrite: Plottr's visual timelines, scene cards, scene stacks, plotlines, filters, story bibles, and series planning; Sudowrite's Story Bible source-of-truth model, localized rewrite workflow, outline/scene generation, and context-aware character/worldbuilding. citeturn0search0turn0search5turn0search3
+
+The implementation rule is to import **capabilities and lessons, not disconnected feature copies**. Forge combines visual planning and Story Bible-like context with its durable project truth, canon controls, Project Brain, provenance, downstream impact, governed AI proposals, production, publishing, and recovery.
+
+## Mission 053 — Story Map
+
+The first competitive capability has been converted into a live Studio surface. The new `public/forge-story-map.js` creates a **Story Map** directly from `window.forgeWorkspaceState`, so the visual plan is derived from the same durable books, chapters, and scenes used by the manuscript editor. There is deliberately no second planning database.
+
+The Story Map provides:
+
+- visual book → chapter → scene hierarchy;
+- scene lifecycle status;
+- chapter completion percentage;
+- book completion percentage;
+- project totals for books, chapters, scenes, and completed-scene percentage;
+- direct scene opening from the map into the Writing Desk;
+- empty-state guidance when structure does not exist;
+- live refresh when the workspace is refreshed;
+- PWA shell inclusion for Chromebook/Android continuity.
+
+This is the beginning of Forge's visual planning layer: future iterations will add richer scene attributes, plotlines, character arcs, filters, drag/reorder operations, and downstream canon/impact indicators while keeping the manuscript state authoritative.
+
+The underlying deterministic domain/application foundation is `src/domain/story-map.ts` and `src/application/story-map.ts`, with regression coverage in `test/story-map.test.js` and `test/story-map-ui.test.js`.
+
+## Mission 051 — Editing Room Proposal Review Diff
+
+The Editing Room provides deterministic review of durable AI rewrite proposals. Authors can inspect line-level added/removed/unchanged content and before/after word counts. Approval remains separate from application, and server-side source-revision checks remain authoritative.
+
+## CI and PWA Integrity
+
+The canonical CI path includes build, tests, completion measurement, client syntax checks, browser acceptance, and mobile acceptance. The service worker is now `authors-forge-shell-v5` and includes the Story Map client while continuing to exclude `/api/` project data from caching.
+
 ## Delivery Standard
 
 The goal is not to maximize the number of feature labels. The goal is to deliver the **best dependable author operating environment we can build**, using verified lessons from working products while preserving Forge's architecture and author-first principles.
+
+## Current Build Rule
+
+After every major capability:
+
+**research → architecture → implementation → regression coverage → build/acceptance verification → README/build-history update → next capability.**
+
+A capability is not declared complete merely because code was committed. The repository must prove the running behavior at domain, application, and human/device levels before the capability is considered production-ready.
