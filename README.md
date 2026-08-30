@@ -10,6 +10,143 @@ It is intended to support children's books, memoir, psychological thrillers, gui
 
 The directive defines the complete target: concept → architecture → canon → characters → timeline → research → manuscript → editing → illustrations → cover → formatting → metadata → positioning → marketing → publishing preparation → portable archive/recovery. It explicitly calls for hierarchical memory, anti-drift controls, relationship-aware memory, voice input, five AI collaboration modes, a Book Genome, real provider boundaries, and an author-controlled publishing workflow.
 
+## Locked Product-Build Direction — 2026-08-30
+
+The Forge will now be developed as a **single integrated professional authoring and publishing studio**, not as a collection of disconnected feature screens. Competitive research across open-source projects, web authoring applications, AI writing products, ebook/publishing tools, and Android writing applications establishes the following product direction.
+
+### Competitive synthesis — use concepts, never copy implementations
+
+Forge will deliberately study and learn from strong products and projects in these areas:
+
+- deep manuscript/project organization and durable writing workflows;
+- visual story planning, timelines, cards, arcs, and structural navigation;
+- AI-assisted drafting, rewriting, brainstorming, and editorial collaboration;
+- connected notes, knowledge graphs, references, and project research;
+- professional ebook/print production and export;
+- distraction-free and mobile-first writing;
+- publishing metadata, positioning, market research, and promotion workflows.
+
+The engineering rule is **conceptual synthesis, not code transplantation**. Third-party implementations are reference material unless their licenses and compatibility explicitly permit reuse. Forge's architecture, contracts, project state, and author-control rules remain authoritative.
+
+### The target experience
+
+Forge is being built to combine the strongest useful characteristics of specialist tools into one coherent workflow:
+
+```text
+Scrivener-class project structure
+        +
+Plot/tracks-class story architecture
+        +
+Professional book-production/export
+        +
+AI writing/editorial assistance
+        +
+Connected project knowledge
+        +
+Fast Chromebook/Android writing
+        +
+Forge Canon + Book Genome + Project Brain
+        +
+K.I.N.G.S. capability escalation
+        +
+OmniRoute/resource routing and token optimization
+        ↓
+ONE AUTHOR'S FORGE WORKPLACE
+```
+
+Forge must not merely imitate any competitor. It must eliminate the need for an author to stitch together separate applications for planning, writing, research, editing, visual continuity, illustration, cover design, production, marketing, and publishing preparation.
+
+### Locked build sequence
+
+All major implementation work should converge on this sequence:
+
+```text
+AUTHOR
+  ↓
+UNIFIED WRITING COCKPIT
+  ↓
+PROJECT BRAIN + MINIMAL RELEVANT CONTEXT
+  ↓
+CONTEXT OPTIMIZATION / TOKEN CONTROL
+  ↓
+AI RESOURCE DISCOVERY
+  ↓
+CAPABILITY + HEALTH + COST + QUOTA ROUTING
+  ↓
+K.I.N.G.S. / OMNIROUTE / LOCAL / DIRECT PROVIDER
+  ↓
+REAL AI RESULT
+  ↓
+AUTHOR-CONTROLLED PROPOSAL / EDIT / ARTIFACT
+  ↓
+CANON + BOOK GENOME + MEMORY UPDATE
+  ↓
+DOWNSTREAM IMPACT ANALYSIS
+  ↓
+VISUAL / COVER / PRODUCTION
+  ↓
+MARKETING + POSITIONING
+  ↓
+PUBLICATION AUDIT
+  ↓
+PORTABLE PROJECT PACKAGE
+```
+
+The immediate engineering priorities are:
+
+1. **Unified writing cockpit** — manuscript, outline, relevant canon, characters, research, and unresolved threads available together without losing the writing surface.
+2. **Visual story architecture** — timeline, scenes, arcs, POV, characters, conflicts, dependencies, and story navigation.
+3. **Context-aware AI** — retrieve only task-relevant project knowledge while preserving provenance and author control.
+4. **AI resource intelligence** — discover, verify, score, route, execute, observe, and safely fall back across K.I.N.G.S., OmniRoute, local models, and direct providers.
+5. **Token/cost efficiency** — deduplication, retrieval markers, safe compression, tool-output filtering, relevance selection, progressive aging, and other proven optimization concepts while preserving code, URLs, structured data, and canonical text byte-perfect where required.
+6. **Author-grade editorial intelligence** — developmental, continuity, line, copy, proofreading, dialogue, pacing, character, genre, and structural analysis with evidence-backed proposals rather than destructive automatic edits.
+7. **Visual continuity** — reference images, character identity, age progression, wardrobe, environment, scene art, and reusable canonical assets.
+8. **Professional production** — validated DOCX, PDF, EPUB, KDP-ready covers, metadata, and publication audits.
+9. **Promotion pipeline** — evidence-backed positioning and reusable promotional material derived from the actual project.
+10. **Chromebook/Android excellence** — responsive, touch-friendly, keyboard-friendly, voice-capable, resilient writing with the same platform-independent project state.
+11. **Offline resilience and recovery** — local-first persistence, safe project packages, restart recovery, explicit sync/storage boundaries, and no cloud service becoming the source of truth.
+12. **End-to-end completion** — continuously test a real project through idea → book → edited manuscript → artwork → cover → production → publishing preparation.
+
+### AI architecture target
+
+The AI subsystem must mature from a provider selector into a real resource broker:
+
+```text
+TASK
+ ↓
+TASK REQUIREMENTS
+ ↓
+PROJECT BRAIN
+ ↓
+MINIMAL RELEVANT CONTEXT
+ ↓
+CONTEXT OPTIMIZER
+ ↓
+RESOURCE DISCOVERY
+ ↓
+CAPABILITY NORMALIZATION
+ ↓
+HEALTH / LATENCY / QUOTA / COST
+ ↓
+ROUTING SCORE
+ ↓
+REAL PROVIDER OR EXTERNAL AI RESOURCE
+ ↓
+STREAM / TOOL / RESULT NORMALIZATION
+ ↓
+TELEMETRY
+ ↓
+AUTHOR APPROVAL BOUNDARY
+```
+
+No fake models, fake quotas, fake free tokens, fabricated provider responses, or unsupported availability claims are permitted. Free/low-cost routing is valuable only when the connected resource actually reports that capability or the configured user-owned service makes it available.
+
+### Continuous competitive engineering
+
+Competitive discovery is now an ongoing engineering input. Before major milestones, investigate relevant GitHub repositories and current web/Android products for proven concepts in authoring, planning, AI assistance, editing, memory, visual workflows, publishing, mobile UX, and production. Record useful findings in this README, then adapt them to Forge's canonical architecture and verify the resulting behavior.
+
+The goal is not to win a feature checklist. The goal is to make **the complete author workflow materially better because the systems work together**.
+
 ## Current Engineering Discoveries — 2026-08-28
 
 - **Real browser acceptance is the product gate.** The Studio acceptance harness uses Playwright-managed Chromium and exercises the rendered application rather than merely checking source files.
