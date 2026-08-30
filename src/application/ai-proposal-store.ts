@@ -1,3 +1,5 @@
+import type { VoiceDriftReport } from "../domain/author-voice-memory";
+
 export type AiProposalKind = "memory" | "manuscript-edit" | "research-note" | "continuity-finding" | "creative-alternative";
 export type AiProposalStatus = "pending" | "accepted" | "rejected" | "superseded";
 
@@ -19,6 +21,7 @@ export interface AiProposal {
   readonly createdAt: string;
   readonly target?: AiProposalTarget;
   readonly baseContentSha256?: string;
+  readonly voiceDrift?: VoiceDriftReport;
   readonly reviewedAt?: string;
   readonly reviewedBy?: "author" | "system";
   readonly reviewNote?: string;
@@ -46,6 +49,7 @@ export class AiProposalStore {
     if (this.proposals.has(input.id)) throw new Error(`Duplicate AI proposal id \"${input.id}\".`);
     validateTarget(input.target);
     if (input.baseContentSha256 !== undefined && !/^[a-f0-9]{64}$/.test(input.baseContentSha256)) throw new Error("AI proposal base content hash is invalid.");
+    validateVoiceDrift(input.voiceDrift);
     const { now, ...fields } = input;
     const proposal: AiProposal = {
       ...fields,
@@ -57,6 +61,7 @@ export class AiProposalStore {
       createdAt: now ?? new Date().toISOString(),
       ...(input.target ? { target: { ...input.target } } : {}),
       ...(input.baseContentSha256 ? { baseContentSha256: input.baseContentSha256 } : {}),
+      ...(input.voiceDrift ? { voiceDrift: cloneVoiceDrift(input.voiceDrift) } : {}),
     };
     this.proposals.set(proposal.id, cloneProposal(proposal));
     return cloneProposal(proposal);
@@ -97,6 +102,7 @@ export class AiProposalStore {
       ids.add(proposal.id);
       validateTarget(proposal.target);
       if (proposal.baseContentSha256 !== undefined && !/^[a-f0-9]{64}$/.test(proposal.baseContentSha256)) throw new Error("AI proposal base content hash is invalid.");
+      validateVoiceDrift(proposal.voiceDrift);
       this.proposals.set(proposal.id, cloneProposal(proposal));
     }
   }
@@ -109,6 +115,29 @@ function validateTarget(target: AiProposalTarget | undefined): void {
   }
 }
 
+function validateVoiceDrift(report: VoiceDriftReport | undefined): void {
+  if (!report) return;
+  if (!Number.isFinite(report.distance) || report.distance < 0) throw new Error("AI proposal voice drift distance is invalid.");
+  if (!["low", "medium", "high"].includes(report.confidence)) throw new Error("AI proposal voice drift confidence is invalid.");
+  for (const value of Object.values(report.dimensions)) if (!Number.isFinite(value)) throw new Error("AI proposal voice drift dimensions must be finite.");
+}
+
+function cloneVoiceDrift(report: VoiceDriftReport): VoiceDriftReport {
+  return {
+    ...report,
+    matchedSamples: [...report.matchedSamples],
+    warnings: [...report.warnings],
+    dimensions: { ...report.dimensions },
+    recommendations: [...report.recommendations],
+  };
+}
+
 function cloneProposal(proposal: AiProposal): AiProposal {
-  return { ...proposal, sourceMemoryIds: [...proposal.sourceMemoryIds], ...(proposal.target ? { target: { ...proposal.target } } : {}), ...(proposal.baseContentSha256 ? { baseContentSha256: proposal.baseContentSha256 } : {}) };
+  return {
+    ...proposal,
+    sourceMemoryIds: [...proposal.sourceMemoryIds],
+    ...(proposal.target ? { target: { ...proposal.target } } : {}),
+    ...(proposal.baseContentSha256 ? { baseContentSha256: proposal.baseContentSha256 } : {}),
+    ...(proposal.voiceDrift ? { voiceDrift: cloneVoiceDrift(proposal.voiceDrift) } : {}),
+  };
 }
