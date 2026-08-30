@@ -11,7 +11,6 @@ export interface ForgeCoreDependencies {
   readonly memoryStore?: ProjectMemoryStore;
   readonly modelBroker?: AiModelBroker;
   readonly routingState?: AiRoutingState;
-  /** Durable project adapter supplied by infrastructure at the application composition root. */
   readonly projectStore?: ProjectStorePort;
 }
 
@@ -57,21 +56,10 @@ export class ForgeCore {
     this.routing.hydrate(this.ai.listResources());
   }
 
-  async createProject(project: ProjectState): Promise<void> {
-    return this.requireProjectStore().create(project);
-  }
-
-  async loadProject(projectId: string): Promise<ProjectState | null> {
-    return this.requireProjectStore().load(projectId);
-  }
-
-  async saveProject(project: ProjectState): Promise<void> {
-    return this.requireProjectStore().save(project);
-  }
-
-  async projectExists(projectId: string): Promise<boolean> {
-    return this.requireProjectStore().exists(projectId);
-  }
+  async createProject(project: ProjectState): Promise<void> { return this.requireProjectStore().create(project); }
+  async loadProject(projectId: string): Promise<ProjectState | null> { return this.requireProjectStore().load(projectId); }
+  async saveProject(project: ProjectState): Promise<void> { return this.requireProjectStore().save(project); }
+  async projectExists(projectId: string): Promise<boolean> { return this.requireProjectStore().exists(projectId); }
 
   buildContext(options: ProjectContextPipelineOptions): ProjectContextPipelineResult { return buildProjectContext(this.memory, options); }
   snapshotMemory(projectId: string): ProjectMemorySnapshot { return this.memory.createSnapshot(projectId); }
@@ -104,7 +92,11 @@ export class ForgeCore {
       projectStoreAvailable ? "durable-project-store" : "durable-project-store-unbound",
       "context-pipeline", "portable-memory-snapshot", "durable-routing-state"
     ];
-    return { formatVersion: FORGE_CORE_FORMAT_VERSION, ready: memoryAvailable && aiRoutingAvailable && aiConfigured, memoryAvailable, aiRoutingAvailable, aiConfigured, projectStoreAvailable, modelCount, checks };
+    return {
+      formatVersion: FORGE_CORE_FORMAT_VERSION,
+      ready: memoryAvailable && aiRoutingAvailable && aiConfigured && projectStoreAvailable,
+      memoryAvailable, aiRoutingAvailable, aiConfigured, projectStoreAvailable, modelCount, checks
+    };
   }
 
   private requireProjectStore(): ProjectStorePort {
