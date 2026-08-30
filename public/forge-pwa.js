@@ -2,6 +2,24 @@
 (() => {
   "use strict";
 
+  function ensureUi() {
+    if (document.getElementById("pwa-status")) return;
+    const host = document.querySelector(".top-actions") || document.querySelector(".topbar") || document.body;
+    const status = document.createElement("span");
+    status.id = "pwa-status";
+    status.className = "muted";
+    status.setAttribute("role", "status");
+    status.textContent = "Preparing Forge app shell…";
+    const button = document.createElement("button");
+    button.id = "install-forge";
+    button.type = "button";
+    button.className = "primary";
+    button.textContent = "Install Forge";
+    button.hidden = true;
+    button.addEventListener("click", install);
+    host.append(button, status);
+  }
+
   const installButton = () => document.getElementById("install-forge");
   const status = () => document.getElementById("pwa-status");
   let deferredPrompt = null;
@@ -32,7 +50,10 @@
   }
 
   async function install() {
-    if (!deferredPrompt) return;
+    if (!deferredPrompt) {
+      setStatus("Use the browser menu to install Forge when the install prompt is unavailable.");
+      return;
+    }
     const promptEvent = deferredPrompt;
     deferredPrompt = null;
     setInstallVisible(false);
@@ -66,9 +87,14 @@
   window.addEventListener("online", () => setStatus("Forge shell ready • online"));
   window.addEventListener("offline", () => setStatus("Forge shell ready • offline"));
   window.addEventListener("load", () => {
-    const button = installButton();
-    if (button) button.addEventListener("click", install);
+    ensureUi();
     registerServiceWorker();
     updateDisplayMode();
   });
+
+  if (document.readyState !== "loading") {
+    ensureUi();
+    registerServiceWorker();
+    updateDisplayMode();
+  }
 })();
