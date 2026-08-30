@@ -4,6 +4,8 @@ export { ProjectMemoryStore } from "./application/project-memory-store";
 export type { MemoryPromotionDecision, ProjectMemorySnapshot } from "./application/project-memory-store";
 export { assembleProjectBrainContext } from "./application/project-brain";
 export type { ProjectBrainQuery, ProjectBrainContext } from "./application/project-brain";
+export { createStoryMap, createStoryMapFromManuscript, STORY_MAP_FORMAT_VERSION } from "./domain/story-map";
+export type { StoryMap, StoryMapBook, StoryMapChapter, StoryMapScene, StoryMapSceneStatus, StoryMapChapterStatus } from "./domain/story-map";
 export { assembleWritingContext, CONTEXT_ASSEMBLY_FORMAT_VERSION, CONTEXT_INCLUSION_MODES } from "./domain/context-assembly";
 export type { ContextInclusionMode, ContextSectionPolicy, ContextAssemblyRequest, ContextSection, AssembledWritingContext } from "./domain/context-assembly";
 export { createProductionContextEngineRegistry, CONTEXT_ENGINE_CAPABILITIES } from "./application/context-engine-stack";
