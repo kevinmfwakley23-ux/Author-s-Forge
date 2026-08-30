@@ -1,14 +1,14 @@
-const test = require("node:test");
-const assert = require("node:assert/strict");
-const fs = require("node:fs");
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
 
 const html = fs.readFileSync("public/index.html", "utf8");
 const script = fs.readFileSync("public/forge-command-center.js", "utf8");
 
 test("Studio exposes a dictation control for author text fields", () => {
   assert.match(html, /forge-command-center\.js/);
-  assert.match(script, /querySelectorAll\([^)]*textarea/);
-  assert.match(script, /input\[type=["']text["']\]|input:not\(\[type\]\)/);
+  assert.match(script, /querySelectorAll\(s\)/);
+  assert.match(script, /textarea, input\[type=["']text["']\], input:not\(\[type\]\)/);
   assert.match(script, /SpeechRecognition/);
   assert.match(script, /webkitSpeechRecognition/);
   assert.match(script, /forge-inline-mic/);
