@@ -14,3 +14,5 @@ export { createCostGuardedAiGateway, estimateAiRequestCost, AiCostGuardError } f
 export type { AiCostPolicy, AiCostEstimate } from "./application/ai-cost-guard";
 export { AiProposalStore } from "./application/ai-proposal-store";
 export type { AiProposal, AiProposalKind, AiProposalStatus, ProposalReviewDecision } from "./application/ai-proposal-store";
+export { createLaunchCampaign, approveCampaignAsset, scheduleCampaignAsset, LAUNCH_CAMPAIGN_FORMAT_VERSION } from "./domain/launch-campaign";
+export type { CampaignChannel, CampaignAssetKind, CampaignAssetStatus, CampaignEvidence, LaunchCampaignAsset, LaunchCampaign, CreateLaunchCampaignInput } from "./domain/launch-campaign";
