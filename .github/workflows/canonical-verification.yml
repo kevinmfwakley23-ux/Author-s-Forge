@@ -1,0 +1,35 @@
+name: Canonical Forge Verification
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: forge-main-verification
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout canonical main
+        uses: actions/checkout@v4
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm install
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Build and regression suite
+        run: npm test
+      - name: Completion meter
+        run: npm run completion
+      - name: Browser acceptance
+        run: npm run test:browser
+      - name: Mobile acceptance
+        run: npm run test:browser:mobile
