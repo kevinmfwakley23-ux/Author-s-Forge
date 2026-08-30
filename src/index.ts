@@ -8,8 +8,6 @@ export { assembleWritingContext, CONTEXT_ASSEMBLY_FORMAT_VERSION, CONTEXT_INCLUS
 export type { ContextInclusionMode, ContextSectionPolicy, ContextAssemblyRequest, ContextSection, AssembledWritingContext } from "./domain/context-assembly";
 export { createProductionContextEngineRegistry, CONTEXT_ENGINE_CAPABILITIES } from "./application/context-engine-stack";
 export type { ContextEngineCapability } from "./application/context-engine-stack";
-export { CompressionEngineRegistry, estimateTokens } from "./application/compression-engine";
-export type { CompressionEngine, CompressionInput, CompressionResult, CompressionTarget } from "./application/compression-engine";
 export { InMemoryContextOptimizationLedger } from "./application/context-optimization-ledger";
 export type { ContextOptimizationLedger, ContextOptimizationLedgerEntry, ContextOptimizationLedgerSummary } from "./application/context-optimization-ledger";
 export { createCostGuardedAiGateway, estimateAiRequestCost, AiCostGuardError } from "./application/ai-cost-guard";
