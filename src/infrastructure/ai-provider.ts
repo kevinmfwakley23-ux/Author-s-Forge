@@ -6,7 +6,7 @@ import { SemanticCache, stableCacheKey } from "../application/semantic-cache";
 import { generateWithKingsAi } from "./kings-ai-bridge";
 
 export interface AiGenerationRequest { readonly system: string; readonly user: string; readonly temperature?: number; readonly maxOutputTokens?: number; }
-export interface AiGenerationResult { readonly provider: "openai" | "ollama" | "kings"; readonly model: string; readonly text: string; readonly requestId?: string; readonly cacheHit?: boolean; readonly optimization?: { readonly originalEstimatedTokens: number; readonly optimizedEstimatedTokens: number; readonly tokensSaved: number; readonly compressionRatio: number; readonly strategy: readonly string[]; }; }
+export interface AiGenerationResult { readonly provider: "omniroute" | "openai" | "ollama" | "kings"; readonly model: string; readonly text: string; readonly requestId?: string; readonly cacheHit?: boolean; readonly optimization?: { readonly originalEstimatedTokens: number; readonly optimizedEstimatedTokens: number; readonly tokensSaved: number; readonly compressionRatio: number; readonly strategy: readonly string[]; }; }
 
 export interface ProjectAiGenerationRequest extends Omit<AiGenerationRequest, "system"> {
   readonly system?: string;
@@ -38,11 +38,12 @@ export async function generateText(request: AiGenerationRequest): Promise<AiGene
   const cacheEnabled = process.env.AI_CACHE_ENABLED?.trim().toLowerCase() === "true";
   const cacheable = cacheEnabled && (request.temperature ?? 0.7) === 0;
   const cacheKey = cacheable ? stableCacheKey([
-    "forge-ai-v1",
+    "forge-ai-v2",
     optimizedRequest.system,
     optimizedRequest.user,
     request.temperature ?? 0.7,
     request.maxOutputTokens ?? 4000,
+    process.env.OMNIROUTE_MODEL?.trim() ?? "",
     process.env.KINGS_AI_MODEL?.trim() ?? "",
     process.env.OPENAI_MODEL?.trim() ?? "",
     process.env.OLLAMA_MODEL?.trim() ?? "",
@@ -53,15 +54,19 @@ export async function generateText(request: AiGenerationRequest): Promise<AiGene
   }
 
   let result: AiGenerationResult;
-  const kingsEndpoint = process.env.KINGS_AI_ENDPOINT?.trim();
-  if (kingsEndpoint) result = await generateWithKingsAi({ endpoint: kingsEndpoint }, optimizedRequest);
+  const omniRouteEndpoint = process.env.OMNIROUTE_BASE_URL?.trim();
+  if (omniRouteEndpoint) result = await generateWithOpenAiCompatibleGateway("omniroute", omniRouteEndpoint, process.env.OMNIROUTE_API_KEY?.trim(), optimizedRequest, process.env.OMNIROUTE_MODEL?.trim());
   else {
-    const openAiKey = process.env.OPENAI_API_KEY?.trim();
-    if (openAiKey) result = await generateOpenAi(openAiKey, optimizedRequest);
+    const kingsEndpoint = process.env.KINGS_AI_ENDPOINT?.trim();
+    if (kingsEndpoint) result = await generateWithKingsAi({ endpoint: kingsEndpoint }, optimizedRequest);
     else {
-      const ollama = process.env.OLLAMA_BASE_URL?.trim();
-      if (ollama) result = await generateOllama(ollama.replace(/\/$/, ""), optimizedRequest);
-      else throw new Error("No AI provider is configured. Set KINGS_AI_ENDPOINT + KINGS_AI_MODEL, OPENAI_API_KEY + OPENAI_MODEL, or OLLAMA_BASE_URL + OLLAMA_MODEL.");
+      const openAiKey = process.env.OPENAI_API_KEY?.trim();
+      if (openAiKey) result = await generateOpenAi(openAiKey, optimizedRequest);
+      else {
+        const ollama = process.env.OLLAMA_BASE_URL?.trim();
+        if (ollama) result = await generateOllama(ollama.replace(/\/$/, ""), optimizedRequest);
+        else throw new Error("No AI provider is configured. Set OMNIROUTE_BASE_URL + OMNIROUTE_MODEL, KINGS_AI_ENDPOINT + KINGS_AI_MODEL, OPENAI_API_KEY + OPENAI_MODEL, or OLLAMA_BASE_URL + OLLAMA_MODEL.");
+      }
     }
   }
 
@@ -76,27 +81,13 @@ export async function generateProjectText(request: ProjectAiGenerationRequest): 
     budget: request.contextBudget ?? readPositiveInteger(process.env.AI_CONTEXT_MAX_INPUT_TOKENS),
   });
   const system = [request.system?.trim(), projectContext.system].filter(Boolean).join("\n\n");
-  const result = await generateText({
-    system,
-    user: request.user,
-    temperature: request.temperature,
-    maxOutputTokens: request.maxOutputTokens,
-  });
+  const result = await generateText({ system, user: request.user, temperature: request.temperature, maxOutputTokens: request.maxOutputTokens });
   if (!result.optimization) return result;
 
   const originalEstimatedTokens = projectContext.originalEstimatedTokens + estimateTokens([request.system?.trim(), request.user].filter(Boolean).join("\n\n"));
   const optimizedEstimatedTokens = result.optimization.optimizedEstimatedTokens;
   const tokensSaved = Math.max(0, originalEstimatedTokens - optimizedEstimatedTokens);
-  return {
-    ...result,
-    optimization: {
-      originalEstimatedTokens,
-      optimizedEstimatedTokens,
-      tokensSaved,
-      compressionRatio: originalEstimatedTokens > 0 ? optimizedEstimatedTokens / originalEstimatedTokens : 1,
-      strategy: [...projectContext.strategies, ...result.optimization.strategy],
-    },
-  };
+  return { ...result, optimization: { originalEstimatedTokens, optimizedEstimatedTokens, tokensSaved, compressionRatio: originalEstimatedTokens > 0 ? optimizedEstimatedTokens / originalEstimatedTokens : 1, strategy: [...projectContext.strategies, ...result.optimization.strategy] } };
 }
 
 function readPositiveInteger(value: string | undefined): number | undefined {
@@ -105,14 +96,28 @@ function readPositiveInteger(value: string | undefined): number | undefined {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
 }
 
+async function generateWithOpenAiCompatibleGateway(provider: "omniroute", baseUrl: string, apiKey: string | undefined, request: AiGenerationRequest, configuredModel: string | undefined): Promise<AiGenerationResult> {
+  const model = configuredModel?.trim();
+  if (!model) throw new Error("OMNIROUTE_MODEL is required when OMNIROUTE_BASE_URL is configured.");
+  const response = await fetch(`${baseUrl.replace(/\/$/, "")}/v1/chat/completions`, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}) },
+    body: JSON.stringify({ model, messages: [{ role: "system", content: request.system }, { role: "user", content: request.user }], temperature: request.temperature ?? 0.7, ...(request.maxOutputTokens ? { max_tokens: request.maxOutputTokens } : {}) }),
+  });
+  const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
+  if (!response.ok) throw new Error(typeof payload.error === "object" && payload.error ? String((payload.error as Record<string, unknown>).message ?? `OmniRoute request failed (${response.status}).`) : `OmniRoute request failed (${response.status}).`);
+  const choices = Array.isArray(payload.choices) ? payload.choices : [];
+  const first = choices[0] as Record<string, unknown> | undefined;
+  const message = first?.message as Record<string, unknown> | undefined;
+  const text = typeof message?.content === "string" ? message.content.trim() : "";
+  if (!text) throw new Error("OmniRoute returned no generated text.");
+  return { provider, model, text, requestId: typeof payload.id === "string" ? payload.id : undefined };
+}
+
 async function generateOpenAi(apiKey: string, request: AiGenerationRequest): Promise<AiGenerationResult> {
   const model = process.env.OPENAI_MODEL?.trim();
   if (!model) throw new Error("OPENAI_MODEL is required when OPENAI_API_KEY is configured.");
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
-    body: JSON.stringify({ model, input: [{ role: "system", content: request.system }, { role: "user", content: request.user }], temperature: request.temperature ?? 0.7, max_output_tokens: request.maxOutputTokens ?? 4000 })
-  });
+  const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" }, body: JSON.stringify({ model, input: [{ role: "system", content: request.system }, { role: "user", content: request.user }], temperature: request.temperature ?? 0.7, max_output_tokens: request.maxOutputTokens ?? 4000 }) });
   const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
   if (!response.ok) throw new Error(typeof payload.error === "object" && payload.error ? String((payload.error as Record<string, unknown>).message ?? `OpenAI request failed (${response.status}).`) : `OpenAI request failed (${response.status}).`);
   const text = extractOpenAiText(payload);
@@ -140,9 +145,7 @@ function extractOpenAiText(payload: Record<string, unknown>): string {
     if (!item || typeof item !== "object") continue;
     const content = (item as Record<string, unknown>).content;
     if (!Array.isArray(content)) continue;
-    for (const part of content) {
-      if (part && typeof part === "object" && typeof (part as Record<string, unknown>).text === "string") parts.push(String((part as Record<string, unknown>).text));
-    }
+    for (const part of content) if (part && typeof part === "object" && typeof (part as Record<string, unknown>).text === "string") parts.push(String((part as Record<string, unknown>).text));
   }
   return parts.join("\n").trim();
 }
