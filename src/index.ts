@@ -16,3 +16,5 @@ export { AiProposalStore } from "./application/ai-proposal-store";
 export type { AiProposal, AiProposalKind, AiProposalStatus, ProposalReviewDecision } from "./application/ai-proposal-store";
 export { createMarketingCampaign, approveMarketingAsset, scheduleMarketingAsset, MARKETING_CHANNELS } from "./domain/marketing-campaign";
 export type { MarketingCampaign, MarketingAsset, MarketingEvidence, MarketingChannel, MarketingAssetStatus } from "./domain/marketing-campaign";
+export { createReleaseGateReport, validateReleaseGateReport, RELEASE_GATE_FORMAT_VERSION } from "./domain/release-gate";
+export type { ReleaseGateReport, ReleaseGateInput, ReleaseGateBlocker, ReleaseGateStatus, ReleaseBlockerKind } from "./domain/release-gate";
