@@ -41,17 +41,17 @@ export function createAuthorGoal(input: { id: string; metric: AuthorGoalMetric; 
   return { id: input.id.trim(), metric, target: input.target, period, label };
 }
 
-export function createAuthorGoalsSnapshot(manuscript: ManuscriptState, goals: readonly AuthorGoal[]): AuthorGoalsSnapshot {
+export function createAuthorGoalsSnapshot(manuscript: ManuscriptState, goals: readonly AuthorGoal[], wordCount = 0): AuthorGoalsSnapshot {
+  if (!Number.isInteger(wordCount) || wordCount < 0) throw new Error("Author goal word count must be a non-negative integer.");
   const scenes = manuscript.scenes;
   const chapters = manuscript.chapters;
-  const words = 0;
   const completedScenes = scenes.filter((scene) => scene.lifecycle === "complete").length;
   const completedChapters = chapters.filter((chapter) => chapter.lifecycle === "complete").length;
   return {
     formatVersion: AUTHOR_GOALS_FORMAT_VERSION,
-    manuscript: { words, scenes: scenes.length, completedScenes, chapters: chapters.length, completedChapters },
+    manuscript: { words: wordCount, scenes: scenes.length, completedScenes, chapters: chapters.length, completedChapters },
     progress: goals.map((goal) => {
-      const current = goal.metric === "scenes" ? completedScenes : goal.metric === "chapters" ? completedChapters : words;
+      const current = goal.metric === "words" ? wordCount : goal.metric === "scenes" ? completedScenes : completedChapters;
       const percent = Math.min(100, Math.round((current / goal.target) * 100));
       return { goal, current, remaining: Math.max(0, goal.target - current), percent, complete: current >= goal.target };
     }),
