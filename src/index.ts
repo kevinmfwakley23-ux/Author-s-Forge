@@ -12,3 +12,5 @@ export { InMemoryContextOptimizationLedger } from "./application/context-optimiz
 export type { ContextOptimizationLedger, ContextOptimizationLedgerEntry, ContextOptimizationLedgerSummary } from "./application/context-optimization-ledger";
 export { createCostGuardedAiGateway, estimateAiRequestCost, AiCostGuardError } from "./application/ai-cost-guard";
 export type { AiCostPolicy, AiCostEstimate } from "./application/ai-cost-guard";
+export { AiProposalStore } from "./application/ai-proposal-store";
+export type { AiProposal, AiProposalKind, AiProposalStatus, ProposalReviewDecision } from "./application/ai-proposal-store";
