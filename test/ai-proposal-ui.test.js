@@ -11,4 +11,9 @@ test("Writing Desk loads the governed AI proposal UI", async () => {
   assert.match(script, /\/ai\/proposals\/\$\{encodeURIComponent\(proposalId\)\}\/review/);
   assert.match(script, /\/ai\/proposals\/\$\{encodeURIComponent\(proposalId\)\}\/apply/);
   assert.match(script, /stale/);
+  assert.match(script, /deterministicDiff/);
+  assert.match(script, /Proposal Review Diff/);
+  assert.match(script, /Line-level review/);
+  assert.match(script, /addedLines/);
+  assert.match(script, /removedLines/);
 });
