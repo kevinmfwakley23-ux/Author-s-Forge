@@ -21,6 +21,10 @@ import { BINDINGS, INTERIOR_TYPES, PAPER_TYPES, type Binding, type InteriorType,
 import { ProjectPackageService } from "./application/project-package";
 import { advanceProjectWorkflow } from "./application/project-workflow";
 import { FORGE_WORKFLOW_STAGES, type ForgeWorkflowStage, type WorkflowGateCheck } from "./domain/workflow-gate";
+import { FileAiProposalStore } from "./infrastructure/file-ai-proposal-store";
+import { AiWritingCoordinator } from "./application/ai-writing-coordinator";
+import { AiWritingStudioService } from "./application/ai-writing-studio";
+import type { AiWritingTask } from "./application/ai-writing";
 
 const port = Number(process.env.PORT ?? 4173);
 const host = process.env.HOST ?? "127.0.0.1";
@@ -34,9 +38,13 @@ const production = new ManuscriptProductionService();
 const editor = new IntelligentEditingService();
 const coverStudio = new BookCoverStudioService();
 const projectPackages = new ProjectPackageService();
+const aiProposalStore = new FileAiProposalStore(join(dataRoot, "ai-proposals.json"));
+const aiWritingCoordinator = new AiWritingCoordinator(aiProposalStore);
+const aiWritingStudio = new AiWritingStudioService(store, aiWritingCoordinator);
 const defaultProjectId = "forge-studio";
 const MEMORY_CLASSES: readonly MemoryClass[] = ["author-memory", "project-memory", "story-canon", "character-memory", "relationship-memory", "location-memory", "timeline-memory", "style-memory", "research-memory", "creative-note", "working-draft", "hypothesis", "open-thread", "visual-identity", "production-memory", "publishing-memory", "marketing-memory", "generated-alternative", "decision-memory"];
 const MEMORY_AUTHORITIES: readonly MemoryAuthority[] = ["proposed", "working", "verified", "authoritative", "superseded", "archived"];
+const AI_WRITING_TASKS: readonly AiWritingTask[] = ["draft", "continue", "rewrite", "expand", "dialogue", "description", "outline", "brainstorm"];
 
 type ProjectWithWorkspace = Awaited<ReturnType<FileProjectStore["load"]>> & { studioWorkspace?: StudioWorkspaceState; workflowStage?: ForgeWorkflowStage };
 async function ensureDefaultProject(): Promise<void> { if (!(await store.exists(defaultProjectId))) await store.create(createProject({ id: defaultProjectId, title: "My First Forge Book" })); }
@@ -62,6 +70,11 @@ if(url.pathname===`/api/projects/${projectId}/collaboration`&&req.method==="POST
 if(url.pathname===`/api/projects/${projectId}/health`&&req.method==="GET"){json(res,200,await projectHealth(project));return true;}
 if(url.pathname===`/api/projects/${projectId}/workflow`&&req.method==="GET"){json(res,200,{currentStage:project.workflowStage??"concept",stages:FORGE_WORKFLOW_STAGES});return true;}
 if(url.pathname===`/api/projects/${projectId}/workflow/advance`&&req.method==="POST"){const input=await body(req);const bookId=String(input.bookId??"").trim();if(!bookId)throw new Error("A book id is required for workflow advancement.");const requestedStage=input.requestedStage===undefined?undefined:enumValue(input.requestedStage,FORGE_WORKFLOW_STAGES,"requested workflow stage");const rawChecks=input.checks&&typeof input.checks==="object"&&!Array.isArray(input.checks)?input.checks as Record<string,unknown>:{};const checks:Partial<Record<ForgeWorkflowStage,readonly WorkflowGateCheck[]>>={};for(const stage of FORGE_WORKFLOW_STAGES){const raw=rawChecks[stage];if(raw===undefined)continue;if(!Array.isArray(raw))throw new Error(`Workflow checks for ${stage} must be an array.`);checks[stage]=raw as WorkflowGateCheck[];}const result=advanceProjectWorkflow({project,bookId,checks,requestedStage,authorApproved:input.authorApproved===true,now:input.now===undefined?undefined:String(input.now)});if(result.workflow.decision==="advanced"){await store.save(result.project as never);}json(res,result.workflow.decision==="advanced"?200:409,result);return true;}
+if(url.pathname===`/api/projects/${projectId}/ai/proposals`&&req.method==="GET"){json(res,200,await aiWritingStudio.list(projectId));return true;}
+const proposalMatch=url.pathname.match(new RegExp(`^/api/projects/${projectId}/ai/proposals/([^/]+)$`));if(proposalMatch&&req.method==="GET"){json(res,200,await aiWritingStudio.get(projectId,proposalMatch[1]));return true;}
+const proposalReviewMatch=url.pathname.match(new RegExp(`^/api/projects/${projectId}/ai/proposals/([^/]+)/review$`));if(proposalReviewMatch&&req.method==="POST"){const input=await body(req);const decision=enumValue(input.decision,["accepted","rejected"] as const,"proposal decision");const result=await aiWritingStudio.review(projectId,proposalReviewMatch[1],decision,input.note===undefined?undefined:String(input.note),input.now===undefined?undefined:String(input.now));json(res,200,result);return true;}
+const proposalApplyMatch=url.pathname.match(new RegExp(`^/api/projects/${projectId}/ai/proposals/([^/]+)/apply$`));if(proposalApplyMatch&&req.method==="POST"){const input=await body(req);const result=await aiWritingStudio.applyAccepted(projectId,proposalApplyMatch[1],input.now===undefined?undefined:String(input.now));json(res,200,result);return true;}
+if(url.pathname===`/api/projects/${projectId}/ai/writing/generate`&&req.method==="POST"){const input=await body(req);const workspace=workspaceOf(project);const book=getBook(workspace,String(input.bookId??workspace.activeBookId??""));const chapterId=String(input.chapterId??"");const chapter=chapterId?book.chapters.find((item)=>item.id===chapterId):undefined;if(!chapter)throw new Error("A valid chapter is required for AI writing.");const sceneId=String(input.sceneId??"");const scene=sceneId?chapter.scenes.find((item)=>item.id===sceneId):undefined;if(!scene)throw new Error("A valid scene is required for AI writing.");const task=enumValue(input.task??"continue",AI_WRITING_TASKS,"AI writing task");const instruction=String(input.instruction??"").trim();if(!instruction)throw new Error("AI writing instruction is required.");const context=assembleWritingContext(project,{projectId,query:String(input.contextQuery??instruction),characterIds:Array.isArray(input.characterIds)?input.characterIds.map(String):undefined});const sourceMemoryIds=Array.isArray(input.sourceMemoryIds)?input.sourceMemoryIds.map(String):[];const result=await aiWritingStudio.generate({projectId,bookId:book.id,chapterId:chapter.id,sceneId:scene.id,task,instruction,existingContent:scene.content,assembledContext:JSON.stringify(context),sourceMemoryIds,proposalId:String(input.proposalId??`proposal-${randomUUID()}`),now:input.now===undefined?undefined:String(input.now)});json(res,201,{...result,providerBoundary:"durable-proposal"});return true;}
 if(url.pathname===`/api/projects/${projectId}/package`&&req.method==="GET"){const workspace=workspaceOf(project);const pkg=projectPackages.exportSnapshot({projectId,projectState:{project,studioWorkspace:workspace}});json(res,200,pkg);return true;}
 if(url.pathname===`/api/projects/${projectId}/workspace`&&req.method==="GET"){json(res,200,workspaceOf(project));return true;}
 if(url.pathname===`/api/projects/${projectId}/workspace/activate`&&req.method==="POST"){const input=await body(req);const workspace=setActiveBook(workspaceOf(project),String(input.bookId??""));await store.save(saveWorkspace(project,workspace) as never);json(res,200,workspace);return true;}
