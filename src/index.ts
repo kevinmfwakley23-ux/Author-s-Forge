@@ -17,6 +17,8 @@ export type { AiCostPolicy, AiCostEstimate } from "./application/ai-cost-guard";
 export { AiProposalStore } from "./application/ai-proposal-store";
 export type { AiProposal, AiProposalKind, AiProposalStatus, ProposalReviewDecision } from "./application/ai-proposal-store";
 export { FileAiProposalStore, AI_PROPOSAL_STORE_FORMAT_VERSION } from "./infrastructure/file-ai-proposal-store";
+export { AiModelBroker } from "./application/ai-model-broker";
+export type { AiTask, AiModelCapabilities, AiModelResource, AiModelSelectionRequest, AiModelSelection } from "./application/ai-model-broker";
 export { AiWritingService, AI_WRITING_FORMAT_VERSION } from "./application/ai-writing";
 export type { AiWritingTask, AiWritingRequest, AiWritingProviderRequest, AiWritingProvider, AiWritingResult } from "./application/ai-writing";
 export { AiWritingCoordinator } from "./application/ai-writing-coordinator";
