@@ -2,6 +2,33 @@
 
 This file is the durable, chronological engineering history for the repository. It complements the README: the README records the current product truth; this ledger records how the current truth was built.
 
+## Mission 049 — Deterministic AI Proposal Review Diff
+
+**Status:** Implemented in `main`; canonical build/regression verification required.
+
+### Direction
+
+Strengthen the author-controlled AI editing boundary with a deterministic review artifact. AI proposals must be inspectable without allowing the proposal itself to mutate authoritative manuscript state.
+
+### Delivered
+
+- Added `createAiProposalDiff` in `src/application/ai-proposal-diff.ts`.
+- Produces deterministic line-level added/removed/unchanged review records.
+- Binds the review artifact to SHA-256 hashes of both the exact base content and proposed content.
+- Reports character and word counts plus line-change totals.
+- Preserves explicit base/proposed line numbers for reviewer tooling.
+- Normalizes CRLF/CR line endings for comparison while retaining exact-content hashes.
+- Exported the capability from the canonical Forge API.
+- Added regression coverage for changed proposals, identical content, line numbering, and cross-platform line endings.
+
+### Governance
+
+This capability is review-only. It does not apply, accept, reject, or otherwise mutate manuscript state. The persisted manuscript and existing author-review/application boundary remain authoritative.
+
+### Next integration target
+
+Expose proposal diffs in the running Writing Desk and Editing Room so an author can inspect exact changes before acceptance/application. The UI must use the hashes and current scene revision to refuse stale or mismatched candidates.
+
 ## Mission 048 — Source-Bound AI Editing Proposals
 
 **Status:** Implemented in `main`; canonical build/regression and browser acceptance are required evidence for the next Studio integration checkpoint.
@@ -119,7 +146,7 @@ Mission 045 closes the gap between Forge's domain/application foundation and a g
 
 ### Repository integrity rule
 
-`main` is the canonical integration baseline. Divergent branches are candidate work, not alternate product truth. Generated build/runtime output must remain out of source control unless explicitly required. Candidate changes must be compared against current `main`, selectively integrated, and verified by the full build/regression path.
+`main` is the canonical integration baseline. Divergent branches are candidate work, not alternate product truth. Generated build/runtime output must remain out of source control unless explicitly required by the product contract. Candidate changes must be compared against current `main`, selectively integrated, and verified by the full build/regression path.
 
 ### Baseline repair
 
