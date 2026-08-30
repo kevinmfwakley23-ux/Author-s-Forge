@@ -13,4 +13,6 @@ export type { ContextOptimizationLedger, ContextOptimizationLedgerEntry, Context
 export { createCostGuardedAiGateway, estimateAiRequestCost, AiCostGuardError } from "./application/ai-cost-guard";
 export type { AiCostPolicy, AiCostEstimate } from "./application/ai-cost-guard";
 export { AiProposalStore } from "./application/ai-proposal-store";
-export type { AiProposal, AiProposalKind, AiProposalStatus, ProposalReviewDecision } from "./application/ai-proposal-store";
+export type { AiProposal, AiProposalKind, AiProposalStatus, ProposalReviewDecision, ProposalReviewAuditEntry } from "./application/ai-proposal-store";
+export { diffProposalText } from "./application/ai-proposal-diff";
+export type { ProposalDiffKind, ProposalDiffLine, ProposalDiffSummary } from "./application/ai-proposal-diff";
