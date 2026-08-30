@@ -229,6 +229,26 @@ This follows the useful cost-governance pattern seen in current AI gateway proje
 
 The guard is fail-safe for author spending: requests exceeding configured policy are rejected before the real provider call, with an actionable `AI_COST_GUARD_BLOCKED` error. Successful requests remain observable through the existing ledger without changing durable project content.
 
+## Mission 039 — Review-Gated AI Proposals
+
+Forge now has an explicit **AI proposal boundary** for AI-generated changes and findings. AI work is represented as a durable proposal with project identity, action kind, rationale, proposed content, source-memory references, status, and review metadata. Proposals begin as `pending` and cannot become durable accepted state without explicit author review.
+
+Supported proposal kinds currently include manuscript edits, memory candidates, research notes, continuity findings, and creative alternatives. The proposal store is deliberately separate from `ProjectMemoryStore`: an AI suggestion is not canon merely because a model produced it.
+
+The review contract is intentionally strict:
+
+- AI may propose;
+- AI may explain its reasoning and cite source memory identifiers;
+- the author may accept or reject;
+- system-only acceptance is prohibited;
+- a reviewed proposal cannot silently be reviewed again;
+- proposal state is attributable and timestamped;
+- rejected/pending proposals remain separate from authoritative memory.
+
+This follows the strongest pattern identified in current open-source AI writing and agent systems: **draft/propose first, review second, mutate durable knowledge only after approval**. Novel Studio AI similarly separates draft work from accepted canon, while xnovelist exposes AI results as proposals that require explicit acceptance. Vouch applies the same review-gated persistence idea to agent knowledge. Forge adopts the principle while retaining its own domain model, provenance rules, and author authority. 
+
+This is the foundation for the next Studio-level Agent/Forge Assistant workflow: model output will become reviewable cards/diffs rather than silently changing manuscript, canon, or memory.
+
 ## End-to-end release target
 
-The first private release remains governed by the Master Product Directive: a real author must be able to carry a project from concept through manuscript, editing, visual work, production, marketing, publishing preparation, and portable recovery without losing canon, voice, continuity, provenance, or author control. The optimization layer is an enabling subsystem of that larger workflow, not the product itself.
+The first private release remains governed by the Master Product Directive: a real author must be able to carry a project from concept through manuscript, editing, visual work, production, marketing, publishing preparation, and portable recovery without losing canon, voice, continuity, provenance, or author control. The optimization and proposal layers are enabling subsystems of that larger workflow, not the product itself.
