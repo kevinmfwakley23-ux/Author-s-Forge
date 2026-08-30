@@ -19,6 +19,10 @@ export type { AiProposal, AiProposalKind, AiProposalStatus, ProposalReviewDecisi
 export { FileAiProposalStore, AI_PROPOSAL_STORE_FORMAT_VERSION } from "./infrastructure/file-ai-proposal-store";
 export { AiWritingService, AI_WRITING_FORMAT_VERSION } from "./application/ai-writing";
 export type { AiWritingTask, AiWritingRequest, AiWritingProviderRequest, AiWritingProvider, AiWritingResult } from "./application/ai-writing";
+export { AiWritingCoordinator } from "./application/ai-writing-coordinator";
+export type { AiWritingGenerator } from "./application/ai-writing-coordinator";
+export { AiWritingStudioService, sha256 as sha256AiWritingContent } from "./application/ai-writing-studio";
+export type { StudioAiProjectState } from "./application/ai-writing-studio";
 export { createMarketingCampaign, approveMarketingAsset, scheduleMarketingAsset, MARKETING_CHANNELS } from "./domain/marketing-campaign";
 export type { MarketingCampaign, MarketingAsset, MarketingEvidence, MarketingChannel, MarketingAssetStatus } from "./domain/marketing-campaign";
 export { createReleaseGateReport, validateReleaseGateReport, RELEASE_GATE_FORMAT_VERSION } from "./domain/release-gate";
