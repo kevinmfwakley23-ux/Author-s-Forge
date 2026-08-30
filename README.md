@@ -19,7 +19,7 @@ For every major capability the chief-engineering workflow is:
 
 Benchmarking is an engineering input, not permission to dilute Forge's architecture. Author authority, durable project state, real provider boundaries, proposal/review/apply safety, portability, Chromebook/Android targets, and the Master Product Directive remain authoritative.
 
-The benchmark set should include direct competitors and adjacent best-in-class tools for long-form writing, outlining, research, knowledge retrieval, editing, versioning, visual planning, publishing, collaboration, accessibility, PWA/mobile behavior, and AI agent workflows. Current or future examples may include Novalist, Linetta, OpenWriter, xnovelist, Writer Studio, Scrivener, Atticus, Plottr, Sudowrite, and other relevant systems discovered during implementation. Their current behavior must be verified before being treated as evidence.
+The benchmark set should include direct competitors and adjacent best-in-class tools for long-form writing, outlining, research, knowledge retrieval, editing, versioning, visual planning, publishing, collaboration, accessibility, PWA/mobile behavior, and AI agent workflows. Current or future examples may include Novelist, Linetta, OpenWriter, xnovelist, Writer Studio, Scrivener, Atticus, Plottr, Sudowrite, and other relevant systems discovered during implementation. Their current behavior must be verified before being treated as evidence.
 
 **Engineering objective:** make Forge better than the individual tools it learns from by integrating their strongest proven capabilities into one coherent author operating environment.
 
@@ -114,7 +114,7 @@ AI changes are reviewable durable proposals, never silent manuscript/canon mutat
 
 ## Mission 052 — Competitive Advantage Research
 
-Forge now treats competitive research as an active engineering input. Research compared proven patterns from products including Plottr and Sudowrite: Plottr's visual timelines, scene cards, scene stacks, plotlines, filters, story bibles, and series planning; Sudowrite's Story Bible source-of-truth model, localized rewrite workflow, outline/scene generation, and context-aware character/worldbuilding. citeturn0search0turn0search5turn0search3
+Forge now treats competitive research as an active engineering input. Research compared proven patterns from products including Plottr and Sudowrite: Plottr's visual timelines, scene cards, scene stacks, plotlines, filters, story bibles, and series planning; Sudowrite's Story Bible source-of-truth model, localized rewrite workflow, outline/scene generation, and context-aware character/worldbuilding.
 
 The implementation rule is to import **capabilities and lessons, not disconnected feature copies**. Forge combines visual planning and Story Bible-like context with its durable project truth, canon controls, Project Brain, provenance, downstream impact, governed AI proposals, production, publishing, and recovery.
 
@@ -134,7 +134,7 @@ The Story Map provides:
 - live refresh when the workspace is refreshed;
 - PWA shell inclusion for Chromebook/Android continuity.
 
-This is the beginning of Forge's visual planning layer: future iterations will add richer scene attributes, plotlines, character arcs, filters, drag/reorder operations, and downstream canon/impact indicators while keeping the manuscript state authoritative.
+This is the beginning of Forge's visual planning layer: future iterations will add richer scene attributes, plotlines, character arcs, filters, drag/reorder operations, and downstream canon/impact indicators while keeping manuscript state authoritative.
 
 The underlying deterministic domain/application foundation is `src/domain/story-map.ts` and `src/application/story-map.ts`, with regression coverage in `test/story-map.test.js` and `test/story-map-ui.test.js`.
 
