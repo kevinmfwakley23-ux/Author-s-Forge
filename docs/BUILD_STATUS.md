@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-30  
 **Canonical branch:** `main`  
-**Latest engineering baseline:** current `main` includes the completion-meter correction plus the PWA install lifecycle work described below.
+**Latest engineering baseline:** `46271800f6adede9147f7360e8c5aff3b6715d6a` — portable release-bundle CI added.
 
 ## Current condition
 
@@ -28,7 +28,13 @@ The Android/PWA surface has been strengthened from a manifest-and-harness-only b
 - mobile acceptance coverage for touch navigation, phone viewport, overflow, manuscript persistence, and reload;
 - dedicated PWA lifecycle tests covering install, safe storage boundaries, and shell upgrades.
 
-The PWA layer deliberately does not create a second project-state store. Durable project data remains behind Forge's server/domain persistence boundary.
+The PWA layer deliberately does not create a second project-state store. Durable project data remains behind the Forge server/domain persistence boundary.
+
+## Portable release bundle — newly added
+
+The repository now contains `.github/workflows/release-bundle.yml`. It builds the canonical Forge, runs the completion meter and browser-side syntax checks, then packages `dist`, `public`, the Termux launcher, package metadata, README/directive documentation, and Android/Chromebook run instructions into a versioned tarball with SHA-256 checksum.
+
+The workflow runs on demand and on `v*` tags. This establishes a repeatable path from the repository's verified build to a portable package that can be transferred to the Chromebook or Android/Termux environment. It does not pretend to be a native APK; Forge's Android target remains the platform-neutral PWA/web application.
 
 ## Immediate engineering condition
 
