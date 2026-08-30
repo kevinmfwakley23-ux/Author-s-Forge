@@ -160,6 +160,10 @@ PROVIDER ROUTER
 K.I.N.G.S. / OPENAI / OLLAMA / OPENAI-COMPATIBLE GATEWAY
 ```
 
+### Current implementation status
+
+The context architecture now has an explicit production engine registry and a governed context-selection layer. Deterministic lossless optimization and structured-data compaction are production-safe paths. Context governance now provides five value tiers, canonical-first budget selection, normalized duplicate-fragment elimination, and immutable optimization-ledger accounting. Higher-risk semantic compression, archival retrieval, and optional model-based engines remain explicitly gated until measured and verified.
+
 ### Required optimization principles
 
 - **Context stratification:** separate essential system rules, project canon, current book/chapter/scene, characters, world/canon memories, research, recent workflow state, and low-value historical material so only relevant context is sent.
@@ -218,87 +222,7 @@ Direct code reuse is limited to components whose license, provenance, security, 
 ### Other repository research decisions
 
 - `JuliusBrussee/caveman`: useful references for typed payload handling, content-aware compression, context packing, and recoverable originals.
-- `clacky-ai/openclacky`: useful references for cache reuse, insert-then-compress, background compression, and minimal-tool principles.
-- `decolua/9router`: useful references for RTK/Headroom-style tool-result compression and provider routing.
-- `linuxhsj/openclaw-zero-token`: useful provider-gateway and conditional-tool concepts; browser/session interception is excluded from Forge core.
-- `andeya/token-free-gateway`: useful OpenAI-compatible protocol, SSE streaming, tool-call normalization, provider-adapter, and routing concepts; browser credential interception and provider-session storage are excluded from Forge core.
 
-### K.I.N.G.S. integration decision
+## End-to-end release target
 
-**K.I.N.G.S. is an approved optional intelligence resource for Author's Forge.** Forge may call K.I.N.G.S. whenever a task benefits from its workforce, knowledge, routing, local intelligence, verification, context optimization, or other governed capabilities.
-
-The integration boundary is deliberately explicit:
-
-- `KINGS_AI_ENDPOINT` selects a running K.I.N.G.S. bridge endpoint.
-- `KINGS_AI_MODEL` identifies the model/resource exposed through that bridge.
-- `KINGS_AI_API_KEY` is optional and only used when the bridge requires authentication.
-- The bridge uses an OpenAI-Responses-compatible request/response contract so Forge does not import K.I.N.G.S. internals into its core domain.
-- If K.I.N.G.S. is unavailable, Forge can fall back to independently governed OpenAI/Ollama providers rather than becoming unusable.
-- Forge must never pretend K.I.N.G.S. is connected merely because the adapter exists; an actual configured endpoint and successful runtime verification are required.
-
-K.I.N.G.S. remains the source of reusable architecture for context building, knowledge selection, task-state selection, safe compression, checkpointing, context budgets, provider/model routing, and cost/quality policy. Forge adopts compatible capabilities at explicit boundaries rather than forking K.I.N.G.S. internals.
-
-### OpenAI-compatible gateway decision
-
-**OpenAI-compatible gateways are an approved optional provider boundary for Forge.** The reviewed `andeya/token-free-gateway` project demonstrates useful protocol infrastructure including OpenAI-compatible request/response types, SSE streaming, tool-call normalization, provider adapters, and routing concepts.
-
-The gateway architecture is:
-
-```text
-FORGE CONTEXT INTELLIGENCE
-        ↓
-FORGE PROVIDER ROUTER
-        ↓
-OPENAI-COMPATIBLE GATEWAY ADAPTER
-        ↓
-LOCAL / EXTERNAL GATEWAY
-        ↓
-UNDERLYING PROVIDER(S)
-```
-
-The gateway is an **execution option, not the token-optimization system**. Context optimization remains above the provider layer.
-
-Forge will **not** import browser credential interception, browser-session automation, or provider-session storage into the core product. Those mechanisms create unnecessary security, policy, browser-runtime, and maintenance coupling.
-
-## Real Provider Boundaries
-
-### AI writing
-Forge supports real provider-backed generation through:
-
-- K.I.N.G.S. bridge: `KINGS_AI_ENDPOINT` + `KINGS_AI_MODEL` when a governed K.I.N.G.S. bridge is running.
-- OpenAI: `OPENAI_API_KEY` + explicit `OPENAI_MODEL`.
-- Local Ollama: `OLLAMA_BASE_URL` + explicit `OLLAMA_MODEL`.
-- Optional OpenAI-compatible gateway through the provider abstraction.
-
-If no provider is configured, generation fails explicitly. Forge does not fabricate an answer.
-
-### Real image generation
-Illustration generation uses the configured OpenAI image provider. Without `OPENAI_API_KEY`, the Studio reports the missing configuration instead of showing fake output.
-
-## Voice as a First-Class Input
-
-Forge's command center supports typed commands and browser `SpeechRecognition` / `webkitSpeechRecognition`. The original transcript remains editable before execution. Voice commands use the same real project and provider boundary as typed commands.
-
-## Token and Cost Observability
-
-Every provider request should ultimately expose an optimization ledger containing, where available:
-
-- original estimated token count;
-- optimized token count;
-- tokens saved;
-- compression ratio;
-- cache hit/miss;
-- retrieved context count;
-- optimization strategies used;
-- provider and model;
-- estimated request cost;
-- optimization latency;
-- fallback/skip reason.
-
-Compression quality is workload- and model-dependent. Forge must measure actual results rather than promise fixed percentages.
-
-## Non-Negotiable Optimization Safety Rule
-
-**Never save tokens by losing the author's book.**
-
-The original durable project state remains authoritative. Optimization layers may derive smaller context packs, summaries, retrieval results, caches, or compressed prompts, but the full source material remains unchanged and recoverable.
+The first private release remains governed by the Master Product Directive: a real author must be able to carry a project from concept through manuscript, editing, visual work, production, marketing, publishing preparation, and portable recovery without losing canon, voice, continuity, provenance, or author control. The optimization layer is an enabling subsystem of that larger workflow, not the product itself.
