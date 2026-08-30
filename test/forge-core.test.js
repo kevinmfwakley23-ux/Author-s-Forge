@@ -22,6 +22,18 @@ function project() {
   };
 }
 
+function configuredCore() {
+  const core = createForgeCore({ projectStore: projectStore() });
+  core.registerAiModels([{
+    provider: "test-provider",
+    model: "test-model",
+    configured: true,
+    healthy: true,
+    capabilities: { contextWindow: 128000, maxOutputTokens: 16000, creativeWriting: true, instructionFollowing: true },
+  }]);
+  return core;
+}
+
 test("Forge Core owns one shared memory store and AI broker", () => {
   const core = createForgeCore();
   assert.ok(core.memory instanceof ProjectMemoryStore);
@@ -32,18 +44,12 @@ test("Forge Core owns one shared memory store and AI broker", () => {
   assert.equal(core.readiness().projectStoreAvailable, false);
 });
 
-test("Forge Core becomes ready only after a real configured AI resource is registered", () => {
-  const core = createForgeCore();
-  core.registerAiModels([{
-    provider: "test-provider",
-    model: "test-model",
-    configured: true,
-    healthy: true,
-    capabilities: { contextWindow: 128000, maxOutputTokens: 16000, creativeWriting: true, instructionFollowing: true },
-  }]);
+test("Forge Core becomes ready only after durable project storage and a real configured AI resource are present", () => {
+  const core = configuredCore();
   const readiness = core.readiness();
   assert.equal(readiness.ready, true);
   assert.equal(readiness.aiConfigured, true);
+  assert.equal(readiness.projectStoreAvailable, true);
   assert.equal(readiness.modelCount, 1);
 });
 
@@ -58,8 +64,7 @@ test("Forge Core injects existing infrastructure instead of duplicating it", () 
 });
 
 test("Forge Core exposes shared durable project persistence through its port", async () => {
-  const store = projectStore();
-  const core = createForgeCore({ projectStore: store });
+  const core = createForgeCore({ projectStore: projectStore() });
   const state = project();
   await core.createProject(state);
   assert.equal(await core.projectExists("project-1"), true);
