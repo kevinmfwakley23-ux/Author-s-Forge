@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advanceWorkflow } from "../src/application/workflow-advance.ts";
+import { advanceWorkflow } from "../dist/application/workflow-advance.js";
 
 const base = {
   id: "gate-1",
