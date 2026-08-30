@@ -8,3 +8,5 @@ export { assembleWritingContext, CONTEXT_ASSEMBLY_FORMAT_VERSION, CONTEXT_INCLUS
 export type { ContextInclusionMode, ContextSectionPolicy, ContextAssemblyRequest, ContextSection, AssembledWritingContext } from "./domain/context-assembly";
 export { createProductionContextEngineRegistry, CONTEXT_ENGINE_CAPABILITIES } from "./application/context-engine-stack";
 export type { ContextEngineCapability } from "./application/context-engine-stack";
+export { selectContextFragments, deduplicateContextFragments, createContextOptimizationLedgerEntry } from "./application/context-governance";
+export type { ContextTier, ContextFragment, ContextBudgetPolicy, SelectedContext, DeduplicatedContext, ContextOptimizationLedgerEntry } from "./application/context-governance";
