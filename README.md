@@ -130,125 +130,27 @@ No button is considered complete merely because it exists in HTML. Every control
 
 Author's Forge treats **context efficiency as a first-class AI architecture concern**. The goal is to reduce unnecessary model input, latency, and operating cost without sacrificing canon, author intent, reasoning quality, or recoverability.
 
-This capability explicitly reuses compatible K.I.N.G.S. architecture and open-source research where appropriate while remaining provider-neutral and independently deployable inside Forge. Forge receives reusable optimization capabilities; it does not become structurally dependent on K.I.N.G.S.
+The production pipeline includes hierarchical context assembly, session deduplication, content-aware compression boundaries, semantic caching, token/cost governance, provider routing boundaries, and measurable optimization telemetry. Deterministic optimization is preferred before model-based compression, structured/canonical data is protected from lossy transformations, and optimization always fails open to the original context.
 
-### Context Optimization Pipeline
+## AI Proposal and Author-Controlled Mutation
 
-```text
-AUTHOR REQUEST
-      ↓
-AI REQUEST PLANNER
-      ↓
-CONTEXT BUDGET MANAGER
-      ↓
-PROJECT CONTEXT RETRIEVER
-      ↓
-SESSION DEDUPLICATION
-      ↓
-CONTEXT STRATIFIER
-      ↓
-COMPRESSION ENGINE REGISTRY
-      ↓
-CONTENT-AWARE COMPRESSION
-      ↓
-SEMANTIC CACHE
-      ↓
-TOKEN / COST GUARD
-      ↓
-PROVIDER ROUTER
-      ↓
-K.I.N.G.S. / OPENAI / OLLAMA / OPENAI-COMPATIBLE GATEWAY
-```
+AI-generated changes are represented as reviewable proposals rather than silent manuscript/canon mutation. Proposals carry rationale, provenance, status, and review state; only explicit author approval can move an AI suggestion into an authoritative workflow.
 
-### Required optimization principles
+## Mission 042 — Evidence-Gated Marketing Campaigns
 
-- **Context stratification:** separate essential system rules, project canon, current book/chapter/scene, characters, world/canon memories, research, recent workflow state, and low-value historical material so only relevant context is sent.
-- **Retrieval over wholesale replay:** retrieve relevant project knowledge instead of repeatedly sending the entire project to every AI request.
-- **Session deduplication:** content-address repeated material across turns so unchanged context does not repeatedly consume input budget.
-- **Fetch-once / reuse:** retain normalized context artifacts and reuse unchanged context rather than reconstructing or transmitting them repeatedly.
-- **Retrieve-on-demand archival:** large derived context may be archived behind an internal retrieval handle and fetched only when relevant; retrieval handles must never leak into model prompts as fake source content.
-- **Deterministic optimization first:** deduplicate repeated material, compact metadata and tool output, remove boilerplate, and use deltas for unchanged state before invoking model-based compression.
-- **Content-aware engines:** JSON, code, diffs, logs, structured results, and prose require different compression policies.
-- **Semantic caching:** avoid paying for equivalent or sufficiently similar requests when a valid reusable result exists and the cache policy permits it.
-- **Optional model-based compression:** support open-source prompt/context compression techniques such as LLMLingua-style compression where they provide a measurable benefit.
-- **Compression economics:** do not compress blindly. Estimate whether expected savings justify preprocessing cost and latency.
-- **Inflation guard:** if optimized context is not meaningfully smaller, discard the optimization and use the original context.
-- **Structured-data protection:** JSON, identifiers, canon facts, constraints, tool arguments, URLs, code blocks, and other machine-critical structures must not be lossy-compressed in ways that can change meaning.
-- **Immutable source context:** optimization must never destroy original project information. Compressed context is derived state, never the source of truth.
-- **Author authority:** optimization may shorten context sent to a model but may never silently alter canon or author-approved project state.
-- **Fail-open behavior:** if an optimization engine cannot safely operate, Forge uses the original context rather than failing the author's workflow.
+Author's Forge now has a Forge-native marketing campaign contract designed to connect **Book Positioning → campaign planning → channel assets → author approval → scheduling** without turning unsupported claims into published marketing copy.
 
-### Compression Engine Registry
+Marketing campaigns contain a project/book identity, objective, audience, reader promise, and reusable assets. Assets support author-site, email, social, reader-community, advertising, press, and retailer channels. Each asset carries evidence records with an explicit confidence class: known, source-supported, inference, or creative.
 
-Forge is adopting an **engine-based compression architecture** inspired by the reviewed OmniRoute implementation. Each engine is independently identifiable, configurable, prioritized, validated, target-aware, and replaceable rather than being hard-wired into the provider layer.
+The campaign boundary enforces two critical rules:
 
-Approved engine families include:
+- inference-only claims cannot be scheduled or published;
+- only explicitly approved assets can be scheduled.
 
-1. **Session-Dedup** — content-addressed repeated-context elimination across turns.
-2. **CCR-style retrieval** — archive large derived blocks and retrieve them on demand through Forge's internal context system.
-3. **Lite** — low-latency whitespace/boilerplate cleanup.
-4. **RTK-style Tool Output** — command-aware filtering, deduplication, diagnostic extraction, and bounded truncation for shell/test/build/git results.
-5. **Lossless Structured Output** — preserve JSON/structured tool results while reducing redundant representation where safe.
-6. **Structured Data Compaction** — lossless-first compaction of repetitive arrays/tables when supported.
-7. **Relevance Extraction** — query-aware extractive reduction for temporary research/context material.
-8. **Conservative Prose Compression** — Caveman-style reduction only for temporary/non-canonical context, never as a silent manuscript rewrite.
-9. **Progressive Aging** — summarize/age low-value historical turns when context pressure requires it.
-10. **Optional LLMLingua-2 / ONNX** — semantic pruning behind an explicit optional dependency and fail-open boundary.
-11. **Optional stronger heuristic/SLM tier** — only when measured savings justify the runtime and quality cost.
-12. **Experimental context-as-image encoding** — not part of the current Forge production path; provider-specific experiments remain isolated until independently verified.
+This creates the foundation for the full promotion workflow while keeping commercial claims evidence-aware and author-controlled. It deliberately does not promise sales, rankings, revenue, or platform acceptance.
 
-All engines must preserve author-critical data and expose measurable optimization results. Forge does **not** inherit third-party headline savings claims; actual savings are benchmarked on Forge workloads.
-
-### Context Optimization Observability
-
-The context layer now exposes a typed optimization ledger contract for every provider request. Each entry can record the request identifier, original and optimized estimated token counts, tokens saved, compression ratio, cache outcome, retrieved-context count, strategies applied, provider/model, estimated request cost, optimization latency, and any fail-open/fallback reason. The in-memory implementation also provides aggregate totals for requests, token savings, cache hits/misses, fallbacks, estimated cost, and optimization latency.
-
-This makes the README's token/cost observability requirement an explicit application boundary rather than a documentation-only promise. The ledger remains derived telemetry: it never replaces durable project state or author content.
-
-### Open-source compatibility decision
-
-The first production optimization layer is **deterministic and dependency-light**. Forge has an internal context optimizer with token estimation, whitespace normalization, duplicate-line reduction, savings measurement, and an inflation guard. This provides immediate savings without adding a heavy runtime dependency.
-
-Open-source semantic compression remains an optional second stage. LLMLingua/LongLLMLingua is a strong candidate, but adoption requires licensing, runtime footprint, local-device viability, fidelity, latency, and measured savings to be verified for Forge workloads. Semantic caching and tool-output compression are likewise candidates, not automatic dependencies.
-
-### OmniRoute research decision — 2026-08-28
-
-The reviewed `diegosouzapw/OmniRoute` implementation is now an approved architectural reference for Forge's optimization layer. Its useful ideas are adopted selectively and Forge-native: independently registered engines; session deduplication; retrieve-on-demand archival; lightweight cleanup; RTK-style tool-result filtering; lossless-first structured output; structured-data compaction; relevance reduction; conservative prose compression; progressive context aging; optional LLMLingua-2/ONNX semantic pruning; stronger optional heuristic/SLM tiers; stacked presets; cache-aware optimization; and measured savings.
-
-OmniRoute's engine contract/registry is particularly useful because it makes optimization stages independently toggleable and target-aware. Forge adopts that architecture without coupling its domain or provider implementation to OmniRoute.
-
-The OmniRoute repository is an architectural reference, not a promise of universal savings. Open issues and provider-specific behavior reinforce the requirement that Forge benchmark each engine and fail open when an optimization is unsafe or ineffective.
-
-Direct code reuse is limited to components whose license, provenance, security, maintenance, runtime footprint, and Chromebook/Android compatibility are verified. Otherwise Forge reimplements the proven algorithm/interface natively.
-
-### Mission 038 — Provider Cost Guard
-
-The provider boundary now has an optional cost-governance decorator. Forge can estimate request input/output tokens, calculate an estimated USD cost from provider/model policy, enforce a maximum input-token limit, enforce a maximum estimated-cost limit before upstream execution, and record blocked/allowed requests in the existing optimization ledger.
-
-This follows the useful cost-governance pattern seen in current AI gateway projects: enforce budgets before provider execution and expose cost telemetry, while keeping Forge's implementation provider-neutral. Forge does not inherit third-party pricing or savings claims; pricing policy remains explicit and configurable.
-
-The guard is fail-safe for author spending: requests exceeding configured policy are rejected before the real provider call, with an actionable `AI_COST_GUARD_BLOCKED` error. Successful requests remain observable through the existing ledger without changing durable project content.
-
-## Mission 039 — Review-Gated AI Proposals
-
-Forge now has an explicit **AI proposal boundary** for AI-generated changes and findings. AI work is represented as a durable proposal with project identity, action kind, rationale, proposed content, source-memory references, status, and review metadata. Proposals begin as `pending` and cannot become durable accepted state without explicit author review.
-
-Supported proposal kinds currently include manuscript edits, memory candidates, research notes, continuity findings, and creative alternatives. The proposal store is deliberately separate from `ProjectMemoryStore`: an AI suggestion is not canon merely because a model produced it.
-
-The review contract is intentionally strict:
-
-- AI may propose;
-- AI may explain its reasoning and cite source memory identifiers;
-- the author may accept or reject;
-- system-only acceptance is prohibited;
-- a reviewed proposal cannot silently be reviewed again;
-- proposal state is attributable and timestamped;
-- rejected/pending proposals remain separate from authoritative memory.
-
-This follows the strongest pattern identified in current open-source AI writing and agent systems: **draft/propose first, review second, mutate durable knowledge only after approval**. Novel Studio AI similarly separates draft work from accepted canon, while xnovelist exposes AI results as proposals that require explicit acceptance. Vouch applies the same review-gated persistence idea to agent knowledge. Forge adopts the principle while retaining its own domain model, provenance rules, and author authority. 
-
-This is the foundation for the next Studio-level Agent/Forge Assistant workflow: model output will become reviewable cards/diffs rather than silently changing manuscript, canon, or memory.
+The design is informed by current end-to-end publishing products, which increasingly treat marketing as part of the same book lifecycle as writing, editing, packaging, and release preparation. Forge keeps the stronger author-control/provenance model instead of allowing marketing generation to become an uncontrolled autonomous publishing action.
 
 ## End-to-end release target
 
-The first private release remains governed by the Master Product Directive: a real author must be able to carry a project from concept through manuscript, editing, visual work, production, marketing, publishing preparation, and portable recovery without losing canon, voice, continuity, provenance, or author control. The optimization and proposal layers are enabling subsystems of that larger workflow, not the product itself.
+The first private release remains governed by the Master Product Directive: a real author must be able to carry a project from concept through manuscript, editing, visual work, production, marketing, publishing preparation, and portable recovery without losing canon, voice, continuity, provenance, or author control. Optimization, proposal review, publishing readiness, and marketing are enabling subsystems of that larger workflow, not the product itself.
