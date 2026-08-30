@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-30  
 **Canonical branch:** `main`  
-**Latest engineering baseline:** `9e8b9ea22a9529428a7fd1552a600613337d197e` — canonical verification workflow plus deterministic AI proposal review diff.
+**Latest engineering baseline:** `ef024b6e08871e9ab5b96f861e92480007dc5e98` — Editing Room deterministic proposal review diff integration and regression coverage.
 
 ## Current condition
 
@@ -14,11 +14,19 @@ The latest local result reported during engineering work was:
 
 That result is treated as evidence, not as a blanket completion claim. Fresh build/test execution is required after checkout/integration, and physical Chromebook/Android verification remains a separate release gate.
 
+## Mission 051 — Editing proposal review diff
+
+The Editing Room now exposes the same governed, deterministic review-diff standard already established for Writing Desk AI proposals. A selected manuscript-edit proposal is compared against the currently loaded scene and presented as line-level added/removed/unchanged records with word-count impact. Proposal selection is explicit, approval remains separate from application, and server-side source-revision protection remains authoritative.
+
+Regression coverage now verifies the live Editing Room script contains the durable proposal endpoint, deterministic diff, line-level review, add/remove counts, selection, and explicit apply controls.
+
+This closes the immediate review-integrity gap between the Writing Desk and Editing Room: authors can inspect what an AI rewrite would change before accepting or applying it.
+
 ## Mission 049 — Proposal review integrity
 
 The AI proposal boundary now has a deterministic review-diff service. `createAiProposalDiff` produces line-level added/removed/unchanged records, exact base/proposed SHA-256 bindings, character/word counts, and explicit line-number mapping. The capability is review-only and cannot mutate manuscript state. Regression coverage is in `test/ai-proposal-diff.test.js` and the capability is exported from `src/index.ts`.
 
-The next integration step is to surface this diff directly inside the Writing Desk and Editing Room so authors can inspect a candidate before acceptance/application.
+The Writing Desk exposes this review directly, and Mission 051 extends the same review discipline to Editing Room rewrite proposals.
 
 ## Canonical verification
 
@@ -33,7 +41,7 @@ The Android/PWA surface has been strengthened from a manifest-and-harness-only b
 - explicit standalone/app-installed status;
 - service-worker registration from the live browser client;
 - service-worker upgrade messaging;
-- versioned shell cache (`authors-forge-shell-v3`);
+- versioned shell cache (`authors-forge-shell-v4`);
 - continued exclusion of `/api/` project data from service-worker caching;
 - mobile acceptance coverage for touch navigation, phone viewport, overflow, manuscript persistence, and reload;
 - dedicated PWA lifecycle tests covering install, safe storage boundaries, and shell upgrades.
@@ -98,7 +106,7 @@ Forge does not fork K.I.N.G.S. internals or require its private runtime for core
 - Project Brain, canon, character, voice, and research context;
 - AI assist through the Model Broker;
 - proposal review and explicit author approval;
-- deterministic proposal diffs in the live Studio;
+- deterministic proposal diffs in the live Writing Desk and Editing Room;
 - durable continuation after reload/restart.
 
 ### Phase C — Visual production
