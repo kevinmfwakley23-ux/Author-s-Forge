@@ -273,6 +273,42 @@ CURRENT STAGE → RUN GATE → SHOW BLOCKERS / REMEDIATION → AUTHOR APPROVAL �
 
 Automated regression coverage is in `test/workflow-advance.test.js`. This milestone is **implemented, not yet claimed as production-verified** until repository CI and Studio/device verification provide evidence.
 
+## Locked Next Build Direction — Mission 045: Functional-Truth Completion
+
+**This is the active engineering direction. Do not start unrelated feature missions while this boundary remains open.**
+
+Mission 045 exists to close the gap between Forge's strong domain/application foundation and a genuinely usable author workplace. The immediate objective is not to accumulate more contracts; it is to make the existing contracts work together through the real Studio and survive real user/device workflows.
+
+### Mission 045 order of execution
+
+1. **Restore a continuously green canonical baseline.** The `main` branch is the canonical integration baseline. Divergent feature branches are treated as candidate work, not as an alternate product truth. Preserve useful work by selective, verified integration rather than wholesale branch merges.
+2. **Wire the existing capabilities into one real Studio workflow.** Every major existing service must have a reachable UI path, real request/response behavior, durable persistence, reload/restart continuity, explicit errors, and downstream impact where applicable.
+3. **Complete the author workspace around the core loop.** The highest-value loop is `project → book → chapter → scene → write → AI assist → review → approve → continue`, with Project Brain, canon, voice, research, and workflow gates participating without silent mutation.
+4. **Make visual production real.** Character/visual continuity, reference images, illustration generation/editing, asset reuse, and cover work must share durable project state and real provider boundaries rather than isolated demonstrations.
+5. **Make production and release real.** DOCX/PDF/EPUB generation, metadata/positioning, marketing, publishing readiness, workflow advancement, delivery audit, and portable recovery must operate as one traceable path.
+6. **Verify the actual application.** Domain tests are necessary but insufficient. Add/maintain running-server acceptance and browser-level regression coverage for real user flows, then verify responsive touch behavior and persistence on Chromebook and Android.
+7. **Harden recovery and failure behavior.** Offline shell, project package export/restore, provider failure, partial operations, stale state, and interrupted workflows must fail safely and recover without losing authoritative author data.
+8. **Only then expand breadth.** New AI providers, advanced semantic compression, additional automation, and other enhancements are subordinate to the working author journey unless a new capability directly removes a verified blocker in that journey.
+
+### Mission 045 completion gate
+
+Mission 045 is not complete when the TypeScript compiler is green or when isolated tests pass. It is complete only when a real project can be carried through the integrated Studio workflow on the supported browser/device targets, with durable state, real provider boundaries, author approval, recoverability, production artifacts, and release audit all demonstrably functioning.
+
+### Repository synchronization rule
+
+The repository must always have one clearly identified canonical product state. Before substantial engineering work:
+
+- fetch and prune all remotes;
+- inspect `main`, the active feature branch, recent commits, and build/test status;
+- preserve local runtime data outside Git;
+- never commit generated runtime/build output unless explicitly required by the product contract;
+- do not merge a stale/divergent branch blindly;
+- compare candidate work against current `main` and integrate only verified changes;
+- run build and the complete regression suite after integration;
+- record major direction changes in both this README and `docs/BUILD_HISTORY.md`.
+
+This rule exists specifically to prevent branch divergence, duplicate implementation, generated-output pollution, and loss of the repository's actual current state.
+
 ## Engineering progress history
 
 `docs/BUILD_HISTORY.md` is the durable chronological record of major Author's Forge engineering milestones. Future major additions must update both this history and the README so the repository always contains a current product-state summary plus an auditable build history.
