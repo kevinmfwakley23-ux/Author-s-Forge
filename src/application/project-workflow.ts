@@ -1,5 +1,5 @@
 import { advanceWorkflow, type WorkflowAdvanceRequest, type WorkflowAdvanceResult } from "./workflow-advance";
-import { withProjectWorkflowStage, type ProjectState } from "../domain/project";
+import type { ProjectState } from "../domain/project";
 import type { ForgeWorkflowStage, WorkflowGateCheck } from "../domain/workflow-gate";
 
 export interface ProjectWorkflowAdvanceRequest {
@@ -36,5 +36,8 @@ export function advanceProjectWorkflow(input: ProjectWorkflowAdvanceRequest): Pr
       workflow: { ...workflow, decision: "blocked", toStage: workflow.fromStage, blockers: ["AUTHOR_APPROVAL_REQUIRED"] },
     };
   }
-  return { project: withProjectWorkflowStage(input.project, workflow.toStage, input.now), workflow };
+  return {
+    project: { ...input.project, workflowStage: workflow.toStage, metadata: { ...input.project.metadata, updatedAt: input.now ?? new Date().toISOString() } },
+    workflow,
+  };
 }
