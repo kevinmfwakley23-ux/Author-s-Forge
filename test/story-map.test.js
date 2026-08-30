@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createManuscriptState, createBook, createChapter, createScene, addBook, addChapter, addScene } from "../.forge-build/index.js";
-import { createStoryMap } from "../.forge-build/index.js";
+import { createManuscriptState, createBook, createChapter, createScene, addBook, addChapter, addScene, createStoryMap, StoryMapService } from "../.forge-build/index.js";
 
 test("story map deterministically projects manuscript hierarchy into visual planning data", () => {
   let state = createManuscriptState();
@@ -20,6 +19,14 @@ test("story map deterministically projects manuscript hierarchy into visual plan
   assert.deepEqual(map.books[0].chapters.map((chapter) => chapter.number), [1, 2]);
   assert.deepEqual(map.books[0].chapters[0].scenes.map((scene) => scene.order), [1, 2]);
   assert.equal(map.books[0].chapters[0].completionPercent, 50);
+});
+
+test("StoryMapService exposes the same deterministic projection through the application boundary", () => {
+  let state = createManuscriptState();
+  state = addBook(state, createBook({ id: "book-1", projectId: "project-1", title: "The Book" }));
+  const result = new StoryMapService().build({ manuscript: state });
+  assert.equal(result.books[0].title, "The Book");
+  assert.equal(result.totals.completionPercent, 0);
 });
 
 test("empty manuscripts produce a safe zero-progress story map", () => {
