@@ -16,6 +16,8 @@ export interface ForgeCoreDependencies {
 
 export interface ForgeCoreSnapshot {
   readonly formatVersion: typeof FORGE_CORE_FORMAT_VERSION;
+  readonly projectId: string;
+  readonly project?: ProjectState;
   readonly memory: ProjectMemorySnapshot;
   readonly routing: AiRoutingStateSnapshot;
 }
@@ -46,37 +48,38 @@ export class ForgeCore {
     this.routing.hydrate(this.ai.listResources());
   }
 
-  registerAiModels(resources: readonly AiModelResource[]): void {
-    this.ai.setResources(resources);
-    this.routing.hydrate(resources);
-  }
-
-  applyAiRoutingTelemetry(telemetry: Parameters<AiModelBroker["applyRoutingTelemetry"]>[0]): void {
-    this.ai.applyRoutingTelemetry(telemetry);
-    this.routing.hydrate(this.ai.listResources());
-  }
-
+  registerAiModels(resources: readonly AiModelResource[]): void { this.ai.setResources(resources); this.routing.hydrate(resources); }
+  applyAiRoutingTelemetry(telemetry: Parameters<AiModelBroker["applyRoutingTelemetry"]>[0]): void { this.ai.applyRoutingTelemetry(telemetry); this.routing.hydrate(this.ai.listResources()); }
   async createProject(project: ProjectState): Promise<void> { return this.requireProjectStore().create(project); }
   async loadProject(projectId: string): Promise<ProjectState | null> { return this.requireProjectStore().load(projectId); }
   async saveProject(project: ProjectState): Promise<void> { return this.requireProjectStore().save(project); }
   async projectExists(projectId: string): Promise<boolean> { return this.requireProjectStore().exists(projectId); }
-
   buildContext(options: ProjectContextPipelineOptions): ProjectContextPipelineResult { return buildProjectContext(this.memory, options); }
   snapshotMemory(projectId: string): ProjectMemorySnapshot { return this.memory.createSnapshot(projectId); }
   restoreMemory(snapshot: ProjectMemorySnapshot): void { this.memory.restoreSnapshot(snapshot); }
 
-  snapshot(projectId: string): ForgeCoreSnapshot {
-    return { formatVersion: FORGE_CORE_FORMAT_VERSION, memory: this.memory.createSnapshot(projectId), routing: this.routing.createSnapshot() };
+  snapshot(projectId: string): ForgeCoreSnapshot { return { formatVersion: FORGE_CORE_FORMAT_VERSION, projectId, memory: this.memory.createSnapshot(projectId), routing: this.routing.createSnapshot() }; }
+
+  async snapshotDurable(projectId: string): Promise<ForgeCoreSnapshot> {
+    const project = await this.requireProjectStore().load(projectId);
+    if (!project) throw new Error(`Cannot snapshot missing project: ${projectId}`);
+    return { ...this.snapshot(projectId), project };
+  }
+
+  async restoreDurable(snapshot: ForgeCoreSnapshot): Promise<void> {
+    this.validateSnapshot(snapshot);
+    const project = snapshot.project;
+    if (!project) throw new Error("Forge Core durable snapshot does not contain project state.");
+    if (project.metadata.id !== snapshot.projectId) throw new Error("Forge Core snapshot project identity mismatch.");
+    await this.requireProjectStore().save(project);
+    this.restore(snapshot);
   }
 
   restore(snapshot: ForgeCoreSnapshot): void {
-    if (snapshot.formatVersion !== FORGE_CORE_FORMAT_VERSION) throw new Error("Unsupported Forge Core snapshot format.");
+    this.validateSnapshot(snapshot);
     this.memory.restoreSnapshot(snapshot.memory);
     this.routing.restore(snapshot.routing);
-    this.ai.applyRoutingTelemetry(this.routing.snapshot().map(state => ({
-      provider: state.provider, model: state.model, consecutiveFailures: state.consecutiveFailures,
-      totalTokens: state.totalTokens, lastLatencyMs: state.lastLatencyMs, cooldownUntil: state.cooldownUntil
-    })));
+    this.ai.applyRoutingTelemetry(this.routing.snapshot().map(state => ({ provider: state.provider, model: state.model, consecutiveFailures: state.consecutiveFailures, totalTokens: state.totalTokens, lastLatencyMs: state.lastLatencyMs, cooldownUntil: state.cooldownUntil })));
   }
 
   readiness(): ForgeCoreReadiness {
@@ -85,24 +88,16 @@ export class ForgeCore {
     const projectStoreAvailable = this.projectStore !== undefined;
     const modelCount = this.ai.listResources().length;
     const aiConfigured = modelCount > 0;
-    const checks = [
-      memoryAvailable ? "memory-store" : "memory-store-missing",
-      aiRoutingAvailable ? "ai-routing" : "ai-routing-missing",
-      aiConfigured ? "configured-models" : "no-configured-models",
-      projectStoreAvailable ? "durable-project-store" : "durable-project-store-unbound",
-      "context-pipeline", "portable-memory-snapshot", "durable-routing-state"
-    ];
-    return {
-      formatVersion: FORGE_CORE_FORMAT_VERSION,
-      ready: memoryAvailable && aiRoutingAvailable && aiConfigured && projectStoreAvailable,
-      memoryAvailable, aiRoutingAvailable, aiConfigured, projectStoreAvailable, modelCount, checks
-    };
+    const checks = [memoryAvailable ? "memory-store" : "memory-store-missing", aiRoutingAvailable ? "ai-routing" : "ai-routing-missing", aiConfigured ? "configured-models" : "no-configured-models", projectStoreAvailable ? "durable-project-store" : "durable-project-store-unbound", "context-pipeline", "portable-memory-snapshot", "durable-routing-state", "durable-project-snapshot"];
+    return { formatVersion: FORGE_CORE_FORMAT_VERSION, ready: memoryAvailable && aiRoutingAvailable && aiConfigured && projectStoreAvailable, memoryAvailable, aiRoutingAvailable, aiConfigured, projectStoreAvailable, modelCount, checks };
   }
 
-  private requireProjectStore(): ProjectStorePort {
-    if (!this.projectStore) throw new Error("Forge Core durable project store is not configured.");
-    return this.projectStore;
+  private validateSnapshot(snapshot: ForgeCoreSnapshot): void {
+    if (!snapshot || snapshot.formatVersion !== FORGE_CORE_FORMAT_VERSION) throw new Error("Unsupported Forge Core snapshot format.");
+    if (!snapshot.projectId || snapshot.memory.projectId !== snapshot.projectId) throw new Error("Forge Core snapshot project identity mismatch.");
   }
+
+  private requireProjectStore(): ProjectStorePort { if (!this.projectStore) throw new Error("Forge Core durable project store is not configured."); return this.projectStore; }
 }
 
 export function createForgeCore(dependencies: ForgeCoreDependencies = {}): ForgeCore { return new ForgeCore(dependencies); }
