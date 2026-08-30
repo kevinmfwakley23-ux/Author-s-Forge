@@ -8,6 +8,7 @@
     "test": "npm run build && node --test test/**/*.test.js",
     "check": "npm run build && npm test",
     "studio": "npm run build && node dist/studio-server.js",
+    "completion": "node scripts/forge-completion.js",
     "browser:install": "playwright install chromium",
     "test:browser": "npm run build && node scripts/studio-browser-acceptance.js",
     "test:browser:mobile": "npm run build && node scripts/studio-mobile-acceptance.js"
