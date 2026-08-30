@@ -1,3 +1,4 @@
+import { deduplicateContextFragments } from "./context-governance";
 import { selectContextBudget, type ContextPriority, type ContextSection } from "./context-budget-manager";
 import { optimizeContext, estimateTokens } from "./context-optimizer";
 import { assembleProjectBrainContext, type ProjectBrainQuery } from "./project-brain";
@@ -39,11 +40,20 @@ export function buildProjectContext(
 
   const all = [...brain.authoritative, ...brain.working, ...brain.changed];
   const unique = new Map(all.map((memory) => [memory.id, memory]));
-  const sections: ContextSection[] = [...unique.values()].map((memory, index) => ({
+  const fragments = [...unique.values()].map((memory) => ({
     id: memory.id,
-    priority: memoryPriority(memory.authority),
+    text: `[${memory.class} | ${memory.authority}] ${memory.summary}\n${memory.content}`,
+    tier: memory.authority === "authoritative" ? "essential" : memory.authority === "verified" ? "project" : memory.authority === "working" || memory.authority === "proposed" ? "active" : "historical",
+    priority: memory.authority === "authoritative" ? 100 : memory.authority === "verified" ? 80 : 50,
+    canonical: memory.authority === "authoritative",
+  })) as Array<{ id: string; text: string; tier: "essential" | "project" | "active" | "supporting" | "historical"; priority: number; canonical?: boolean }>;
+
+  const deduplicated = deduplicateContextFragments(fragments);
+  const sections: ContextSection[] = deduplicated.fragments.map((fragment, index) => ({
+    id: fragment.id,
+    priority: memoryPriority(unique.get(fragment.id)?.authority ?? "archived"),
     order: index,
-    content: `[${memory.class} | ${memory.authority}] ${memory.summary}\n${memory.content}`,
+    content: fragment.text,
   }));
 
   const budgeted = selectContextBudget(sections, options.budget);
@@ -53,15 +63,18 @@ export function buildProjectContext(
   const optimized = optimizeContext({ system: originalSystem, user: originalUser });
   const originalEstimatedTokens = estimateTokens(originalSystem) + estimateTokens(originalUser);
 
+  const omittedMemoryIds = [...budgeted.omittedIds, ...deduplicated.duplicateFragmentIds]
+    .filter((id, index, ids) => ids.indexOf(id) === index);
+
   return {
     system: optimized.system,
     user: optimized.user,
     selectedMemoryIds: budgeted.includedIds,
-    omittedMemoryIds: budgeted.omittedIds,
+    omittedMemoryIds,
     originalEstimatedTokens,
     optimizedEstimatedTokens: optimized.optimizedEstimatedTokens,
     tokensSaved: optimized.tokensSaved + budgeted.tokensSaved,
     compressionRatio: optimized.compressionRatio,
-    strategies: ["project-brain-retrieval", "priority-context-budget", ...optimized.strategy],
+    strategies: ["project-brain-retrieval", "session-context-deduplication", "priority-context-budget", ...optimized.strategy],
   };
 }
