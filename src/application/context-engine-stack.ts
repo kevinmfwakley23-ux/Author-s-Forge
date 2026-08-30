@@ -1,6 +1,7 @@
 import type { ContextPayloadKind } from "./context-payload-classifier";
 import { ContextEngineRegistry, type ContextCompressionEngine } from "./context-engine-registry";
 import { compressContextPayload } from "./context-compressor";
+import { compressToolResult } from "./tool-result-compressor";
 
 const STRUCTURED_KINDS: readonly ContextPayloadKind[] = ["json"];
 const ALL_KINDS: readonly ContextPayloadKind[] = ["json", "code", "diff", "log", "text"];
@@ -32,8 +33,20 @@ const structuredDataCompactionEngine: ContextCompressionEngine = {
   },
 };
 
+const toolResultEngine: ContextCompressionEngine = {
+  id: "rtk-style-tool-output",
+  priority: 80,
+  enabled: true,
+  supportedKinds: ["log"],
+  supports: ({ kind, text }) => kind === "log" && text.trim().length > 0,
+  apply: ({ text, sourceName }) => {
+    const result = compressToolResult({ command: sourceName, text });
+    return { text: result.text, changed: result.changed, strategy: [...result.strategy] };
+  },
+};
+
 export function createProductionContextEngineRegistry(): ContextEngineRegistry {
-  return new ContextEngineRegistry([deterministicEngine, structuredDataCompactionEngine]);
+  return new ContextEngineRegistry([deterministicEngine, structuredDataCompactionEngine, toolResultEngine]);
 }
 
 export interface ContextEngineCapability {
@@ -47,7 +60,7 @@ export const CONTEXT_ENGINE_CAPABILITIES: readonly ContextEngineCapability[] = [
   { id: "session-dedup", production: false, safety: "derived", description: "Content-address repeated session context only when an explicit retrieval/cache boundary can preserve meaning." },
   { id: "ccr-retrieval", production: false, safety: "derived", description: "Archive large derived blocks behind internal retrieval handles; never expose handles as source text." },
   { id: "lite", production: true, safety: "lossless", description: "Normalize whitespace and remove safe duplicate boilerplate." },
-  { id: "rtk-tool-output", production: false, safety: "derived", description: "Compress tool results using command-aware, bounded diagnostic extraction." },
+  { id: "rtk-tool-output", production: true, safety: "derived", description: "Compress tool results using command-aware, bounded diagnostic extraction." },
   { id: "lossless-structured-output", production: true, safety: "lossless", description: "Preserve machine-readable structure while removing redundant representation." },
   { id: "structured-data-compaction", production: true, safety: "lossless", description: "Compact JSON without changing its parsed value." },
   { id: "relevance-extraction", production: false, safety: "derived", description: "Query-aware extractive reduction for temporary research context." },
