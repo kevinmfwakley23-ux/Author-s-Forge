@@ -1,4 +1,4 @@
-import type { AiProposal, AiProposalKind } from "./ai-proposal-store";
+import type { AiProposal, AiProposalKind, AiProposalTarget } from "./ai-proposal-store";
 import type { AiProposalStore } from "./ai-proposal-store";
 
 export const AI_WRITING_FORMAT_VERSION = 1 as const;
@@ -34,13 +34,14 @@ export interface AiWritingResult {
   readonly formatVersion: typeof AI_WRITING_FORMAT_VERSION;
   readonly proposal: AiProposal;
   readonly task: AiWritingTask;
-  readonly target: { readonly bookId: string; readonly chapterId: string; readonly sceneId: string };
+  readonly target: AiProposalTarget;
 }
 
 /**
  * The writing boundary deliberately produces a proposal instead of mutating
  * manuscript state. The caller must obtain explicit author approval before
- * applying the candidate to a scene.
+ * applying the candidate to a scene. The target is persisted with the
+ * proposal so approval remains recoverable after a process restart.
  */
 export class AiWritingService {
   constructor(private readonly provider: AiWritingProvider, private readonly proposals: AiProposalStore) {}
@@ -56,6 +57,7 @@ export class AiWritingService {
     if (!proposedContent) throw new Error("AI writing provider returned empty content.");
 
     const kind: AiProposalKind = request.task === "brainstorm" || request.task === "outline" ? "creative-alternative" : "manuscript-edit";
+    const target: AiProposalTarget = { bookId: request.bookId, chapterId: request.chapterId, sceneId: request.sceneId };
     const proposal = this.proposals.propose({
       id: request.proposalId,
       projectId: request.projectId,
@@ -64,14 +66,10 @@ export class AiWritingService {
       rationale: request.instruction.trim(),
       proposedContent,
       sourceMemoryIds: request.sourceMemoryIds,
+      target,
       now: request.now,
     });
-    return {
-      formatVersion: AI_WRITING_FORMAT_VERSION,
-      proposal,
-      task: request.task,
-      target: { bookId: request.bookId, chapterId: request.chapterId, sceneId: request.sceneId },
-    };
+    return { formatVersion: AI_WRITING_FORMAT_VERSION, proposal, task: request.task, target };
   }
 }
 
