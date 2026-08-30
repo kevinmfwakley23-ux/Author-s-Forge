@@ -1,7 +1,7 @@
 import type { VoiceFingerprint } from "./voice-preservation";
 import { analyzeVoice, compareVoiceToProfile } from "./voice-preservation";
 
-export const AUTHOR_VOICE_MEMORY_FORMAT_VERSION = 2 as const;
+export const AUTHOR_VOICE_MEMORY_FORMAT_VERSION = 3 as const;
 
 export interface VoiceMemorySample {
   readonly id: string;
@@ -24,6 +24,14 @@ export interface VoiceDimensionScores {
   readonly narrativeDistance: number;
 }
 
+export interface VoiceMemoryEvolutionEvent {
+  readonly id: string;
+  readonly at: string;
+  readonly type: "sample-added" | "sample-removed" | "canonical-set";
+  readonly sampleIds: readonly string[];
+  readonly reason: string;
+}
+
 export interface AuthorVoiceMemory {
   readonly formatVersion: typeof AUTHOR_VOICE_MEMORY_FORMAT_VERSION;
   readonly id: string;
@@ -33,6 +41,7 @@ export interface AuthorVoiceMemory {
   readonly canonicalSampleIds: readonly string[];
   readonly fingerprint: VoiceFingerprint;
   readonly dimensions: VoiceDimensionScores;
+  readonly evolution: readonly VoiceMemoryEvolutionEvent[];
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -63,8 +72,8 @@ function aggregate(samples: readonly VoiceMemorySample[]): VoiceFingerprint {
   const approved = samples.filter((sample) => sample.approved && sample.weight > 0);
   if (!approved.length) throw new Error("At least one approved weighted voice sample is required.");
   const result = Object.fromEntries(numericKeys.map((key) => [key, weightedAverage(approved.map((sample) => ({ value: sample.fingerprint[key], weight: sample.weight })))])) as Record<(typeof numericKeys)[number], number>;
-  const narrativeDistance = approved.reduce((best, sample) => sample.weight > best.weight ? { value: sample.fingerprint.narrativeDistance, weight: sample.weight } : best, { value: approved[0].fingerprint.narrativeDistance, weight: 0 }).value;
-  return { ...result, narrativeDistance: narrativeDistance as VoiceFingerprint["narrativeDistance"], sampleWordCount: approved.reduce((sum, sample) => sum + sample.fingerprint.sampleWordCount, 0) };
+  const distanceRank = [...approved].sort((a, b) => b.weight - a.weight);
+  return { ...result, narrativeDistance: distanceRank[0].fingerprint.narrativeDistance, sampleWordCount: approved.reduce((sum, sample) => sum + sample.fingerprint.sampleWordCount, 0) };
 }
 
 function dimensions(fingerprint: VoiceFingerprint): VoiceDimensionScores {
@@ -74,7 +83,7 @@ function dimensions(fingerprint: VoiceFingerprint): VoiceDimensionScores {
     dialogue: Math.min(1, fingerprint.dialogueRatio),
     description: Math.min(1, fingerprint.descriptionDensity),
     emotionalIntensity: Math.min(1, fingerprint.emotionalIntensity),
-    narrativeDistance: Math.min(1, fingerprint.narrativeDistance === "intimate" ? 0.2 : fingerprint.narrativeDistance === "close" ? 0.4 : fingerprint.narrativeDistance === "objective" ? 0.8 : 0.6),
+    narrativeDistance: fingerprint.narrativeDistance === "intimate" ? 0.2 : fingerprint.narrativeDistance === "close" ? 0.4 : fingerprint.narrativeDistance === "objective" ? 0.8 : 0.6,
   };
 }
 
@@ -82,32 +91,36 @@ function toSample(sample: { id: string; label: string; text: string; approved?: 
   return { id: sample.id, label: sample.label, text: sample.text, fingerprint: analyzeVoice(sample.text).profile, approved: sample.approved ?? true, weight: sample.weight ?? 1, source: sample.source ?? "author", genre: sample.genre, purpose: sample.purpose };
 }
 
+function event(type: VoiceMemoryEvolutionEvent["type"], sampleIds: readonly string[], reason: string): VoiceMemoryEvolutionEvent {
+  return { id: `voice-event-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, at: new Date().toISOString(), type, sampleIds: [...sampleIds], reason };
+}
+
 export function createAuthorVoiceMemory(input: {
-  id?: string;
-  projectId: string;
-  authorId: string;
+  id?: string; projectId: string; authorId: string;
   samples: readonly { id: string; label: string; text: string; approved?: boolean; weight?: number; source?: "author" | "approved-manuscript"; genre?: string; purpose?: VoiceMemorySample["purpose"] }[];
-  canonicalSampleIds?: readonly string[];
-  createdAt?: string;
-  updatedAt?: string;
+  canonicalSampleIds?: readonly string[]; createdAt?: string; updatedAt?: string;
 }): AuthorVoiceMemory {
   const samples = input.samples.map(toSample);
   const fingerprint = aggregate(samples);
   const canonicalSampleIds = [...(input.canonicalSampleIds ?? samples.filter((sample) => sample.approved).map((sample) => sample.id))].filter((id) => samples.some((sample) => sample.id === id));
-  return { formatVersion: AUTHOR_VOICE_MEMORY_FORMAT_VERSION, id: input.id ?? `author-voice-${Date.now()}`, projectId: input.projectId, authorId: input.authorId, samples, canonicalSampleIds, fingerprint, dimensions: dimensions(fingerprint), createdAt: input.createdAt ?? new Date().toISOString(), updatedAt: input.updatedAt ?? new Date().toISOString() };
+  return { formatVersion: AUTHOR_VOICE_MEMORY_FORMAT_VERSION, id: input.id ?? `author-voice-${Date.now()}`, projectId: input.projectId, authorId: input.authorId, samples, canonicalSampleIds, fingerprint, dimensions: dimensions(fingerprint), evolution: [event("canonical-set", canonicalSampleIds, "Initial approved author voice corpus")], createdAt: input.createdAt ?? new Date().toISOString(), updatedAt: input.updatedAt ?? new Date().toISOString() };
 }
 
 export function updateAuthorVoiceMemory(memory: AuthorVoiceMemory, input: {
   addSamples?: readonly { id: string; label: string; text: string; approved?: boolean; weight?: number; source?: "author" | "approved-manuscript"; genre?: string; purpose?: VoiceMemorySample["purpose"] }[];
-  removeSampleIds?: readonly string[];
-  canonicalSampleIds?: readonly string[];
+  removeSampleIds?: readonly string[]; canonicalSampleIds?: readonly string[]; reason?: string;
 }): AuthorVoiceMemory {
   const removed = new Set(input.removeSampleIds ?? []);
   const additions = (input.addSamples ?? []).filter((sample) => !removed.has(sample.id)).map(toSample);
   const samples = [...memory.samples.filter((sample) => !removed.has(sample.id) && !additions.some((added) => added.id === sample.id)), ...additions];
   const fingerprint = aggregate(samples);
   const canonicalSampleIds = [...(input.canonicalSampleIds ?? memory.canonicalSampleIds)].filter((id) => samples.some((sample) => sample.id === id));
-  return { ...memory, formatVersion: AUTHOR_VOICE_MEMORY_FORMAT_VERSION, samples, canonicalSampleIds, fingerprint, dimensions: dimensions(fingerprint), updatedAt: new Date().toISOString() };
+  const reason = input.reason ?? "Author voice memory updated by explicit author-approved corpus change";
+  const evolution = [...memory.evolution];
+  if (additions.length) evolution.push(event("sample-added", additions.map((sample) => sample.id), reason));
+  if (removed.size) evolution.push(event("sample-removed", [...removed], reason));
+  if (input.canonicalSampleIds) evolution.push(event("canonical-set", canonicalSampleIds, reason));
+  return { ...memory, formatVersion: AUTHOR_VOICE_MEMORY_FORMAT_VERSION, samples, canonicalSampleIds, fingerprint, dimensions: dimensions(fingerprint), evolution, updatedAt: new Date().toISOString() };
 }
 
 export function assessVoiceDrift(text: string, memory: AuthorVoiceMemory): VoiceDriftReport {
@@ -118,8 +131,7 @@ export function assessVoiceDrift(text: string, memory: AuthorVoiceMemory): Voice
   const recommendations: string[] = [];
   if (comparison.distance > 0.35) { warnings.push("Draft voice is materially outside the author's approved voice profile."); recommendations.push("Revise against the nearest approved voice samples before applying the draft."); }
   if (comparison.analysis.profile.narrativeDistance !== memory.fingerprint.narrativeDistance) { warnings.push("Narrative distance differs from the canonical author voice profile."); recommendations.push("Check POV, narrative intimacy, and internal-thought density."); }
-  if (comparison.analysis.profile.sentenceLengthMean > memory.fingerprint.sentenceLengthMean * 1.35) { warnings.push("Sentence length is substantially longer than the author's reference corpus."); recommendations.push("Restore the author's established sentence rhythm where meaning permits."); }
-  if (comparison.analysis.profile.sentenceLengthMean < memory.fingerprint.sentenceLengthMean * 0.65) { warnings.push("Sentence length is substantially shorter than the author's reference corpus."); recommendations.push("Restore the author's established sentence rhythm where meaning permits."); }
+  if (comparison.analysis.profile.sentenceLengthMean > memory.fingerprint.sentenceLengthMean * 1.35 || comparison.analysis.profile.sentenceLengthMean < memory.fingerprint.sentenceLengthMean * 0.65) { warnings.push("Sentence rhythm materially differs from the author's reference corpus."); recommendations.push("Restore the author's established sentence rhythm where meaning permits."); }
   if (Math.abs(analysisDimensions.dialogue - memory.dimensions.dialogue) > 0.3) recommendations.push("Check dialogue density against the author's approved corpus.");
   if (Math.abs(analysisDimensions.description - memory.dimensions.description) > 0.3) recommendations.push("Check descriptive density against the author's approved corpus.");
   return { distance: comparison.distance, withinProfile: comparison.withinProfile, confidence: memory.fingerprint.sampleWordCount >= 5000 ? "high" : memory.fingerprint.sampleWordCount >= 1000 ? "medium" : "low", matchedSamples, warnings, dimensions: analysisDimensions, recommendations: [...new Set(recommendations)] };
