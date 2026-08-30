@@ -5,7 +5,8 @@
  *
  * This verifies the real Studio at a phone-sized viewport rather than relying
  * on CSS/source assertions. It focuses on touch-sized interaction, navigation,
- * absence of horizontal overflow, and durable state after reload.
+ * absence of horizontal overflow, durable state after reload, and the live PWA
+ * lifecycle without ever treating cached API data as durable project state.
  */
 const assert = require("node:assert/strict");
 const { spawn } = require("node:child_process");
@@ -61,6 +62,15 @@ async function main() {
     });
     assert.equal(created.ok, true, await created.text());
 
+    const manifestResponse = await fetch(`${baseUrl}/manifest.webmanifest`);
+    assert.equal(manifestResponse.ok, true, "PWA manifest must be served by the live Studio");
+    const manifest = await manifestResponse.json();
+    assert.equal(manifest.display, "standalone", "PWA must use standalone display mode");
+    assert.ok(typeof manifest.start_url === "string" && manifest.start_url.length > 0, "PWA must define a start_url");
+    assert.ok(Array.isArray(manifest.icons) && manifest.icons.length >= 2, "PWA must expose multiple install icons");
+    assert.ok(manifest.icons.some((icon) => icon.sizes === "192x192"), "PWA must expose a 192x192 icon");
+    assert.ok(manifest.icons.some((icon) => icon.sizes === "512x512"), "PWA must expose a 512x512 icon");
+
     browser = await chromium.launch({
       executablePath: process.env.FORGE_BROWSER_EXECUTABLE || chromium.executablePath(),
       headless: true,
@@ -77,6 +87,27 @@ async function main() {
     const page = await context.newPage();
     await page.goto(`${baseUrl}/?project=${encodeURIComponent(projectId)}`, { waitUntil: "networkidle" });
     await page.waitForFunction(() => document.readyState === "complete" && document.querySelector("#project-title")?.textContent !== "Loading…");
+
+    await page.waitForFunction(() => navigator.serviceWorker?.controller || navigator.serviceWorker?.ready);
+    const pwaRuntime = await page.evaluate(async () => {
+      const registration = await navigator.serviceWorker.ready;
+      const cacheNames = "caches" in window ? await caches.keys() : [];
+      const cachedApiUrls = [];
+      for (const name of cacheNames) {
+        const cache = await caches.open(name);
+        const requests = await cache.keys();
+        cachedApiUrls.push(...requests.map((request) => new URL(request.url).pathname).filter((pathname) => pathname.startsWith("/api/")));
+      }
+      return {
+        serviceWorkerRegistered: Boolean(registration),
+        controlled: Boolean(navigator.serviceWorker.controller),
+        cacheNames,
+        cachedApiUrls,
+      };
+    });
+    assert.equal(pwaRuntime.serviceWorkerRegistered, true, "PWA service worker must register in the live Studio");
+    assert.equal(pwaRuntime.controlled, true, "PWA service worker must control the Studio after startup");
+    assert.deepEqual(pwaRuntime.cachedApiUrls, [], "PWA shell cache must never contain project API data");
 
     const dimensions = await page.evaluate(() => ({
       viewport: document.documentElement.clientWidth,
@@ -130,7 +161,7 @@ async function main() {
     assert.ok(finalDimensions.bodyScrollWidth <= finalDimensions.viewport + 1, `post-write horizontal overflow: ${JSON.stringify(finalDimensions)}`);
     assert.ok(finalDimensions.documentScrollWidth <= finalDimensions.viewport + 1, `post-write document overflow: ${JSON.stringify(finalDimensions)}`);
 
-    console.log(`MOBILE BROWSER ACCEPTANCE PASSED: ${routes.length} routes + touch navigation + phone viewport + durable manuscript reload + overflow guard.`);
+    console.log(`MOBILE BROWSER ACCEPTANCE PASSED: ${routes.length} routes + touch navigation + live PWA registration/control + manifest + API-cache boundary + durable manuscript reload + overflow guard.`);
   } finally {
     if (browser) await browser.close().catch(() => {});
     server.kill("SIGTERM");
