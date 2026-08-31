@@ -1,4 +1,5 @@
-import { AiModelBroker, type AiModelResource, type AiModelSelection, type AiModelSelectionRequest } from './ai-model-broker';
+import { AiModelBroker, type AiModelResource, type AiModelSelection } from './ai-model-broker';
+import { rankCostConsciousCandidates, type AiCostRoutingRequest } from './ai-cost-routing-policy';
 
 export interface AiFederationPlan {
   readonly candidates: readonly AiModelSelection[];
@@ -11,8 +12,8 @@ export interface AiFederationPlan {
 export class AiFederation {
   constructor(private readonly broker: AiModelBroker) {}
 
-  plan(request: AiModelSelectionRequest, maxAttempts = 8): AiFederationPlan {
-    const candidates = this.broker.rank(request);
+  plan(request: AiCostRoutingRequest, maxAttempts = 8): AiFederationPlan {
+    const candidates = rankCostConsciousCandidates(this.broker.rank(request), request).map((decision) => decision.selection);
     return {
       candidates,
       generatedAt: new Date().toISOString(),
