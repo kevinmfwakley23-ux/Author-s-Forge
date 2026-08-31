@@ -83,12 +83,15 @@ function selectCharacterMemory(project: ProjectState, request: ContextAssemblyRe
 }
 function tokenizeQuery(query: string | undefined): string[] {
   if (!query) return [];
-  return [...new Set(query.toLowerCase().split(/[^\p{L}\p{N}]+/u).map((term) => term.trim()).filter((term) => term.length >= 3))].slice(0, 16);
+  return [...new Set(tokenizeText(query))].slice(0, 16);
+}
+function tokenizeText(value: string): string[] {
+  return value.toLowerCase().split(/[^\p{L}\p{N}]+/u).map((term) => term.trim()).filter((term) => term.length >= 3);
 }
 function matchedQueryTerms(value: string, queryTerms: readonly string[]): string[] {
   if (!queryTerms.length) return [];
-  const searchable = value.toLowerCase();
-  return queryTerms.filter((term) => searchable.includes(term));
+  const searchableTerms = new Set(tokenizeText(value));
+  return queryTerms.filter((term) => searchableTerms.has(term));
 }
 function authorityWeight(authority: ProjectState["memories"][number]["authority"]): number {
   switch (authority) {
