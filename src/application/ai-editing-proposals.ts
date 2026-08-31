@@ -3,7 +3,7 @@ import { AiProposalStore, type AiProposal, type AiProposalTarget } from "./ai-pr
 import type { AiWritingGenerator } from "./ai-writing-coordinator";
 import type { AiWritingCandidateAssessor } from "./ai-writing";
 import type { CharacterContinuityEvidence } from "../domain/character-continuity-evidence";
-import type { CraftLensProposalEvidence } from "../domain/craft-lens";
+import { analyzeCraft, createCraftLensProposalEvidence, type CraftLensProposalEvidence } from "../domain/craft-lens";
 
 export interface AiEditingProposalRequest {
   readonly projectId: string;
@@ -34,12 +34,15 @@ export class AiEditingProposalService {
 
   async proposeRewrite(request: AiEditingProposalRequest): Promise<AiProposal> {
     validateRequest(request);
+    const baseContentSha256 = sha256(request.sourceContent);
+    const craftLensEvidence = request.craftLensEvidence ?? inferCraftLensEvidence(request, baseContentSha256);
     const excerpt = request.sourceContent.slice(request.findingStart, request.findingEnd);
     const result = await this.generator({
       system: "You are Author's Forge's editorial rewrite engine. Return only the complete revised scene text. Preserve canon, facts, point of view, tense, author voice, character continuity, and author intent. Improve only the identified issue without inventing unsupported facts. Treat editorial diagnostics as evidence for author consideration, not universal style rules. Never return commentary or claim that the revision is canon.",
       user: [
         `EDITORIAL FINDING:\n${request.findingMessage}`,
         `AUTHOR-SELECTED REVISION STRATEGY:\n${request.recommendation}`,
+        craftLensEvidence ? `CRAFT LENS EVIDENCE:\n${craftLensEvidence.evidence}` : "",
         `TARGETED EXCERPT:\n${excerpt}`,
         request.assembledContext?.trim() ? `GOVERNED PROJECT CONTEXT:\n${request.assembledContext.trim()}` : "",
         `AUTHOR INSTRUCTION:\n${request.instruction?.trim() || "Resolve the finding while preserving the surrounding voice and meaning."}`,
@@ -52,12 +55,11 @@ export class AiEditingProposalService {
     if (!proposedContent) throw new Error("AI editing provider returned empty content.");
     const voiceDrift = this.assessCandidate?.(proposedContent);
     const target: AiProposalTarget = { bookId: request.bookId, chapterId: request.chapterId, sceneId: request.sceneId };
-    const baseContentSha256 = sha256(request.sourceContent);
     return this.proposals.propose({
       id: request.proposalId,
       projectId: request.projectId,
       kind: "manuscript-edit",
-      title: request.craftLensEvidence ? `Craft Lens: ${request.craftLensEvidence.dimension} proposal` : "Editorial rewrite proposal",
+      title: craftLensEvidence ? `Craft Lens: ${craftLensEvidence.dimension} proposal` : "Editorial rewrite proposal",
       rationale: `${request.findingMessage.trim()} ${request.recommendation.trim()}`.trim(),
       proposedContent,
       sourceMemoryIds: request.sourceMemoryIds ?? [],
@@ -65,7 +67,7 @@ export class AiEditingProposalService {
       baseContentSha256,
       ...(voiceDrift ? { voiceDrift } : {}),
       ...(request.characterContinuity ? { characterContinuity: request.characterContinuity } : {}),
-      ...(request.craftLensEvidence ? { craftLensEvidence: request.craftLensEvidence } : {}),
+      ...(craftLensEvidence ? { craftLensEvidence } : {}),
       now: request.now,
     });
   }
@@ -73,6 +75,20 @@ export class AiEditingProposalService {
 
 export function sha256EditingContent(value: string): string { return sha256(value); }
 function sha256(value: string): string { return createHash("sha256").update(value, "utf8").digest("hex"); }
+
+function inferCraftLensEvidence(request: AiEditingProposalRequest, sourceContentSha256: string): CraftLensProposalEvidence | undefined {
+  const report = analyzeCraft(request.sourceContent);
+  const finding = report.findings.find((item) => item.message === request.findingMessage.trim() && item.suggestions.includes(request.recommendation.trim()));
+  if (!finding) return undefined;
+  return createCraftLensProposalEvidence({
+    report,
+    findingId: finding.id,
+    selectedSuggestion: request.recommendation,
+    sourceContentSha256,
+    analyzedAt: request.now,
+  });
+}
+
 function validateRequest(request: AiEditingProposalRequest): void {
   for (const [name, value] of Object.entries({ projectId: request.projectId, bookId: request.bookId, chapterId: request.chapterId, sceneId: request.sceneId, proposalId: request.proposalId })) if (!value.trim()) throw new Error(`AI editing ${name} is required.`);
   if (!request.sourceContent.trim()) throw new Error("AI editing source content is required.");
