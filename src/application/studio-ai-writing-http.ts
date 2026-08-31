@@ -56,6 +56,7 @@ function contextOptions(input: Record<string, unknown>): StudioAiContextOptions 
     characterIds: Array.isArray(input.characterIds) ? input.characterIds.map(String) : undefined,
     characterAsOf: input.characterAsOf === undefined ? undefined : String(input.characterAsOf),
     characterMemoryLimit: input.characterMemoryLimit === undefined ? undefined : finitePositiveInteger(input.characterMemoryLimit, "character memory limit"),
+    memoryLimitPerSection: input.memoryLimitPerSection === undefined ? undefined : finitePositiveInteger(input.memoryLimitPerSection, "memory limit per section"),
     policies: parsePolicies(input.policies),
   };
 }
