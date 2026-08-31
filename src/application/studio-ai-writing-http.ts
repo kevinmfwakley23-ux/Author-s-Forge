@@ -57,6 +57,7 @@ function contextOptions(input: Record<string, unknown>): StudioAiContextOptions 
     characterAsOf: input.characterAsOf === undefined ? undefined : String(input.characterAsOf),
     characterMemoryLimit: input.characterMemoryLimit === undefined ? undefined : finitePositiveInteger(input.characterMemoryLimit, "character memory limit"),
     memoryLimitPerSection: input.memoryLimitPerSection === undefined ? undefined : finitePositiveInteger(input.memoryLimitPerSection, "memory limit per section"),
+    contextTokenBudget: input.contextTokenBudget === undefined ? undefined : finitePositiveInteger(input.contextTokenBudget, "context token budget"),
     policies: parsePolicies(input.policies),
   };
 }

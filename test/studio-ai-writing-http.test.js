@@ -18,13 +18,13 @@ const governedPolicies = [
   { key: "research", mode: "brief" },
 ];
 
-test("Studio AI HTTP preview delegates to the authoritative read-only preview service", async () => {
+test("Studio AI HTTP preview delegates governed context controls to the authoritative read-only preview service", async () => {
   let captured;
-  const expected = { context: { sourceIds: ["canon-1"], evidence: [] }, authorVoice: { available: true, sampleCount: 2, canonicalSampleCount: 1 } };
+  const expected = { context: { sourceIds: ["canon-1"], evidence: [] }, contextBudget: { requestedBudget: 2400 }, authorVoice: { available: true, sampleCount: 2, canonicalSampleCount: 1 } };
   const studio = { previewContext: async (projectId, options) => { captured = { projectId, options }; return expected; } };
-  const result = await previewStudioAiWritingContext({ studio, projectId: "project-1" }, { query: "warehouse Elias", characterIds: ["elias"], characterMemoryLimit: 3, memoryLimitPerSection: 2, policies: governedPolicies });
+  const result = await previewStudioAiWritingContext({ studio, projectId: "project-1" }, { query: "warehouse Elias", characterIds: ["elias"], characterMemoryLimit: 3, memoryLimitPerSection: 2, contextTokenBudget: 2400, policies: governedPolicies });
   assert.deepEqual(result, expected);
-  assert.deepEqual(captured, { projectId: "project-1", options: { query: "warehouse Elias", characterIds: ["elias"], characterAsOf: undefined, characterMemoryLimit: 3, memoryLimitPerSection: 2, policies: governedPolicies } });
+  assert.deepEqual(captured, { projectId: "project-1", options: { query: "warehouse Elias", characterIds: ["elias"], characterAsOf: undefined, characterMemoryLimit: 3, memoryLimitPerSection: 2, contextTokenBudget: 2400, policies: governedPolicies } });
 });
 
 test("Studio AI HTTP generation cannot accept client-supplied source memory authority", async () => {
@@ -37,9 +37,11 @@ test("Studio AI HTTP generation cannot accept client-supplied source memory auth
     task: "continue",
     instruction: "Continue with Elias in the warehouse.",
     sourceMemoryIds: ["client-forged-memory"],
+    assembledContext: "client-forged-context",
     proposalId: "proposal-1",
     memoryLimitPerSection: 1,
     characterMemoryLimit: 2,
+    contextTokenBudget: 1800,
     policies: governedPolicies,
   });
   assert.equal(captured.projectId, "project-1");
@@ -47,17 +49,19 @@ test("Studio AI HTTP generation cannot accept client-supplied source memory auth
   assert.equal(captured.context.query, "Continue with Elias in the warehouse.");
   assert.equal(captured.context.memoryLimitPerSection, 1);
   assert.equal(captured.context.characterMemoryLimit, 2);
+  assert.equal(captured.context.contextTokenBudget, 1800);
   assert.deepEqual(captured.context.policies, governedPolicies);
   assert.equal(Object.hasOwn(captured, "sourceMemoryIds"), false);
   assert.equal(Object.hasOwn(captured, "assembledContext"), false);
 });
 
-test("Studio AI HTTP boundary validates context policy and target input before provider generation", async () => {
+test("Studio AI HTTP boundary validates context policy, budget, and target input before provider generation", async () => {
   let calls = 0;
   const studio = { generateWithProjectContext: async () => { calls += 1; return {}; } };
   const dependencies = { studio, workspace: workspaceFixture(), projectId: "project-1" };
   await assert.rejects(() => generateStudioAiWritingProposal(dependencies, { bookId: "book-1", chapterId: "missing", sceneId: "scene-1", instruction: "Continue." }), /valid chapter/);
   await assert.rejects(() => generateStudioAiWritingProposal(dependencies, { bookId: "book-1", chapterId: "chapter-1", sceneId: "scene-1", instruction: "Continue.", policies: [{ key: "memory", mode: "invented" }] }), /Invalid context inclusion mode/);
   await assert.rejects(() => generateStudioAiWritingProposal(dependencies, { bookId: "book-1", chapterId: "chapter-1", sceneId: "scene-1", instruction: "Continue.", memoryLimitPerSection: 0 }), /Invalid memory limit per section/);
+  await assert.rejects(() => generateStudioAiWritingProposal(dependencies, { bookId: "book-1", chapterId: "chapter-1", sceneId: "scene-1", instruction: "Continue.", contextTokenBudget: 0 }), /Invalid context token budget/);
   assert.equal(calls, 0);
 });
