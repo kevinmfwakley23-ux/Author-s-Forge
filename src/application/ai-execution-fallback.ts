@@ -1,7 +1,8 @@
 import { AiModelBroker, AiModelResource, AiModelSelectionRequest } from './ai-model-broker';
+import { rankCostConsciousCandidates, type AiCostRoutingMode } from './ai-cost-routing-policy';
 import { AiRoutingState } from './ai-routing-state';
 
-export interface AiExecutionRequest extends AiModelSelectionRequest { readonly input: unknown; readonly maxAttempts?: number; readonly estimatedOutputTokens?: number; }
+export interface AiExecutionRequest extends AiModelSelectionRequest { readonly input: unknown; readonly maxAttempts?: number; readonly estimatedOutputTokens?: number; readonly routingMode?: AiCostRoutingMode; }
 export interface AiExecutionContext { readonly resource: AiModelResource; readonly attempt: number; readonly remainingAttempts: number; }
 export interface AiExecutionFailure { readonly provider:string; readonly model:string; readonly error:string; readonly retryable:boolean; readonly attempt:number; readonly latencyMs:number; }
 export interface AiExecutionResult<T> { readonly value:T; readonly resource:AiModelResource; readonly attempts:number; readonly failures:readonly AiExecutionFailure[]; readonly latencyMs:number; }
@@ -16,7 +17,8 @@ export class AiExecutionFallback {
   const maxAttempts=Math.max(1,Math.min(request.maxAttempts??8,configured||1));
   const startedAll=Date.now();
   for(let attempt=1;attempt<=maxAttempts;attempt+=1){
-   const selection=this.broker.rank(request).find(candidate=>!failures.some(f=>f.provider===candidate.resource.provider&&f.model===candidate.resource.model));
+   const ranked=rankCostConsciousCandidates(this.broker.rank(request),request);
+   const selection=ranked.map(candidate=>candidate.selection).find(candidate=>!failures.some(f=>f.provider===candidate.resource.provider&&f.model===candidate.resource.model));
    if(!selection)break;
    const started=Date.now();
    try{
