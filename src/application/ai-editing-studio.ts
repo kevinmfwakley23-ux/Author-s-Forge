@@ -1,6 +1,7 @@
 import { AiEditingProposalService, type AiEditingProposalRequest } from "./ai-editing-proposals";
 import type { AiProposal } from "./ai-proposal-store";
 import type { AiWritingGenerator } from "./ai-writing-coordinator";
+import type { AiWritingCandidateAssessor } from "./ai-writing";
 import { FileAiProposalStore } from "../infrastructure/file-ai-proposal-store";
 
 /**
@@ -13,9 +14,9 @@ import { FileAiProposalStore } from "../infrastructure/file-ai-proposal-store";
 export class AiEditingStudioService {
   constructor(private readonly proposals: FileAiProposalStore, private readonly generator: AiWritingGenerator) {}
 
-  async propose(request: AiEditingProposalRequest): Promise<AiProposal> {
+  async propose(request: AiEditingProposalRequest, assessCandidate?: AiWritingCandidateAssessor): Promise<AiProposal> {
     const ledger = await this.proposals.load();
-    const service = new AiEditingProposalService(ledger, this.generator);
+    const service = new AiEditingProposalService(ledger, this.generator, assessCandidate);
     const proposal = await service.proposeRewrite(request);
     await this.proposals.save();
     return proposal;
