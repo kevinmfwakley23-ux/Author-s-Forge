@@ -19,25 +19,9 @@ const HOST = "127.0.0.1";
 const APP_PORT = 4800 + Math.floor(Math.random() * 200);
 const projectId = `browser-acceptance-${Date.now()}`;
 const REQUIRED_ROUTES = [
-  "dashboard",
-  "manuscript",
-  "writing",
-  "architecture",
-  "characters",
-  "world",
-  "research",
-  "editing",
-  "voice",
-  "art",
-  "cover",
-  "marketing",
-  "publishing",
-  "genome",
-  "health",
-  "versions",
-  "settings",
-  "governance",
+  "dashboard", "manuscript", "writing", "architecture", "characters", "world", "research", "editing", "voice", "art", "cover", "marketing", "publishing", "genome", "health", "versions", "settings", "governance",
 ];
+const CRAFT_FIXTURE = "The door was opened by Marcus while he walked slowly into the room and looked around at the walls that had been painted years before, wondering whether the old photographs still remained where Lena had left them because nobody had touched them since the house was abandoned. Marcus looked at the clock. Lena waited.";
 
 function findBrowser() {
   if (process.env.FORGE_BROWSER_EXECUTABLE) {
@@ -46,9 +30,7 @@ function findBrowser() {
   }
   const systemBrowser = ["/usr/bin/google-chrome", "/usr/bin/google-chrome-stable", "/usr/bin/chromium", "/usr/bin/chromium-browser", "/usr/bin/chrome"].find(existsSync);
   if (systemBrowser) return systemBrowser;
-  const root = process.env.PLAYWRIGHT_BROWSERS_PATH === "0"
-    ? join(process.cwd(), "node_modules", "playwright-core")
-    : process.env.PLAYWRIGHT_BROWSERS_PATH || join(homedir(), ".cache", "ms-playwright");
+  const root = process.env.PLAYWRIGHT_BROWSERS_PATH === "0" ? join(process.cwd(), "node_modules", "playwright-core") : process.env.PLAYWRIGHT_BROWSERS_PATH || join(homedir(), ".cache", "ms-playwright");
   if (!existsSync(root)) return null;
   const candidates = [];
   function walk(directory, depth = 0) {
@@ -137,7 +119,6 @@ async function main() {
     const advancedPayload = await workflowAdvanced.json();
     assert.equal(advancedPayload.workflow.toStage, "architecture");
     assert.equal(advancedPayload.project.workflowStage, "architecture");
-
     const persistedWorkflow = await (await fetch(`${baseUrl}/api/projects/${projectId}/workflow`)).json();
     assert.equal(persistedWorkflow.currentStage, "architecture");
 
@@ -196,7 +177,26 @@ async function main() {
     await page.locator('[data-delete-goal]').click();
     await page.waitForFunction(() => !document.querySelector("#author-goals-list")?.textContent.includes("Finish ten words"));
 
-    console.log(`REAL BROWSER ACCEPTANCE PASSED: ${routes.length} routes (${REQUIRED_ROUTES.length} canonical required) + durable book/chapter/scene + Author Goals create/progress/reload/remove + governed workflow advancement + manuscript save/reload + character + canon + honest AI failure.`);
+    // Craft Lens must operate on the rendered Editing Room without mutating the scene.
+    await page.locator('nav a[data-route="writing"]').click();
+    await page.locator("#editor-content").fill(CRAFT_FIXTURE);
+    await page.locator("#save-scene").click();
+    await page.waitForFunction(() => document.querySelector("#success-banner")?.textContent.includes("Scene saved."));
+    await page.locator('nav a[data-route="editing"]').click();
+    await page.waitForSelector("#craft-lens-run");
+    await page.locator("#craft-lens-run").click();
+    await page.waitForFunction(() => document.querySelector('[data-craft-finding="clarity-long-sentences"]') && document.querySelector("#craft-lens-summary")?.textContent.includes("Analysis did not modify the manuscript."));
+    assert.match(await page.locator('[data-craft-finding="clarity-long-sentences"]').innerText(), /Split at a natural beat\./);
+    const afterAnalysis = await (await fetch(`${baseUrl}/api/projects/${projectId}/workspace`)).json();
+    assert.equal(afterAnalysis.books[0].chapters[0].scenes[0].content, CRAFT_FIXTURE, "Craft Lens analysis must not mutate manuscript state");
+    await page.locator('[data-craft-finding="clarity-long-sentences"] [data-craft-strategy]').first().click();
+    await page.waitForFunction(() => (document.querySelector("#error-banner")?.textContent || "").length > 0);
+    const providerError = await page.locator("#error-banner").innerText();
+    assert.match(providerError, /provider|configured|OPENAI|OLLAMA|model/i, "Craft Lens proposal must surface truthful provider failure when no model is configured");
+    const afterFailedProposal = await (await fetch(`${baseUrl}/api/projects/${projectId}/workspace`)).json();
+    assert.equal(afterFailedProposal.books[0].chapters[0].scenes[0].content, CRAFT_FIXTURE, "failed Craft Lens proposal generation must not mutate manuscript state");
+
+    console.log(`REAL BROWSER ACCEPTANCE PASSED: ${routes.length} routes (${REQUIRED_ROUTES.length} canonical required) + durable book/chapter/scene + Author Goals create/progress/reload/remove + governed workflow advancement + manuscript save/reload + character + canon + Craft Lens read-only analysis/action + honest AI failure.`);
   } finally {
     if (browser) await browser.close().catch(() => {});
     server.kill("SIGTERM");
