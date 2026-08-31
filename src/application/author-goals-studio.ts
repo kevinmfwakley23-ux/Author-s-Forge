@@ -1,17 +1,11 @@
 import { createAuthorGoal, createAuthorGoalsSnapshot, type AuthorGoal, type AuthorGoalsSnapshot } from "../domain/author-goals";
 import { addBook, addChapter, addScene, createBook, createChapter, createManuscriptState, createScene, type ManuscriptState } from "../domain/manuscript";
+import { withProjectAuthorGoals, type ProjectState } from "../domain/project";
 import { validateStudioWorkspace, type StudioWorkspaceState } from "../domain/studio-workspace";
-import type { FileProjectStore } from "../infrastructure/file-project-store";
-
-export interface StudioAuthorGoalsProjectState {
-  readonly metadata: { readonly id: string; readonly updatedAt: string };
-  readonly studioWorkspace?: StudioWorkspaceState;
-  readonly authorGoals?: readonly AuthorGoal[];
-  readonly [key: string]: unknown;
-}
+import type { ProjectStorePort } from "./project-store-port";
 
 export class StudioAuthorGoalsService {
-  constructor(private readonly projects: Pick<FileProjectStore, "load" | "save">) {}
+  constructor(private readonly projects: Pick<ProjectStorePort, "load" | "save">) {}
 
   async list(projectId: string): Promise<readonly AuthorGoal[]> {
     const project = await this.requireProject(projectId);
@@ -20,18 +14,19 @@ export class StudioAuthorGoalsService {
 
   async replace(projectId: string, goals: readonly AuthorGoal[], now = new Date().toISOString()): Promise<readonly AuthorGoal[]> {
     const project = await this.requireProject(projectId);
-    const validated = validateGoals(goals);
-    await this.projects.save({ ...project, authorGoals: validated, metadata: { ...project.metadata, updatedAt: now } } as never);
-    return cloneGoals(validated);
+    const next = withProjectAuthorGoals(project, goals, now);
+    await this.projects.save(next);
+    return cloneGoals(next.authorGoals ?? []);
   }
 
   async upsert(projectId: string, goal: AuthorGoal, now = new Date().toISOString()): Promise<readonly AuthorGoal[]> {
     const project = await this.requireProject(projectId);
     const validatedGoal = validateGoal(goal);
     const current = project.authorGoals ?? [];
-    const next = [...current.filter((item) => item.id !== validatedGoal.id), validatedGoal].sort((a, b) => a.id.localeCompare(b.id));
-    await this.projects.save({ ...project, authorGoals: next, metadata: { ...project.metadata, updatedAt: now } } as never);
-    return cloneGoals(next);
+    const goals = [...current.filter((item) => item.id !== validatedGoal.id), validatedGoal].sort((a, b) => a.id.localeCompare(b.id));
+    const next = withProjectAuthorGoals(project, goals, now);
+    await this.projects.save(next);
+    return cloneGoals(next.authorGoals ?? []);
   }
 
   async remove(projectId: string, goalId: string, now = new Date().toISOString()): Promise<readonly AuthorGoal[]> {
@@ -39,9 +34,9 @@ export class StudioAuthorGoalsService {
     const project = await this.requireProject(projectId);
     const current = project.authorGoals ?? [];
     if (!current.some((goal) => goal.id === goalId)) throw new Error(`Author goal "${goalId}" not found.`);
-    const next = current.filter((goal) => goal.id !== goalId);
-    await this.projects.save({ ...project, authorGoals: next, metadata: { ...project.metadata, updatedAt: now } } as never);
-    return cloneGoals(next);
+    const next = withProjectAuthorGoals(project, current.filter((goal) => goal.id !== goalId), now);
+    await this.projects.save(next);
+    return cloneGoals(next.authorGoals ?? []);
   }
 
   async snapshot(projectId: string): Promise<AuthorGoalsSnapshot> {
@@ -54,11 +49,11 @@ export class StudioAuthorGoalsService {
     return createAuthorGoalsSnapshot(manuscript, validateGoals(project.authorGoals ?? []), wordCount);
   }
 
-  private async requireProject(projectId: string): Promise<StudioAuthorGoalsProjectState> {
+  private async requireProject(projectId: string): Promise<ProjectState> {
     if (!projectId.trim()) throw new Error("Project id is required.");
     const project = await this.projects.load(projectId);
     if (!project) throw new Error(`Project "${projectId}" not found.`);
-    return project as unknown as StudioAuthorGoalsProjectState;
+    return project;
   }
 }
 
