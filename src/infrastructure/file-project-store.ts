@@ -14,6 +14,8 @@ import { createBookGenome } from "../domain/final-product-systems";
 import { validatePublishingReadinessReport } from "../domain/publishing-readiness";
 import { validateKdpMarketIntelligenceReport } from "../domain/kdp-market-intelligence";
 import { validateBookPositioningReport } from "../domain/book-positioning";
+import { createAuthorGoal, type AuthorGoal } from "../domain/author-goals";
+import { validateStudioWorkspace, type StudioWorkspaceState } from "../domain/studio-workspace";
 import { mkdir, readFile, rename, writeFile, access } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
@@ -44,6 +46,8 @@ export class FileProjectStore {
     const memories = candidate.memories === undefined ? [] : candidate.memories;
     if (!Array.isArray(memories) || !memories.every(isMemoryRecord)) throw new Error("Invalid project memory state.");
     for (const memory of memories) if ((memory as MemoryRecord).projectId !== expectedId) throw new Error("Project memory state contains a memory from another project.");
+    const studioWorkspace = candidate.studioWorkspace === undefined ? undefined : validateStudioWorkspace(candidate.studioWorkspace as StudioWorkspaceState);
+    const authorGoals = validateOptionalAuthorGoals(candidate.authorGoals);
     const characters = validateOptionalCharacters(candidate.characters, expectedId);
     const visualIdentities = validateOptionalVisualIdentities(candidate.visualIdentities, expectedId);
     const illustrationAssetLibrary = candidate.illustrationAssetLibrary === undefined ? undefined : validateProjectIllustrationLibrary(candidate.illustrationAssetLibrary, expectedId);
@@ -56,6 +60,8 @@ export class FileProjectStore {
     normalized.formatVersion = PROJECT_FORMAT_VERSION;
     normalized.metadata = { id: expectedId, title: record.title, createdAt: typeof record.createdAt === "string" ? record.createdAt : "", updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : "", status: record.status === "archived" ? "archived" : "active" };
     normalized.memories = memories.map((memory) => cloneMemory(memory as MemoryRecord));
+    if (studioWorkspace) normalized.studioWorkspace = validateStudioWorkspace(JSON.parse(JSON.stringify(studioWorkspace)));
+    if (authorGoals) normalized.authorGoals = authorGoals.map((goal) => ({ ...goal }));
     if (characters) normalized.characters = characters;
     if (visualIdentities) normalized.visualIdentities = visualIdentities;
     if (illustrationAssetLibrary) normalized.illustrationAssetLibrary = cloneIllustrationAssetLibrary(illustrationAssetLibrary);
@@ -68,6 +74,19 @@ export class FileProjectStore {
   }
 }
 
+function validateOptionalAuthorGoals(value: unknown): AuthorGoal[] | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value)) throw new Error("Invalid project author goals state.");
+  const ids = new Set<string>();
+  return value.map((raw) => {
+    if (!raw || typeof raw !== "object") throw new Error("Invalid author goal.");
+    const goal = raw as AuthorGoal;
+    const validated = createAuthorGoal({ id: goal.id, metric: goal.metric, target: goal.target, period: goal.period, label: goal.label });
+    if (ids.has(validated.id)) throw new Error(`Duplicate author goal id \"${validated.id}\".`);
+    ids.add(validated.id);
+    return validated;
+  });
+}
 function validateOptionalCharacters(value: unknown, expectedProjectId: string): CharacterRecord[] | undefined {
   if (value === undefined) return undefined;
   if (!Array.isArray(value)) throw new Error("Invalid project character state.");
