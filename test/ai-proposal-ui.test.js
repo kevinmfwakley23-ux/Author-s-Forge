@@ -20,6 +20,23 @@ test("Writing Desk exposes the governed durable AI proposal workflow", async () 
   assert.match(script, /forge-editing-proposals\.js/);
 });
 
+test("Writing Desk exposes Author Voice Memory drift evidence before approval and apply", async () => {
+  const script = await readFile("public/forge-ai-proposals.js", "utf8");
+  assert.match(script, /renderVoiceDrift/);
+  assert.match(script, /data-voice-drift/);
+  assert.match(script, /Author Voice Drift/);
+  assert.match(script, /distance/);
+  assert.match(script, /confidence/);
+  assert.match(script, /Voice warnings/);
+  assert.match(script, /Recommendations/);
+  assert.match(script, /Measured dimensions/);
+  assert.match(script, /Matched voice evidence/);
+  assert.match(script, /Advisory only:/);
+  assert.match(script, /never auto-rewrites, rejects, or applies the candidate/);
+  assert.match(script, /Author approval remains authoritative/);
+  assert.match(script, /Review the line-level diff and Author Voice Memory evidence before applying/);
+});
+
 test("Editing Room exposes durable rewrite proposals with a deterministic review diff", async () => {
   const html = await readFile("public/index.html", "utf8");
   const script = await readFile("public/forge-editing-proposals.js", "utf8");
