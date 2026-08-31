@@ -1,6 +1,7 @@
 import type { AiProposal } from "./ai-proposal-store";
 import { AiWritingCoordinator } from "./ai-writing-coordinator";
-import { assembleWritingContext, type ContextAssemblyRequest } from "../domain/context-assembly";
+import { selectContextBudget, type ContextPriority } from "./context-budget-manager";
+import { assembleWritingContext, type AssembledWritingContext, type ContextAssemblyRequest } from "../domain/context-assembly";
 import { assessVoiceDrift, buildAuthorVoiceContext, type AuthorVoiceMemory, type VoiceDriftReport } from "../domain/author-voice-memory";
 import { createCharacterContinuityEvidence, verifyCharacterContinuityEvidence, type CharacterContinuityEvidence } from "../domain/character-continuity-evidence";
 import type { CharacterRecord } from "../domain/character-bible";
@@ -16,20 +17,36 @@ export interface StudioAiProjectState {
   readonly [key: string]: unknown;
 }
 
-export type StudioAiContextOptions = Pick<ContextAssemblyRequest, "policies" | "query" | "characterIds" | "characterAsOf" | "characterMemoryLimit" | "memoryLimitPerSection">;
+export type StudioAiContextOptions = Pick<ContextAssemblyRequest, "policies" | "query" | "characterIds" | "characterAsOf" | "characterMemoryLimit" | "memoryLimitPerSection"> & {
+  readonly contextTokenBudget?: number;
+};
+
+export interface StudioAiContextBudget {
+  readonly requestedBudget?: number;
+  readonly originalEstimatedTokens: number;
+  readonly selectedEstimatedTokens: number;
+  readonly tokensSaved: number;
+  readonly constrained: boolean;
+  readonly overBudget: boolean;
+  readonly includedSectionKeys: readonly string[];
+  readonly omittedSectionKeys: readonly string[];
+  readonly canonPreserved: boolean;
+}
 
 export type StudioAiWritingRequest = Omit<Parameters<AiWritingCoordinator["generate"]>[0], "assembledContext" | "sourceMemoryIds" | "characterContinuity"> & {
   readonly context?: StudioAiContextOptions;
 };
 
 export type StudioAiWritingResult = Awaited<ReturnType<AiWritingCoordinator["generate"]>> & {
-  readonly context: Awaited<ReturnType<typeof assembleWritingContext>>;
+  readonly context: AssembledWritingContext;
+  readonly contextBudget: StudioAiContextBudget;
   readonly voiceDrift?: VoiceDriftReport;
   readonly characterContinuity: CharacterContinuityEvidence;
 };
 
 export interface StudioAiContextPreview {
-  readonly context: Awaited<ReturnType<typeof assembleWritingContext>>;
+  readonly context: AssembledWritingContext;
+  readonly contextBudget: StudioAiContextBudget;
   readonly authorVoice: {
     readonly available: boolean;
     readonly sampleCount: number;
@@ -83,11 +100,13 @@ export class AiWritingStudioService {
 
   async previewContext(projectId: string, options: StudioAiContextOptions = {}): Promise<StudioAiContextPreview> {
     const project = await this.requireProject(projectId);
-    const context = this.assembleProjectContext(project, projectId, options);
+    const assembled = this.assembleProjectContext(project, projectId, options);
+    const budgeted = applyGovernedContextBudget(assembled, options.contextTokenBudget);
     const voiceMemory = project.authorVoiceMemory;
     if (voiceMemory && voiceMemory.projectId !== projectId) throw new Error("Author voice memory belongs to another project.");
     return {
-      context,
+      context: budgeted.context,
+      contextBudget: budgeted.budget,
       authorVoice: {
         available: Boolean(voiceMemory?.samples.length),
         sampleCount: voiceMemory?.samples.length ?? 0,
@@ -100,14 +119,17 @@ export class AiWritingStudioService {
     const project = await this.requireProject(request.projectId);
     const workspace = project.studioWorkspace ? validateStudioWorkspace(project.studioWorkspace) : validateStudioWorkspace({ formatVersion: 1, activeBookId: null, books: [] });
     const scene = findScene(workspace, request.bookId, request.chapterId, request.sceneId);
-    const context = this.assembleProjectContext(project, request.projectId, {
+    const assembled = this.assembleProjectContext(project, request.projectId, {
       query: request.context?.query ?? request.instruction,
       characterIds: request.context?.characterIds,
       characterAsOf: request.context?.characterAsOf,
       characterMemoryLimit: request.context?.characterMemoryLimit,
       memoryLimitPerSection: request.context?.memoryLimitPerSection,
       policies: request.context?.policies,
+      contextTokenBudget: request.context?.contextTokenBudget,
     });
+    const budgeted = applyGovernedContextBudget(assembled, request.context?.contextTokenBudget);
+    const context = budgeted.context;
     const voiceMemory = project.authorVoiceMemory;
     if (voiceMemory && voiceMemory.projectId !== request.projectId) throw new Error("Author voice memory belongs to another project.");
     const existingContent = request.existingContent ?? scene.content;
@@ -129,7 +151,7 @@ export class AiWritingStudioService {
       baseContentSha256: request.baseContentSha256 ?? sha256(existingContent),
     }, voiceMemory ? (candidate) => assessVoiceDrift(candidate, voiceMemory) : undefined);
     const voiceDrift = generated.proposal.voiceDrift;
-    return { ...generated, context, characterContinuity, ...(voiceDrift ? { voiceDrift } : {}) };
+    return { ...generated, context, contextBudget: budgeted.budget, characterContinuity, ...(voiceDrift ? { voiceDrift } : {}) };
   }
 
   async review(projectId: string, proposalId: string, decision: "accepted" | "rejected", note?: string, now?: string) {
@@ -188,6 +210,57 @@ export class AiWritingStudioService {
   }
 }
 
+const CONTEXT_SECTION_PRIORITY: Readonly<Record<string, ContextPriority>> = {
+  canon: "critical",
+  characters: "high",
+  voice: "high",
+  relationships: "normal",
+  timeline: "normal",
+  "unresolved-threads": "normal",
+  research: "optional",
+};
+
+export function applyGovernedContextBudget(
+  context: AssembledWritingContext,
+  requestedBudget?: number,
+): { context: AssembledWritingContext; budget: StudioAiContextBudget } {
+  const result = selectContextBudget(
+    context.sections.map((section, order) => ({
+      id: section.key,
+      content: section.text,
+      priority: CONTEXT_SECTION_PRIORITY[section.key] ?? "normal",
+      order,
+    })),
+    requestedBudget,
+  );
+  const included = new Set(result.includedIds);
+  const sections = context.sections.filter((section) => included.has(section.key));
+  const sourceIds = [...new Set(sections.flatMap((section) => section.sourceIds))];
+  const sourceSet = new Set(sourceIds);
+  const evidence = context.evidence.filter((item) => included.has(item.sectionKey) && sourceSet.has(item.sourceId));
+  const budgetedContext: AssembledWritingContext = {
+    ...context,
+    sections,
+    totalWords: sections.reduce((total, section) => total + section.wordCount, 0),
+    sourceIds,
+    evidence,
+  };
+  return {
+    context: budgetedContext,
+    budget: {
+      ...(requestedBudget === undefined ? {} : { requestedBudget }),
+      originalEstimatedTokens: result.originalEstimatedTokens,
+      selectedEstimatedTokens: result.selectedEstimatedTokens,
+      tokensSaved: result.tokensSaved,
+      constrained: result.constrained,
+      overBudget: requestedBudget !== undefined && result.selectedEstimatedTokens > requestedBudget,
+      includedSectionKeys: result.includedIds,
+      omittedSectionKeys: result.omittedIds,
+      canonPreserved: !context.sections.some((section) => section.key === "canon") || result.includedIds.includes("canon"),
+    },
+  };
+}
+
 function findScene(workspace: StudioWorkspaceState, bookId: string, chapterId: string, sceneId: string) {
   const book = workspace.books.find((item) => item.id === bookId);
   if (!book) throw new Error(`AI writing target book "${bookId}" not found.`);
@@ -198,7 +271,7 @@ function findScene(workspace: StudioWorkspaceState, bookId: string, chapterId: s
   return scene;
 }
 
-function formatContext(context: Awaited<ReturnType<typeof assembleWritingContext>>, voiceMemory?: AuthorVoiceMemory): string {
+function formatContext(context: AssembledWritingContext, voiceMemory?: AuthorVoiceMemory): string {
   const sections = context.sections.map((section) => `## ${section.title}\n${section.text}`);
   if (voiceMemory) sections.push(`## Author Voice Memory\n${buildAuthorVoiceContext(voiceMemory)}`);
   return sections.join("\n\n");
