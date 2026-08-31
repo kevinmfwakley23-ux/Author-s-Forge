@@ -20,7 +20,7 @@ test("Writing Desk exposes the governed durable AI proposal workflow", async () 
   assert.match(script, /forge-editing-proposals\.js/);
 });
 
-test("Writing Desk exposes Author Voice Memory drift evidence before approval and apply", async () => {
+test("Writing Desk exposes Author Voice, continuity, and governed context evidence before approval and apply", async () => {
   const script = await readFile("public/forge-ai-proposals.js", "utf8");
   assert.match(script, /renderVoiceDrift/);
   assert.match(script, /data-voice-drift/);
@@ -34,7 +34,9 @@ test("Writing Desk exposes Author Voice Memory drift evidence before approval an
   assert.match(script, /Advisory only:/);
   assert.match(script, /never auto-rewrites, rejects, or applies the candidate/);
   assert.match(script, /Author approval remains authoritative/);
-  assert.match(script, /Review the line-level diff and Author Voice Memory evidence before applying/);
+  assert.match(script, /Forge Brain Context/);
+  assert.match(script, /Why Forge selected this/);
+  assert.match(script, /Review context, line-level changes, continuity evidence, and Author Voice evidence before applying it/);
 });
 
 test("Editing Room exposes durable rewrite proposals with a deterministic review diff", async () => {
