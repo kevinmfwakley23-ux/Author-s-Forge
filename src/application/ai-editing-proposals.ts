@@ -19,12 +19,11 @@ export interface AiEditingProposalRequest {
   readonly assembledContext?: string;
   readonly sourceMemoryIds?: readonly string[];
   readonly characterContinuity?: CharacterContinuityEvidence;
-  readonly craftLensEvidence?: CraftLensProposalEvidence;
   readonly proposalId: string;
   readonly now?: string;
 }
 
-/** Converts a deterministic editorial finding into an author-reviewable AI rewrite proposal. */
+/** Converts an editorial finding into an author-reviewable AI rewrite proposal. */
 export class AiEditingProposalService {
   constructor(
     private readonly proposals: AiProposalStore,
@@ -35,7 +34,9 @@ export class AiEditingProposalService {
   async proposeRewrite(request: AiEditingProposalRequest): Promise<AiProposal> {
     validateRequest(request);
     const baseContentSha256 = sha256(request.sourceContent);
-    const craftLensEvidence = request.craftLensEvidence ?? inferCraftLensEvidence(request, baseContentSha256);
+    // Craft provenance is never caller-supplied. It is inferred fresh from the
+    // exact source revision, finding message, and author-selected strategy.
+    const craftLensEvidence = inferCraftLensEvidence(request, baseContentSha256);
     const excerpt = request.sourceContent.slice(request.findingStart, request.findingEnd);
     const result = await this.generator({
       system: "You are Author's Forge's editorial rewrite engine. Return only the complete revised scene text. Preserve canon, facts, point of view, tense, author voice, character continuity, and author intent. Improve only the identified issue without inventing unsupported facts. Treat editorial diagnostics as evidence for author consideration, not universal style rules. Never return commentary or claim that the revision is canon.",
@@ -95,5 +96,4 @@ function validateRequest(request: AiEditingProposalRequest): void {
   if (!request.findingMessage.trim()) throw new Error("AI editing finding message is required.");
   if (!request.recommendation.trim()) throw new Error("AI editing recommendation is required.");
   if (!Number.isInteger(request.findingStart) || !Number.isInteger(request.findingEnd) || request.findingStart < 0 || request.findingEnd <= request.findingStart || request.findingEnd > request.sourceContent.length) throw new Error("AI editing finding range is invalid.");
-  if (request.craftLensEvidence && request.craftLensEvidence.sourceContentSha256 !== sha256(request.sourceContent)) throw new Error("Craft Lens evidence is stale for the supplied editing source content.");
 }
