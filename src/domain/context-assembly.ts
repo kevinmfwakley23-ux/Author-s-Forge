@@ -1,7 +1,9 @@
 import type { ProjectState } from "./project";
+import type { MemoryClass } from "./memory";
 import { CharacterBibleService } from "../application/character-bible";
+import { selectSalientMemories } from "./memory-saliency";
 
-export const CONTEXT_ASSEMBLY_FORMAT_VERSION = 3 as const;
+export const CONTEXT_ASSEMBLY_FORMAT_VERSION = 4 as const;
 export const CONTEXT_INCLUSION_MODES = ["full", "brief", "extended", "custom", "off"] as const;
 export type ContextInclusionMode = typeof CONTEXT_INCLUSION_MODES[number];
 export interface ContextSectionPolicy { readonly key: string; readonly mode: ContextInclusionMode; readonly maxWords?: number; }
@@ -12,6 +14,7 @@ export interface ContextAssemblyRequest {
   readonly characterIds?: readonly string[];
   readonly characterAsOf?: string;
   readonly characterMemoryLimit?: number;
+  readonly memoryLimitPerSection?: number;
 }
 export interface ContextSelectionEvidence { readonly sourceId: string; readonly sectionKey: string; readonly reasons: readonly string[]; }
 export interface ContextSection { readonly key: string; readonly title: string; readonly mode: ContextInclusionMode; readonly text: string; readonly sourceIds: readonly string[]; readonly wordCount: number; }
@@ -21,6 +24,14 @@ const DEFAULT_POLICIES: readonly ContextSectionPolicy[] = [
   { key: "timeline", mode: "brief" }, { key: "research", mode: "brief" }, { key: "voice", mode: "full" }, { key: "unresolved-threads", mode: "full" },
 ];
 interface SelectedRecord { readonly id: string; readonly text: string; readonly reasons: readonly string[]; }
+const MEMORY_SECTION_CLASSES: Readonly<Record<string, MemoryClass>> = {
+  canon: "story-canon",
+  relationships: "relationship-memory",
+  timeline: "timeline-memory",
+  research: "research-memory",
+  voice: "style-memory",
+  "unresolved-threads": "open-thread",
+};
 export function assembleWritingContext(project: ProjectState, request: ContextAssemblyRequest): AssembledWritingContext {
   if (request.projectId !== project.metadata.id) throw new Error("Context assembly belongs to another project.");
   const built = (request.policies ?? DEFAULT_POLICIES).map((policy) => buildSection(project, policy, request)).filter((entry): entry is { section: ContextSection; evidence: readonly ContextSelectionEvidence[] } => entry !== null);
@@ -42,21 +53,15 @@ function buildSection(project: ProjectState, policy: ContextSectionPolicy, reque
   };
 }
 function selectRecords(project: ProjectState, key: string, request: ContextAssemblyRequest): SelectedRecord[] {
-  const queryTerms = tokenizeQuery(request.query);
-  const memories = (className: string) => project.memories
-    .filter((memory) => memory.class === className && memory.authority !== "archived" && memory.authority !== "superseded")
-    .map((memory) => ({ memory, matchedTerms: matchedQueryTerms(`${memory.summary} ${memory.content} ${memory.relevanceTags.join(" ")}`, queryTerms) }))
-    .filter(({ matchedTerms }) => queryTerms.length === 0 || matchedTerms.length > 0)
-    .sort((a, b) => b.matchedTerms.length - a.matchedTerms.length || authorityWeight(b.memory.authority) - authorityWeight(a.memory.authority) || b.memory.updatedAt.localeCompare(a.memory.updatedAt) || a.memory.id.localeCompare(b.memory.id))
-    .map(({ memory, matchedTerms }) => ({ id: memory.id, text: `${memory.summary}\n${memory.content}`, reasons: [memory.authority === "authoritative" ? "authoritative" : `authority:${memory.authority}`, ...(matchedTerms.length ? [`terms:${matchedTerms.join(",")}`] : ["section-default"])] }));
-  if (key === "canon") return memories("story-canon");
-  if (key === "relationships") return memories("relationship-memory");
-  if (key === "timeline") return memories("timeline-memory");
-  if (key === "research") return memories("research-memory");
-  if (key === "unresolved-threads") return memories("open-thread");
-  if (key === "voice") return memories("style-memory");
   if (key === "characters") return selectCharacterMemory(project, request);
-  return [];
+  const className = MEMORY_SECTION_CLASSES[key];
+  if (!className) return [];
+  return selectSalientMemories(project.memories, {
+    projectId: project.metadata.id,
+    class: className,
+    queryTerms: tokenizeQuery(request.query),
+    limit: request.memoryLimitPerSection ?? 8,
+  }).map((hit) => ({ id: hit.memory.id, text: `${hit.memory.summary}\n${hit.memory.content}`, reasons: hit.reasons }));
 }
 function selectCharacterMemory(project: ProjectState, request: ContextAssemblyRequest): SelectedRecord[] {
   const characters = project.characters ?? [];
@@ -87,21 +92,6 @@ function tokenizeQuery(query: string | undefined): string[] {
 }
 function tokenizeText(value: string): string[] {
   return value.toLowerCase().split(/[^\p{L}\p{N}]+/u).map((term) => term.trim()).filter((term) => term.length >= 3);
-}
-function matchedQueryTerms(value: string, queryTerms: readonly string[]): string[] {
-  if (!queryTerms.length) return [];
-  const searchableTerms = new Set(tokenizeText(value));
-  return queryTerms.filter((term) => searchableTerms.has(term));
-}
-function authorityWeight(authority: ProjectState["memories"][number]["authority"]): number {
-  switch (authority) {
-    case "authoritative": return 40;
-    case "verified": return 24;
-    case "working": return 14;
-    case "proposed": return 8;
-    case "archived": return 2;
-    case "superseded": return 0;
-  }
 }
 function countWords(value: string): number { return value.trim() ? value.trim().split(/\s+/).length : 0; }
 function truncateWords(value: string, maxWords: number): string { const words = value.trim().split(/\s+/); return words.length <= maxWords ? value.trim() : `${words.slice(0, maxWords).join(" ")}…`; }
