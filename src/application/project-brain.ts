@@ -59,7 +59,7 @@ export function assembleProjectBrainContext(store: ProjectMemoryStore, query: Pr
 function rankMemories(memories: readonly MemoryRecord[], query: ProjectBrainQuery): readonly RankedMemory[] {
   return memories
     .map((memory) => scoreMemory(memory, query))
-    .filter(({ score }) => hasExplicitSaliency(query) ? score > 0 : true)
+    .filter(({ saliencyMatches }) => hasExplicitSaliency(query) ? saliencyMatches > 0 : true)
     .sort((a, b) => b.score - a.score || authorityWeight(b.memory.authority) - authorityWeight(a.memory.authority) || b.memory.updatedAt.localeCompare(a.memory.updatedAt) || a.memory.id.localeCompare(b.memory.id));
 }
 
@@ -67,10 +67,12 @@ interface RankedMemory {
   readonly memory: MemoryRecord;
   readonly score: number;
   readonly reasons: readonly string[];
+  readonly saliencyMatches: number;
 }
 
 function scoreMemory(memory: MemoryRecord, query: ProjectBrainQuery): RankedMemory {
   let score = authorityWeight(memory.authority);
+  let saliencyMatches = 0;
   const reasons: string[] = [`authority:${memory.authority}`];
 
   if (query.taskMemoryClasses?.includes(memory.class)) {
@@ -82,6 +84,7 @@ function scoreMemory(memory: MemoryRecord, query: ProjectBrainQuery): RankedMemo
   const memoryTags = new Set(normalizeTerms(memory.relevanceTags));
   const matchedTags = requestedTags.filter((tag) => memoryTags.has(tag));
   if (matchedTags.length > 0) {
+    saliencyMatches += matchedTags.length;
     score += matchedTags.length * 10;
     reasons.push(`tags:${matchedTags.join(",")}`);
   }
@@ -89,6 +92,7 @@ function scoreMemory(memory: MemoryRecord, query: ProjectBrainQuery): RankedMemo
   const requestedRelations = new Set(query.relatedMemoryIds ?? []);
   const matchedRelations = memory.relatedMemoryIds.filter((id) => requestedRelations.has(id));
   if (matchedRelations.length > 0) {
+    saliencyMatches += matchedRelations.length;
     score += matchedRelations.length * 14;
     reasons.push(`related:${matchedRelations.join(",")}`);
   }
@@ -98,6 +102,7 @@ function scoreMemory(memory: MemoryRecord, query: ProjectBrainQuery): RankedMemo
     const searchable = normalizeText(`${memory.summary} ${memory.content} ${memory.relevanceTags.join(" ")}`);
     const matchedTerms = queryTerms.filter((term) => searchable.includes(term));
     if (matchedTerms.length > 0) {
+      saliencyMatches += matchedTerms.length;
       score += matchedTerms.length * 8;
       reasons.push(`terms:${matchedTerms.join(",")}`);
     }
@@ -108,7 +113,7 @@ function scoreMemory(memory: MemoryRecord, query: ProjectBrainQuery): RankedMemo
     reasons.push("changed-since");
   }
 
-  return { memory, score, reasons };
+  return { memory, score, reasons, saliencyMatches };
 }
 
 function compareRanked(a: MemoryRecord, b: MemoryRecord, query: ProjectBrainQuery): number {

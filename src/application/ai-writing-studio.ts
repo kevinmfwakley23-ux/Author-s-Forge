@@ -1,6 +1,7 @@
 import type { AiProposal } from "./ai-proposal-store";
 import { AiWritingCoordinator } from "./ai-writing-coordinator";
 import { assembleWritingContext, type ContextAssemblyRequest } from "../domain/context-assembly";
+import { assessVoiceDrift, buildAuthorVoiceContext, type AuthorVoiceMemory, type VoiceDriftReport } from "../domain/author-voice-memory";
 import { saveSceneContent, validateStudioWorkspace, type StudioWorkspaceState } from "../domain/studio-workspace";
 import type { FileProjectStore } from "../infrastructure/file-project-store";
 import { createHash } from "node:crypto";
@@ -8,6 +9,7 @@ import { createHash } from "node:crypto";
 export interface StudioAiProjectState {
   readonly metadata: { readonly id: string };
   readonly studioWorkspace?: StudioWorkspaceState;
+  readonly authorVoiceMemory?: AuthorVoiceMemory;
   readonly [key: string]: unknown;
 }
 
@@ -16,6 +18,20 @@ export type StudioAiContextOptions = Pick<ContextAssemblyRequest, "policies" | "
 export type StudioAiWritingRequest = Omit<Parameters<AiWritingCoordinator["generate"]>[0], "assembledContext" | "sourceMemoryIds"> & {
   readonly context?: StudioAiContextOptions;
 };
+
+export type StudioAiWritingResult = Awaited<ReturnType<AiWritingCoordinator["generate"]>> & {
+  readonly context: Awaited<ReturnType<typeof assembleWritingContext>>;
+  readonly voiceDrift?: VoiceDriftReport;
+};
+
+export interface StudioAiContextPreview {
+  readonly context: Awaited<ReturnType<typeof assembleWritingContext>>;
+  readonly authorVoice: {
+    readonly available: boolean;
+    readonly sampleCount: number;
+    readonly canonicalSampleCount: number;
+  };
+}
 
 /**
  * Application boundary for the Studio's author-controlled AI writing loop.
@@ -41,37 +57,70 @@ export class AiWritingStudioService {
     return proposal;
   }
 
-  async generate(request: Parameters<AiWritingCoordinator["generate"]>[0]) {
-    await this.requireTarget(request.projectId, request.bookId, request.chapterId, request.sceneId);
-    return this.coordinator.generate(request);
+  /**
+   * Backward-compatible entry point used by older HTTP wiring. Provider context
+   * and source ids supplied by the caller are intentionally ignored so this path
+   * cannot bypass authoritative Project Brain and Author Voice assembly.
+   */
+  async generate(request: Parameters<AiWritingCoordinator["generate"]>[0]): Promise<StudioAiWritingResult> {
+    return this.generateWithProjectContext({
+      projectId: request.projectId,
+      bookId: request.bookId,
+      chapterId: request.chapterId,
+      sceneId: request.sceneId,
+      task: request.task,
+      instruction: request.instruction,
+      existingContent: request.existingContent,
+      proposalId: request.proposalId,
+      baseContentSha256: request.baseContentSha256,
+      now: request.now,
+      context: { query: request.instruction },
+    });
+  }
+
+  async previewContext(projectId: string, options: StudioAiContextOptions = {}): Promise<StudioAiContextPreview> {
+    const project = await this.requireProject(projectId);
+    const context = this.assembleProjectContext(project, projectId, options);
+    const voiceMemory = project.authorVoiceMemory;
+    if (voiceMemory && voiceMemory.projectId !== projectId) throw new Error("Author voice memory belongs to another project.");
+    return {
+      context,
+      authorVoice: {
+        available: Boolean(voiceMemory?.samples.length),
+        sampleCount: voiceMemory?.samples.length ?? 0,
+        canonicalSampleCount: voiceMemory?.canonicalSampleIds.length ?? 0,
+      },
+    };
   }
 
   /**
    * Production Studio entry point: builds governed context from the authoritative
    * project immediately before generation. Callers cannot accidentally supply a
-   * stale character dump as the source of truth.
+   * stale character or author-voice dump as the source of truth.
    */
-  async generateWithProjectContext(request: StudioAiWritingRequest) {
+  async generateWithProjectContext(request: StudioAiWritingRequest): Promise<StudioAiWritingResult> {
     const project = await this.requireProject(request.projectId);
     const workspace = project.studioWorkspace ? validateStudioWorkspace(project.studioWorkspace) : validateStudioWorkspace({ formatVersion: 1, activeBookId: null, books: [] });
     const scene = findScene(workspace, request.bookId, request.chapterId, request.sceneId);
-    const context = assembleWritingContext(project as never, {
-      projectId: request.projectId,
+    const context = this.assembleProjectContext(project, request.projectId, {
       query: request.context?.query ?? request.instruction,
       characterIds: request.context?.characterIds,
       characterAsOf: request.context?.characterAsOf,
       characterMemoryLimit: request.context?.characterMemoryLimit,
       policies: request.context?.policies,
     });
+    const voiceMemory = project.authorVoiceMemory;
+    if (voiceMemory && voiceMemory.projectId !== request.projectId) throw new Error("Author voice memory belongs to another project.");
     const existingContent = request.existingContent ?? scene.content;
-    const result = await this.coordinator.generate({
+    const generated = await this.coordinator.generate({
       ...request,
       existingContent,
-      assembledContext: formatContext(context),
+      assembledContext: formatContext(context, voiceMemory),
       sourceMemoryIds: context.sourceIds,
       baseContentSha256: request.baseContentSha256 ?? sha256(existingContent),
-    });
-    return { ...result, context };
+    }, voiceMemory ? (candidate) => assessVoiceDrift(candidate, voiceMemory) : undefined);
+    const voiceDrift = generated.proposal.voiceDrift;
+    return { ...generated, context, ...(voiceDrift ? { voiceDrift } : {}) };
   }
 
   async review(projectId: string, proposalId: string, decision: "accepted" | "rejected", note?: string, now?: string) {
@@ -94,7 +143,7 @@ export class AiWritingStudioService {
     const scene = chapter.scenes.find((item) => item.id === target.sceneId);
     if (!scene) throw new Error(`AI proposal target scene "${target.sceneId}" no longer exists.`);
 
-    const expectedBaseHash = (proposal as AiProposal & { baseContentSha256?: string }).baseContentSha256;
+    const expectedBaseHash = proposal.baseContentSha256;
     if (expectedBaseHash && sha256(scene.content) !== expectedBaseHash && scene.content !== proposal.proposedContent) {
       throw new Error(`AI proposal "${proposalId}" is stale because the target scene changed after the proposal was generated.`);
     }
@@ -103,6 +152,17 @@ export class AiWritingStudioService {
     const updated = saveSceneContent(workspace, target.bookId, target.chapterId, target.sceneId, proposal.proposedContent, now);
     await this.projects.save({ ...project, studioWorkspace: updated, metadata: { ...project.metadata, updatedAt: now ?? new Date().toISOString() } } as never);
     return { proposal, workspace: updated };
+  }
+
+  private assembleProjectContext(project: StudioAiProjectState, projectId: string, options: StudioAiContextOptions) {
+    return assembleWritingContext(project as never, {
+      projectId,
+      query: options.query,
+      characterIds: options.characterIds,
+      characterAsOf: options.characterAsOf,
+      characterMemoryLimit: options.characterMemoryLimit,
+      policies: options.policies,
+    });
   }
 
   private async requireProject(projectId: string): Promise<StudioAiProjectState> {
@@ -129,8 +189,10 @@ function findScene(workspace: StudioWorkspaceState, bookId: string, chapterId: s
   return scene;
 }
 
-function formatContext(context: Awaited<ReturnType<typeof assembleWritingContext>>): string {
-  return context.sections.map((section) => `## ${section.title}\n${section.text}`).join("\n\n");
+function formatContext(context: Awaited<ReturnType<typeof assembleWritingContext>>, voiceMemory?: AuthorVoiceMemory): string {
+  const sections = context.sections.map((section) => `## ${section.title}\n${section.text}`);
+  if (voiceMemory) sections.push(`## Author Voice Memory\n${buildAuthorVoiceContext(voiceMemory)}`);
+  return sections.join("\n\n");
 }
 
 export function sha256(value: string): string { return createHash("sha256").update(value, "utf8").digest("hex"); }
