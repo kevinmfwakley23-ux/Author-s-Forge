@@ -83,6 +83,18 @@ test("Project Brain ranks salient memory before unrelated memory under a tight l
   assert.ok(context.evidence[0].reasons.some((reason) => reason.includes("terms:elias")));
 });
 
+test("Project Brain excludes authoritative but irrelevant memory from explicit salient queries", () => {
+  const store = new ProjectMemoryStore();
+  store.register(createMemoryRecord({ id: "canon-weather", projectId: "p1", class: "story-canon", authority: "authoritative", summary: "Storm", content: "A storm arrives overnight.", provenance: [{ kind: "author", reference: "weather-canon", recordedAt: "2026-01-01T00:00:00.000Z" }], relevanceTags: ["weather"] }));
+  store.register(createMemoryRecord({ id: "working-evidence", projectId: "p1", class: "creative-note", authority: "working", summary: "Warehouse clue", content: "Elias left the brass key in the warehouse.", relevanceTags: ["warehouse"] }));
+
+  const context = assembleProjectBrainContext(store, { projectId: "p1", relevanceTags: ["warehouse"], queryTerms: ["Elias"], includeWorkingState: true });
+
+  assert.deepEqual(context.authoritative, []);
+  assert.deepEqual(context.working.map((m) => m.id), ["working-evidence"]);
+  assert.deepEqual(context.evidence.map((item) => item.memoryId), ["working-evidence"]);
+});
+
 test("Project Brain uses related-memory links as a saliency signal", () => {
   const store = new ProjectMemoryStore();
   store.register(createMemoryRecord({ id: "character", projectId: "p1", class: "character-memory", authority: "working", summary: "Daniel", content: "Daniel distrusts Elias.", relatedMemoryIds: ["scene-7"] }));
