@@ -1,0 +1,49 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { createStudioWorkspace, addWorkspaceBook, addWorkspaceChapter, addWorkspaceScene, saveSceneContent } from "../dist/domain/studio-workspace.js";
+import { previewStudioAiWritingContext, generateStudioAiWritingProposal } from "../dist/application/studio-ai-writing-http.js";
+
+function workspaceFixture() {
+  let workspace = createStudioWorkspace();
+  workspace = addWorkspaceBook(workspace, { id: "book-1", title: "Book", kind: "novel", lifecycle: "active", description: "", chapters: [], updatedAt: "2026-08-30T09:00:00.000Z" });
+  workspace = addWorkspaceChapter(workspace, "book-1", { id: "chapter-1", number: 1, title: "Chapter One" });
+  workspace = addWorkspaceScene(workspace, "book-1", "chapter-1", { id: "scene-1", number: 1, title: "Scene One" });
+  return saveSceneContent(workspace, "book-1", "chapter-1", "scene-1", "Author-owned scene text.", "2026-08-30T09:00:00.000Z");
+}
+
+test("Studio AI HTTP preview delegates to the authoritative read-only preview service", async () => {
+  let captured;
+  const expected = { context: { sourceIds: ["canon-1"], evidence: [] }, authorVoice: { available: true, sampleCount: 2, canonicalSampleCount: 1 } };
+  const studio = { previewContext: async (projectId, options) => { captured = { projectId, options }; return expected; } };
+  const result = await previewStudioAiWritingContext({ studio, projectId: "project-1" }, { query: "warehouse Elias", characterIds: ["elias"], characterMemoryLimit: 3 });
+  assert.deepEqual(result, expected);
+  assert.deepEqual(captured, { projectId: "project-1", options: { query: "warehouse Elias", characterIds: ["elias"], characterAsOf: undefined, characterMemoryLimit: 3, policies: undefined } });
+});
+
+test("Studio AI HTTP generation cannot accept client-supplied source memory authority", async () => {
+  let captured;
+  const studio = { generateWithProjectContext: async (request) => { captured = request; return { proposal: { id: "proposal-1" } }; } };
+  await generateStudioAiWritingProposal({ studio, workspace: workspaceFixture(), projectId: "project-1" }, {
+    bookId: "book-1",
+    chapterId: "chapter-1",
+    sceneId: "scene-1",
+    task: "continue",
+    instruction: "Continue with Elias in the warehouse.",
+    sourceMemoryIds: ["client-forged-memory"],
+    proposalId: "proposal-1",
+  });
+  assert.equal(captured.projectId, "project-1");
+  assert.equal(captured.existingContent, "Author-owned scene text.");
+  assert.equal(captured.context.query, "Continue with Elias in the warehouse.");
+  assert.equal(Object.hasOwn(captured, "sourceMemoryIds"), false);
+  assert.equal(Object.hasOwn(captured, "assembledContext"), false);
+});
+
+test("Studio AI HTTP boundary validates context policy and target input before provider generation", async () => {
+  let calls = 0;
+  const studio = { generateWithProjectContext: async () => { calls += 1; return {}; } };
+  const dependencies = { studio, workspace: workspaceFixture(), projectId: "project-1" };
+  await assert.rejects(() => generateStudioAiWritingProposal(dependencies, { bookId: "book-1", chapterId: "missing", sceneId: "scene-1", instruction: "Continue." }), /valid chapter/);
+  await assert.rejects(() => generateStudioAiWritingProposal(dependencies, { bookId: "book-1", chapterId: "chapter-1", sceneId: "scene-1", instruction: "Continue.", policies: [{ key: "memory", mode: "invented" }] }), /Invalid context inclusion mode/);
+  assert.equal(calls, 0);
+});
