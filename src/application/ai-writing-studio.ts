@@ -16,7 +16,7 @@ export interface StudioAiProjectState {
   readonly [key: string]: unknown;
 }
 
-export type StudioAiContextOptions = Pick<ContextAssemblyRequest, "policies" | "query" | "characterIds" | "characterAsOf" | "characterMemoryLimit">;
+export type StudioAiContextOptions = Pick<ContextAssemblyRequest, "policies" | "query" | "characterIds" | "characterAsOf" | "characterMemoryLimit" | "memoryLimitPerSection">;
 
 export type StudioAiWritingRequest = Omit<Parameters<AiWritingCoordinator["generate"]>[0], "assembledContext" | "sourceMemoryIds" | "characterContinuity"> & {
   readonly context?: StudioAiContextOptions;
@@ -105,6 +105,7 @@ export class AiWritingStudioService {
       characterIds: request.context?.characterIds,
       characterAsOf: request.context?.characterAsOf,
       characterMemoryLimit: request.context?.characterMemoryLimit,
+      memoryLimitPerSection: request.context?.memoryLimitPerSection,
       policies: request.context?.policies,
     });
     const voiceMemory = project.authorVoiceMemory;
@@ -174,6 +175,7 @@ export class AiWritingStudioService {
       characterIds: options.characterIds,
       characterAsOf: options.characterAsOf,
       characterMemoryLimit: options.characterMemoryLimit,
+      memoryLimitPerSection: options.memoryLimitPerSection,
       policies: options.policies,
     });
   }
