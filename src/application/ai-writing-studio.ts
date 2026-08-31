@@ -31,6 +31,8 @@ export interface StudioAiContextBudget {
   readonly includedSectionKeys: readonly string[];
   readonly omittedSectionKeys: readonly string[];
   readonly canonPreserved: boolean;
+  readonly authorVoiceIncluded: boolean;
+  readonly authorVoiceEstimatedTokens: number;
 }
 
 export type StudioAiWritingRequest = Omit<Parameters<AiWritingCoordinator["generate"]>[0], "assembledContext" | "sourceMemoryIds" | "characterContinuity"> & {
@@ -101,9 +103,10 @@ export class AiWritingStudioService {
   async previewContext(projectId: string, options: StudioAiContextOptions = {}): Promise<StudioAiContextPreview> {
     const project = await this.requireProject(projectId);
     const assembled = this.assembleProjectContext(project, projectId, options);
-    const budgeted = applyGovernedContextBudget(assembled, options.contextTokenBudget);
     const voiceMemory = project.authorVoiceMemory;
     if (voiceMemory && voiceMemory.projectId !== projectId) throw new Error("Author voice memory belongs to another project.");
+    const voiceContext = voiceMemory ? buildAuthorVoiceContext(voiceMemory) : undefined;
+    const budgeted = applyGovernedContextBudget(assembled, options.contextTokenBudget, voiceContext);
     return {
       context: budgeted.context,
       contextBudget: budgeted.budget,
@@ -128,10 +131,11 @@ export class AiWritingStudioService {
       policies: request.context?.policies,
       contextTokenBudget: request.context?.contextTokenBudget,
     });
-    const budgeted = applyGovernedContextBudget(assembled, request.context?.contextTokenBudget);
-    const context = budgeted.context;
     const voiceMemory = project.authorVoiceMemory;
     if (voiceMemory && voiceMemory.projectId !== request.projectId) throw new Error("Author voice memory belongs to another project.");
+    const voiceContext = voiceMemory ? buildAuthorVoiceContext(voiceMemory) : undefined;
+    const budgeted = applyGovernedContextBudget(assembled, request.context?.contextTokenBudget, voiceContext);
+    const context = budgeted.context;
     const existingContent = request.existingContent ?? scene.content;
     const selectedCharacterIds = context.evidence.filter((item) => item.sectionKey === "characters").map((item) => item.sourceId);
     const characterEvidence = Object.fromEntries(context.evidence.filter((item) => item.sectionKey === "characters").map((item) => [item.sourceId, item.reasons]));
@@ -220,19 +224,29 @@ const CONTEXT_SECTION_PRIORITY: Readonly<Record<string, ContextPriority>> = {
   research: "optional",
 };
 
+const AUTHOR_VOICE_BUDGET_ID = "author-voice-memory";
+
 export function applyGovernedContextBudget(
   context: AssembledWritingContext,
   requestedBudget?: number,
+  authorVoiceContext?: string,
 ): { context: AssembledWritingContext; budget: StudioAiContextBudget } {
-  const result = selectContextBudget(
-    context.sections.map((section, order) => ({
-      id: section.key,
-      content: section.text,
-      priority: CONTEXT_SECTION_PRIORITY[section.key] ?? "normal",
-      order,
-    })),
-    requestedBudget,
-  );
+  const voiceContext = authorVoiceContext?.trim() ?? "";
+  const budgetSections = context.sections.map((section, order) => ({
+    id: section.key,
+    content: section.text,
+    priority: CONTEXT_SECTION_PRIORITY[section.key] ?? "normal" as ContextPriority,
+    order,
+  }));
+  if (voiceContext) {
+    budgetSections.push({
+      id: AUTHOR_VOICE_BUDGET_ID,
+      content: voiceContext,
+      priority: "critical",
+      order: context.sections.length,
+    });
+  }
+  const result = selectContextBudget(budgetSections, requestedBudget);
   const included = new Set(result.includedIds);
   const sections = context.sections.filter((section) => included.has(section.key));
   const sourceIds = [...new Set(sections.flatMap((section) => section.sourceIds))];
@@ -245,6 +259,10 @@ export function applyGovernedContextBudget(
     sourceIds,
     evidence,
   };
+  const includedSectionKeys = result.includedIds.filter((id) => id !== AUTHOR_VOICE_BUDGET_ID);
+  const omittedSectionKeys = result.omittedIds.filter((id) => id !== AUTHOR_VOICE_BUDGET_ID);
+  const authorVoiceIncluded = !voiceContext || result.includedIds.includes(AUTHOR_VOICE_BUDGET_ID);
+  const authorVoiceEstimatedTokens = voiceContext ? selectContextBudget([{ id: AUTHOR_VOICE_BUDGET_ID, content: voiceContext, priority: "critical" }], undefined).selectedEstimatedTokens : 0;
   return {
     context: budgetedContext,
     budget: {
@@ -254,9 +272,11 @@ export function applyGovernedContextBudget(
       tokensSaved: result.tokensSaved,
       constrained: result.constrained,
       overBudget: requestedBudget !== undefined && result.selectedEstimatedTokens > requestedBudget,
-      includedSectionKeys: result.includedIds,
-      omittedSectionKeys: result.omittedIds,
-      canonPreserved: !context.sections.some((section) => section.key === "canon") || result.includedIds.includes("canon"),
+      includedSectionKeys,
+      omittedSectionKeys,
+      canonPreserved: !context.sections.some((section) => section.key === "canon") || includedSectionKeys.includes("canon"),
+      authorVoiceIncluded,
+      authorVoiceEstimatedTokens,
     },
   };
 }
