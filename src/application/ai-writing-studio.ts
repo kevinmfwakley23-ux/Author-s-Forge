@@ -57,9 +57,25 @@ export class AiWritingStudioService {
     return proposal;
   }
 
-  async generate(request: Parameters<AiWritingCoordinator["generate"]>[0]) {
-    await this.requireTarget(request.projectId, request.bookId, request.chapterId, request.sceneId);
-    return this.coordinator.generate(request);
+  /**
+   * Backward-compatible entry point used by older HTTP wiring. Provider context
+   * and source ids supplied by the caller are intentionally ignored so this path
+   * cannot bypass authoritative Project Brain and Author Voice assembly.
+   */
+  async generate(request: Parameters<AiWritingCoordinator["generate"]>[0]): Promise<StudioAiWritingResult> {
+    return this.generateWithProjectContext({
+      projectId: request.projectId,
+      bookId: request.bookId,
+      chapterId: request.chapterId,
+      sceneId: request.sceneId,
+      task: request.task,
+      instruction: request.instruction,
+      existingContent: request.existingContent,
+      proposalId: request.proposalId,
+      baseContentSha256: request.baseContentSha256,
+      now: request.now,
+      context: { query: request.instruction },
+    });
   }
 
   async previewContext(projectId: string, options: StudioAiContextOptions = {}): Promise<StudioAiContextPreview> {
