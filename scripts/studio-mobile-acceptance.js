@@ -5,8 +5,9 @@
  *
  * This verifies the real Studio at a phone-sized viewport rather than relying
  * on CSS/source assertions. It focuses on touch-sized interaction, navigation,
- * absence of horizontal overflow, durable state after reload, and the live PWA
- * lifecycle without ever treating cached API data as durable project state.
+ * absence of horizontal overflow, durable state after reload, Author Goals,
+ * and the live PWA lifecycle without ever treating cached API data as durable
+ * project state.
  */
 const assert = require("node:assert/strict");
 const { spawn } = require("node:child_process");
@@ -28,6 +29,22 @@ async function waitForHttp(url, timeoutMs = 10000) {
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   throw new Error(`Timed out waiting for ${url}`);
+}
+
+async function waitForRoute(page, route) {
+  await page.waitForFunction(
+    (expected) => location.hash === `#${expected}` && document.querySelector(`#${expected}`)?.hidden === false,
+    route,
+  );
+}
+
+async function tapAndRequireApi(page, locator, predicate, description) {
+  const responsePromise = page.waitForResponse((response) => predicate(response));
+  await locator.tap();
+  const response = await responsePromise;
+  const responseBody = await response.text();
+  assert.equal(response.ok(), true, `${description} failed (${response.status()}): ${responseBody}`);
+  return responseBody;
 }
 
 async function main() {
@@ -124,7 +141,7 @@ async function main() {
     const navBox = await nav.boundingBox();
     assert.ok(navBox && navBox.height >= 40, `navigation target is too small for touch: ${JSON.stringify(navBox)}`);
     await nav.tap();
-    await page.waitForFunction(() => location.hash === "#manuscript" && document.querySelector("#manuscript")?.hidden === false);
+    await waitForRoute(page, "manuscript");
 
     await page.locator("#book-form [name=title]").fill("Mobile Book");
     await page.locator("#book-form [name=description]").fill("Created through a phone-sized Studio viewport.");
@@ -144,14 +161,76 @@ async function main() {
     await page.waitForFunction(() => document.querySelector("#editor-scene option"));
 
     await page.locator('nav a[data-route="writing"]').tap();
-    await page.locator("#editor-content").fill("Mobile-authoring acceptance content.");
-    await page.locator("#save-scene").tap();
-    await page.waitForFunction(() => document.querySelector("#success-banner")?.textContent.includes("Scene saved."));
+    await waitForRoute(page, "writing");
+    await page.locator("#editor-content").fill("Mobile authoring saves durable words");
+    const saveButton = page.locator("#save-scene");
+    const saveBox = await saveButton.boundingBox();
+    assert.ok(saveBox && saveBox.height >= 40, `save target is too small for touch: ${JSON.stringify(saveBox)}`);
+    await tapAndRequireApi(
+      page,
+      saveButton,
+      (response) => response.request().method() === "PUT" && response.url().includes(`/api/projects/${projectId}/workspace/`) && response.url().endsWith("/content"),
+      "mobile scene save",
+    );
+    await page.waitForFunction(() => document.querySelector("#success-banner")?.textContent.includes("Scene saved.") || document.querySelector("#error-banner")?.textContent.trim());
+    const saveFeedback = await page.evaluate(() => ({
+      success: document.querySelector("#success-banner")?.textContent || "",
+      error: document.querySelector("#error-banner")?.textContent || "",
+    }));
+    assert.equal(saveFeedback.error.trim(), "", `mobile scene save reported UI error: ${saveFeedback.error}`);
+    assert.match(saveFeedback.success, /Scene saved\./, "mobile scene save must provide affirmative UI feedback");
+
+    await page.locator('nav a[data-route="dashboard"]').tap();
+    await waitForRoute(page, "dashboard");
+    await page.waitForSelector("#author-goals-card");
+    const goalForm = page.locator("#author-goal-form");
+    await goalForm.locator('[name="label"]').fill("Mobile ten-word target");
+    await goalForm.locator('[name="metric"]').selectOption("words");
+    await goalForm.locator('[name="target"]').fill("10");
+    await goalForm.locator('[name="period"]').selectOption("project");
+    const goalSave = goalForm.locator('button[type="submit"]');
+    const goalSaveBox = await goalSave.boundingBox();
+    assert.ok(goalSaveBox && goalSaveBox.height >= 40, `Author Goal save target is too small for touch: ${JSON.stringify(goalSaveBox)}`);
+    await tapAndRequireApi(
+      page,
+      goalSave,
+      (response) => response.request().method() === "POST" && new URL(response.url()).pathname === `/api/projects/${projectId}/goals`,
+      "mobile Author Goal create",
+    );
+    await page.waitForFunction(() => document.querySelector("#author-goals-list")?.textContent.includes("Mobile ten-word target") && document.querySelector("#author-goals-list")?.textContent.includes("5 / 10"));
+
+    await page.locator('nav a[data-route="writing"]').tap();
+    await waitForRoute(page, "writing");
+    await page.locator("#editor-content").fill("Mobile authoring saves durable words across every tested Android device");
+    await tapAndRequireApi(
+      page,
+      page.locator("#save-scene"),
+      (response) => response.request().method() === "PUT" && response.url().includes(`/api/projects/${projectId}/workspace/`) && response.url().endsWith("/content"),
+      "mobile scene save for goal completion",
+    );
+    await page.locator('nav a[data-route="dashboard"]').tap();
+    await waitForRoute(page, "dashboard");
+    await page.waitForFunction(() => document.querySelector("#author-goals-list")?.textContent.includes("10 / 10") && document.querySelector("#author-goals-list")?.textContent.includes("complete"));
 
     await page.reload({ waitUntil: "networkidle" });
     await page.waitForFunction(() => document.querySelector("#project-title")?.textContent !== "Loading…");
     await page.locator('nav a[data-route="writing"]').tap();
-    await page.waitForFunction(() => document.querySelector("#editor-content")?.value === "Mobile-authoring acceptance content.");
+    await waitForRoute(page, "writing");
+    await page.waitForFunction(() => document.querySelector("#editor-content")?.value === "Mobile authoring saves durable words across every tested Android device");
+    await page.locator('nav a[data-route="dashboard"]').tap();
+    await waitForRoute(page, "dashboard");
+    await page.waitForFunction(() => document.querySelector("#author-goals-list")?.textContent.includes("Mobile ten-word target") && document.querySelector("#author-goals-list")?.textContent.includes("10 / 10"));
+
+    const deleteGoal = page.locator("[data-delete-goal]");
+    const deleteGoalBox = await deleteGoal.boundingBox();
+    assert.ok(deleteGoalBox && deleteGoalBox.height >= 40, `Author Goal remove target is too small for touch: ${JSON.stringify(deleteGoalBox)}`);
+    await tapAndRequireApi(
+      page,
+      deleteGoal,
+      (response) => response.request().method() === "DELETE" && new URL(response.url()).pathname.startsWith(`/api/projects/${projectId}/goals/`),
+      "mobile Author Goal removal",
+    );
+    await page.waitForFunction(() => !document.querySelector("#author-goals-list")?.textContent.includes("Mobile ten-word target"));
 
     const finalDimensions = await page.evaluate(() => ({
       viewport: document.documentElement.clientWidth,
@@ -161,7 +240,7 @@ async function main() {
     assert.ok(finalDimensions.bodyScrollWidth <= finalDimensions.viewport + 1, `post-write horizontal overflow: ${JSON.stringify(finalDimensions)}`);
     assert.ok(finalDimensions.documentScrollWidth <= finalDimensions.viewport + 1, `post-write document overflow: ${JSON.stringify(finalDimensions)}`);
 
-    console.log(`MOBILE BROWSER ACCEPTANCE PASSED: ${routes.length} routes + touch navigation + live PWA registration/control + manifest + API-cache boundary + durable manuscript reload + overflow guard.`);
+    console.log(`MOBILE BROWSER ACCEPTANCE PASSED: ${routes.length} routes + touch navigation + live PWA registration/control + manifest + API-cache boundary + touch-verified durable manuscript saves + Author Goals create/progress/reload/remove + overflow guard.`);
   } finally {
     if (browser) await browser.close().catch(() => {});
     server.kill("SIGTERM");
