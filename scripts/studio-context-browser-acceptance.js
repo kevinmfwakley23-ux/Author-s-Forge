@@ -69,6 +69,20 @@ async function seed(baseUrl) {
   await post(`${baseUrl}/api/projects/${projectId}/memory`, { id: "research-1", class: "research-memory", authority: "working", summary: "Reservoir Road research note.", content: "Working location research for scene atmosphere.", reference: "context-acceptance", relevanceTags: ["reservoir"] });
 }
 
+async function expandContextEvidence(page) {
+  const sections = page.locator("#ai-context-preview-body > details");
+  const count = await sections.count();
+  for (let index = 0; index < count; index += 1) {
+    const section = sections.nth(index);
+    if (!(await section.getAttribute("open"))) await section.locator(":scope > summary").click();
+    const supplied = section.locator(":scope > details");
+    if (await supplied.count()) {
+      const detail = supplied.first();
+      if (!(await detail.getAttribute("open"))) await detail.locator(":scope > summary").click();
+    }
+  }
+}
+
 async function verifyViewport(browser, baseUrl, viewport, label) {
   const context = await browser.newContext({ viewport });
   const page = await context.newPage();
@@ -78,17 +92,19 @@ async function verifyViewport(browser, baseUrl, viewport, label) {
   assert.equal(await page.locator("#ai-context-depth").inputValue(), "6", `${label}: balanced context must be the default`);
   await page.locator("[data-context-preview]").click();
   await page.waitForFunction(() => document.querySelector("#ai-context-preview-body")?.textContent.includes("Why Forge selected this"));
+  await expandContextEvidence(page);
   const preview = await page.locator("#ai-context-preview-body").innerText();
-  assert.match(preview, /Mara Voss/, `${label}: salient character context must be visible`);
-  assert.match(preview, /missing witness last called from Ogden/i, `${label}: authoritative canon must be visible`);
+  assert.match(preview, /Mara Voss/, `${label}: salient character context must be inspectable`);
+  assert.match(preview, /missing witness last called from Ogden/i, `${label}: authoritative canon must be inspectable`);
   assert.match(preview, /author-locked \/ authoritative/i, `${label}: selection evidence must be human-readable`);
-  assert.match(preview, /Witness call at 9:12 PM/i, `${label}: timeline memory must be visible while enabled`);
+  assert.match(preview, /Witness call at 9:12 PM/i, `${label}: timeline memory must be inspectable while enabled`);
 
   await page.locator('[data-context-section="timeline"]').uncheck();
   await page.waitForFunction(() => document.querySelector("#ai-context-preview-body")?.textContent.includes("Context settings changed"));
   await page.locator("#ai-context-depth").selectOption("3");
   await page.locator("[data-context-preview]").click();
   await page.waitForFunction(() => document.querySelector("#ai-context-preview-body")?.textContent.includes("Why Forge selected this"));
+  await expandContextEvidence(page);
   const focused = await page.locator("#ai-context-preview-body").innerText();
   assert.doesNotMatch(focused, /Witness call at 9:12 PM/i, `${label}: disabled timeline must not be supplied`);
   assert.equal(await page.locator("#ai-context-depth").inputValue(), "3", `${label}: focused depth must remain selected`);
