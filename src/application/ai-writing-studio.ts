@@ -62,6 +62,7 @@ export class AiWritingStudioService {
   }
 
   async generate(request: Parameters<AiWritingCoordinator["generate"]>[0]): Promise<StudioAiWritingResult> {
+    const legacyCharacterIds = selectedCharacterIdsFromAssembledContext(request.assembledContext);
     return this.generateWithProjectContext({
       projectId: request.projectId,
       bookId: request.bookId,
@@ -73,7 +74,10 @@ export class AiWritingStudioService {
       proposalId: request.proposalId,
       baseContentSha256: request.baseContentSha256,
       now: request.now,
-      context: { query: request.instruction },
+      context: {
+        query: request.instruction,
+        ...(legacyCharacterIds.length ? { characterIds: legacyCharacterIds } : {}),
+      },
     });
   }
 
@@ -196,6 +200,23 @@ function formatContext(context: Awaited<ReturnType<typeof assembleWritingContext
   const sections = context.sections.map((section) => `## ${section.title}\n${section.text}`);
   if (voiceMemory) sections.push(`## Author Voice Memory\n${buildAuthorVoiceContext(voiceMemory)}`);
   return sections.join("\n\n");
+}
+
+function selectedCharacterIdsFromAssembledContext(serialized: string): string[] {
+  if (!serialized.trim()) return [];
+  try {
+    const parsed = JSON.parse(serialized) as { evidence?: unknown };
+    if (!Array.isArray(parsed.evidence)) return [];
+    const ids = parsed.evidence.flatMap((item) => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+      const evidence = item as { sectionKey?: unknown; sourceId?: unknown };
+      if (evidence.sectionKey !== "characters" || typeof evidence.sourceId !== "string" || !evidence.sourceId.trim()) return [];
+      return [evidence.sourceId];
+    });
+    return [...new Set(ids)];
+  } catch {
+    return [];
+  }
 }
 
 export function sha256(value: string): string { return createHash("sha256").update(value, "utf8").digest("hex"); }
