@@ -1,6 +1,7 @@
 import type { AiProposal, AiProposalKind, AiProposalTarget } from "./ai-proposal-store";
 import type { AiProposalStore } from "./ai-proposal-store";
 import type { VoiceDriftReport } from "../domain/author-voice-memory";
+import type { CharacterContinuityEvidence } from "../domain/character-continuity-evidence";
 
 export const AI_WRITING_FORMAT_VERSION = 1 as const;
 
@@ -16,6 +17,7 @@ export interface AiWritingRequest {
   readonly existingContent: string;
   readonly assembledContext: string;
   readonly sourceMemoryIds: readonly string[];
+  readonly characterContinuity?: CharacterContinuityEvidence;
   readonly proposalId: string;
   readonly baseContentSha256?: string;
   readonly now?: string;
@@ -73,6 +75,7 @@ export class AiWritingService {
       target,
       ...(request.baseContentSha256 ? { baseContentSha256: request.baseContentSha256 } : {}),
       ...(voiceDrift ? { voiceDrift } : {}),
+      ...(request.characterContinuity ? { characterContinuity: request.characterContinuity } : {}),
       now: request.now,
     });
     return { formatVersion: AI_WRITING_FORMAT_VERSION, proposal, task: request.task, target };
@@ -86,6 +89,7 @@ function validateRequest(request: AiWritingRequest): void {
   if (!request.instruction.trim()) throw new Error("AI writing instruction is required.");
   if (!request.existingContent.trim() && request.task !== "draft" && request.task !== "outline" && request.task !== "brainstorm") throw new Error(`AI writing task \"${request.task}\" requires existing scene content.`);
   if (!Array.isArray(request.sourceMemoryIds)) throw new Error("AI writing source memory ids must be an array.");
+  if (request.characterContinuity && request.characterContinuity.projectId !== request.projectId) throw new Error("AI writing character continuity evidence belongs to another project.");
   if (request.baseContentSha256 !== undefined && !/^[a-f0-9]{64}$/.test(request.baseContentSha256)) throw new Error("AI writing base content hash is invalid.");
 }
 

@@ -1,4 +1,5 @@
 import type { VoiceDriftReport } from "../domain/author-voice-memory";
+import { validateCharacterContinuityEvidence, type CharacterContinuityEvidence } from "../domain/character-continuity-evidence";
 
 export type AiProposalKind = "memory" | "manuscript-edit" | "research-note" | "continuity-finding" | "creative-alternative";
 export type AiProposalStatus = "pending" | "accepted" | "rejected" | "superseded";
@@ -22,6 +23,7 @@ export interface AiProposal {
   readonly target?: AiProposalTarget;
   readonly baseContentSha256?: string;
   readonly voiceDrift?: VoiceDriftReport;
+  readonly characterContinuity?: CharacterContinuityEvidence;
   readonly reviewedAt?: string;
   readonly reviewedBy?: "author" | "system";
   readonly reviewNote?: string;
@@ -50,6 +52,10 @@ export class AiProposalStore {
     validateTarget(input.target);
     if (input.baseContentSha256 !== undefined && !/^[a-f0-9]{64}$/.test(input.baseContentSha256)) throw new Error("AI proposal base content hash is invalid.");
     validateVoiceDrift(input.voiceDrift);
+    if (input.characterContinuity) {
+      const continuity = validateCharacterContinuityEvidence(input.characterContinuity);
+      if (continuity.projectId !== input.projectId) throw new Error("AI proposal character continuity evidence belongs to another project.");
+    }
     const { now, ...fields } = input;
     const proposal: AiProposal = {
       ...fields,
@@ -62,6 +68,7 @@ export class AiProposalStore {
       ...(input.target ? { target: { ...input.target } } : {}),
       ...(input.baseContentSha256 ? { baseContentSha256: input.baseContentSha256 } : {}),
       ...(input.voiceDrift ? { voiceDrift: cloneVoiceDrift(input.voiceDrift) } : {}),
+      ...(input.characterContinuity ? { characterContinuity: cloneCharacterContinuity(input.characterContinuity) } : {}),
     };
     this.proposals.set(proposal.id, cloneProposal(proposal));
     return cloneProposal(proposal);
@@ -103,6 +110,10 @@ export class AiProposalStore {
       validateTarget(proposal.target);
       if (proposal.baseContentSha256 !== undefined && !/^[a-f0-9]{64}$/.test(proposal.baseContentSha256)) throw new Error("AI proposal base content hash is invalid.");
       validateVoiceDrift(proposal.voiceDrift);
+      if (proposal.characterContinuity) {
+        const continuity = validateCharacterContinuityEvidence(proposal.characterContinuity);
+        if (continuity.projectId !== proposal.projectId) throw new Error("AI proposal character continuity evidence belongs to another project.");
+      }
       this.proposals.set(proposal.id, cloneProposal(proposal));
     }
   }
@@ -132,6 +143,13 @@ function cloneVoiceDrift(report: VoiceDriftReport): VoiceDriftReport {
   };
 }
 
+function cloneCharacterContinuity(evidence: CharacterContinuityEvidence): CharacterContinuityEvidence {
+  return {
+    ...evidence,
+    characters: evidence.characters.map((character) => ({ ...character, evidence: [...character.evidence] })),
+  };
+}
+
 function cloneProposal(proposal: AiProposal): AiProposal {
   return {
     ...proposal,
@@ -139,5 +157,6 @@ function cloneProposal(proposal: AiProposal): AiProposal {
     ...(proposal.target ? { target: { ...proposal.target } } : {}),
     ...(proposal.baseContentSha256 ? { baseContentSha256: proposal.baseContentSha256 } : {}),
     ...(proposal.voiceDrift ? { voiceDrift: cloneVoiceDrift(proposal.voiceDrift) } : {}),
+    ...(proposal.characterContinuity ? { characterContinuity: cloneCharacterContinuity(proposal.characterContinuity) } : {}),
   };
 }

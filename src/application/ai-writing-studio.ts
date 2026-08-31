@@ -2,6 +2,8 @@ import type { AiProposal } from "./ai-proposal-store";
 import { AiWritingCoordinator } from "./ai-writing-coordinator";
 import { assembleWritingContext, type ContextAssemblyRequest } from "../domain/context-assembly";
 import { assessVoiceDrift, buildAuthorVoiceContext, type AuthorVoiceMemory, type VoiceDriftReport } from "../domain/author-voice-memory";
+import { createCharacterContinuityEvidence, verifyCharacterContinuityEvidence, type CharacterContinuityEvidence } from "../domain/character-continuity-evidence";
+import type { CharacterRecord } from "../domain/character-bible";
 import { saveSceneContent, validateStudioWorkspace, type StudioWorkspaceState } from "../domain/studio-workspace";
 import type { FileProjectStore } from "../infrastructure/file-project-store";
 import { createHash } from "node:crypto";
@@ -10,18 +12,20 @@ export interface StudioAiProjectState {
   readonly metadata: { readonly id: string };
   readonly studioWorkspace?: StudioWorkspaceState;
   readonly authorVoiceMemory?: AuthorVoiceMemory;
+  readonly characters?: readonly CharacterRecord[];
   readonly [key: string]: unknown;
 }
 
 export type StudioAiContextOptions = Pick<ContextAssemblyRequest, "policies" | "query" | "characterIds" | "characterAsOf" | "characterMemoryLimit">;
 
-export type StudioAiWritingRequest = Omit<Parameters<AiWritingCoordinator["generate"]>[0], "assembledContext" | "sourceMemoryIds"> & {
+export type StudioAiWritingRequest = Omit<Parameters<AiWritingCoordinator["generate"]>[0], "assembledContext" | "sourceMemoryIds" | "characterContinuity"> & {
   readonly context?: StudioAiContextOptions;
 };
 
 export type StudioAiWritingResult = Awaited<ReturnType<AiWritingCoordinator["generate"]>> & {
   readonly context: Awaited<ReturnType<typeof assembleWritingContext>>;
   readonly voiceDrift?: VoiceDriftReport;
+  readonly characterContinuity: CharacterContinuityEvidence;
 };
 
 export interface StudioAiContextPreview {
@@ -36,8 +40,8 @@ export interface StudioAiContextPreview {
 /**
  * Application boundary for the Studio's author-controlled AI writing loop.
  * Generation creates a durable pending proposal; approval never mutates the
- * manuscript by itself; apply is a separate, explicit operation with a stale
- * scene guard so an older proposal cannot overwrite newer author work.
+ * manuscript by itself; apply is a separate, explicit operation with stale
+ * scene and character-continuity guards.
  */
 export class AiWritingStudioService {
   constructor(
@@ -57,11 +61,6 @@ export class AiWritingStudioService {
     return proposal;
   }
 
-  /**
-   * Backward-compatible entry point used by older HTTP wiring. Provider context
-   * and source ids supplied by the caller are intentionally ignored so this path
-   * cannot bypass authoritative Project Brain and Author Voice assembly.
-   */
   async generate(request: Parameters<AiWritingCoordinator["generate"]>[0]): Promise<StudioAiWritingResult> {
     return this.generateWithProjectContext({
       projectId: request.projectId,
@@ -93,11 +92,6 @@ export class AiWritingStudioService {
     };
   }
 
-  /**
-   * Production Studio entry point: builds governed context from the authoritative
-   * project immediately before generation. Callers cannot accidentally supply a
-   * stale character or author-voice dump as the source of truth.
-   */
   async generateWithProjectContext(request: StudioAiWritingRequest): Promise<StudioAiWritingResult> {
     const project = await this.requireProject(request.projectId);
     const workspace = project.studioWorkspace ? validateStudioWorkspace(project.studioWorkspace) : validateStudioWorkspace({ formatVersion: 1, activeBookId: null, books: [] });
@@ -112,15 +106,25 @@ export class AiWritingStudioService {
     const voiceMemory = project.authorVoiceMemory;
     if (voiceMemory && voiceMemory.projectId !== request.projectId) throw new Error("Author voice memory belongs to another project.");
     const existingContent = request.existingContent ?? scene.content;
+    const selectedCharacterIds = context.evidence.filter((item) => item.sectionKey === "characters").map((item) => item.sourceId);
+    const characterEvidence = Object.fromEntries(context.evidence.filter((item) => item.sectionKey === "characters").map((item) => [item.sourceId, item.reasons]));
+    const characterContinuity = createCharacterContinuityEvidence({
+      projectId: request.projectId,
+      characters: project.characters ?? [],
+      selectedCharacterIds,
+      evidence: characterEvidence,
+      checkedAt: request.now,
+    });
     const generated = await this.coordinator.generate({
       ...request,
       existingContent,
       assembledContext: formatContext(context, voiceMemory),
       sourceMemoryIds: context.sourceIds,
+      characterContinuity,
       baseContentSha256: request.baseContentSha256 ?? sha256(existingContent),
     }, voiceMemory ? (candidate) => assessVoiceDrift(candidate, voiceMemory) : undefined);
     const voiceDrift = generated.proposal.voiceDrift;
-    return { ...generated, context, ...(voiceDrift ? { voiceDrift } : {}) };
+    return { ...generated, context, characterContinuity, ...(voiceDrift ? { voiceDrift } : {}) };
   }
 
   async review(projectId: string, proposalId: string, decision: "accepted" | "rejected", note?: string, now?: string) {
@@ -148,6 +152,11 @@ export class AiWritingStudioService {
       throw new Error(`AI proposal "${proposalId}" is stale because the target scene changed after the proposal was generated.`);
     }
 
+    if (proposal.characterContinuity) {
+      const continuity = verifyCharacterContinuityEvidence(proposal.characterContinuity, project.characters ?? []);
+      if (!continuity.valid) throw new Error(`AI proposal "${proposalId}" requires a new continuity review: ${continuity.findings.join(" ")}`);
+    }
+
     if (scene.content === proposal.proposedContent) return { proposal, workspace };
     const updated = saveSceneContent(workspace, target.bookId, target.chapterId, target.sceneId, proposal.proposedContent, now);
     await this.projects.save({ ...project, studioWorkspace: updated, metadata: { ...project.metadata, updatedAt: now ?? new Date().toISOString() } } as never);
@@ -170,12 +179,6 @@ export class AiWritingStudioService {
     const project = await this.projects.load(projectId);
     if (!project) throw new Error(`Project "${projectId}" not found.`);
     return project as unknown as StudioAiProjectState;
-  }
-
-  private async requireTarget(projectId: string, bookId: string, chapterId: string, sceneId: string): Promise<void> {
-    const project = await this.requireProject(projectId);
-    const workspace = project.studioWorkspace ? validateStudioWorkspace(project.studioWorkspace) : validateStudioWorkspace({ formatVersion: 1, activeBookId: null, books: [] });
-    findScene(workspace, bookId, chapterId, sceneId);
   }
 }
 
