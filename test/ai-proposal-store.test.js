@@ -24,3 +24,48 @@ test("author acceptance is explicit and one-shot", () => {
   assert.equal(store.get("p3")?.status, "accepted");
   assert.throws(() => store.review("p3", "rejected", "author"), /already been reviewed/);
 });
+
+test("Craft Lens proposal evidence must match the exact proposal source revision", () => {
+  const store = new AiProposalStore();
+  const sourceHash = "a".repeat(64);
+  const otherHash = "b".repeat(64);
+  const craftLensEvidence = {
+    formatVersion: 1,
+    findingId: "clarity-long-sentences",
+    dimension: "clarity",
+    severity: "watch",
+    message: "1 sentence exceeds 35 words.",
+    evidence: "A deliberately long sentence.",
+    selectedSuggestion: "Split at a natural beat.",
+    reportWordCount: 42,
+    reportSentenceCount: 2,
+    sourceContentSha256: otherHash,
+    analyzedAt: "2026-08-31T05:00:00.000Z",
+  };
+  assert.throws(() => store.propose({
+    id: "craft-mismatch",
+    projectId: "book-1",
+    kind: "manuscript-edit",
+    title: "Craft proposal",
+    rationale: "Review sentence length.",
+    proposedContent: "Revised scene text.",
+    sourceMemoryIds: [],
+    baseContentSha256: sourceHash,
+    craftLensEvidence,
+  }), /does not match the proposal source revision/);
+
+  const restored = new AiProposalStore();
+  assert.throws(() => restored.restore([{
+    id: "craft-restore-mismatch",
+    projectId: "book-1",
+    kind: "manuscript-edit",
+    status: "pending",
+    title: "Craft proposal",
+    rationale: "Review sentence length.",
+    proposedContent: "Revised scene text.",
+    sourceMemoryIds: [],
+    createdAt: "2026-08-31T05:00:00.000Z",
+    baseContentSha256: sourceHash,
+    craftLensEvidence,
+  }]), /does not match the proposal source revision/);
+});
