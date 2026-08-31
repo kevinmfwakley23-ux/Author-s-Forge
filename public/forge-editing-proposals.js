@@ -15,7 +15,7 @@
     const normalized = String(text ?? "").replace(/\r\n?/g, "\n").trim();
     const words = normalized ? normalized.split(/\s+/u).filter(Boolean) : [];
     const sentences = normalized.split(/[.!?]+(?:\s+|$)/u).map((sentence) => sentence.trim()).filter(Boolean);
-    const dialogueMatches = normalized.match(/[“\"][^”\"]*[”\"]/gu) || [];
+    const dialogueMatches = normalized.match(/[“"][^”"]*[”"]/gu) || [];
     const passiveMatches = normalized.match(/\b(?:was|were|been|being|is|are|be)\s+(?:\w+ed|\w+en)\b/giu) || [];
     const longSentences = sentences.filter((sentence) => sentence.split(/\s+/u).length > 35);
     const findings = [];
@@ -44,8 +44,7 @@
     while (i < base.length && j < proposed.length) {
       if (base[i] === proposed[j]) { lines.push({ kind: "unchanged", text: base[i], lineNumber: i + 1, proposedLineNumber: j + 1 }); i++; j++; }
       else if (table[i + 1][j] >= table[i][j + 1]) { lines.push({ kind: "removed", text: base[i], lineNumber: i + 1 }); i++; }
-      else { lines.push({ kind: "added", text: proposed[j], proposedLineNumber: j + 1 }); j++;
-      }
+      else { lines.push({ kind: "added", text: proposed[j], proposedLineNumber: j + 1 }); j++; }
     }
     while (i < base.length) { lines.push({ kind: "removed", text: base[i], lineNumber: i + 1 }); i++; }
     while (j < proposed.length) { lines.push({ kind: "added", text: proposed[j], proposedLineNumber: j + 1 }); j++; }
