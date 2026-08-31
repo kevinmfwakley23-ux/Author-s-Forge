@@ -7,7 +7,7 @@ import { createProject, createCharacter, createAuthorVoiceMemory, withProjectAut
 import { FileProjectStore } from "../dist/infrastructure/file-project-store.js";
 import { FileAiProposalStore } from "../dist/infrastructure/file-ai-proposal-store.js";
 import { AiWritingCoordinator } from "../dist/application/ai-writing-coordinator.js";
-import { AiWritingStudioService } from "../dist/application/ai-writing-studio.js";
+import { AiWritingStudioService, applyGovernedContextBudget } from "../dist/application/ai-writing-studio.js";
 import { createStudioWorkspace, addWorkspaceBook, addWorkspaceChapter, addWorkspaceScene, saveSceneContent } from "../dist/domain/studio-workspace.js";
 
 async function fixture(root, characters = [], authorVoiceMemory) {
@@ -41,7 +41,27 @@ test("Mission 058 generates from authoritative project context and retrieves onl
 
 test("Mission 058 supports historical character context at the Studio generation boundary", async () => { const root = await mkdtemp(join(tmpdir(), "forge-ai-studio-history-")); try { const mara = character("mara-1"); const projects = await fixture(root, [mara]); const service = new AiWritingStudioService(projects, coordinator(root)); const result = await service.generateWithProjectContext({ ...request(), context: { query: "missing witness", characterIds: ["mara-1"], characterAsOf: "2026-08-30T09:00:00.000Z" } }); const section = result.context.sections.find((item) => item.key === "characters"); assert.ok(section); assert.match(section.text, /Mara Voss/); assert.match(section.text, /Find the missing witness/); } finally { await rm(root, { recursive: true, force: true }); } });
 
-test("Studio context preview is read-only and exposes governed selection evidence", async () => { const root = await mkdtemp(join(tmpdir(), "forge-ai-studio-preview-")); try { const projects = await fixture(root, [character("mara-1"), character("eli-1")], voiceMemory()); const service = new AiWritingStudioService(projects, coordinator(root)); const before = await projects.load("project-1"); const preview = await service.previewContext("project-1", { query: "missing witness", characterMemoryLimit: 1 }); const after = await projects.load("project-1"); assert.equal(preview.context.projectId, "project-1"); assert.equal(preview.authorVoice.available, true); assert.equal(preview.authorVoice.sampleCount, 1); assert.equal(preview.authorVoice.canonicalSampleCount, 1); const characters = preview.context.sections.find((section) => section.key === "characters"); assert.ok(characters); assert.deepEqual(characters.sourceIds, ["mara-1"]); assert.equal(Array.isArray(preview.context.evidence), true); assert.deepEqual(after, before); const proposals = await service.list("project-1"); assert.deepEqual(proposals, []); } finally { await rm(root, { recursive: true, force: true }); } });
+test("Studio context preview is read-only and exposes governed selection evidence", async () => { const root = await mkdtemp(join(tmpdir(), "forge-ai-studio-preview-")); try { const projects = await fixture(root, [character("mara-1"), character("eli-1")], voiceMemory()); const service = new AiWritingStudioService(projects, coordinator(root)); const before = await projects.load("project-1"); const preview = await service.previewContext("project-1", { query: "missing witness", characterMemoryLimit: 1 }); const after = await projects.load("project-1"); assert.equal(preview.context.projectId, "project-1"); assert.equal(preview.contextBudget.constrained, false); assert.equal(preview.contextBudget.omittedSectionKeys.length, 0); assert.equal(preview.authorVoice.available, true); assert.equal(preview.authorVoice.sampleCount, 1); assert.equal(preview.authorVoice.canonicalSampleCount, 1); const characters = preview.context.sections.find((section) => section.key === "characters"); assert.ok(characters); assert.deepEqual(characters.sourceIds, ["mara-1"]); assert.equal(Array.isArray(preview.context.evidence), true); assert.deepEqual(after, before); const proposals = await service.list("project-1"); assert.deepEqual(proposals, []); } finally { await rm(root, { recursive: true, force: true }); } });
+
+test("Mission 061 budget keeps critical canon and drops lower-priority context first", () => {
+  const context = { formatVersion: 4, projectId: "project-1", totalWords: 600, sourceIds: ["canon-1", "research-1"], evidence: [{ sourceId: "canon-1", sectionKey: "canon", reasons: ["authoritative"] }, { sourceId: "research-1", sectionKey: "research", reasons: ["working"] }], sections: [{ key: "canon", title: "Canon", mode: "full", text: "C".repeat(400), sourceIds: ["canon-1"], wordCount: 100 }, { key: "research", title: "Research", mode: "brief", text: "R".repeat(4000), sourceIds: ["research-1"], wordCount: 500 }] };
+  const result = applyGovernedContextBudget(context, 150);
+  assert.deepEqual(result.budget.includedSectionKeys, ["canon"]);
+  assert.deepEqual(result.budget.omittedSectionKeys, ["research"]);
+  assert.equal(result.budget.canonPreserved, true);
+  assert.equal(result.budget.constrained, true);
+  assert.deepEqual(result.context.sourceIds, ["canon-1"]);
+  assert.deepEqual(result.context.evidence.map((item) => item.sourceId), ["canon-1"]);
+});
+
+test("Mission 061 reports critical-over-budget truthfully instead of silently dropping canon", () => {
+  const context = { formatVersion: 4, projectId: "project-1", totalWords: 500, sourceIds: ["canon-1"], evidence: [{ sourceId: "canon-1", sectionKey: "canon", reasons: ["authoritative"] }], sections: [{ key: "canon", title: "Canon", mode: "full", text: "C".repeat(4000), sourceIds: ["canon-1"], wordCount: 500 }] };
+  const result = applyGovernedContextBudget(context, 100);
+  assert.deepEqual(result.budget.includedSectionKeys, ["canon"]);
+  assert.equal(result.budget.canonPreserved, true);
+  assert.equal(result.budget.overBudget, true);
+  assert.ok(result.budget.selectedEstimatedTokens > result.budget.requestedBudget);
+});
 
 test("Studio context preview reports absence of Author Voice Memory without changing context semantics", async () => { const root = await mkdtemp(join(tmpdir(), "forge-ai-studio-preview-no-voice-")); try { const projects = await fixture(root, [character("mara-1")]); const service = new AiWritingStudioService(projects, coordinator(root)); const preview = await service.previewContext("project-1", { query: "missing witness" }); assert.equal(preview.authorVoice.available, false); assert.equal(preview.authorVoice.sampleCount, 0); assert.equal(preview.authorVoice.canonicalSampleCount, 0); assert.ok(preview.context.sections.some((section) => section.key === "characters")); } finally { await rm(root, { recursive: true, force: true }); } });
 
