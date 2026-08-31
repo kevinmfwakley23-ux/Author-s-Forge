@@ -77,7 +77,6 @@ async function waitForHttp(url, timeoutMs = 10000) {
 async function main() {
   const executablePath = findBrowser();
   if (!executablePath) throw new Error("REAL BROWSER ACCEPTANCE BLOCKED: no Chrome/Chromium executable found. Install Chromium/Chrome or set FORGE_BROWSER_EXECUTABLE.");
-
   const dataDir = await mkdtemp(join(tmpdir(), "authors-forge-browser-"));
   const server = spawn(process.execPath, ["dist/studio-server.js"], {
     env: { ...process.env, PORT: String(APP_PORT), HOST, FORGE_DATA_DIR: dataDir, OPENAI_API_KEY: "", OPENAI_MODEL: "", OLLAMA_BASE_URL: "", OLLAMA_MODEL: "" },
@@ -147,6 +146,23 @@ async function main() {
     await page.locator("#save-scene").click();
     await page.waitForFunction(() => document.querySelector("#success-banner")?.textContent.includes("Scene saved."));
 
+    await page.locator('nav a[data-route="dashboard"]').click();
+    await page.waitForSelector("#author-goals-card");
+    const goalForm = page.locator("#author-goal-form");
+    await goalForm.locator('[name="label"]').fill("Finish ten words");
+    await goalForm.locator('[name="metric"]').selectOption("words");
+    await goalForm.locator('[name="target"]').fill("10");
+    await goalForm.locator('[name="period"]').selectOption("project");
+    await goalForm.evaluate((form) => form.requestSubmit());
+    await page.waitForFunction(() => document.querySelector("#author-goals-list")?.textContent.includes("Finish ten words") && document.querySelector("#author-goals-list")?.textContent.includes("5 / 10"));
+
+    await page.locator('nav a[data-route="writing"]').click();
+    await page.locator("#editor-content").fill("A real browser driven manuscript scene with five more words");
+    await page.locator("#save-scene").click();
+    await page.waitForFunction(() => document.querySelector("#success-banner")?.textContent.includes("Scene saved."));
+    await page.locator('nav a[data-route="dashboard"]').click();
+    await page.waitForFunction(() => document.querySelector("#author-goals-list")?.textContent.includes("10 / 10") && document.querySelector("#author-goals-list")?.textContent.includes("complete"));
+
     await page.locator('nav a[data-route="characters"]').click();
     const characterForm = page.locator("#character-form");
     for (const [name, value] of Object.entries({ name: "Acceptance Character", age: "34", birthDate: "1992-01-15", physicalAppearance: "Weathered face with steady gaze", height: "5'11", build: "Athletic", hair: "Dark brown", eyes: "Hazel", skin: "Olive", clothing: "Dark jacket", voice: "Low and measured", personality: "Observant and loyal", history: "Former investigator rebuilding a life.", characterArc: "Learns to trust others.", currentEmotionalState: "Determined", currentLocation: "Ogden" })) await characterForm.locator(`[name="${name}"]`).fill(value);
@@ -168,13 +184,19 @@ async function main() {
     await page.waitForFunction(() => (document.querySelector("#error-banner")?.textContent || "").length > 0);
     await page.reload({ waitUntil: "networkidle" });
     await page.locator('nav a[data-route="writing"]').click();
-    await page.waitForFunction(() => document.querySelector("#editor-content")?.value === "A real browser-driven manuscript scene.");
+    await page.waitForFunction(() => document.querySelector("#editor-content")?.value === "A real browser driven manuscript scene with five more words");
+    await page.locator('nav a[data-route="dashboard"]').click();
+    await page.waitForFunction(() => document.querySelector("#author-goals-list")?.textContent.includes("Finish ten words") && document.querySelector("#author-goals-list")?.textContent.includes("10 / 10"));
     await page.locator('nav a[data-route="characters"]').click();
     await page.waitForFunction(() => document.querySelector("#character-list")?.textContent.includes("Acceptance Character"));
     await page.locator('nav a[data-route="world"]').click();
     await page.waitForFunction(() => document.querySelector("#memory-list")?.textContent.includes("Acceptance character is canonically based in Ogden."));
 
-    console.log(`REAL BROWSER ACCEPTANCE PASSED: ${routes.length} routes (${REQUIRED_ROUTES.length} canonical required) + durable book/chapter/scene + governed workflow advancement + manuscript save/reload + character + canon + honest AI failure.`);
+    await page.locator('nav a[data-route="dashboard"]').click();
+    await page.locator('[data-delete-goal]').click();
+    await page.waitForFunction(() => !document.querySelector("#author-goals-list")?.textContent.includes("Finish ten words"));
+
+    console.log(`REAL BROWSER ACCEPTANCE PASSED: ${routes.length} routes (${REQUIRED_ROUTES.length} canonical required) + durable book/chapter/scene + Author Goals create/progress/reload/remove + governed workflow advancement + manuscript save/reload + character + canon + honest AI failure.`);
   } finally {
     if (browser) await browser.close().catch(() => {});
     server.kill("SIGTERM");
