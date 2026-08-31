@@ -15,9 +15,9 @@ test("Studio AI HTTP preview delegates to the authoritative read-only preview se
   let captured;
   const expected = { context: { sourceIds: ["canon-1"], evidence: [] }, authorVoice: { available: true, sampleCount: 2, canonicalSampleCount: 1 } };
   const studio = { previewContext: async (projectId, options) => { captured = { projectId, options }; return expected; } };
-  const result = await previewStudioAiWritingContext({ studio, projectId: "project-1" }, { query: "warehouse Elias", characterIds: ["elias"], characterMemoryLimit: 3 });
+  const result = await previewStudioAiWritingContext({ studio, projectId: "project-1" }, { query: "warehouse Elias", characterIds: ["elias"], characterMemoryLimit: 3, memoryLimitPerSection: 2 });
   assert.deepEqual(result, expected);
-  assert.deepEqual(captured, { projectId: "project-1", options: { query: "warehouse Elias", characterIds: ["elias"], characterAsOf: undefined, characterMemoryLimit: 3, policies: undefined } });
+  assert.deepEqual(captured, { projectId: "project-1", options: { query: "warehouse Elias", characterIds: ["elias"], characterAsOf: undefined, characterMemoryLimit: 3, memoryLimitPerSection: 2, policies: undefined } });
 });
 
 test("Studio AI HTTP generation cannot accept client-supplied source memory authority", async () => {
@@ -31,10 +31,12 @@ test("Studio AI HTTP generation cannot accept client-supplied source memory auth
     instruction: "Continue with Elias in the warehouse.",
     sourceMemoryIds: ["client-forged-memory"],
     proposalId: "proposal-1",
+    memoryLimitPerSection: 1,
   });
   assert.equal(captured.projectId, "project-1");
   assert.equal(captured.existingContent, "Author-owned scene text.");
   assert.equal(captured.context.query, "Continue with Elias in the warehouse.");
+  assert.equal(captured.context.memoryLimitPerSection, 1);
   assert.equal(Object.hasOwn(captured, "sourceMemoryIds"), false);
   assert.equal(Object.hasOwn(captured, "assembledContext"), false);
 });
@@ -45,5 +47,6 @@ test("Studio AI HTTP boundary validates context policy and target input before p
   const dependencies = { studio, workspace: workspaceFixture(), projectId: "project-1" };
   await assert.rejects(() => generateStudioAiWritingProposal(dependencies, { bookId: "book-1", chapterId: "missing", sceneId: "scene-1", instruction: "Continue." }), /valid chapter/);
   await assert.rejects(() => generateStudioAiWritingProposal(dependencies, { bookId: "book-1", chapterId: "chapter-1", sceneId: "scene-1", instruction: "Continue.", policies: [{ key: "memory", mode: "invented" }] }), /Invalid context inclusion mode/);
+  await assert.rejects(() => generateStudioAiWritingProposal(dependencies, { bookId: "book-1", chapterId: "chapter-1", sceneId: "scene-1", instruction: "Continue.", memoryLimitPerSection: 0 }), /Invalid memory limit per section/);
   assert.equal(calls, 0);
 });
