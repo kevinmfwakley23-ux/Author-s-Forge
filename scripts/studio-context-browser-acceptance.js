@@ -47,8 +47,9 @@ async function waitForHttp(url, timeoutMs = 10000) {
 
 async function post(url, body) {
   const response = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-  assert.equal(response.ok, true, await response.text());
-  return response.json();
+  const text = await response.text();
+  assert.equal(response.ok, true, text);
+  return text ? JSON.parse(text) : {};
 }
 
 function characterProfile() {
