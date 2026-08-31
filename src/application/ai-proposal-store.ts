@@ -1,5 +1,6 @@
 import type { VoiceDriftReport } from "../domain/author-voice-memory";
 import { validateCharacterContinuityEvidence, type CharacterContinuityEvidence } from "../domain/character-continuity-evidence";
+import { validateCraftLensProposalEvidence, type CraftLensProposalEvidence } from "../domain/craft-lens";
 
 export type AiProposalKind = "memory" | "manuscript-edit" | "research-note" | "continuity-finding" | "creative-alternative";
 export type AiProposalStatus = "pending" | "accepted" | "rejected" | "superseded";
@@ -24,6 +25,7 @@ export interface AiProposal {
   readonly baseContentSha256?: string;
   readonly voiceDrift?: VoiceDriftReport;
   readonly characterContinuity?: CharacterContinuityEvidence;
+  readonly craftLensEvidence?: CraftLensProposalEvidence;
   readonly reviewedAt?: string;
   readonly reviewedBy?: "author" | "system";
   readonly reviewNote?: string;
@@ -56,6 +58,10 @@ export class AiProposalStore {
       const continuity = validateCharacterContinuityEvidence(input.characterContinuity);
       if (continuity.projectId !== input.projectId) throw new Error("AI proposal character continuity evidence belongs to another project.");
     }
+    if (input.craftLensEvidence) {
+      const craft = validateCraftLensProposalEvidence(input.craftLensEvidence);
+      if (input.baseContentSha256 && craft.sourceContentSha256 !== input.baseContentSha256) throw new Error("AI proposal Craft Lens evidence does not match the proposal source revision.");
+    }
     const { now, ...fields } = input;
     const proposal: AiProposal = {
       ...fields,
@@ -69,6 +75,7 @@ export class AiProposalStore {
       ...(input.baseContentSha256 ? { baseContentSha256: input.baseContentSha256 } : {}),
       ...(input.voiceDrift ? { voiceDrift: cloneVoiceDrift(input.voiceDrift) } : {}),
       ...(input.characterContinuity ? { characterContinuity: cloneCharacterContinuity(input.characterContinuity) } : {}),
+      ...(input.craftLensEvidence ? { craftLensEvidence: cloneCraftLensEvidence(input.craftLensEvidence) } : {}),
     };
     this.proposals.set(proposal.id, cloneProposal(proposal));
     return cloneProposal(proposal);
@@ -114,6 +121,10 @@ export class AiProposalStore {
         const continuity = validateCharacterContinuityEvidence(proposal.characterContinuity);
         if (continuity.projectId !== proposal.projectId) throw new Error("AI proposal character continuity evidence belongs to another project.");
       }
+      if (proposal.craftLensEvidence) {
+        const craft = validateCraftLensProposalEvidence(proposal.craftLensEvidence);
+        if (proposal.baseContentSha256 && craft.sourceContentSha256 !== proposal.baseContentSha256) throw new Error("AI proposal Craft Lens evidence does not match the proposal source revision.");
+      }
       this.proposals.set(proposal.id, cloneProposal(proposal));
     }
   }
@@ -150,6 +161,10 @@ function cloneCharacterContinuity(evidence: CharacterContinuityEvidence): Charac
   };
 }
 
+function cloneCraftLensEvidence(evidence: CraftLensProposalEvidence): CraftLensProposalEvidence {
+  return { ...validateCraftLensProposalEvidence(evidence) };
+}
+
 function cloneProposal(proposal: AiProposal): AiProposal {
   return {
     ...proposal,
@@ -158,5 +173,6 @@ function cloneProposal(proposal: AiProposal): AiProposal {
     ...(proposal.baseContentSha256 ? { baseContentSha256: proposal.baseContentSha256 } : {}),
     ...(proposal.voiceDrift ? { voiceDrift: cloneVoiceDrift(proposal.voiceDrift) } : {}),
     ...(proposal.characterContinuity ? { characterContinuity: cloneCharacterContinuity(proposal.characterContinuity) } : {}),
+    ...(proposal.craftLensEvidence ? { craftLensEvidence: cloneCraftLensEvidence(proposal.craftLensEvidence) } : {}),
   };
 }
