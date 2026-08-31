@@ -24,6 +24,15 @@ export type StudioAiWritingResult = Awaited<ReturnType<AiWritingCoordinator["gen
   readonly voiceDrift?: VoiceDriftReport;
 };
 
+export interface StudioAiContextPreview {
+  readonly context: Awaited<ReturnType<typeof assembleWritingContext>>;
+  readonly authorVoice: {
+    readonly available: boolean;
+    readonly sampleCount: number;
+    readonly canonicalSampleCount: number;
+  };
+}
+
 /**
  * Application boundary for the Studio's author-controlled AI writing loop.
  * Generation creates a durable pending proposal; approval never mutates the
@@ -53,6 +62,21 @@ export class AiWritingStudioService {
     return this.coordinator.generate(request);
   }
 
+  async previewContext(projectId: string, options: StudioAiContextOptions = {}): Promise<StudioAiContextPreview> {
+    const project = await this.requireProject(projectId);
+    const context = this.assembleProjectContext(project, projectId, options);
+    const voiceMemory = project.authorVoiceMemory;
+    if (voiceMemory && voiceMemory.projectId !== projectId) throw new Error("Author voice memory belongs to another project.");
+    return {
+      context,
+      authorVoice: {
+        available: Boolean(voiceMemory?.samples.length),
+        sampleCount: voiceMemory?.samples.length ?? 0,
+        canonicalSampleCount: voiceMemory?.canonicalSampleIds.length ?? 0,
+      },
+    };
+  }
+
   /**
    * Production Studio entry point: builds governed context from the authoritative
    * project immediately before generation. Callers cannot accidentally supply a
@@ -62,8 +86,7 @@ export class AiWritingStudioService {
     const project = await this.requireProject(request.projectId);
     const workspace = project.studioWorkspace ? validateStudioWorkspace(project.studioWorkspace) : validateStudioWorkspace({ formatVersion: 1, activeBookId: null, books: [] });
     const scene = findScene(workspace, request.bookId, request.chapterId, request.sceneId);
-    const context = assembleWritingContext(project as never, {
-      projectId: request.projectId,
+    const context = this.assembleProjectContext(project, request.projectId, {
       query: request.context?.query ?? request.instruction,
       characterIds: request.context?.characterIds,
       characterAsOf: request.context?.characterAsOf,
@@ -113,6 +136,17 @@ export class AiWritingStudioService {
     const updated = saveSceneContent(workspace, target.bookId, target.chapterId, target.sceneId, proposal.proposedContent, now);
     await this.projects.save({ ...project, studioWorkspace: updated, metadata: { ...project.metadata, updatedAt: now ?? new Date().toISOString() } } as never);
     return { proposal, workspace: updated };
+  }
+
+  private assembleProjectContext(project: StudioAiProjectState, projectId: string, options: StudioAiContextOptions) {
+    return assembleWritingContext(project as never, {
+      projectId,
+      query: options.query,
+      characterIds: options.characterIds,
+      characterAsOf: options.characterAsOf,
+      characterMemoryLimit: options.characterMemoryLimit,
+      policies: options.policies,
+    });
   }
 
   private async requireProject(projectId: string): Promise<StudioAiProjectState> {
