@@ -35,7 +35,10 @@ function approvedComic(){return {
   pages:[
     {page:1,pageTurnIntent:'setup',panels:[
       {id:'p2',page:1,order:1,description:'A shadow crosses the furnace.',dialogue:[],captions:[],sfx:['KLANG'],assetIds:[]},
-      {id:'p1',page:1,order:2,description:'Mara enters the forge.',dialogue:[{speaker:'Mara',text:'Keep the flame low. Something is listening.'}],captions:['Night shift.'],sfx:[],assetIds:['art-p1']},
+      {id:'p1',page:1,order:2,description:'Mara enters the forge.',dialogue:[{speaker:'Mara',text:'Keep the flame low. Something is listening.'}],captions:['Night shift.'],sfx:[],assetIds:['art-p1'],letteringSemantics:[
+        {id:'p1-caption-1',kind:'caption',sourceIndex:0,readingOrder:1},
+        {id:'p1-dialogue-1',kind:'dialogue',sourceIndex:0,readingOrder:2,speaker:'Mara',tailTarget:{x:0.32,y:0.58}},
+      ]},
     ]},
     {page:2,pageTurnIntent:'reveal',panels:[
       {id:'p3',page:2,order:1,description:'The furnace opens like an eye.',dialogue:[],captions:['Then the fire answered.'],sfx:['WHUMM'],assetIds:[]},
@@ -86,6 +89,8 @@ async function main(){
     assert.equal(approved.modeData.pages.length,3,'approved structured proposal should add the authored third page without flattening comic data');
     assert.equal(approved.modeData.pages[0].panels[1].dialogue[0].text,'Keep the flame low. Something is listening.');
     assert.deepEqual(approved.modeData.pages[0].panels[1].assetIds,['art-p1']);
+    assert.deepEqual(approved.modeData.pages[0].panels[1].letteringSemantics.map(item=>item.kind),['caption','dialogue']);
+    assert.deepEqual(approved.modeData.pages[0].panels[1].letteringSemantics[1].tailTarget,{x:0.32,y:0.58});
 
     const composed=await call(base,`/api/projects/${forgeProjectId}/specialized/${comicId}/compose`,'POST',{});
     let document=composed.document;
@@ -133,6 +138,8 @@ async function main(){
     assert.equal(restored.modeData.pages.length,3);
     assert.deepEqual(restored.modeData.pages[0].panels.map(panel=>panel.id),['p2','p1']);
     assert.equal(restored.assets.some(asset=>asset.id==='art-p1'&&asset.approved===true),true);
+    assert.equal(restored.modeData.pages[0].panels[1].letteringSemantics[1].speaker,'Mara');
+    assert.deepEqual(restored.modeData.pages[0].panels[1].letteringSemantics[1].tailTarget,{x:0.32,y:0.58});
     assert.equal(restored.revisions.some(revision=>revision.id===latestRevision.id),true);
     assert.equal(restored.artifacts.some(artifact=>artifact.kind==='pdf'),true);
     assert.equal(restored.artifacts.some(artifact=>artifact.kind==='cbz'),true);
