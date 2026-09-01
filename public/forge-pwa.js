@@ -27,6 +27,7 @@
         <a class="forge-office-link" id="open-guided-journal-office" href="${officeUrl(4273)}" target="_blank" rel="noopener">Guided Journal</a>
         <a class="forge-office-link" id="open-workbook-office" href="${officeUrl(4373)}" target="_blank" rel="noopener">Educational Workbooks</a>
         <a class="forge-office-link" id="open-workbook-differentiation" href="${officeUrl(4373, "/educational-differentiation.html")}" target="_blank" rel="noopener">Workbook Differentiation</a>
+        <a class="forge-office-link" id="open-workbook-assessment" href="${officeUrl(4373, "/educational-assessment.html")}" target="_blank" rel="noopener">Rubrics & Assessment</a>
         <a class="forge-office-link" id="open-specialized-office" href="${officeUrl(4473)}" target="_blank" rel="noopener">Specialized Creation</a>
       </div>`;
     dashboard.append(card);
