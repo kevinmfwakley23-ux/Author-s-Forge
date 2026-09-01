@@ -1,4 +1,4 @@
-import { createKdpMarketIntelligenceReport, type KdpMarketIntelligenceReport, type MarketEvidence, type MarketSignal, type ComparableTitle, type MarketOpportunityAssessment } from "../domain/kdp-market-intelligence";
+import { createKdpMarketIntelligenceReport, type KdpMarketIntelligenceReport, type MarketEvidence, type MarketSignal, type ComparableTitle, type MarketOpportunityAssessment, type MarketKeywordRecommendation, type MarketNicheOpportunity } from "../domain/kdp-market-intelligence";
 
 export interface KdpMarketIntelligenceRequest {
   readonly id: string;
@@ -12,6 +12,8 @@ export interface KdpMarketIntelligenceProviderResult {
   readonly evidence: readonly MarketEvidence[];
   readonly signals: readonly MarketSignal[];
   readonly comparableTitles?: readonly ComparableTitle[];
+  readonly keywordRecommendations?: readonly MarketKeywordRecommendation[];
+  readonly nicheOpportunities?: readonly MarketNicheOpportunity[];
   readonly assessment: MarketOpportunityAssessment;
 }
 export interface KdpMarketIntelligenceProvider { research(request: KdpMarketIntelligenceProviderRequest): Promise<KdpMarketIntelligenceProviderResult>; }
@@ -22,7 +24,7 @@ export class KdpMarketIntelligenceService {
     validateRequest(request);
     const result = await this.provider.research({ projectId: request.projectId, bookId: request.bookId, question: request.question.trim(), market: request.market.trim() });
     if (!result.evidence.length) throw new Error("KDP market intelligence provider returned no evidence.");
-    return createKdpMarketIntelligenceReport({ ...request, evidence: result.evidence, signals: result.signals, comparableTitles: result.comparableTitles, assessment: result.assessment });
+    return createKdpMarketIntelligenceReport({ ...request, evidence: result.evidence, signals: result.signals, comparableTitles: result.comparableTitles, keywordRecommendations: result.keywordRecommendations, nicheOpportunities: result.nicheOpportunities, assessment: result.assessment });
   }
 }
 
