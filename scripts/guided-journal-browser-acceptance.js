@@ -19,7 +19,9 @@ async function readBody(req) { let raw = ""; for await (const chunk of req) raw 
 async function requireJsonResponse(responsePromise, label) {
   const response = await responsePromise;
   const raw = await response.text();
-  assert.equal(response.ok, true, `${label} failed (${response.status}): ${raw}`);
+  const ok = typeof response.ok === "function" ? response.ok() : response.ok;
+  const status = typeof response.status === "function" ? response.status() : response.status;
+  assert.equal(ok, true, `${label} failed (${status}): ${raw}`);
   try { return JSON.parse(raw); }
   catch (error) { throw new Error(`${label} returned invalid JSON: ${raw}`, { cause: error }); }
 }
