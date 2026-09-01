@@ -12,8 +12,8 @@ export class SpecializedCreationScopedArtifactService {
     const documents=ids.map(id=>{const document=project.documents.find(item=>item.id===id);if(!document)throw new Error(`Specialized document \"${id}\" not found.`);return document;});
     const profile=project.productionProfiles.find(item=>item.id===input.profileId);if(!profile)throw new Error(`Production profile \"${input.profileId}\" not found.`);
     const scoped:SpecializedOfficeProject={...project,documents};
-    const now=input.now??new Date().toISOString(),preflight=mergeSpecializedPreflight(this.production.preflight(scoped,profile,now,project),specializedProductionSafetyIssues(scoped,input.kind));if(!preflight.ready)throw new Error(`Production blocked by ${preflight.blocking} preflight error(s): ${preflight.issues.filter(issue=>issue.severity==="error").map(issue=>issue.code).join(", ")}`);
-    const artifact=this.production.render(prepareSpecializedProjectForArtifact(scoped,input.kind),profile,input.kind,project);
+    const now=input.now??new Date().toISOString(),preflight=mergeSpecializedPreflight(this.production.preflight(scoped,profile,now,project),specializedProductionSafetyIssues(scoped,input.kind,profile));if(!preflight.ready)throw new Error(`Production blocked by ${preflight.blocking} preflight error(s): ${preflight.issues.filter(issue=>issue.severity==="error").map(issue=>issue.code).join(", ")}`);
+    const artifact=this.production.render(prepareSpecializedProjectForArtifact(scoped,input.kind,profile),profile,input.kind,project);
     const revisions:SpecializedRevision[]=[];for(const documentId of ids){const revision=project.revisions.filter(item=>item.documentId===documentId).at(-1);if(!revision)throw new Error(`Production document \"${documentId}\" has no durable revision.`);revisions.push(revision);}
     const revisionId=revisions.map(revision=>revision.id).join("+");
     const record={id:`artifact-${artifact.sha256.slice(0,16)}`,projectId:project.id,revisionId,profileId:profile.id,kind:input.kind,fileName:artifact.fileName,mimeType:artifact.mimeType,byteLength:artifact.byteLength,sha256:artifact.sha256,createdAt:now};
