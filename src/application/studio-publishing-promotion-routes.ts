@@ -9,9 +9,11 @@ import { getBook, validateStudioWorkspace } from "../domain/studio-workspace";
 import { FileProjectStore } from "../infrastructure/file-project-store";
 import { OpenAiWebKdpMarketIntelligenceProvider } from "../infrastructure/openai-kdp-market-intelligence-provider";
 import type { MarketingCampaign } from "../domain/marketing-campaign";
+import type { PromotionPerformanceMetrics, PromotionPerformanceSource } from "../domain/promotion-performance";
 import type { PublishingMetadata } from "../domain/publishing-metadata";
 import { StudioKdpMarketResearchService } from "./studio-kdp-market-research";
 import { StudioMarketingCampaignService } from "./studio-marketing-campaign";
+import { StudioPromotionPerformanceService } from "./studio-promotion-performance";
 import { StudioPromotionPlannerService } from "./studio-promotion-planner";
 import { StudioPublishingMetadataService } from "./studio-publishing-metadata";
 
@@ -22,6 +24,7 @@ export function createStudioPublishingPromotionRoutes(store: FileProjectStore): 
   const publishing = new StudioPublishingMetadataService(store);
   const campaigns = new StudioMarketingCampaignService(store);
   const promotionPlanner = new StudioPromotionPlannerService(store);
+  const promotionPerformance = new StudioPromotionPerformanceService(store);
 
   return async (req, res, url, projectId) => {
     const root = `/api/projects/${projectId}`;
@@ -115,7 +118,8 @@ export function createStudioPublishingPromotionRoutes(store: FileProjectStore): 
         },
         production: evidence.production as PublishingReadinessInput["production"],
       });
-      await store.save(withProjectPublishingReadinessReports(project, [...(project.publishingReadinessReports ?? []), report], report.createdAt));
+      const persistenceNow = latestTimestamp(project.metadata.createdAt, project.metadata.updatedAt, report.createdAt);
+      await store.save(withProjectPublishingReadinessReports(project, [...(project.publishingReadinessReports ?? []), report], persistenceNow));
       respond(res, 201, report);
       return true;
     }
@@ -207,6 +211,35 @@ export function createStudioPublishingPromotionRoutes(store: FileProjectStore): 
       return true;
     }
 
+    if (url.pathname === `${root}/promotion/performance` && req.method === "GET") {
+      const bookId = required(url.searchParams.get("bookId"), "Book id");
+      const campaignId = required(url.searchParams.get("campaignId"), "Campaign id");
+      const assetId = optionalText(url.searchParams.get("assetId"));
+      respond(res, 200, await promotionPerformance.summary(projectId, bookId, campaignId, assetId));
+      return true;
+    }
+    if (url.pathname === `${root}/promotion/performance` && req.method === "POST") {
+      const input = await body(req);
+      const bookId = required(input.bookId, "Book id");
+      const campaignId = required(input.campaignId, "Campaign id");
+      const metrics = objectValue(input.metrics, "Promotion performance metrics") as unknown as PromotionPerformanceMetrics;
+      const state = await promotionPerformance.record(projectId, bookId, campaignId, {
+        id: optionalText(input.id) ?? `promotion-performance-${randomUUID()}`,
+        assetId: optionalText(input.assetId),
+        source: required(input.source, "Promotion performance source") as PromotionPerformanceSource,
+        periodStart: required(input.periodStart, "Promotion performance period start"),
+        periodEnd: required(input.periodEnd, "Promotion performance period end"),
+        observedAt: optionalText(input.observedAt) ?? new Date().toISOString(),
+        currency: optionalText(input.currency),
+        sourceReference: required(input.sourceReference, "Promotion performance source reference"),
+        sourceUrl: optionalText(input.sourceUrl),
+        notes: optionalText(input.notes),
+        metrics,
+      });
+      respond(res, 201, state);
+      return true;
+    }
+
     if (url.pathname === `${root}/release-gate` && req.method === "GET") {
       const bookId = required(url.searchParams.get("bookId"), "Book id");
       const format = optionalReleaseFormat(url.searchParams.get("format"));
@@ -256,4 +289,13 @@ function optionalText(value: unknown): string | undefined { return typeof value 
 function textArray(value: unknown, label: string): string[] { if (!Array.isArray(value)) throw new Error(`${label} values must be an array.`); return [...new Set(value.map((item) => required(item, label)))]; }
 function releaseFormat(value: unknown, label: string): PublishingReleaseFormat { const format = required(value, label) as PublishingReleaseFormat; if (!RELEASE_FORMATS.includes(format)) throw new Error(`${label} must be ebook, paperback, or hardcover.`); return format; }
 function optionalReleaseFormat(value: unknown): PublishingReleaseFormat | undefined { return value === undefined || value === null || value === "" ? undefined : releaseFormat(value, "Release format"); }
+function latestTimestamp(...values: string[]): string {
+  let latest = 0;
+  for (const value of values) {
+    const time = Date.parse(value);
+    if (!Number.isFinite(time)) throw new Error("Project persistence timestamp must be valid.");
+    latest = Math.max(latest, time);
+  }
+  return new Date(latest).toISOString();
+}
 function escapeRegex(value: string): string { return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
