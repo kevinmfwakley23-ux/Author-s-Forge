@@ -8,10 +8,10 @@
  * source exports. It never treats source presence as a substitute for the
  * real build or browser acceptance suites.
  */
-import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+const { existsSync } = require("node:fs");
+const { resolve } = require("node:path");
 
-const root = resolve(new URL("..", import.meta.url).pathname);
+const root = resolve(__dirname, "..");
 const required = [
   "dist/index.js",
   "dist/studio-server.js",
