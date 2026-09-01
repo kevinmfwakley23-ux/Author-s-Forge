@@ -2,6 +2,7 @@ import { join } from "node:path";
 import type { ProjectStorePort } from "../application/project-store-port";
 import { ForgeCore, createForgeCore } from "../application/forge-core";
 import type { AiTask } from "../application/ai-model-broker";
+import { CoreGovernanceAuthority } from "../application/core-governance-authority";
 import { FileProjectStore } from "./file-project-store";
 import { discoverConfiguredAiModelResources } from "./ai-model-resources";
 import { generateTextThroughCore, type AiGenerationRequest, type AiGenerationResult } from "./ai-provider";
@@ -11,6 +12,7 @@ import { generateProjectTextThroughCore, type CoreProjectAiGenerationRequest } f
 export interface ForgeStudioRuntime {
   readonly core: ForgeCore;
   readonly projectStore: ProjectStorePort;
+  readonly governance: CoreGovernanceAuthority;
   readonly generateText: (request: AiGenerationRequest, task?: AiTask) => Promise<AiGenerationResult>;
   readonly generateProjectText: (request: CoreProjectAiGenerationRequest, task?: AiTask) => Promise<AiGenerationResult>;
 }
@@ -18,10 +20,12 @@ export interface ForgeStudioRuntime {
 export function createForgeStudioRuntime(dataRoot: string, env: NodeJS.ProcessEnv = process.env): ForgeStudioRuntime {
   const projectStore = new FileProjectStore(dataRoot);
   const core = createForgeCore({ projectStore });
+  const governance = new CoreGovernanceAuthority();
   core.registerAiModels(discoverConfiguredAiModelResources(env));
   return {
     core,
     projectStore,
+    governance,
     generateText: (request, task = "writing") => generateTextThroughCore(core, request, task),
     generateProjectText: (request, task = "writing") => generateProjectTextThroughCore(core, request, task),
   };
