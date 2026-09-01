@@ -15,12 +15,16 @@ const root = resolve(__dirname, "..");
 const required = [
   "dist/index.js",
   "dist/studio-server.js",
+  "dist/application/studio-image-lab.js",
+  "dist/application/studio-image-lab-routes.js",
   "dist/guided-journal-server.js",
   "dist/educational-workbook-server.js",
   "dist/specialized-creation-server.js",
   "scripts/start-forge.js",
   "scripts/forge-offices-browser-acceptance.js",
+  "scripts/studio-image-lab-browser-acceptance.js",
   "public/index.html",
+  "public/forge-image-lab.js",
   "public/guided-journal.html",
   "public/educational-workbooks.html",
   "public/specialized-creation.html",
@@ -38,5 +42,5 @@ if (missing.length) {
 }
 
 console.log("FORGE BASELINE CHECK PASSED");
-console.log("Canonical main Studio, Guided Journal, Educational Workbook, Specialized Creation, and unified launcher surfaces are present.");
+console.log("Canonical Studio + durable Image Lab, Guided Journal, Educational Workbook, Specialized Creation, and unified launcher surfaces are present.");
 console.log("Next: npm run verify");
