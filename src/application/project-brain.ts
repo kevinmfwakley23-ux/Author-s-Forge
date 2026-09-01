@@ -38,7 +38,6 @@ export function assembleProjectBrainContext(store: ProjectMemoryStore, query: Pr
     .filter(isContextEligible);
   const ranked = rankMemories(candidates, query);
   const limited = ranked.slice(0, query.limit ?? Number.MAX_SAFE_INTEGER);
-  const selectedIds = new Set(limited.map(({ memory }) => memory.id));
   const selected = limited.map(({ memory }) => memory);
 
   const authoritative = selected.filter((memory) => memory.authority === "authoritative");
@@ -46,9 +45,7 @@ export function assembleProjectBrainContext(store: ProjectMemoryStore, query: Pr
     ? selected.filter((memory) => memory.authority === "proposed" || memory.authority === "working" || memory.authority === "verified")
     : [];
   const changed = query.changedSince
-    ? candidates
-      .filter((memory) => selectedIds.has(memory.id))
-      .sort((a, b) => compareRanked(a, b, query))
+    ? [...authoritative, ...working].sort((a, b) => compareRanked(a, b, query))
     : [];
 
   return {
