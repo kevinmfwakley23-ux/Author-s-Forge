@@ -33,7 +33,9 @@ export function assembleProjectBrainContext(store: ProjectMemoryStore, query: Pr
 
   const classFilter = query.taskMemoryClasses;
   const filterClasses = (memory: MemoryRecord): boolean => classFilter === undefined || classFilter.includes(memory.class);
-  const candidates = store.query({ projectId: query.projectId, changedSince: query.changedSince }).filter(filterClasses);
+  const candidates = store.query({ projectId: query.projectId, changedSince: query.changedSince })
+    .filter(filterClasses)
+    .filter(isContextEligible);
   const ranked = rankMemories(candidates, query);
   const limited = ranked.slice(0, query.limit ?? Number.MAX_SAFE_INTEGER);
   const selectedIds = new Set(limited.map(({ memory }) => memory.id));
@@ -43,9 +45,11 @@ export function assembleProjectBrainContext(store: ProjectMemoryStore, query: Pr
   const working = query.includeWorkingState
     ? selected.filter((memory) => memory.authority === "proposed" || memory.authority === "working" || memory.authority === "verified")
     : [];
-  const changed = candidates
-    .filter((memory) => selectedIds.has(memory.id))
-    .sort((a, b) => compareRanked(a, b, query));
+  const changed = query.changedSince
+    ? candidates
+      .filter((memory) => selectedIds.has(memory.id))
+      .sort((a, b) => compareRanked(a, b, query))
+    : [];
 
   return {
     projectId: query.projectId,
@@ -120,6 +124,10 @@ function compareRanked(a: MemoryRecord, b: MemoryRecord, query: ProjectBrainQuer
   const left = scoreMemory(a, query);
   const right = scoreMemory(b, query);
   return right.score - left.score || authorityWeight(b.authority) - authorityWeight(a.authority) || b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id);
+}
+
+function isContextEligible(memory: MemoryRecord): boolean {
+  return memory.authority !== "archived" && memory.authority !== "superseded";
 }
 
 function authorityWeight(authority: MemoryRecord["authority"]): number {

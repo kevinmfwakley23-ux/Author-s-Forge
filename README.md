@@ -105,7 +105,20 @@ The project is now worked from the beginning of the author journey forward, offi
 
 **Traversal starts at the Forge Brain / Project Brain and proceeds through the product journey until the whole application has received both passes.** The intended progression is Brain/project memory and governance → project/binder architecture and canon → characters/world/timeline/research/voice memory → Story Map/Writing Desk/AI drafting → editing/craft/continuity → visual/illustration/cover → Specialized Creation and Guided Journal offices → production/KDP/metadata/export → marketing/promotion → delivery/recovery → cross-office navigation/UI polish → final Chromebook + Android release acceptance. Existing completed areas are inspected rather than blindly rebuilt.
 
-**Current handoff state:** Mission 059 work already in flight remains coordinated rather than abandoned. Phone retains its explicitly assigned 059D comic-specific block until that block is handed off. Chromebook continues reconciliation/verification of PR #38 shared Specialized Creation foundation and CI defects. After this active Mission 059 handoff is brought to a clean checkpoint, the phone begins the new traversal at **Forge Brain / Project Brain**, and Chromebook follows behind it using the two-pass workflow above.
+**Current handoff state:** The owner removed the former Chromebook ownership lock on Mission 059. Mission 059 remains open with its known shared TCG finishing-browser and raster-production defects recorded; it will be completed when the first-pass traversal reaches Specialized Creation. The permanent traversal has started at **Forge Brain / Project Brain**, with Codex owning the lead pass and Chromebook following completed blocks.
+
+### ✅ First pass 001A — Project Brain context authority — READY FOR CHROMEBOOK REVIEW
+
+- **Active office/capability:** Forge Brain / Project Brain retrieval authority.
+- **Lead owner:** Codex co-chief engineer.
+- **Follow-behind owner:** Chromebook after this handoff.
+- **Branch / PR / commits:** `first-pass/001-forge-brain`; PR #42; code `96422ce43f77f97c23a9142e6b8a1dda4ce6b45c`; regression coverage `caf7e123c0b6864e48afa1a28d158726662358d9`.
+- **Inspection finding:** archived and superseded records could re-enter live AI prompts through the `changed` projection, including requests with no `changedSince` intent. This could revive obsolete canon during drafting.
+- **Improvement:** historical records remain durable and auditable, but Project Brain now excludes archived/superseded authority from live context and emits changed-state context only for explicit `changedSince` queries.
+- **Regression coverage:** verifies normal retrieval and changed-since retrieval exclude obsolete history while preserving current authoritative canon.
+- **Verification:** Forge CI #638 / run `33471875890` passed TypeScript build, full unit suite, completion checks, client/shell syntax checks, desktop browser acceptance, and Android/mobile acceptance on code head `caf7e123c0b6864e48afa1a28d158726662358d9`.
+- **Unresolved blockers:** none in this coherent block.
+- **Handoff:** ready for Chromebook independent review. Codex advances to the next Forge Brain block after the documentation head is green and PR #42 is merged.
 
 ### Mission 059 parallel engineering coordination
 

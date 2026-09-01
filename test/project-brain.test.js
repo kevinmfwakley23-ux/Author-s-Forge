@@ -67,7 +67,26 @@ test("Project Brain assembles task-relevant authoritative and working context wi
   const context = assembleProjectBrainContext(store, { projectId: "p1", taskMemoryClasses: ["story-canon", "creative-note"], relevanceTags: ["draft"], includeWorkingState: true });
   assert.deepEqual(context.authoritative.map((m) => m.id), ["canon"]);
   assert.deepEqual(context.working.map((m) => m.id), ["note"]);
-  assert.deepEqual(context.changed.map((m) => m.id), ["canon", "note"]);
+  assert.deepEqual(context.changed, []);
+});
+
+test("Project Brain never feeds archived or superseded history into live or changed context", () => {
+  const store = new ProjectMemoryStore();
+  store.register(createMemoryRecord({ id: "active", projectId: "p1", class: "story-canon", authority: "authoritative", summary: "Current age", content: "Daniel is 38.", provenance: [{ kind: "author", reference: "canon-current", recordedAt: "2026-03-01T00:00:00.000Z" }], relevanceTags: ["draft"], now: "2026-03-01T00:00:00.000Z" }));
+  store.register(createMemoryRecord({ id: "archived", projectId: "p1", class: "story-canon", authority: "archived", summary: "Archived age", content: "Daniel is 36.", provenance: [{ kind: "author", reference: "archive", recordedAt: "2025-01-01T00:00:00.000Z" }], relevanceTags: ["draft"], now: "2026-03-02T00:00:00.000Z" }));
+  store.register(createMemoryRecord({ id: "superseded", projectId: "p1", class: "story-canon", authority: "working", summary: "Old age", content: "Daniel is 37.", provenance: [{ kind: "author", reference: "canon-old", recordedAt: "2026-02-01T00:00:00.000Z" }], relevanceTags: ["draft"], now: "2026-02-01T00:00:00.000Z" }));
+  store.supersede("superseded", "active", "2026-03-03T00:00:00.000Z");
+
+  const normal = assembleProjectBrainContext(store, { projectId: "p1", relevanceTags: ["draft"], includeWorkingState: true });
+  assert.deepEqual(normal.authoritative.map((memory) => memory.id), ["active"]);
+  assert.deepEqual(normal.working, []);
+  assert.deepEqual(normal.changed, []);
+  assert.deepEqual(normal.evidence.map((item) => item.memoryId), ["active"]);
+
+  const changed = assembleProjectBrainContext(store, { projectId: "p1", relevanceTags: ["draft"], includeWorkingState: true, changedSince: "2026-02-15T00:00:00.000Z" });
+  assert.deepEqual(changed.authoritative.map((memory) => memory.id), ["active"]);
+  assert.deepEqual(changed.changed.map((memory) => memory.id), ["active"]);
+  assert.deepEqual(changed.evidence.map((item) => item.memoryId), ["active"]);
 });
 
 test("Project Brain ranks salient memory before unrelated memory under a tight limit", () => {
