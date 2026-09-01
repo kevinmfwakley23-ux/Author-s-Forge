@@ -10,7 +10,7 @@ export type { VoiceMemorySample, VoiceDimensionScores, VoiceMemoryEvolutionEvent
 export type { MemoryClass, MemoryAuthority, MemoryProvenance, MemoryRecord, MemoryQuery } from "./domain/memory";
 export { createMemoryRecord, MEMORY_FORMAT_VERSION } from "./domain/memory";
 export { ProjectMemoryStore } from "./application/project-memory-store";
-export type { MemoryPromotionDecision, ProjectMemorySnapshot } from "./application/project-memory-store";
+export type { MemoryLifecycleEvent, MemoryPromotionDecision, MemorySupersessionDecision, ProjectMemorySnapshot } from "./application/project-memory-store";
 export { assembleProjectBrainContext } from "./application/project-brain";
 export type { ProjectBrainQuery, ProjectBrainContext } from "./application/project-brain";
 export { createStoryMap, createStoryMapFromManuscript, STORY_MAP_FORMAT_VERSION } from "./domain/story-map";
