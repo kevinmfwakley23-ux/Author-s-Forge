@@ -36,15 +36,17 @@ test("inference claims cannot become scheduled or published",()=>{
 });
 
 test("Amazon Ads and A+ compliance blocks current policy violations",()=>{
-  const ad={id:"ad",channel:"amazon-ads" as const,kind:"ad-copy" as const,title:"#1 bestseller",body:"Only $2.99 today",status:"draft" as const,evidence:[]};
+  const ad={id:"ad",channel:"amazon-ads" as const,kind:"ad-copy" as const,title:"#1 bestseller",body:"Only $2.99 today — customer review says five stars",status:"draft" as const,evidence:[]};
   const adIssues=assessMarketingAssetCompliance(ad);
   assert.ok(adIssues.some((issue)=>issue.id==="amazon-ads-price"));
   assert.ok(adIssues.some((issue)=>issue.id==="amazon-ads-unsubstantiated"));
-  const aplus={id:"aplus",channel:"a-plus" as const,kind:"a-plus-module" as const,title:"Buy now",body:"Free bonus at https://example.com — latest holiday release",status:"draft" as const,evidence:[]};
+  assert.ok(adIssues.some((issue)=>issue.id==="amazon-ads-reviews"));
+
+  const aplus={id:"aplus",channel:"a-plus" as const,kind:"a-plus-module" as const,title:"Buy now",body:"Free bonus at https://example.com — latest holiday release. Guaranteed refund, free shipping, and better than competitors. #1 top-rated.",status:"draft" as const,evidence:[]};
   const aPlusIssues=assessMarketingAssetCompliance(aplus);
-  assert.ok(aPlusIssues.some((issue)=>issue.id==="a-plus-promotion"));
-  assert.ok(aPlusIssues.some((issue)=>issue.id==="a-plus-time-sensitive"));
-  assert.ok(aPlusIssues.some((issue)=>issue.id==="a-plus-contact"));
+  for(const id of ["a-plus-promotion","a-plus-time-sensitive","a-plus-contact","a-plus-guarantee","a-plus-shipping","a-plus-competitor","a-plus-boastful"]){
+    assert.ok(aPlusIssues.some((issue)=>issue.id===id),`expected ${id}`);
+  }
 });
 
 test("A+ plans reference real campaign assets and rejected assets cannot be approved",()=>{
