@@ -25,14 +25,14 @@ function visitJsonValue(value: unknown, path: string, active: WeakSet<object>): 
       return;
     }
 
-    const prototype = Object.getPrototypeOf(value);
+    const prototype = Object.getPrototypeOf(object);
     if (prototype !== Object.prototype && prototype !== null) {
       throw new Error(`${path} must contain plain JSON objects, not class instances or special objects.`);
     }
 
-    for (const key of Reflect.ownKeys(value)) {
+    for (const key of Reflect.ownKeys(object)) {
       if (typeof key === "symbol") throw new Error(`${path} contains a symbol-keyed property that JSON would discard.`);
-      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      const descriptor = Object.getOwnPropertyDescriptor(object, key);
       if (!descriptor) continue;
       if (!descriptor.enumerable) throw new Error(`${propertyPath(path, key)} is non-enumerable and JSON would discard it.`);
       if (!("value" in descriptor)) throw new Error(`${propertyPath(path, key)} is an accessor property and is not durable JSON state.`);
