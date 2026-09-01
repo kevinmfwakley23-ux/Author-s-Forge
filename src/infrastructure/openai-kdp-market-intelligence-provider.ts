@@ -56,14 +56,13 @@ export class OpenAiWebKdpMarketIntelligenceProvider implements KdpMarketIntellig
       body: JSON.stringify({
         model: this.model,
         tools: [{ type: "web_search", search_context_size: this.searchContextSize }],
-        // Market evidence is required for this capability, so search may not be skipped.
         tool_choice: "required",
         include: ["web_search_call.action.sources"],
         input: [
           { role: "system", content: systemPrompt(observedAt) },
-          { role: "user", content: `Market: ${request.market.trim()}\nResearch question: ${request.question.trim()}\nReturn current evidence, ranked niche opportunities, and reader-search keyword candidates.` },
+          { role: "user", content: `Market: ${request.market.trim()}\nResearch question: ${request.question.trim()}\nReturn current evidence, observable comparable-title statistics when visible, ranked niche opportunities, and reader-search keyword candidates.` },
         ],
-        max_output_tokens: 9000,
+        max_output_tokens: 10000,
       }),
     });
     const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
@@ -96,7 +95,7 @@ type ParsedProvider = {
 };
 
 function systemPrompt(observedAt: string): string {
-  return `You are the current-market research engine for Author's Forge. You MUST use web search before answering. Research observable book-market signals, not guaranteed future sales. Prefer fresh retailer/primary evidence and authoritative publishing guidance; use multiple independent sources where practical and state limitations or contradictions.\n\nAmazon KDP keyword rules: recommend reader-search language that accurately describes the proposed book/niche; KDP permits up to seven keyword slots; avoid other authors or their titles, sales-rank claims, promotions such as free/on sale, unrelated terms, Amazon program names, HTML, unauthorized brands/trademarks, and metadata manipulation.\n\nReturn ONLY JSON with this shape:\n{\"evidence\":[{\"id\":\"e1\",\"source\":\"site/source\",\"url\":\"https://...\",\"publishedAt\":\"optional ISO timestamp\",\"observation\":\"observed fact\",\"strength\":\"weak|moderate|strong\"}],\"signals\":[{\"id\":\"s1\",\"topic\":\"keyword-opportunities\",\"label\":\"label\",\"observation\":\"bounded inference\",\"direction\":\"positive|negative|mixed|neutral\",\"evidenceIds\":[\"e1\"]}],\"comparableTitles\":[{\"title\":\"title\",\"author\":\"optional\",\"genre\":\"optional\",\"price\":0,\"currency\":\"USD\",\"publishedDate\":\"optional\",\"sourceUrl\":\"https://...\"}],\"keywordRecommendations\":[{\"phrase\":\"reader search phrase\",\"score\":0,\"rationale\":\"why relevant\",\"evidenceIds\":[\"e1\"],\"recommendedForKdpSlot\":true,\"complianceNotes\":[\"accurate to proposed book\"]}],\"nicheOpportunities\":[{\"niche\":\"specific niche\",\"score\":0,\"demandSignal\":\"low|moderate|high|unknown\",\"competitionSignal\":\"low|moderate|high|unknown\",\"rationale\":\"evidence-based explanation\",\"evidenceIds\":[\"e1\"]}],\"assessment\":{\"level\":\"low|moderate|promising|high\",\"rationale\":\"bounded conclusion\",\"signals\":[\"summary\"],\"limitations\":[\"volatile or unknown factor\"]}}.\n\nAllowed signal topics: ${SIGNAL_TOPICS.join(", ")}. Scores are 0-100 research-priority scores, never predicted sales. Return no more than 20 keyword candidates and 20 niches; mark at most seven keywords recommendedForKdpSlot=true. Every signal, keyword, and niche must reference real evidence IDs. Every evidence URL and comparable sourceUrl must be a page actually consulted by web search. Observation timestamp: ${observedAt}.`;
+  return `You are the current-market research engine for Author's Forge. You MUST use web search before answering. Research observable book-market signals, not guaranteed future sales. Prefer fresh retailer/primary evidence and authoritative publishing guidance; use multiple independent sources where practical and state limitations or contradictions. For keyword discovery, use reader-search language and, where observable, Amazon search-result/search-suggestion patterns rather than inventing isolated terms.\n\nAmazon KDP keyword rules: recommend reader-search language that accurately describes the proposed book/niche; KDP permits up to seven keyword slots; avoid other authors or their titles, sales-rank claims, promotions such as free/on sale, unrelated terms, Amazon program names, HTML, unauthorized brands/trademarks, and metadata manipulation. Keywords should add useful discovery information beyond merely repeating the title/category when a more specific relevant phrase exists.\n\nComparable-title statistics are optional and must be copied only when visible in a consulted source. Never estimate a missing bestseller rank, review count, rating, price, category, publication date, unit sales, revenue, or royalty. A bestseller rank is an observed rank, not a sales count.\n\nReturn ONLY JSON with this shape:\n{\"evidence\":[{\"id\":\"e1\",\"source\":\"site/source\",\"url\":\"https://...\",\"publishedAt\":\"optional ISO timestamp\",\"observation\":\"observed fact\",\"strength\":\"weak|moderate|strong\"}],\"signals\":[{\"id\":\"s1\",\"topic\":\"keyword-opportunities\",\"label\":\"label\",\"observation\":\"bounded inference\",\"direction\":\"positive|negative|mixed|neutral\",\"evidenceIds\":[\"e1\"]}],\"comparableTitles\":[{\"title\":\"title\",\"author\":\"optional\",\"genre\":\"optional\",\"category\":\"optional observed category\",\"price\":0,\"currency\":\"USD\",\"bestSellerRank\":1234,\"reviewCount\":100,\"rating\":4.7,\"publishedDate\":\"optional\",\"sourceUrl\":\"https://...\"}],\"keywordRecommendations\":[{\"phrase\":\"reader search phrase\",\"score\":0,\"rationale\":\"why relevant\",\"evidenceIds\":[\"e1\"],\"recommendedForKdpSlot\":true,\"complianceNotes\":[\"accurate to proposed book\"]}],\"nicheOpportunities\":[{\"niche\":\"specific niche\",\"score\":0,\"demandSignal\":\"low|moderate|high|unknown\",\"competitionSignal\":\"low|moderate|high|unknown\",\"rationale\":\"evidence-based explanation\",\"evidenceIds\":[\"e1\"]}],\"assessment\":{\"level\":\"low|moderate|promising|high\",\"rationale\":\"bounded conclusion\",\"signals\":[\"summary\"],\"limitations\":[\"volatile or unknown factor\"]}}.\n\nAllowed signal topics: ${SIGNAL_TOPICS.join(", ")}. Scores are 0-100 research-priority scores, never predicted sales. Return no more than 20 keyword candidates and 20 niches; mark at most seven keywords recommendedForKdpSlot=true. Every signal, keyword, and niche must reference real evidence IDs. Every evidence URL and comparable sourceUrl must be a page actually consulted by web search. Observation timestamp: ${observedAt}.`;
 }
 
 function parseJson(raw: string): ParsedProvider {
@@ -184,13 +183,20 @@ function normalizeComparables(value: unknown, observedAt: string, sources: Reado
     const title = text(item.title, `Comparable title ${index + 1}`);
     const sourceUrl = item.sourceUrl === undefined ? undefined : canonicalUrl(text(item.sourceUrl, `Comparable title ${title} source URL`));
     if (sourceUrl) assertSource(sourceUrl, sources, `Comparable title ${title}`);
-    const price = item.price === undefined ? undefined : finiteNumber(item.price, `Comparable title ${title} price`);
+    const price = optionalNumber(item.price, `Comparable title ${title} price`, 0);
+    const bestSellerRank = optionalInteger(item.bestSellerRank, `Comparable title ${title} bestseller rank`, 1);
+    const reviewCount = optionalInteger(item.reviewCount, `Comparable title ${title} review count`, 0);
+    const rating = optionalNumber(item.rating, `Comparable title ${title} rating`, 0, 5);
     return {
       title,
       ...(item.author ? { author: text(item.author, `Comparable title ${title} author`) } : {}),
       ...(item.genre ? { genre: text(item.genre, `Comparable title ${title} genre`) } : {}),
+      ...(item.category ? { category: text(item.category, `Comparable title ${title} category`) } : {}),
       ...(price !== undefined ? { price } : {}),
       ...(item.currency ? { currency: text(item.currency, `Comparable title ${title} currency`) } : {}),
+      ...(bestSellerRank !== undefined ? { bestSellerRank } : {}),
+      ...(reviewCount !== undefined ? { reviewCount } : {}),
+      ...(rating !== undefined ? { rating } : {}),
       ...(item.publishedDate ? { publishedDate: text(item.publishedDate, `Comparable title ${title} published date`) } : {}),
       ...(sourceUrl ? { sourceUrl } : {}),
       observedAt,
@@ -249,6 +255,8 @@ function objectValue(value: unknown, label: string): Record<string, unknown> { i
 function text(value: unknown, label: string): string { if (typeof value !== "string" || !value.trim()) throw new Error(`${label} is required.`); return value.trim(); }
 function strings(value: unknown, label: string): string[] { if (!Array.isArray(value)) throw new Error(`${label} must be an array.`); return [...new Set(value.map((item) => text(item, label)))]; }
 function finiteNumber(value: unknown, label: string): number { if (typeof value !== "number" || !Number.isFinite(value)) throw new Error(`${label} must be a finite number.`); return value; }
+function optionalNumber(value: unknown, label: string, min: number, max = Number.POSITIVE_INFINITY): number | undefined { if (value === undefined || value === null || value === "") return undefined; const result = finiteNumber(value, label); if (result < min || result > max) throw new Error(`${label} is outside its allowed range.`); return result; }
+function optionalInteger(value: unknown, label: string, min: number): number | undefined { const result = optionalNumber(value, label, min); if (result !== undefined && !Number.isInteger(result)) throw new Error(`${label} must be an integer.`); return result; }
 function score(value: unknown, label: string): number { const result = finiteNumber(value, label); if (result < 0 || result > 100) throw new Error(`${label} must be between 0 and 100.`); return result; }
 function enumValue<const T extends readonly string[]>(value: unknown, allowed: T, label: string): T[number] { if (typeof value !== "string" || !(allowed as readonly string[]).includes(value)) throw new Error(`${label} is invalid.`); return value as T[number]; }
 function optionalTimestamp(value: unknown, label: string): string | undefined { if (value === undefined || value === null || value === "") return undefined; const raw = text(value, label); if (Number.isNaN(Date.parse(raw))) throw new Error(`${label} must be a valid timestamp.`); return new Date(Date.parse(raw)).toISOString(); }
