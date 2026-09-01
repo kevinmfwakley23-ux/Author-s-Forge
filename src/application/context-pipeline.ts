@@ -43,7 +43,7 @@ export function buildProjectContext(
     id: memory.id,
     priority: memoryPriority(memory.authority),
     order: index,
-    content: `[${memory.class} | ${memory.authority}] ${memory.summary}\n${memory.content}`,
+    content: `[${memory.class} | ${memory.authority}] ${memory.summary}\n${memory.content}\nProvenance: ${formatProvenance(memory)}`,
   }));
 
   const budgeted = selectContextBudget(sections, options.budget);
@@ -51,7 +51,11 @@ export function buildProjectContext(
   const originalSystem = "Project context:\n" + context;
   const originalUser = "Use the supplied project context faithfully.";
   const optimized = optimizeContext({ system: originalSystem, user: originalUser });
-  const originalEstimatedTokens = estimateTokens(originalSystem) + estimateTokens(originalUser);
+  // Report savings against the complete pre-budget context, not only the
+  // already-trimmed payload sent to the optimizer.
+  const originalEstimatedTokens = budgeted.originalEstimatedTokens + estimateTokens(originalUser);
+  const optimizedEstimatedTokens = optimized.optimizedEstimatedTokens;
+  const tokensSaved = Math.max(0, originalEstimatedTokens - optimizedEstimatedTokens);
 
   return {
     system: optimized.system,
@@ -59,9 +63,15 @@ export function buildProjectContext(
     selectedMemoryIds: budgeted.includedIds,
     omittedMemoryIds: budgeted.omittedIds,
     originalEstimatedTokens,
-    optimizedEstimatedTokens: optimized.optimizedEstimatedTokens,
-    tokensSaved: optimized.tokensSaved + budgeted.tokensSaved,
-    compressionRatio: optimized.compressionRatio,
-    strategies: ["project-brain-retrieval", "priority-context-budget", ...optimized.strategy],
+    optimizedEstimatedTokens,
+    tokensSaved,
+    compressionRatio: originalEstimatedTokens === 0 ? 1 : optimizedEstimatedTokens / originalEstimatedTokens,
+    strategies: ["project-brain-retrieval", "priority-context-budget", "provenance-attached", ...optimized.strategy],
   };
+}
+
+
+function formatProvenance(memory: { readonly provenance: readonly { readonly kind: string; readonly reference: string }[] }): string {
+  if (!memory.provenance.length) return "none recorded";
+  return memory.provenance.map((item) => `${item.kind}:${item.reference}`).join(", ");
 }
