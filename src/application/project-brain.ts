@@ -1,5 +1,9 @@
-import type { MemoryClass, MemoryRecord } from "../domain/memory";
+import { isMemoryClass, type MemoryClass, type MemoryRecord } from "../domain/memory";
 import type { ProjectMemoryStore } from "./project-memory-store";
+
+const MAX_QUERY_VALUES = 64;
+const MAX_QUERY_VALUE_LENGTH = 512;
+const WORD_SEGMENTER = new Intl.Segmenter("und", { granularity: "word" });
 
 export interface ProjectBrainQuery {
   readonly projectId: string;
@@ -27,29 +31,27 @@ export interface ProjectBrainContext {
 }
 
 export function assembleProjectBrainContext(store: ProjectMemoryStore, query: ProjectBrainQuery): ProjectBrainContext {
-  if (!query.projectId.trim()) throw new Error("Project Brain project id is required.");
-  if (query.limit !== undefined && (!Number.isInteger(query.limit) || query.limit < 0)) throw new Error("Project Brain limit must be a non-negative integer.");
-  if (query.changedSince !== undefined && Number.isNaN(Date.parse(query.changedSince))) throw new Error("Project Brain changedSince must be a valid timestamp.");
+  const normalizedQuery = normalizeQuery(query);
 
-  const classFilter = query.taskMemoryClasses;
+  const classFilter = normalizedQuery.taskMemoryClasses;
   const filterClasses = (memory: MemoryRecord): boolean => classFilter === undefined || classFilter.includes(memory.class);
-  const candidates = store.query({ projectId: query.projectId, changedSince: query.changedSince })
+  const candidates = store.query({ projectId: normalizedQuery.projectId, changedSince: normalizedQuery.changedSince })
     .filter(filterClasses)
     .filter(isContextEligible);
-  const ranked = rankMemories(candidates, query);
-  const limited = ranked.slice(0, query.limit ?? Number.MAX_SAFE_INTEGER);
+  const ranked = rankMemories(candidates, normalizedQuery);
+  const limited = ranked.slice(0, normalizedQuery.limit ?? Number.MAX_SAFE_INTEGER);
   const selected = limited.map(({ memory }) => memory);
 
   const authoritative = selected.filter((memory) => memory.authority === "authoritative");
-  const working = query.includeWorkingState
+  const working = normalizedQuery.includeWorkingState
     ? selected.filter((memory) => memory.authority === "proposed" || memory.authority === "working" || memory.authority === "verified")
     : [];
-  const changed = query.changedSince
-    ? [...authoritative, ...working].sort((a, b) => compareRanked(a, b, query))
+  const changed = normalizedQuery.changedSince
+    ? [...authoritative, ...working].sort((a, b) => compareRanked(a, b, normalizedQuery))
     : [];
 
   return {
-    projectId: query.projectId,
+    projectId: normalizedQuery.projectId,
     authoritative,
     working,
     changed,
@@ -100,8 +102,9 @@ function scoreMemory(memory: MemoryRecord, query: ProjectBrainQuery): RankedMemo
 
   const queryTerms = normalizeTerms(query.queryTerms ?? []);
   if (queryTerms.length > 0) {
-    const searchable = normalizeText(`${memory.summary} ${memory.content} ${memory.relevanceTags.join(" ")}`);
-    const matchedTerms = queryTerms.filter((term) => searchable.includes(term));
+    const searchable = `${memory.summary} ${memory.content} ${memory.relevanceTags.join(" ")}`;
+    const searchableWords = segmentWords(searchable);
+    const matchedTerms = queryTerms.filter((term) => containsWordSequence(searchableWords, segmentWords(term)));
     if (matchedTerms.length > 0) {
       saliencyMatches += matchedTerms.length;
       score += matchedTerms.length * 8;
@@ -147,5 +150,65 @@ function normalizeTerms(values: readonly string[]): string[] {
 }
 
 function normalizeText(value: string): string {
-  return value.trim().toLocaleLowerCase();
+  return value.normalize("NFKC").trim().toLocaleLowerCase("und").replace(/\s+/g, " ");
+}
+
+function containsWordSequence(valueWords: readonly string[], termWords: readonly string[]): boolean {
+  if (termWords.length === 0 || termWords.length > valueWords.length) return false;
+  for (let start = 0; start <= valueWords.length - termWords.length; start += 1) {
+    if (termWords.every((word, offset) => valueWords[start + offset] === word)) return true;
+  }
+  return false;
+}
+
+function segmentWords(value: string): string[] {
+  return [...WORD_SEGMENTER.segment(normalizeText(value))]
+    .filter((segment) => segment.isWordLike)
+    .map((segment) => segment.segment);
+}
+
+function normalizeQuery(query: ProjectBrainQuery): ProjectBrainQuery {
+  if (!query || typeof query !== "object") throw new Error("Project Brain query is required.");
+  if (typeof query.projectId !== "string" || !query.projectId.trim()) throw new Error("Project Brain project id is required.");
+  if (query.projectId.trim().length > MAX_QUERY_VALUE_LENGTH) throw new Error("Project Brain project id is too long.");
+  if (query.limit !== undefined && (!Number.isInteger(query.limit) || query.limit < 0)) throw new Error("Project Brain limit must be a non-negative integer.");
+  if (query.includeWorkingState !== undefined && typeof query.includeWorkingState !== "boolean") throw new Error("Project Brain includeWorkingState must be a boolean.");
+  if (query.changedSince !== undefined && (typeof query.changedSince !== "string" || !query.changedSince.trim() || Number.isNaN(Date.parse(query.changedSince)))) {
+    throw new Error("Project Brain changedSince must be a valid timestamp.");
+  }
+
+  const taskMemoryClasses = normalizeMemoryClasses(query.taskMemoryClasses);
+  const relevanceTags = normalizeStringArray(query.relevanceTags, "relevance tags");
+  const queryTerms = normalizeStringArray(query.queryTerms, "query terms");
+  const relatedMemoryIds = normalizeStringArray(query.relatedMemoryIds, "related memory ids");
+  return {
+    ...query,
+    projectId: query.projectId.trim(),
+    ...(taskMemoryClasses === undefined ? {} : { taskMemoryClasses }),
+    ...(relevanceTags === undefined ? {} : { relevanceTags }),
+    ...(queryTerms === undefined ? {} : { queryTerms }),
+    ...(relatedMemoryIds === undefined ? {} : { relatedMemoryIds }),
+    ...(query.changedSince === undefined ? {} : { changedSince: query.changedSince.trim() }),
+  };
+}
+
+function normalizeMemoryClasses(value: readonly MemoryClass[] | undefined): readonly MemoryClass[] | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value)) throw new Error("Project Brain task memory classes must be an array.");
+  if (value.length > MAX_QUERY_VALUES) throw new Error(`Project Brain task memory classes cannot exceed ${MAX_QUERY_VALUES} values.`);
+  for (const item of value) if (!isMemoryClass(item)) throw new Error(`Project Brain task memory class \"${String(item)}\" is invalid.`);
+  return [...new Set(value)];
+}
+
+function normalizeStringArray(value: readonly string[] | undefined, label: string): readonly string[] | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value)) throw new Error(`Project Brain ${label} must be an array.`);
+  if (value.length > MAX_QUERY_VALUES) throw new Error(`Project Brain ${label} cannot exceed ${MAX_QUERY_VALUES} values.`);
+  const normalized = value.map((item) => {
+    if (typeof item !== "string" || !item.trim()) throw new Error(`Project Brain ${label} must contain non-empty strings.`);
+    const trimmed = item.trim();
+    if (trimmed.length > MAX_QUERY_VALUE_LENGTH) throw new Error(`Project Brain ${label} values cannot exceed ${MAX_QUERY_VALUE_LENGTH} characters.`);
+    return trimmed;
+  });
+  return [...new Set(normalized)];
 }
