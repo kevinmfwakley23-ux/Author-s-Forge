@@ -41,8 +41,8 @@ export class ProjectPackageBackupService {
   public async backupExisting(
     projectId: string,
     binding: ProjectStorageBinding,
-    exportedAt = new Date().toISOString(),
-    backupId = randomUUID(),
+    exportedAt: string = new Date().toISOString(),
+    backupId: string = randomUUID(),
   ): Promise<ProjectPackageBackupResult> {
     const validatedProjectId = validateForgeProjectId(projectId);
     const validatedBinding = this.bindingForProject(validatedProjectId, binding);
