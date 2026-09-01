@@ -106,3 +106,18 @@ test("Studio KDP preflight rejects malformed inspection facts rather than silent
     cover: cleanCover,
   }), /Interior encrypted must be a boolean/);
 });
+
+test("Studio KDP preflight never treats unknown image resolution as silently verified", () => {
+  const { minimumImageDpi: _interiorDpi, ...interiorWithoutDpi } = cleanInterior;
+  const { minimumImageDpi: _coverDpi, ...coverWithoutDpi } = cleanCover;
+  const report = runStudioKdpPreflight(projectWithPlan(), {
+    bookId: "book-1",
+    interiorHasBleed: true,
+    interior: interiorWithoutDpi,
+    cover: coverWithoutDpi,
+  });
+  const codes = report.findings.map((finding) => finding.code);
+  assert.ok(codes.includes("INTERIOR_IMAGE_DPI_UNVERIFIED"));
+  assert.ok(codes.includes("COVER_IMAGE_DPI_UNVERIFIED"));
+  assert.equal(report.warningCount, 2);
+});
