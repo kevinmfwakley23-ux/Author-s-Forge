@@ -146,6 +146,20 @@ The project is now worked from the beginning of the author journey forward, offi
 - **Unresolved blockers:** none in this coherent block.
 - **Handoff:** ready for Chromebook independent review after 001A and 001B. Codex advances to the next Forge Brain block after the documentation head is green and PR #48 is merged.
 
+### ✅ First pass 001D — Brain lifecycle attribution ledger — READY FOR CHROMEBOOK REVIEW
+
+- **Active office/capability:** Forge Brain durable promotion/supersession attribution and recovery.
+- **Lead owner:** Codex co-chief engineer.
+- **Follow-behind owner:** Chromebook after 001A–001C reviews.
+- **Branch / PR / commits:** `first-pass/001d-brain-lifecycle-ledger`; PR #50; ledger `39c2061bd696bda78dedf113dc2b2667f559b624`; regression coverage `c8a652cd1f94148f9c96e702e3262bbec705db49`; public contracts `67fe49031b1b73541e72a0c12e9183903e8f60b2`.
+- **Inspection finding:** promotion and supersession changed durable canon, but actor, reason, transition time and replacement evidence existed only as transient call results and disappeared across snapshot/export/restart.
+- **Improvements:** project-scoped lifecycle events persist promotion/supersession actor, reason, time, prior/new authority and replacement link; supersession requires explicit attribution; events commit only after transition validation; snapshots preserve and restore the ledger while older snapshots without events remain compatible.
+- **Recovery safety:** event IDs, projects, referenced memories, replacements, actors, reasons and timestamps validate before any restore mutation; duplicate/malformed/cross-project events fail atomically.
+- **Regression coverage:** proves restart persistence, snapshot round-trip, defensive cloning, project isolation, malformed-event rollback and required attribution.
+- **Verification:** Forge CI #653 / run `33477853720` passed TypeScript build, all 391 unit tests, completion and syntax checks, desktop browser acceptance, and Android/mobile acceptance on code head `67fe49031b1b73541e72a0c12e9183903e8f60b2`.
+- **Unresolved blockers:** none in this coherent block.
+- **Handoff:** ready for Chromebook independent review after 001A–001C. Codex advances to the next Forge Brain block after the documentation head is green and PR #50 is merged.
+
 ### Mission 059 parallel engineering coordination
 
 - **Chromebook lane currently owns 059B shared Specialized Creation reconciliation/verification**: shared durable project/workspace/revision/proposal storage, project-scoped application facade, Project Brain/provider/asset bridges, renderer-independent composition contract, shared production-profile/preflight foundation, and shared integration/CI fixes required by those contracts.
