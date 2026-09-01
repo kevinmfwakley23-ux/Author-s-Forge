@@ -1,23 +1,22 @@
 export const MEMORY_FORMAT_VERSION = 1 as const;
 
-export type MemoryClass =
-  | "author-memory" | "project-memory" | "story-canon" | "character-memory" | "relationship-memory"
-  | "location-memory" | "timeline-memory" | "style-memory" | "research-memory" | "creative-note"
-  | "working-draft" | "hypothesis" | "open-thread" | "visual-identity" | "production-memory"
-  | "publishing-memory" | "marketing-memory" | "generated-alternative" | "decision-memory";
-
-export type MemoryAuthority = "proposed" | "working" | "verified" | "authoritative" | "superseded" | "archived";
-
-export const MEMORY_CLASSES: readonly MemoryClass[] = [
+export const MEMORY_CLASSES = Object.freeze([
   "author-memory", "project-memory", "story-canon", "character-memory", "relationship-memory",
   "location-memory", "timeline-memory", "style-memory", "research-memory", "creative-note",
   "working-draft", "hypothesis", "open-thread", "visual-identity", "production-memory",
   "publishing-memory", "marketing-memory", "generated-alternative", "decision-memory",
-];
-export const MEMORY_AUTHORITIES: readonly MemoryAuthority[] = ["proposed", "working", "verified", "authoritative", "superseded", "archived"];
-const PROVENANCE_KINDS: readonly MemoryProvenance["kind"][] = ["source", "author", "system"];
+] as const);
+export type MemoryClass = (typeof MEMORY_CLASSES)[number];
 
-export interface MemoryProvenance { readonly kind: "source" | "author" | "system"; readonly reference: string; readonly recordedAt: string; }
+export const MEMORY_AUTHORITIES = Object.freeze([
+  "proposed", "working", "verified", "authoritative", "superseded", "archived",
+] as const);
+export type MemoryAuthority = (typeof MEMORY_AUTHORITIES)[number];
+
+export const MEMORY_PROVENANCE_KINDS = Object.freeze(["source", "author", "system"] as const);
+export type MemoryProvenanceKind = (typeof MEMORY_PROVENANCE_KINDS)[number];
+
+export interface MemoryProvenance { readonly kind: MemoryProvenanceKind; readonly reference: string; readonly recordedAt: string; }
 export interface MemoryRecord {
   readonly id: string; readonly projectId: string; readonly class: MemoryClass; readonly authority: MemoryAuthority;
   readonly summary: string; readonly content: string; readonly createdAt: string; readonly updatedAt: string;
@@ -63,7 +62,7 @@ export function validateMemoryRecord(memory: MemoryRecord): void {
   if (Date.parse(memory.updatedAt) < Date.parse(memory.createdAt)) throw new Error("Memory updatedAt cannot precede createdAt.");
   if (!Array.isArray(memory.provenance)) throw new Error("Memory provenance must be an array.");
   for (const item of memory.provenance) {
-    if (!item || !PROVENANCE_KINDS.includes(item.kind)) throw new Error("Memory provenance kind is invalid.");
+    if (!item || !MEMORY_PROVENANCE_KINDS.includes(item.kind)) throw new Error("Memory provenance kind is invalid.");
     if (typeof item.reference !== "string" || !item.reference.trim()) throw new Error("Memory provenance reference is required.");
     validateTimestamp(item.recordedAt, "provenance recordedAt");
   }
@@ -74,11 +73,15 @@ export function validateMemoryRecord(memory: MemoryRecord): void {
 }
 
 export function isMemoryClass(value: unknown): value is MemoryClass {
-  return typeof value === "string" && MEMORY_CLASSES.includes(value as MemoryClass);
+  return typeof value === "string" && (MEMORY_CLASSES as readonly string[]).includes(value);
 }
 
 export function isMemoryAuthority(value: unknown): value is MemoryAuthority {
-  return typeof value === "string" && MEMORY_AUTHORITIES.includes(value as MemoryAuthority);
+  return typeof value === "string" && (MEMORY_AUTHORITIES as readonly string[]).includes(value);
+}
+
+export function isMemoryProvenanceKind(value: unknown): value is MemoryProvenanceKind {
+  return typeof value === "string" && (MEMORY_PROVENANCE_KINDS as readonly string[]).includes(value);
 }
 
 function validateTimestamp(value: string, field: string): void {
