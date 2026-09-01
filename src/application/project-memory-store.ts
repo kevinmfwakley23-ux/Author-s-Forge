@@ -71,9 +71,23 @@ export class ProjectMemoryStore {
     if (!replacement) throw new Error(`Replacement memory "${replacementId}" not found.`);
     if (existing.projectId !== replacement.projectId) throw new Error("Superseding memory must belong to the same project.");
     if (memoryId === replacementId) throw new Error("Memory cannot supersede itself.");
+    if (existing.class !== replacement.class) throw new Error("Superseding memory must use the same memory class.");
+    if (existing.authority === "superseded" || existing.authority === "archived" || existing.supersededBy) {
+      throw new Error(`Memory "${memoryId}" is not active and cannot be superseded again.`);
+    }
+    if (replacement.authority === "superseded" || replacement.authority === "archived" || replacement.supersededBy) {
+      throw new Error(`Replacement memory "${replacementId}" must be active.`);
+    }
+    if (replacement.supersedes && replacement.supersedes !== memoryId) {
+      throw new Error(`Replacement memory "${replacementId}" already supersedes "${replacement.supersedes}".`);
+    }
+    if (Number.isNaN(Date.parse(now))) throw new Error("Memory supersession timestamp must be valid.");
+    if (Date.parse(now) < Date.parse(existing.createdAt) || Date.parse(now) < Date.parse(replacement.createdAt)) {
+      throw new Error("Memory supersession cannot precede either record's creation.");
+    }
 
     const superseded: MemoryRecord = { ...existing, authority: "superseded", supersededBy: replacementId, updatedAt: now };
-    const linkedReplacement: MemoryRecord = { ...replacement, supersedes: replacement.supersedes ?? memoryId, updatedAt: replacement.updatedAt };
+    const linkedReplacement: MemoryRecord = { ...replacement, supersedes: memoryId };
     validateMemoryRecord(superseded);
     validateMemoryRecord(linkedReplacement);
     this.records.set(memoryId, cloneMemory(superseded));
