@@ -106,7 +106,7 @@ The project is worked from the beginning of the author journey forward, office b
 
 **Traversal starts at the Forge Brain / Project Brain and proceeds through the product journey until the whole application has received all three passes.** The intended progression is Brain/project memory and governance → project/binder architecture and canon → characters/world/timeline/research/voice memory → Story Map/Writing Desk/AI drafting → editing/craft/continuity → visual/illustration/cover → Specialized Creation and Guided Journal offices → production/KDP/metadata/export → marketing/promotion → delivery/recovery → cross-office navigation/UI polish → final Chromebook + Android release acceptance. Existing completed areas are inspected rather than blindly rebuilt.
 
-**Current handoff state:** merged `main` now contains blocks **001D** and **001E**. Codex owns forward block **001F** on `first-pass/001f-brain-query-saliency-integrity` and continues to 001G+ after handoff. Android follows completed handoffs without entering Codex's active forward block. Codex must build the several-block cushion before beginning the final pass at 001A. Mission 059 remains open with its known shared TCG finishing-browser and raster-production defects recorded; it will be handled when the forward traversal reaches Specialized Creation.
+**Current handoff state:** merged `main` contains blocks **001D** and **001E**. First-pass block **001F** is fully verified on PR #52 and is cleared for merge and Android second pass. Codex advances immediately to **001G** after the 001F merge so Android retains a clean completed block behind the forward lane. Mission 059 remains open with its known shared TCG finishing-browser and raster-production defects recorded; it will be handled when the forward traversal reaches Specialized Creation.
 
 ### ✅ First pass 001A — Project Brain context authority — READY FOR ANDROID SECOND PASS
 
@@ -174,19 +174,20 @@ The project is worked from the beginning of the author journey forward, office b
 - **Unresolved blockers:** none in this coherent block.
 - **Handoff:** ready for Android independent review after 001D.
 
-### First pass 001F — Brain saliency and runtime query integrity — IMPLEMENTED, CI PENDING
+### ✅ First pass 001F — Brain saliency and runtime query integrity — READY FOR ANDROID SECOND PASS
 
-- **Active office/capability:** Forge Brain task-context selection and retrieval evidence.
+- **Active office/capability:** Forge Brain task-context selection, retrieval evidence and strict runtime query contracts.
 - **First-pass owner:** Codex co-chief engineer.
 - **Second-pass owner:** Android after completing its active preceding block.
-- **Branch / PR:** `first-pass/001f-brain-query-saliency-integrity`; PR to be recorded after publication.
-- **Inspection finding:** raw substring matching could select irrelevant canon (`art` matched `party`), while malformed runtime query values could bypass TypeScript assumptions and reach retrieval.
-- **Improvements:** task queries now receive bounded runtime validation, selector normalization and deduplication; saliency uses Unicode-aware whole-word and adjacent-phrase matching; evidence is emitted only for exact selected terms.
-- **Regression coverage:** proves false-positive substrings are rejected, multilingual and Unicode-normalized terms remain deterministic, malformed query shapes fail closed, and normalized selectors retain stable evidence.
-- **Research applied:** project-scoped truth and bounded context patterns were compared across Sudowrite Story Bible, Novelcrafter Codex, novelWriter references, Novelix retrieval and NaraCat tiered memory; Forge retains its own provider-neutral and author-authoritative architecture.
-- **Verification:** TypeScript build, all 391 unit tests and completion checks pass locally. Local browser acceptance is pending repository CI because the Playwright Chromium CDN repeatedly timed out in this environment.
-- **Unresolved blockers:** no code blocker; exact-head CI remains required before this handoff is marked ready.
-- **Handoff:** after exact-head CI passes, Android can take 001F while Codex advances to 001G.
+- **Branch / PR / verified head:** `first-pass/001f-brain-query-saliency-integrity`; PR #52; `ae7a72bc433c472e5c01c086216e476eef59a91b`.
+- **Inspection findings:** raw substring matching could select irrelevant canon (`art` matched `party`), malformed runtime query values could bypass TypeScript assumptions, and the stricter Brain contract exposed a real Guided Journal caller bug where whitespace-only optional fields were forwarded as blank query terms.
+- **Improvements:** task queries now receive bounded runtime validation, selector normalization and deduplication; saliency uses Unicode-aware whole-word and adjacent-phrase matching; evidence is emitted only for exact selected terms; canonical memory class/authority guards are exported; Guided Journal prompt/cover callers trim optional values and substitute meaningful non-empty context defaults without weakening Brain validation.
+- **Regression coverage:** proves false-positive substrings are rejected, multilingual and Unicode-normalized terms remain deterministic, malformed query shapes fail closed, normalized selectors retain stable evidence, and Guided Journal prompt/cover paths never forward blank Brain query terms.
+- **Acceptance hardening:** Guided Journal browser acceptance now reports real failing HTTP status/body instead of crashing on downstream undefined values, which made the cross-office contract defect observable and repairable.
+- **Research applied:** Unicode-aware segmentation and bounded runtime input validation were checked against current platform/security guidance while preserving Forge's provider-neutral and author-authoritative architecture.
+- **Verification:** Forge CI #667 / run `33480952798` passed TypeScript build, all **396** unit tests, 100% completion checks, client/shell syntax checks, the complete desktop browser suite including Guided Journal integration, and Android/mobile acceptance on the verified PR head.
+- **Unresolved blockers:** none in this coherent block.
+- **Handoff:** 001F is ready for Android independent review after merge. Codex advances immediately to 001G and does not wait on the second pass.
 
 ### Mission 059 parallel engineering coordination
 
