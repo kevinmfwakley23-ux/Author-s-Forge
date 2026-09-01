@@ -15,7 +15,15 @@ const root = resolve(new URL("..", import.meta.url).pathname);
 const required = [
   "dist/index.js",
   "dist/studio-server.js",
+  "dist/guided-journal-server.js",
+  "dist/educational-workbook-server.js",
+  "dist/specialized-creation-server.js",
+  "scripts/start-forge.js",
+  "scripts/forge-offices-browser-acceptance.js",
   "public/index.html",
+  "public/guided-journal.html",
+  "public/educational-workbooks.html",
+  "public/specialized-creation.html",
   "public/manifest.webmanifest",
   "public/sw.js",
 ];
@@ -30,5 +38,5 @@ if (missing.length) {
 }
 
 console.log("FORGE BASELINE CHECK PASSED");
-console.log("Canonical generated/runtime surface is present.");
-console.log("Next: npm test && npm run test:browser && npm run test:browser:mobile");
+console.log("Canonical main Studio, Guided Journal, Educational Workbook, Specialized Creation, and unified launcher surfaces are present.");
+console.log("Next: npm run verify");
