@@ -12,7 +12,7 @@ async function fixture(generator) {
   const root = await mkdtemp(join(tmpdir(), "forge-image-lab-"));
   const store = new FileProjectStore(root);
   let workspace = createStudioWorkspace();
-  workspace = addWorkspaceBook(workspace, createWorkspaceBook({ id: "book-1", title: "Illustrated Book", kind: "picture-book", now: "2026-09-01T18:00:00.000Z" }));
+  workspace = addWorkspaceBook(workspace, createWorkspaceBook({ id: "book-1", title: "Illustrated Book", kind: "childrens-book", now: "2026-09-01T18:00:00.000Z" }));
   workspace = addWorkspaceChapter(workspace, "book-1", { id: "chapter-1", number: 1, title: "Opening", now: "2026-09-01T18:01:00.000Z" });
   workspace = addWorkspaceScene(workspace, "book-1", "chapter-1", { id: "scene-1", number: 1, title: "Forest", now: "2026-09-01T18:02:00.000Z" });
   const project = withProjectStudioWorkspace(createProject({ id: "project-1", title: "Image Lab Acceptance", now: "2026-09-01T18:00:00.000Z" }), workspace, "2026-09-01T18:02:00.000Z");
