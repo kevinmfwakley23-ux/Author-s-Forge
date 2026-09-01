@@ -1,0 +1,13 @@
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const {createSpecializedOfficeProject}=require('../dist/domain/specialized-creation-office.js');
+const {composeSpecializedProject}=require('../dist/application/specialized-creation-mode-composer.js');
+const {specializedProductionSafetyIssues,prepareSpecializedProjectForArtifact,normalizePdfText}=require('../dist/application/specialized-creation-production-safety.js');
+
+function invitationProject(qrDestination){let project=createSpecializedOfficeProject({id:'invite-safe',forgeProjectId:'forge',mode:'invitation',title:'Invitation',brief:'Safety test'});project={...project,modeData:{eventType:'Launch',primaryNames:['Author’s Forge'],date:'2026-09-15',startTime:'18:00',venue:'Forge Hall',address:'100 Main Street',rsvpMethod:'example.test/rsvp',...(qrDestination?{qrDestination}: {})}};const doc=composeSpecializedProject(project);return {...project,documents:[doc]};}
+
+test('QR production is blocked instead of emitting a fake non-decodable square',()=>{const project=invitationProject('https://example.test/rsvp');const issues=specializedProductionSafetyIssues(project,'pdf');assert.ok(issues.some(issue=>issue.code==='QR_RENDERER_UNAVAILABLE'&&issue.severity==='error'));assert.throws(()=>prepareSpecializedProjectForArtifact(project,'pdf'),/QR_RENDERER_UNAVAILABLE/);});
+
+test('common typographic punctuation is normalized deterministically for the built-in PDF font',()=>{assert.equal(normalizePdfText('Author’s “Forge”—ready… © 2026'),'Author\'s "Forge"--ready... (c) 2026');const project=invitationProject();const prepared=prepareSpecializedProjectForArtifact(project,'pdf');const names=prepared.documents[0].surfaces[0].elements.find(e=>e.id==='invite-names');assert.equal(names.text,"Author's Forge");});
+
+test('unsupported non-Latin PDF glyphs block rather than silently changing to question marks',()=>{let project=createSpecializedOfficeProject({id:'unicode',forgeProjectId:'forge',mode:'flyer',title:'Unicode',brief:'Glyph safety'});project={...project,modeData:{objective:'Announce',audience:'Readers',headline:'こんにちは',details:'Details',primaryCta:'Read',destination:'example.test',secondaryActions:[]}};project={...project,documents:[composeSpecializedProject(project)]};const issues=specializedProductionSafetyIssues(project,'pdf');assert.ok(issues.some(issue=>issue.code==='PDF_UNSUPPORTED_GLYPHS'&&issue.severity==='error'));assert.throws(()=>prepareSpecializedProjectForArtifact(project,'pdf'),/PDF_UNSUPPORTED_GLYPHS/);const svgPrepared=prepareSpecializedProjectForArtifact(project,'svg');assert.equal(svgPrepared.documents[0].surfaces[0].elements.find(e=>e.id==='flyer-headline').text,'こんにちは');});
