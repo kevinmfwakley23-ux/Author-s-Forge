@@ -122,7 +122,7 @@ export async function generateText(request: AiGenerationRequest): Promise<AiGene
       requiresVision: request.requiresVision,
       requiresToolCalls: request.requiresToolCalls,
       requiresStreaming: request.requiresStreaming,
-      requiresCreativeWriting: request.requiresCreativeWriting ?? task === "writing" || task === "voice-preservation",
+      requiresCreativeWriting: request.requiresCreativeWriting ?? (task === "writing" || task === "voice-preservation"),
       requiresInstructionFollowing: request.requiresInstructionFollowing ?? true,
     }, async (_input, context) => {
       return generateFromProvider(context.resource.provider as ProviderName, context.resource.model, optimizedRequest);
@@ -272,7 +272,8 @@ async function generateWithOpenAiCompatibleGateway(provider: "omniroute" | "9rou
   const message = first?.message as Record<string, unknown> | undefined;
   const text = typeof message?.content === "string" ? message.content.trim() : "";
   if (!text) throw new Error(`${provider} returned no generated text.`);
-  return { provider, model, text, requestId: typeof payload.id === "string" ? payload.id : undefined, ...(chatUsage(payload) ? { usage: chatUsage(payload)! } : {}) };
+  const usage = chatUsage(payload);
+  return { provider, model, text, requestId: typeof payload.id === "string" ? payload.id : undefined, ...(usage ? { usage } : {}) };
 }
 
 async function generateOpenAi(apiKey: string, model: string, request: AiGenerationRequest): Promise<AiGenerationResult> {
