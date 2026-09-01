@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { ProjectMemoryStore } = require("../.forge-build/application/project-memory-store.js");
-const { assembleProjectBrainContext } = require("../.forge-build/application/project-brain.js");
+const { assembleProjectBrainContext, PROJECT_BRAIN_MAX_RESULTS } = require("../.forge-build/application/project-brain.js");
 const { createMemoryRecord } = require("../.forge-build/domain/memory.js");
 
 function authoritative(id, summary, content, relevanceTags = []) {
@@ -55,6 +55,7 @@ test("Project Brain rejects malformed runtime query collections before retrieval
   assert.throws(() => assembleProjectBrainContext(store, { projectId: "project-1", relatedMemoryIds: [17] }), /related memory ids must contain non-empty strings/);
   assert.throws(() => assembleProjectBrainContext(store, { projectId: "project-1", changedSince: null }), /changedSince must be a valid timestamp/);
   assert.throws(() => assembleProjectBrainContext(store, { projectId: "project-1", includeWorkingState: "yes" }), /includeWorkingState must be a boolean/);
+  assert.throws(() => assembleProjectBrainContext(store, { projectId: "project-1", limit: PROJECT_BRAIN_MAX_RESULTS + 1 }), /limit must be an integer from 0 to 256/);
 });
 
 test("Project Brain trims and deduplicates valid runtime selectors without changing evidence order", () => {
@@ -72,4 +73,16 @@ test("Project Brain trims and deduplicates valid runtime selectors without chang
   assert.equal(context.projectId, "project-1");
   assert.deepEqual(context.authoritative.map((memory) => memory.id), ["canon"]);
   assert.deepEqual(context.evidence.map((item) => item.memoryId), ["canon"]);
+});
+
+test("Project Brain applies a bounded default retrieval window to unbounded callers", () => {
+  const store = new ProjectMemoryStore();
+  for (let index = 0; index < PROJECT_BRAIN_MAX_RESULTS + 20; index += 1) {
+    store.register(authoritative(`canon-${String(index).padStart(3, "0")}`, `Canon ${index}`, `Author-approved fact number ${index}.`));
+  }
+
+  const context = assembleProjectBrainContext(store, { projectId: "project-1" });
+
+  assert.equal(context.evidence.length, PROJECT_BRAIN_MAX_RESULTS);
+  assert.equal(context.authoritative.length, PROJECT_BRAIN_MAX_RESULTS);
 });
