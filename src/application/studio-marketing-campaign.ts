@@ -86,17 +86,20 @@ export class StudioMarketingCampaignService {
 
   public async approveAsset(projectId: string, bookId: string, campaignId: string, assetId: string, now?: string): Promise<MarketingCampaignState> {
     const current = await this.get(projectId, bookId, campaignId);
-    return this.save(projectId, bookId, approveMarketingAsset(current.campaign, required(assetId, "Marketing asset id"), now), { now, reference: `promotion-approval:${assetId}` });
+    const eventTime = campaignEventTimestamp(current.campaign, now);
+    return this.save(projectId, bookId, approveMarketingAsset(current.campaign, required(assetId, "Marketing asset id"), eventTime), { now: eventTime, reference: `promotion-approval:${assetId}` });
   }
 
   public async rejectAsset(projectId: string, bookId: string, campaignId: string, assetId: string, now?: string): Promise<MarketingCampaignState> {
     const current = await this.get(projectId, bookId, campaignId);
-    return this.save(projectId, bookId, rejectMarketingAsset(current.campaign, required(assetId, "Marketing asset id"), now), { now, reference: `promotion-rejection:${assetId}` });
+    const eventTime = campaignEventTimestamp(current.campaign, now);
+    return this.save(projectId, bookId, rejectMarketingAsset(current.campaign, required(assetId, "Marketing asset id"), eventTime), { now: eventTime, reference: `promotion-rejection:${assetId}` });
   }
 
   public async scheduleAsset(projectId: string, bookId: string, campaignId: string, assetId: string, when: string, now?: string): Promise<MarketingCampaignState> {
     const current = await this.get(projectId, bookId, campaignId);
-    return this.save(projectId, bookId, scheduleMarketingAsset(current.campaign, required(assetId, "Marketing asset id"), required(when, "Marketing schedule time"), now), { now, reference: `promotion-schedule:${assetId}` });
+    const eventTime = campaignEventTimestamp(current.campaign, now);
+    return this.save(projectId, bookId, scheduleMarketingAsset(current.campaign, required(assetId, "Marketing asset id"), required(when, "Marketing schedule time"), eventTime), { now: eventTime, reference: `promotion-schedule:${assetId}` });
   }
 
   public async publishAsset(
@@ -108,7 +111,8 @@ export class StudioMarketingCampaignService {
   ): Promise<MarketingCampaignState> {
     if (input.authorApproved !== true) throw new Error("Explicit author approval is required before marking a marketing asset published.");
     const current = await this.get(projectId, bookId, campaignId);
-    return this.save(projectId, bookId, publishMarketingAsset(current.campaign, required(assetId, "Marketing asset id"), { now: input.now, externalReference: input.externalReference }), { now: input.now, reference: `promotion-published:${assetId}` });
+    const eventTime = campaignEventTimestamp(current.campaign, input.now);
+    return this.save(projectId, bookId, publishMarketingAsset(current.campaign, required(assetId, "Marketing asset id"), { now: eventTime, externalReference: input.externalReference }), { now: eventTime, reference: `promotion-published:${assetId}` });
   }
 
   private records(project: ProjectState, bookId: string, campaignId: string): MemoryRecord[] {
@@ -144,6 +148,18 @@ function newestCampaignRecordFirst(left: MemoryRecord, right: MemoryRecord): num
   if (leftActive !== rightActive) return rightActive - leftActive;
   const byCreated = right.createdAt.localeCompare(left.createdAt);
   return byCreated !== 0 ? byCreated : right.id.localeCompare(left.id);
+}
+
+function campaignEventTimestamp(campaign: MarketingCampaign, requested?: string): string {
+  const candidate = requested ?? new Date().toISOString();
+  const timestamps = [campaign.createdAt, campaign.updatedAt, candidate].filter((value): value is string => typeof value === "string" && value.length > 0);
+  let latest = 0;
+  for (const timestamp of timestamps) {
+    const time = Date.parse(timestamp);
+    if (!Number.isFinite(time)) throw new Error("Promotion lifecycle timestamp must be valid.");
+    latest = Math.max(latest, time);
+  }
+  return new Date(latest).toISOString();
 }
 
 function monotonicTimestamp(project: ProjectState, requested?: string, ...related: Array<string | undefined>): string {
