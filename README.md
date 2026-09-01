@@ -160,6 +160,19 @@ The project is now worked from the beginning of the author journey forward, offi
 - **Unresolved blockers:** none in this coherent block.
 - **Handoff:** ready for Chromebook independent review after 001A–001C. Codex advances to the next Forge Brain block after the documentation head is green and PR #50 is merged.
 
+### ✅ First pass 001E — Brain context provenance and budget integrity — READY FOR CHROMEBOOK REVIEW
+
+- **Active office/capability:** Forge Brain context assembly, provenance and context-budget reporting.
+- **Lead owner:** Codex co-chief engineer.
+- **Follow-behind owner:** Chromebook after the 001D review.
+- **Branch / PR / commits:** `first-pass/001e-brain-context-integrity`; PR #51; pipeline fix `413506accc07ae3983e9f2b4e8f34ad866584604`; regression head `79fd330d9c73448c4f6547798644ad1191235e63`.
+- **Inspection finding:** the pipeline calculated `originalEstimatedTokens` after budget trimming while adding pre-budget savings separately, making token metrics internally inconsistent; provider-facing context also omitted memory provenance.
+- **Improvements:** every assembled memory section now carries explicit provenance; savings and compression ratio use one complete pre-budget baseline; selected/omitted IDs remain visible; provenance is reported as a strategy signal.
+- **Regression coverage:** proves provenance reaches context, budget omissions remain honest, and `tokensSaved === originalEstimatedTokens - optimizedEstimatedTokens`.
+- **Verification:** Forge CI #656 / run `33478534682` passed TypeScript build, all 392 unit tests, completion and syntax checks, desktop browser acceptance, and Android/mobile acceptance on code head `79fd330d9c73448c4f6547798644ad1191235e63`.
+- **Unresolved blockers:** none in this coherent block.
+- **Handoff:** ready for Chromebook independent review after 001D. Codex advances to the next Brain capability after the documentation head is green and PR #51 is merged.
+
 ### Mission 059 parallel engineering coordination
 
 - **Chromebook lane currently owns 059B shared Specialized Creation reconciliation/verification**: shared durable project/workspace/revision/proposal storage, project-scoped application facade, Project Brain/provider/asset bridges, renderer-independent composition contract, shared production-profile/preflight foundation, and shared integration/CI fixes required by those contracts.
