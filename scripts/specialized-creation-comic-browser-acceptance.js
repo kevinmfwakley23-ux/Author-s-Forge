@@ -12,7 +12,7 @@ const PORT=6500+Math.floor(Math.random()*200);
 const AI_PORT=PORT+250;
 const forgeProjectId=`comic-browser-${Date.now()}`;
 const comicId='comic-059d';
-const tinyRgbPng='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADUlEQVR42mP8z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC';
+const tinyRgbPng='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC';
 
 const initialComic={
   issueTitle:'Forge Knights',
