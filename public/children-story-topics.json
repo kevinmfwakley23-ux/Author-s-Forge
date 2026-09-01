@@ -1,0 +1,247 @@
+{
+  "formatVersion": 1,
+  "name": "Author's Forge Children's Story Challenges Catalog",
+  "maxItems": 100,
+  "intendedUse": "Story ideation and age-appropriate discussion prompts. This catalog is not a diagnostic tool and does not label an individual child.",
+  "heartwoodGuidance": "For Heartwood Jungle-style stories, translate a challenge into a gentle animal-centered conflict, preserve the child's dignity, avoid blame, show supportive relationships, and end with a believable step toward safety, belonging, understanding, repair, or resilience rather than a magical cure.",
+  "sourceBasis": [
+    {
+      "id": "cdc-child-development",
+      "organization": "CDC",
+      "title": "Healthy Habits: Child Development",
+      "url": "https://www.cdc.gov/child-development/about/index.html",
+      "appliedTo": ["social-emotional development", "safety", "routines", "learning", "relationships"]
+    },
+    {
+      "id": "cdc-classroom-social-dynamics",
+      "organization": "CDC",
+      "title": "Management of Classroom Social Dynamics",
+      "url": "https://www.cdc.gov/classroom-management/approaches/classroom-social-dynamics.html",
+      "appliedTo": ["friendship", "belonging", "isolation", "bullying", "school connection"]
+    },
+    {
+      "id": "cdc-bullying",
+      "organization": "CDC",
+      "title": "Bullying",
+      "url": "https://www.cdc.gov/youth-violence/about/about-bullying.html",
+      "appliedTo": ["bullying", "confidence", "friendship", "kindness", "conflict management"]
+    },
+    {
+      "id": "aap-fears",
+      "organization": "American Academy of Pediatrics / HealthyChildren.org",
+      "title": "Fears & Phobias in Children: How Parents Can Help",
+      "url": "https://www.healthychildren.org/English/health-issues/conditions/emotional-problems/Pages/Understanding-Childhood-Fears-and-Anxieties.aspx",
+      "appliedTo": ["fear", "separation", "social worries", "new settings"]
+    },
+    {
+      "id": "aap-divorce",
+      "organization": "American Academy of Pediatrics / HealthyChildren.org",
+      "title": "Divorce and Separation: How to Help Your Child Adjust",
+      "url": "https://www.healthychildren.org/English/family-life/family-dynamics/types-of-families/Pages/Adjusting-to-Divorce.aspx",
+      "appliedTo": ["family change", "two homes", "routines", "safety", "self-blame"]
+    },
+    {
+      "id": "aap-grief",
+      "organization": "American Academy of Pediatrics / HealthyChildren.org",
+      "title": "How Children Understand Death: What to Say When a Loved One Dies",
+      "url": "https://www.healthychildren.org/English/healthy-living/emotional-wellness/Building-Resilience/Pages/How-Children-Understand-Death-What-You-Should-Say.aspx",
+      "appliedTo": ["grief", "loss", "changing routines", "missing support"]
+    },
+    {
+      "id": "aap-stress",
+      "organization": "American Academy of Pediatrics / HealthyChildren.org",
+      "title": "Stressful Experiences: How to Help Your Child Heal",
+      "url": "https://www.healthychildren.org/English/healthy-living/emotional-wellness/Building-Resilience/Pages/stressful-experiences-how-to-help-your-child-heal.aspx",
+      "appliedTo": ["stress", "bullying", "resilience", "support"]
+    },
+    {
+      "id": "unicef-bullying",
+      "organization": "UNICEF",
+      "title": "How to talk to your children about bullying",
+      "url": "https://www.unicef.org/lac/en/parenting-lac/security-protection/how-talk-your-children-about-bullying",
+      "appliedTo": ["bullying", "fear of school", "friend loss", "online behavior", "trusted adults"]
+    }
+  ],
+  "categories": [
+    {
+      "id": "friendship-belonging",
+      "label": "Friendship & Belonging",
+      "framing": "Focus on connection, communication, healthy friendship skills, and belonging without implying popularity is required for worth.",
+      "sourceIds": ["cdc-child-development", "cdc-classroom-social-dynamics"],
+      "topics": [
+        "Making a new friend",
+        "Feeling left out or excluded",
+        "A best friend spending time with someone else",
+        "A friendship changing or ending",
+        "Being shy in a new group",
+        "Wanting to join a game but not knowing how",
+        "Feeling lonely even around other children",
+        "Being misunderstood by a friend",
+        "Handling peer pressure to fit in",
+        "Repairing a friendship after hurt feelings"
+      ]
+    },
+    {
+      "id": "emotions-self-regulation",
+      "label": "Emotions & Self-Regulation",
+      "framing": "Treat feelings as understandable signals while showing safe choices, words, calming skills, support, and repair.",
+      "sourceIds": ["cdc-child-development", "aap-fears", "aap-stress"],
+      "topics": [
+        "Feeling afraid of something new",
+        "Worrying about what might happen",
+        "Getting very angry",
+        "Feeling sad without knowing what to do",
+        "Feeling embarrassed after a mistake",
+        "Handling disappointment",
+        "Getting frustrated when something is difficult",
+        "Learning patience when waiting is hard",
+        "Feeling jealous or envious",
+        "Managing big feelings without hurting others"
+      ]
+    },
+    {
+      "id": "safety-trust-boundaries",
+      "label": "Safety, Trust & Boundaries",
+      "framing": "Use careful, non-graphic language; reinforce that children deserve safety and can seek help from trusted adults.",
+      "sourceIds": ["cdc-child-development", "aap-fears", "aap-stress", "unicef-bullying"],
+      "topics": [
+        "Wanting to feel safe at home or school",
+        "Being separated from a parent or caregiver",
+        "Knowing which adults are trusted helpers",
+        "Learning body boundaries and personal space",
+        "Speaking up when something feels wrong",
+        "Telling a trusted adult about an unsafe secret",
+        "Feeling scared by adults arguing",
+        "Fear of the dark or nighttime",
+        "Coping with storms, disasters, or frightening events",
+        "Learning age-appropriate online and device safety"
+      ]
+    },
+    {
+      "id": "family-home-change",
+      "label": "Family & Home Changes",
+      "framing": "Keep adult problems with adults; make clear that children are not responsible for fixing family conflict or change.",
+      "sourceIds": ["aap-divorce", "aap-stress", "cdc-child-development"],
+      "topics": [
+        "Adjusting to a new baby or sibling",
+        "Sibling rivalry and wanting attention",
+        "Parents separating or divorcing",
+        "Living between two homes",
+        "Moving to a new home",
+        "Changing schools",
+        "Missing a parent or caregiver who is away",
+        "Feeling overlooked when adults are busy",
+        "Noticing family money stress",
+        "Living through housing or routine instability"
+      ]
+    },
+    {
+      "id": "school-learning",
+      "label": "School & Learning",
+      "framing": "Separate difficulty from worth; normalize asking for help, practice, different learning paths, and supportive adults.",
+      "sourceIds": ["cdc-child-development", "cdc-classroom-social-dynamics", "aap-fears"],
+      "topics": [
+        "First-day-of-school worries",
+        "Feeling nervous about going to school",
+        "Feeling misunderstood by a teacher",
+        "Being afraid to make mistakes in class",
+        "Struggling with reading",
+        "Struggling with math or another school subject",
+        "Having trouble focusing or staying organized",
+        "Feeling overwhelmed by homework",
+        "Worrying about tests, performances, or presentations",
+        "Learning to ask for help"
+      ]
+    },
+    {
+      "id": "identity-self-esteem-difference",
+      "label": "Identity, Self-Esteem & Difference",
+      "framing": "Affirm dignity and difference; avoid presenting disability, culture, family structure, language, or personality as defects to be cured.",
+      "sourceIds": ["cdc-child-development", "cdc-classroom-social-dynamics"],
+      "topics": [
+        "Feeling different from other children",
+        "Believing everyone else is better at something",
+        "Being hard on yourself or perfectionistic",
+        "Feeling uncomfortable about appearance or body differences",
+        "Living with a disability or access need",
+        "Feeling different because of how your brain learns or processes things",
+        "Feeling different because of culture or traditions",
+        "Feeling different because of language or accent",
+        "Feeling different because of family structure",
+        "Wanting acceptance for your interests, personality, or way of expressing yourself"
+      ]
+    },
+    {
+      "id": "bullying-conflict-fairness",
+      "label": "Bullying, Conflict & Fairness",
+      "framing": "Distinguish repeated bullying from ordinary conflict, avoid blaming the targeted child, and show safe help-seeking and respectful repair.",
+      "sourceIds": ["cdc-bullying", "cdc-classroom-social-dynamics", "unicef-bullying", "aap-stress"],
+      "topics": [
+        "Being bullied",
+        "Seeing someone else being bullied and deciding what to do",
+        "Being teased or called names",
+        "Being excluded by a clique or group",
+        "Dealing with rumors or gossip",
+        "Handling repeated conflict with another child",
+        "Learning to disagree without being cruel",
+        "Feeling that something is unfair",
+        "Facing prejudice or discrimination",
+        "Standing up for yourself respectfully"
+      ]
+    },
+    {
+      "id": "grief-health-change",
+      "label": "Grief, Health & Change",
+      "framing": "Use concrete, gentle language; allow mixed feelings and continuing remembrance rather than promising that grief simply disappears.",
+      "sourceIds": ["aap-grief", "aap-stress", "cdc-child-development"],
+      "topics": [
+        "Grieving the death of someone loved",
+        "Losing a pet",
+        "Missing someone who lives far away",
+        "Having a seriously ill family member",
+        "Being sick or spending time in a hospital",
+        "Recovering from an injury",
+        "Adjusting when someone you love cannot do what they used to do",
+        "Watching a grandparent or loved one grow older",
+        "Facing holidays or milestones after a loss",
+        "Living with new medical routines or health-related limits"
+      ]
+    },
+    {
+      "id": "independence-responsibility",
+      "label": "Independence & Responsibility",
+      "framing": "Show growth through practice, truthful repair, realistic responsibility, and support rather than shame or perfection.",
+      "sourceIds": ["cdc-child-development"],
+      "topics": [
+        "Trying something new without a grown-up doing it for you",
+        "Fear of failing",
+        "Learning to tell the truth after a mistake",
+        "Taking responsibility for your choices",
+        "Doing chores or contributing to the family",
+        "Controlling impulses when you want something now",
+        "Waiting your turn",
+        "Sharing when you do not want to",
+        "Losing or forgetting important belongings",
+        "Building routines and managing time"
+      ]
+    },
+    {
+      "id": "empathy-resilience-community",
+      "label": "Empathy, Resilience & Community",
+      "framing": "Let children receive support as well as give it; resilience is adapting with connection, not handling every hardship alone.",
+      "sourceIds": ["cdc-child-development", "cdc-classroom-social-dynamics", "aap-stress"],
+      "topics": [
+        "Not knowing how to comfort a sad friend",
+        "Learning to understand another person's point of view",
+        "Helping someone without taking over",
+        "Accepting people who are different from you",
+        "Forgiving someone while keeping healthy boundaries",
+        "Recovering after a setback",
+        "Solving a problem instead of giving up",
+        "Working as part of a team",
+        "Coping when a community changes after a difficult event",
+        "Finding hope and connection during a hard season"
+      ]
+    }
+  ]
+}
