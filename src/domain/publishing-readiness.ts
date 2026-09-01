@@ -4,14 +4,15 @@ export type ReadinessSeverity = "error" | "warning";
 export type ReadinessCategory = "manuscript" | "cover" | "metadata" | "formatting" | "images" | "table-of-contents" | "pagination" | "production";
 export interface ReadinessCheck { readonly id: string; readonly category: ReadinessCategory; readonly label: string; readonly status: ReadinessStatus; readonly severity: ReadinessSeverity; readonly message: string; readonly remediation?: string; }
 export interface PublishingReadinessInput { readonly manuscript?: { readonly title?: string; readonly author?: string; readonly chapters?: readonly { title: string; number: number }[]; readonly hasTitlePage?: boolean; readonly hasCopyrightPage?: boolean; readonly hasDedication?: boolean; readonly hasEpigraph?: boolean; readonly hasTableOfContents?: boolean; readonly hasBiography?: boolean; readonly hasAcknowledgments?: boolean; readonly hasAboutTheAuthor?: boolean; readonly hasBackMatter?: boolean; readonly hasSeriesInformation?: boolean; readonly pageCount?: number; }; readonly cover?: { readonly format?: "ebook" | "paperback" | "hardcover" | "series" | "boxed-set" | "promotional" | "audiobook"; readonly widthInches?: number; readonly heightInches?: number; readonly hasFront?: boolean; readonly hasBack?: boolean; readonly hasSpine?: boolean; readonly hasBarcodeSafeArea?: boolean; readonly hasBleed?: boolean; readonly hasTrim?: boolean; readonly hasSafeMargins?: boolean; readonly validated?: boolean; readonly fileType?: string; }; readonly metadata?: { readonly title?: string; readonly author?: string; readonly description?: string; readonly keywords?: readonly string[]; readonly categories?: readonly string[]; }; readonly formatting?: { readonly fileTypes?: readonly string[]; readonly validated?: boolean; readonly pageNumbering?: boolean; readonly headersFooters?: boolean; }; readonly images?: { readonly count?: number; readonly allResolved?: boolean; readonly allApproved?: boolean; readonly resolutionValidated?: boolean; }; readonly production?: { readonly trim?: boolean; readonly bleed?: boolean; readonly fileTypes?: readonly string[]; readonly validated?: boolean; }; }
-export interface PublishingReadinessReport { readonly formatVersion: typeof PUBLISHING_READINESS_FORMAT_VERSION; readonly id: string; readonly projectId: string; readonly createdAt: string; readonly checks: readonly ReadinessCheck[]; readonly passedCount: number; readonly attentionCount: number; readonly status: "ready" | "attention"; }
+export interface PublishingReadinessReport { readonly formatVersion: typeof PUBLISHING_READINESS_FORMAT_VERSION; readonly id: string; readonly projectId: string; readonly bookId?: string; readonly createdAt: string; readonly checks: readonly ReadinessCheck[]; readonly passedCount: number; readonly attentionCount: number; readonly status: "ready" | "attention"; }
 
 const CATEGORIES: readonly ReadinessCategory[] = ["manuscript","cover","metadata","formatting","images","table-of-contents","pagination","production"];
 const text = (v: string | undefined): boolean => typeof v === "string" && v.trim().length > 0;
 const check = (id: string, category: ReadinessCategory, label: string, ok: boolean, message: string, remediation?: string, severity: ReadinessSeverity = "error"): ReadinessCheck => ({ id, category, label, status: ok ? "passed" : "attention", severity, message, ...(ok ? {} : remediation ? { remediation } : {}) });
 
-export function createPublishingReadinessReport(input: PublishingReadinessInput & { id: string; projectId: string; now?: string }): PublishingReadinessReport {
+export function createPublishingReadinessReport(input: PublishingReadinessInput & { id: string; projectId: string; bookId?: string; now?: string }): PublishingReadinessReport {
   if (!input.id.trim() || !input.projectId.trim()) throw new Error("Publishing readiness report id and project id are required.");
+  if (input.bookId !== undefined && !input.bookId.trim()) throw new Error("Publishing readiness book id cannot be empty.");
   const m = input.manuscript, c = input.cover, md = input.metadata, f = input.formatting, i = input.images, p = input.production;
   const checks: ReadinessCheck[] = [
     check("manuscript-present","manuscript","Manuscript",!!m,"Manuscript is present.","Provide the completed manuscript."),
@@ -57,11 +58,12 @@ export function createPublishingReadinessReport(input: PublishingReadinessInput 
   ];
   const passedCount = checks.filter(x => x.status === "passed").length;
   const attentionCount = checks.length - passedCount;
-  return { formatVersion: PUBLISHING_READINESS_FORMAT_VERSION, id: input.id, projectId: input.projectId, createdAt: input.now ?? new Date().toISOString(), checks, passedCount, attentionCount, status: attentionCount === 0 ? "ready" : "attention" };
+  return { formatVersion: PUBLISHING_READINESS_FORMAT_VERSION, id: input.id, projectId: input.projectId, ...(input.bookId ? { bookId: input.bookId.trim() } : {}), createdAt: input.now ?? new Date().toISOString(), checks, passedCount, attentionCount, status: attentionCount === 0 ? "ready" : "attention" };
 }
 export function validatePublishingReadinessReport(report: PublishingReadinessReport): PublishingReadinessReport {
   if (report.formatVersion !== PUBLISHING_READINESS_FORMAT_VERSION) throw new Error("Unsupported publishing readiness format version.");
   if (!report.id.trim() || !report.projectId.trim()) throw new Error("Publishing readiness report id and project id are required.");
+  if (report.bookId !== undefined && !report.bookId.trim()) throw new Error("Publishing readiness book id cannot be empty.");
   if (!Array.isArray(report.checks) || report.checks.length === 0) throw new Error("Publishing readiness report must contain checks.");
   if (!report.checks.every(c => c.id.trim() && CATEGORIES.includes(c.category) && (c.status === "passed" || c.status === "attention") && (c.severity === "error" || c.severity === "warning"))) throw new Error("Publishing readiness report contains an invalid check.");
   const passed = report.checks.filter(c => c.status === "passed").length;
