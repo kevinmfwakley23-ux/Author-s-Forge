@@ -133,6 +133,19 @@ The project is now worked from the beginning of the author journey forward, offi
 - **Unresolved blockers:** none in this coherent block.
 - **Handoff:** ready for Chromebook independent review. Codex advances to Brain lifecycle-transition integrity after the documentation head is green and PR #45 is merged.
 
+### ✅ First pass 001C — Brain canon lifecycle-transition integrity — READY FOR CHROMEBOOK REVIEW
+
+- **Active office/capability:** Forge Brain promotion/supersession integrity.
+- **Lead owner:** Codex co-chief engineer.
+- **Follow-behind owner:** Chromebook after completing 001A and 001B reviews.
+- **Branch / PR / commits:** `first-pass/001c-brain-lifecycle-integrity`; PR #48; transition guard `786b09b6967805d594af2c0bfb631b8c21cd8eb9`; regression head `357af6618a30f441ea1573b40baefcaedc2235f7`.
+- **Inspection finding:** supersession allowed cross-class replacement, inactive source/replacement reuse, repeated replacement and ambiguous reuse of a replacement already linked to another source. Those paths could create non-reciprocal canon history.
+- **Improvements:** replacements must share project and memory class; both records must be active; existing replacement links cannot be silently reused; transition time cannot predate either record; both reciprocal records validate before either mutation commits.
+- **Regression coverage:** proves cross-class, archived, ambiguous, repeated and nonchronological transitions fail atomically, while a valid transition creates exactly one reciprocal `supersededBy` / `supersedes` relationship.
+- **Verification:** Forge CI #649 / run `33476955533` passed TypeScript build, all 387 unit tests, completion and syntax checks, desktop browser acceptance, and Android/mobile acceptance on code head `357af6618a30f441ea1573b40baefcaedc2235f7`.
+- **Unresolved blockers:** none in this coherent block.
+- **Handoff:** ready for Chromebook independent review after 001A and 001B. Codex advances to the next Forge Brain block after the documentation head is green and PR #48 is merged.
+
 ### Mission 059 parallel engineering coordination
 
 - **Chromebook lane currently owns 059B shared Specialized Creation reconciliation/verification**: shared durable project/workspace/revision/proposal storage, project-scoped application facade, Project Brain/provider/asset bridges, renderer-independent composition contract, shared production-profile/preflight foundation, and shared integration/CI fixes required by those contracts.
