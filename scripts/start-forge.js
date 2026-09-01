@@ -23,13 +23,23 @@ for (const service of services) {
 const children = [];
 let shuttingDown = false;
 let exitCode = 0;
+let forceTimer = null;
+
+function stopped(child) {
+  return child.exitCode !== null || child.signalCode !== null;
+}
 
 function stopAll(signal = "SIGTERM") {
   if (shuttingDown) return;
   shuttingDown = true;
   for (const child of children) {
-    if (!child.killed && child.exitCode === null) child.kill(signal);
+    if (!stopped(child)) child.kill(signal);
   }
+  forceTimer = setTimeout(() => {
+    for (const child of children) {
+      if (!stopped(child)) child.kill("SIGKILL");
+    }
+  }, 2500);
 }
 
 function launch(service) {
@@ -69,8 +79,9 @@ for (const service of services) launch(service);
 
 const interval = setInterval(() => {
   if (!shuttingDown) return;
-  if (children.every((child) => child.exitCode !== null || child.killed)) {
+  if (children.every(stopped)) {
     clearInterval(interval);
+    if (forceTimer) clearTimeout(forceTimer);
     process.exit(exitCode);
   }
 }, 50);
