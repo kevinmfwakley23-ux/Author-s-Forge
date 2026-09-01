@@ -35,6 +35,7 @@ const hasTest = (...patterns) => patterns.some((pattern) => testFiles.some((file
 const browserHarnesses = [
   'scripts/studio-browser-acceptance.js',
   'scripts/studio-context-browser-acceptance.js',
+  'scripts/studio-image-lab-browser-acceptance.js',
   'scripts/studio-kdp-preflight-browser-acceptance.js',
   'scripts/studio-recovery-browser-acceptance.js',
   'scripts/studio-children-topics-browser-acceptance.js',
@@ -63,6 +64,14 @@ const capabilities = [
   ['Research & provenance-aware memory', ['src/domain/research.ts', 'src/domain/relationship-memory.ts'], () => hasTest(/research|relationship-memory/)],
   ['Intelligent editing', ['src/domain/intelligent-editing.ts', 'src/application/intelligent-editing.ts'], () => hasTest(/intelligent-editing|ai-editing/)],
   ['Visual identity / illustration assets', ['src/domain/character-visual-continuity.ts', 'src/domain/illustration-asset-library.ts'], () => hasTest(/illustration|visual/)],
+  ['Studio voice + provider-backed image generation/editing', [
+    'src/infrastructure/image-provider.ts',
+    'src/application/studio-image-lab.ts',
+    'src/application/studio-image-lab-routes.ts',
+    'public/forge-command-center.js',
+    'public/forge-image-lab.js',
+    'scripts/studio-image-lab-browser-acceptance.js',
+  ], () => hasTest(/studio-image-lab|image-provider-reference/)],
   ['Cover / KDP production planning', ['src/domain/book-cover-studio.ts'], () => hasTest(/book-cover/)],
   ['Manuscript production artifacts', ['src/domain/manuscript-production.ts', 'src/application/manuscript-production.ts'], () => hasTest(/manuscript-production/)],
   ['Guided Journal Office', [
@@ -142,6 +151,6 @@ for (const row of rows) {
 }
 console.log('');
 console.log('Interpretation: 100% is reserved for a complete, verified product journey.');
-console.log('The meter requires the Guided Journal, Educational Workbook, and Specialized Creation offices, the unified workplace launcher, plus every canonical browser/mobile harness.');
+console.log('The meter requires the creation offices, unified workplace launcher, voice command path, durable provider-backed image generation/editing, and every canonical browser/mobile harness.');
 console.log('This meter never substitutes source presence for real browser/device proof; CI must execute the harnesses successfully.');
 console.log('Run after a clean checkout/build: npm run completion');
