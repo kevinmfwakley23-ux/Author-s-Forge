@@ -2,6 +2,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const {
   appendComicPanelArtCandidate,
+  comicAccessibleReadingSequence,
   comicBrainContextRequest,
   comicModePreflight,
   comicPacingSummary,
@@ -86,4 +87,30 @@ test('comic panel continuity request explicitly asks shared Brain for visual ide
   assert.equal(request.capability,'comic-panel');
   assert.equal(request.panelId,'p1');
   assert.deepEqual(request.requestedContext,['characters','visual-identities','locations','props','style','continuity','dialogue-voice']);
+});
+
+
+test('comic accessibility sequence preserves panel descriptions, semantic roles, speakers, and deterministic reading order',()=>{
+  let comic=setComicPanelLetteringSemantics(baseComic,1,'p1',[
+    {id:'letter-dialogue-1',kind:'dialogue',sourceIndex:0,readingOrder:2,speaker:'Mara',tailTarget:{x:0.3,y:0.55}},
+    {id:'letter-caption-1',kind:'caption',sourceIndex:0,readingOrder:1},
+    {id:'letter-sfx-1',kind:'sfx',sourceIndex:0,readingOrder:3},
+  ]);
+  comic=setComicPanelLetteringSemantics(comic,1,'p2',[
+    {id:'letter-sfx-2',kind:'sfx',sourceIndex:0,readingOrder:4},
+  ]);
+  const sequence=comicAccessibleReadingSequence(comic);
+  assert.deepEqual(sequence.map(item=>item.kind),['caption','dialogue','sfx','sfx']);
+  assert.equal(sequence[0].panelDescription,'Hero enters the forge.');
+  assert.equal(sequence[1].speaker,'Mara');
+  assert.equal(sequence[1].text,'Keep the fire low.');
+  assert.equal(sequence[3].panelId,'p2');
+  assert.equal(Object.isFrozen(sequence),true);
+});
+
+test('comic preflight reports structured lettering sources missing explicit accessible reading semantics',()=>{
+  const issues=comicModePreflight(baseComic);
+  const missing=issues.filter(item=>item.code==='COMIC_LETTERING_SEMANTICS_MISSING');
+  assert.equal(missing.length,4);
+  assert.equal(missing.every(item=>item.severity==='warning'),true);
 });
