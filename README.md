@@ -159,6 +159,24 @@ The next engineering phase is to turn those foundations into a complete live off
 
 **Guided journals remain a separate completed office and must not be folded into Specialized Creation.**
 
+#### 🟡 Mission 059D phone lane — comic hardening checkpoint
+
+Phone work is stacked on PR #38 and **reuses its existing Specialized Creation trunk and comic implementation** rather than creating a second comic stack. The phone-owned delta is intentionally isolated to comic-specific application/test/coordination files.
+
+Current verified progress:
+
+- **SC-COMIC-003–011 advanced** — inherited LTR/RTL and stable panel IDs are preserved; comic-only hardening adds renderer-independent normalized panel geometry, page/panel pacing and page-turn intent, semantic lettering linked to structured dialogue/captions/SFX, speaker/tail/read-order validation, comic structural preflight, explicit shared-Brain continuity-context needs, and non-destructive panel art candidates.
+- **SC-COMIC-012–014 production proof advanced** — comic physical profiles are versionable without mutating the inherited profile; print PDF and ordered zero-padded CBZ artifacts are proven against the same durable comic document revision and production profile.
+- Forge CI #599 verify job passes build, the complete unit suite including the phone comic production tests, completion measurement and client/Termux syntax checks.
+- Full Mission 059D completion is **not** claimed. SC-COMIC-015 live comic acceptance and remaining production/device proof still require green browser/mobile gates.
+
+Current cross-lane blockers/findings handed to Chromebook/shared 059B/059I ownership:
+
+- the canonical browser gate currently stops in the shared TCG finishing acceptance because `type-c1` is composed as an empty required text element; phone is not editing that non-comic fixture/composer;
+- the shared PNG renderer independently caps both output dimensions at 1800 px, which can distort standard comic aspect ratio and prevents true profile-DPI high-resolution page-image output. This remains an explicit shared production-renderer gap for SC-COMIC-014 rather than a phone-created competing rasterizer.
+
+Phone branch/PR: `office/comic/mission-059d-hardening` / PR #39. Detailed lane evidence is recorded in `docs/MISSION-059D-PHONE-LANE.md`.
+
 ### 🟡 Remaining cross-Forge integration / hardening
 
 These areas have foundations or substantial implementation but still require continued integration/hardening before the entire Author's Forge product is considered complete:
