@@ -114,7 +114,7 @@ async function main() {
     const blockedPayload = await workflowBlocked.json();
     assert.deepEqual(blockedPayload.workflow.blockers, ["AUTHOR_APPROVAL_REQUIRED"]);
 
-    const workflowAdvanced = await fetch(`${baseUrl}/api/projects/${projectId}/workflow/advance`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ bookId, checks: { concept: [{ id: "concept.ready", label: "Concept approved", passed: true }] }, authorApproved: true, now: "2026-08-30T03:00:00.000Z" }) });
+    const workflowAdvanced = await fetch(`${baseUrl}/api/projects/${projectId}/workflow/advance`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ bookId, checks: { concept: [{ id: "concept.ready", label: "Concept approved", passed: true }] }, authorApproved: true }) });
     assert.equal(workflowAdvanced.ok, true);
     const advancedPayload = await workflowAdvanced.json();
     assert.equal(advancedPayload.workflow.toStage, "architecture");

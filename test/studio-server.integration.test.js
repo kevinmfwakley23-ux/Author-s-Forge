@@ -51,7 +51,7 @@ test("Forge Studio exposes a real persistent author workflow", async () => {
     assert.equal(proposal.target.sceneId, "scene-test");
     await send("/api/projects/forge-studio/ai/proposals/proposal-integration/apply", "POST", {}, false);
     await send("/api/projects/forge-studio/ai/proposals/proposal-integration/review", "POST", { decision: "accepted", note: "Author approved." });
-    const applied = await send("/api/projects/forge-studio/ai/proposals/proposal-integration/apply", "POST", { now: "2026-08-30T09:02:00.000Z" });
+    const applied = await send("/api/projects/forge-studio/ai/proposals/proposal-integration/apply", "POST", {});
     assert.equal(applied.workspace.books[0].chapters[0].scenes[0].content, "The storm moved closer to the house.");
     const persistedAfterAi = await get("/api/projects/forge-studio/workspace");
     assert.equal(persistedAfterAi.books[0].chapters[0].scenes[0].content, "The storm moved closer to the house.");
