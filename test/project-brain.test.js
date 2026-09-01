@@ -149,3 +149,37 @@ test("portable memory snapshot restores identity, authority, provenance, lifecyc
   assert.deepEqual(restored.get("snapshot"), memory);
   assert.throws(() => restored.restoreSnapshot({ ...snapshot, projectId: "p2" }), /another project|project id/);
 });
+
+
+test("memory creation rejects invalid lifecycle and provenance timestamps", () => {
+  assert.throws(() => createMemoryRecord({ id: "bad-now", projectId: "p1", class: "story-canon", authority: "working", summary: "Bad", content: "Bad.", now: "not-a-date" }), /valid timestamp/);
+  assert.throws(() => createMemoryRecord({ id: "bad-source-time", projectId: "p1", class: "story-canon", authority: "authoritative", summary: "Bad source", content: "Bad.", provenance: [{ kind: "author", reference: "note", recordedAt: "yesterday-ish" }] }), /valid timestamp/);
+});
+
+test("memory restore is atomic when imported records are duplicated or malformed", () => {
+  const store = new ProjectMemoryStore();
+  const current = createMemoryRecord({ id: "current", projectId: "p1", class: "story-canon", authority: "authoritative", summary: "Current canon", content: "The valid state must survive.", provenance: [{ kind: "author", reference: "current", recordedAt: "2026-01-01T00:00:00.000Z" }], now: "2026-01-01T00:00:00.000Z" });
+  const incoming = createMemoryRecord({ id: "incoming", projectId: "p1", class: "creative-note", authority: "working", summary: "Incoming", content: "Candidate restore.", now: "2026-02-01T00:00:00.000Z" });
+  store.register(current);
+
+  assert.throws(() => store.restore([incoming, incoming]), /Duplicate memory id/);
+  assert.deepEqual(store.list(), [current]);
+
+  const malformed = { ...incoming, id: "malformed", updatedAt: "not-a-date" };
+  assert.throws(() => store.restore([incoming, malformed]), /valid timestamp/);
+  assert.deepEqual(store.list(), [current]);
+});
+
+test("snapshot restore validates imported runtime shape before replacing current state", () => {
+  const store = new ProjectMemoryStore();
+  const current = createMemoryRecord({ id: "safe", projectId: "p1", class: "project-memory", authority: "working", summary: "Safe state", content: "Preserve me.", now: "2026-01-01T00:00:00.000Z" });
+  store.register(current);
+  const invalidSnapshot = {
+    formatVersion: 1,
+    projectId: "p1",
+    memories: [{ ...current, id: "invalid", authority: "invented-authority" }],
+  };
+
+  assert.throws(() => store.restoreSnapshot(invalidSnapshot), /Unsupported memory authority/);
+  assert.deepEqual(store.list(), [current]);
+});
