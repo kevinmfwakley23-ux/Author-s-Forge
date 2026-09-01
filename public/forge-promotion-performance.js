@@ -75,13 +75,29 @@
   }
 
   function format(value, suffix=''){return value===undefined?'—':`${Number(value).toLocaleString(undefined,{maximumFractionDigits:4})}${suffix}`;}
+  function observedMetric(label, value, suffix='') { return value===undefined ? '' : `<span><strong>${esc(format(value,suffix))}</strong> ${esc(label)}</span>`; }
+  function moneyMetric(label, value, currency) { return value===undefined ? '' : `<span><strong>${esc(`${currency||''} ${format(value)}`.trim())}</strong> ${esc(label)}</span>`; }
+  function observedRows(snapshot) {
+    const metrics=snapshot.metrics||{};
+    const values=[
+      observedMetric('impressions',metrics.impressions),
+      observedMetric('clicks',metrics.clicks),
+      moneyMetric('spend',metrics.spend,snapshot.currency),
+      observedMetric('attributed orders',metrics.attributedOrders),
+      observedMetric('attributed units',metrics.attributedUnits),
+      moneyMetric('attributed revenue',metrics.attributedRevenue,snapshot.currency),
+      observedMetric('delivered',metrics.delivered),
+      observedMetric('opens',metrics.opens),
+    ].filter(Boolean);
+    return values.length ? `<p class="muted"><strong>Observed:</strong> ${values.join(' • ')}</p>` : '';
+  }
   async function loadPerformance() {
     const ctx=context(); if (!ctx.bookId || !ctx.campaignId) return;
     syncAssets();
     try {
       const summary=await api(rootUrl(`/promotion/performance?bookId=${encodeURIComponent(ctx.bookId)}&campaignId=${encodeURIComponent(ctx.campaignId)}`));
       const target=$('#promotion-performance-results'); if(!target)return;
-      target.innerHTML=(summary.snapshots||[]).map(({snapshot,derived})=>`<article class="memory"><strong>${esc(snapshot.source)}${snapshot.assetId?` • ${esc(snapshot.assetId)}`:''}</strong><p>${esc(snapshot.periodStart)} → ${esc(snapshot.periodEnd)}</p><div class="metrics">${[['CTR',format(derived.ctrPercent,'%')],['CPC',format(derived.costPerClick)],['CPM',format(derived.costPerThousandImpressions)],['Conversion',format(derived.attributedConversionPercent,'%')],['CPA',format(derived.costPerAttributedOrder)],['ACOS',format(derived.acosPercent,'%')],['ROAS',format(derived.roas)],['Open rate',format(derived.emailOpenRatePercent,'%')]].map(([label,value])=>`<div class="metric"><strong>${esc(value)}</strong><span>${esc(label)}</span></div>`).join('')}</div><small>${esc(snapshot.sourceReference)}</small></article>`).join('')||'<p class="muted">No observed performance recorded for this campaign.</p>';
+      target.innerHTML=(summary.snapshots||[]).map(({snapshot,derived})=>`<article class="memory"><strong>${esc(snapshot.source)}${snapshot.assetId?` • ${esc(snapshot.assetId)}`:''}</strong><p>${esc(snapshot.periodStart)} → ${esc(snapshot.periodEnd)}</p>${observedRows(snapshot)}<div class="metrics">${[['CTR',format(derived.ctrPercent,'%')],['CPC',format(derived.costPerClick)],['CPM',format(derived.costPerThousandImpressions)],['Conversion',format(derived.attributedConversionPercent,'%')],['CPA',format(derived.costPerAttributedOrder)],['ACOS',format(derived.acosPercent,'%')],['ROAS',format(derived.roas)],['Open rate',format(derived.emailOpenRatePercent,'%')]].map(([label,value])=>`<div class="metric"><strong>${esc(value)}</strong><span>${esc(label)}</span></div>`).join('')}</div><small>Observed ${esc(snapshot.observedAt)} • ${esc(snapshot.sourceReference)}</small>${snapshot.sourceUrl?`<p><a href="${esc(snapshot.sourceUrl)}" target="_blank" rel="noopener noreferrer">Open source report</a></p>`:''}${snapshot.notes?`<p class="muted">${esc(snapshot.notes)}</p>`:''}</article>`).join('')||'<p class="muted">No observed performance recorded for this campaign.</p>';
       if(summary.insights?.length)target.innerHTML+=`<h4>Evidence-aware insights</h4>${summary.insights.map((item)=>`<article class="memory"><strong>${esc(item.kind)}</strong><p>${esc(item.message)}</p></article>`).join('')}`;
     } catch(error){message(error.message);}
   }
