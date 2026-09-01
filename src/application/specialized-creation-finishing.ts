@@ -59,9 +59,24 @@ export function createTcgSheetDocument(project:SpecializedOfficeProject,source:S
   return Object.freeze({formatVersion:SPECIALIZED_DOCUMENT_FORMAT_VERSION,id:`tcg-sheet-${project.id}-${randomUUID()}`,projectId:project.id,title:`${project.title} Printable Sheets`,mode:project.mode,surfaces:Object.freeze(surfaces),styleTokens:Object.freeze({...source.styleTokens}),createdAt:now,updatedAt:now});
 }
 
-export function versionProductionProfile(profile:SpecializedProductionProfile,input:Partial<Omit<SpecializedProductionProfile,"formatVersion"|"id">>,version:number):SpecializedProductionProfile {
+export function versionProductionProfile(profile:SpecializedProductionProfile,input:unknown,version:number):SpecializedProductionProfile {
   if(!Number.isInteger(version)||version<2)throw new Error("Production profile version must be an integer of at least 2.");
-  return Object.freeze({...profile,...input,formatVersion:SPECIALIZED_PRODUCTION_PROFILE_VERSION,id:`${profile.id}-v${version}`,label:input.label??`${profile.label} v${version}`,notes:Object.freeze([...(input.notes??profile.notes),`Derived from ${profile.id}; profile revision ${version}.`])});
+  const changes=productionProfileChanges(input);
+  return Object.freeze({...profile,...changes,formatVersion:SPECIALIZED_PRODUCTION_PROFILE_VERSION,id:`${profile.id}-v${version}`,label:changes.label??`${profile.label} v${version}`,notes:Object.freeze([...(changes.notes??profile.notes),`Derived from ${profile.id}; profile revision ${version}.`])});
+}
+
+function productionProfileChanges(value:unknown):Partial<Omit<SpecializedProductionProfile,"formatVersion"|"id">> {
+  if(value===undefined)return{};
+  if(!value||typeof value!=="object"||Array.isArray(value))throw new Error("Production profile changes must be an object.");
+  const input=value as Record<string,unknown>,out:Partial<Omit<SpecializedProductionProfile,"formatVersion"|"id">>={};
+  const numberField=(key:"widthInches"|"heightInches"|"bleedInches"|"safeMarginInches"|"dpi")=>{if(input[key]!==undefined){const n=Number(input[key]);if(!Number.isFinite(n))throw new Error(`Production profile ${key} must be numeric.`);Object.assign(out,{[key]:n});}};
+  numberField("widthInches");numberField("heightInches");numberField("bleedInches");numberField("safeMarginInches");numberField("dpi");
+  if(input.label!==undefined){if(typeof input.label!=="string"||!input.label.trim())throw new Error("Production profile label must be non-empty.");out.label=input.label.trim();}
+  if(input.colorIntent!==undefined){if(input.colorIntent!=="sRGB"&&input.colorIntent!=="CMYK")throw new Error("Production profile colorIntent must be sRGB or CMYK.");out.colorIntent=input.colorIntent;}
+  if(input.duplex!==undefined){if(typeof input.duplex!=="boolean")throw new Error("Production profile duplex must be boolean.");out.duplex=input.duplex;}
+  if(input.artifactKinds!==undefined){if(!Array.isArray(input.artifactKinds)||!input.artifactKinds.every(item=>typeof item==="string"&&["pdf","svg","png","cbz","json","csv"].includes(item)))throw new Error("Production profile artifactKinds contains an unsupported value.");out.artifactKinds=Object.freeze(input.artifactKinds as SpecializedArtifactKind[]);}
+  if(input.notes!==undefined){if(!Array.isArray(input.notes)||!input.notes.every(item=>typeof item==="string"))throw new Error("Production profile notes must be strings.");out.notes=Object.freeze(input.notes.map(String));}
+  return out;
 }
 
 function findSurface(document:SpecializedDocument,kind:SpecializedSurface["kind"]):SpecializedSurface {const surface=document.surfaces.find(item=>item.kind===kind);if(!surface)throw new Error(`Folded card source is missing ${kind} surface.`);return surface;}
