@@ -16,6 +16,13 @@ const categories = ["remember", "discover", "challenge", "create", "become", "ho
 async function waitForHttp(url, timeout = 10000) { const start = Date.now(); while (Date.now() - start < timeout) { try { if ((await fetch(url)).ok) return; } catch {} await new Promise((r) => setTimeout(r, 100)); } throw new Error(`Timed out waiting for ${url}`); }
 function json(res, status, value) { res.writeHead(status, { "content-type": "application/json" }); res.end(JSON.stringify(value)); }
 async function readBody(req) { let raw = ""; for await (const chunk of req) raw += String(chunk); return raw ? JSON.parse(raw) : {}; }
+async function requireJsonResponse(responsePromise, label) {
+  const response = await responsePromise;
+  const raw = await response.text();
+  assert.equal(response.ok, true, `${label} failed (${response.status}): ${raw}`);
+  try { return JSON.parse(raw); }
+  catch (error) { throw new Error(`${label} returned invalid JSON: ${raw}`, { cause: error }); }
+}
 function mockAi() {
   const server = createServer(async (req, res) => {
     if (req.method !== "POST" || req.url !== "/v1/chat/completions") return json(res, 404, { error: { message: "not found" } });
@@ -63,14 +70,14 @@ async function main() {
     await page.locator('#edition-form [name="pageStyle"]').selectOption("lined");
     const editionResponse = page.waitForResponse((r) => r.url().endsWith("/journal/editions") && r.request().method() === "POST");
     await page.locator('#edition-form button[type="submit"]').click();
-    const edition = await (await editionResponse).json(); assert.equal(edition.prompts.length, 12); assert.equal(edition.pageStyle, "lined");
+    const edition = await requireJsonResponse(editionResponse, "Guided Journal edition creation"); assert.equal(edition.prompts.length, 12); assert.equal(edition.pageStyle, "lined");
     await page.waitForFunction(() => document.querySelector("#current-edition")?.textContent.includes("12 questions"));
 
     await page.locator('[data-panel="formatting"]').click();
     await page.locator('#format-form [name="author"]').fill("Kevin Wakley");
     const renderResponse = page.waitForResponse((r) => r.url().endsWith("/journal/render") && r.request().method() === "POST");
     await page.locator('#format-form button[type="submit"]').click();
-    const rendered = await (await renderResponse).json();
+    const rendered = await requireJsonResponse(renderResponse, "Guided Journal PDF render");
     assert.equal(rendered.artifact.format, "kdp-pdf"); assert.ok(rendered.layout.totalPages >= 24); assert.equal(Buffer.from(rendered.artifact.contentBase64, "base64").subarray(0, 5).toString(), "%PDF-");
     await page.waitForSelector("#download-pdf");
 
@@ -80,7 +87,7 @@ async function main() {
     await page.locator('#ai-prompt-form [name="purpose"]').fill("Help readers reflect on meaningful choices.");
     const aiPromptResponse = page.waitForResponse((r) => r.url().endsWith("/journal/ai/prompts") && r.request().method() === "POST");
     await page.locator('#ai-prompt-form button[type="submit"]').click();
-    const proposal = await (await aiPromptResponse).json(); assert.equal(proposal.prompts.length, 2); assert.equal(proposal.ai.provider, "omniroute");
+    const proposal = await requireJsonResponse(aiPromptResponse, "Guided Journal AI prompt proposal"); assert.equal(proposal.prompts.length, 2); assert.equal(proposal.ai.provider, "omniroute");
     await page.waitForFunction(() => document.querySelectorAll("#ai-prompt-result .ai-card").length === 2);
     const approveResponse = page.waitForResponse((r) => r.url().endsWith("/journal/ai/prompts/approve") && r.request().method() === "POST");
     await page.locator("#approve-ai-prompts").click(); assert.equal((await approveResponse).ok(), true);
@@ -88,11 +95,11 @@ async function main() {
     await page.locator('[data-panel="cover"]').click();
     await page.locator('#ai-cover-form [name="audience"]').fill("Adults who enjoy reflective guided journaling");
     const aiCoverResponse = page.waitForResponse((r) => r.url().endsWith("/journal/ai/cover") && r.request().method() === "POST");
-    await page.locator('#ai-cover-form button[type="submit"]').click(); const coverDirection = await (await aiCoverResponse).json(); assert.equal(coverDirection.ai.provider, "omniroute");
+    await page.locator('#ai-cover-form button[type="submit"]').click(); const coverDirection = await requireJsonResponse(aiCoverResponse, "Guided Journal AI cover proposal"); assert.equal(coverDirection.ai.provider, "omniroute");
     await page.waitForFunction(() => document.querySelector('#cover-form [name="frontPrompt"]')?.value.includes("horizon"));
     await page.locator('#cover-form [name="author"]').fill("Kevin Wakley");
     const coverResponse = page.waitForResponse((r) => r.url().endsWith("/journal/cover") && r.request().method() === "POST");
-    await page.locator('#cover-form button[type="submit"]').click(); const cover = await (await coverResponse).json();
+    await page.locator('#cover-form button[type="submit"]').click(); const cover = await requireJsonResponse(coverResponse, "Guided Journal cover creation");
     assert.equal(cover.plan.publishing.pageCount, rendered.layout.totalPages); assert.ok(cover.plan.dimensions.spineWidthInches > 0);
     await page.waitForFunction(() => document.querySelector("#cover-result")?.textContent.includes("Spine"));
 
