@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { mkdtemp, readFile, rm } = require("node:fs/promises");
+const { mkdtemp, readFile, readdir, rm } = require("node:fs/promises");
 const { tmpdir } = require("node:os");
 const { join } = require("node:path");
 const test = require("node:test");
@@ -50,6 +50,35 @@ test("persists and restores project metadata and Project Brain memory without hi
     assert.match(persisted, /\"formatVersion\": 4/);
     assert.match(persisted, /\"canon-1\"/);
     assert.doesNotMatch(persisted, new RegExp(root.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("concurrent project saves publish complete JSON without sharing a temporary file", async () => {
+  const root = await mkdtemp(join(tmpdir(), "authors-forge-concurrent-"));
+  try {
+    const store = new FileProjectStore(root);
+    const original = createProject({ id: "concurrent-001", title: "Concurrent Draft", now: "2026-01-01T00:00:00.000Z" });
+    await store.create(original);
+    const candidates = Array.from({ length: 16 }, (_, index) => ({
+      ...original,
+      metadata: {
+        ...original.metadata,
+        title: `Concurrent Draft ${index + 1}`,
+        updatedAt: `2026-01-01T00:00:${String(index + 1).padStart(2, "0")}.000Z`
+      }
+    }));
+
+    await Promise.all(candidates.map((candidate) => store.save(candidate)));
+
+    const restored = await store.load(original.metadata.id);
+    assert.ok(restored);
+    assert.ok(candidates.some((candidate) => candidate.metadata.title === restored.metadata.title));
+    const raw = await readFile(join(root, "projects", original.metadata.id, "project.json"), "utf8");
+    assert.doesNotThrow(() => JSON.parse(raw));
+    const entries = await readdir(join(root, "projects", original.metadata.id));
+    assert.deepEqual(entries.filter((entry) => entry.endsWith(".tmp")), []);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
