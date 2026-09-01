@@ -28,7 +28,7 @@ export class StudioMarketingCampaignService {
   ): Promise<MarketingCampaignState> {
     const project = await this.load(projectId);
     this.requireBook(project, bookId);
-    const now = options.now ?? new Date().toISOString();
+    const now = monotonicTimestamp(project, options.now, campaignInput.createdAt, campaignInput.updatedAt);
     const campaign = createMarketingCampaign({
       ...campaignInput,
       projectId,
@@ -60,7 +60,7 @@ export class StudioMarketingCampaignService {
     this.requireBook(project, bookId);
     const active = project.memories
       .filter((record) => record.class === "marketing-memory" && record.relevanceTags.includes("marketing-campaign") && record.relevanceTags.includes(`book:${bookId}`) && record.authority !== "archived" && record.authority !== "superseded")
-      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+      .sort(newestCampaignRecordFirst);
     return active.map((record) => ({ campaign: this.parse(record, projectId, bookId), memoryId: record.id }));
   }
 
@@ -70,7 +70,7 @@ export class StudioMarketingCampaignService {
     const id = required(campaignId, "Campaign id");
     const record = this.records(project, bookId, id)
       .filter((item) => item.authority !== "archived" && item.authority !== "superseded")
-      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0];
+      .sort(newestCampaignRecordFirst)[0];
     if (!record) throw new Error(`Marketing campaign "${id}" was not found.`);
     return { campaign: this.parse(record, projectId, bookId), memoryId: record.id };
   }
@@ -80,7 +80,7 @@ export class StudioMarketingCampaignService {
     this.requireBook(project, bookId);
     const id = required(campaignId, "Campaign id");
     return this.records(project, bookId, id)
-      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+      .sort(newestCampaignRecordFirst)
       .map((record) => ({ campaign: this.parse(record, projectId, bookId), memoryId: record.id }));
   }
 
@@ -134,6 +134,28 @@ export class StudioMarketingCampaignService {
     if (!project.studioWorkspace) throw new Error("Project has no Studio workspace.");
     return getBook(validateStudioWorkspace(project.studioWorkspace), required(bookId, "Book id"));
   }
+}
+
+function newestCampaignRecordFirst(left: MemoryRecord, right: MemoryRecord): number {
+  const byUpdated = right.updatedAt.localeCompare(left.updatedAt);
+  if (byUpdated !== 0) return byUpdated;
+  const leftActive = left.authority !== "archived" && left.authority !== "superseded" ? 1 : 0;
+  const rightActive = right.authority !== "archived" && right.authority !== "superseded" ? 1 : 0;
+  if (leftActive !== rightActive) return rightActive - leftActive;
+  const byCreated = right.createdAt.localeCompare(left.createdAt);
+  return byCreated !== 0 ? byCreated : right.id.localeCompare(left.id);
+}
+
+function monotonicTimestamp(project: ProjectState, requested?: string, ...related: Array<string | undefined>): string {
+  const candidate = requested ?? new Date().toISOString();
+  const timestamps = [project.metadata.createdAt, project.metadata.updatedAt, ...related.filter((value): value is string => typeof value === "string" && value.length > 0), candidate];
+  let latest = 0;
+  for (const timestamp of timestamps) {
+    const time = Date.parse(timestamp);
+    if (!Number.isFinite(time)) throw new Error("Promotion persistence timestamp must be valid.");
+    latest = Math.max(latest, time);
+  }
+  return new Date(latest).toISOString();
 }
 
 function required(value: unknown, label: string): string {
