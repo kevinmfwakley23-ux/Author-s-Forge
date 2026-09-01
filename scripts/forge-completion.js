@@ -47,6 +47,7 @@ const browserHarnesses = [
   'scripts/specialized-creation-tcg-builder-browser-acceptance.js',
   'scripts/specialized-creation-finishing-browser-acceptance.js',
   'scripts/specialized-creation-comic-browser-acceptance.js',
+  'scripts/forge-offices-browser-acceptance.js',
 ];
 const mobileHarnesses = [
   'scripts/studio-mobile-acceptance.js',
@@ -104,7 +105,7 @@ const capabilities = [
   ['Workflow gates / delivery audit / Book Genome', ['src/domain/workflow-gate.ts', 'src/domain/delivery-audit.ts', 'src/domain/final-product-systems.ts'], () => hasTest(/workflow|delivery-audit|final-product/)],
   ['Portable project package / recovery', ['src/domain/project-package.ts', 'src/application/project-package.ts'], () => hasTest(/project-package|external-storage/)],
   ['AI context optimization / cost governance', ['src/application/context-engine-stack.ts', 'src/application/ai-cost-guard.ts'], () => hasTest(/context|cost-guard/)],
-  ['Integrated Studio / browser acceptance', ['src/studio-server.ts', ...browserHarnesses], () => allExist(browserHarnesses)],
+  ['Integrated Studio / browser acceptance', ['src/studio-server.ts', 'scripts/start-forge.js', ...browserHarnesses], () => allExist(browserHarnesses) && exists('scripts/start-forge.js')],
   ['Android / PWA delivery surface', ['public/manifest.webmanifest', 'public/sw.js', 'public/forge-pwa.js', ...mobileHarnesses], () => allExist(mobileHarnesses) && hasTest(/pwa|mobile/)],
 ];
 
@@ -141,6 +142,6 @@ for (const row of rows) {
 }
 console.log('');
 console.log('Interpretation: 100% is reserved for a complete, verified product journey.');
-console.log('The meter now requires the Guided Journal, Educational Workbook, and Specialized Creation offices plus every canonical browser/mobile harness.');
+console.log('The meter requires the Guided Journal, Educational Workbook, and Specialized Creation offices, the unified workplace launcher, plus every canonical browser/mobile harness.');
 console.log('This meter never substitutes source presence for real browser/device proof; CI must execute the harnesses successfully.');
 console.log('Run after a clean checkout/build: npm run completion');
