@@ -1,9 +1,10 @@
 import type { MarketingCampaign } from "./marketing-campaign";
+import type { PromotionReadinessReport } from "./promotion-readiness";
 import type { PublishingReadinessReport } from "./publishing-readiness";
 
 export const RELEASE_GATE_FORMAT_VERSION = 1 as const;
 export type ReleaseGateStatus = "blocked" | "ready";
-export type ReleaseBlockerKind = "publishing-readiness" | "marketing-approval" | "marketing-evidence";
+export type ReleaseBlockerKind = "publishing-readiness" | "promotion-readiness" | "marketing-approval" | "marketing-evidence";
 
 export interface ReleaseGateBlocker {
   readonly id: string;
@@ -27,6 +28,8 @@ export interface ReleaseGateInput {
   readonly projectId: string;
   readonly bookId: string;
   readonly publishingReadiness: PublishingReadinessReport;
+  readonly promotionReadiness?: PromotionReadinessReport;
+  readonly promotionRequired?: boolean;
   readonly marketingCampaign?: MarketingCampaign;
   readonly now?: string;
 }
@@ -44,8 +47,21 @@ export function createReleaseGateReport(input: ReleaseGateInput): ReleaseGateRep
   if (input.publishingReadiness.projectId !== input.projectId) {
     blockers.push({ id: "readiness-project-mismatch", kind: "publishing-readiness", message: "Publishing readiness belongs to a different project.", remediation: "Run publishing readiness for the current project." });
   }
-  if (input.publishingReadiness.status !== "ready") {
-    blockers.push({ id: "publishing-readiness", kind: "publishing-readiness", message: `${input.publishingReadiness.attentionCount} publishing readiness check(s) require attention.`, remediation: "Resolve all release-blocking readiness checks before release." });
+  const publishingErrors = input.publishingReadiness.checks.filter((item) => item.status === "attention" && item.severity === "error");
+  if (publishingErrors.length) {
+    blockers.push({ id: "publishing-readiness", kind: "publishing-readiness", message: `${publishingErrors.length} release-blocking publishing readiness check(s) require attention.`, remediation: "Resolve every error-severity publishing readiness check before release. Warning-only omissions may remain visible without blocking launch." });
+  }
+
+  if (input.promotionRequired && !input.promotionReadiness) {
+    blockers.push({ id: "promotion-readiness-missing", kind: "promotion-readiness", message: "Promotion readiness has not been evaluated.", remediation: "Run Promotion readiness for the current book before launch." });
+  }
+  if (input.promotionReadiness) {
+    if (input.promotionReadiness.projectId !== input.projectId || input.promotionReadiness.bookId !== input.bookId) {
+      blockers.push({ id: "promotion-identity-mismatch", kind: "promotion-readiness", message: "Promotion readiness belongs to a different project or book.", remediation: "Run Promotion readiness for the current release project and book." });
+    }
+    if (input.promotionReadiness.errorCount > 0 || input.promotionReadiness.status !== "ready") {
+      blockers.push({ id: "promotion-readiness", kind: "promotion-readiness", message: `${input.promotionReadiness.errorCount} release-blocking promotion check(s) require attention.`, remediation: "Review remaining drafts, approvals, evidence, and channel-compliance errors before release." });
+    }
   }
 
   if (input.marketingCampaign) {
