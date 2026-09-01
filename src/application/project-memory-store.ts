@@ -34,7 +34,7 @@ export class ProjectMemoryStore {
 
   query(query: MemoryQuery = {}): MemoryRecord[] {
     if (query.limit !== undefined && (!Number.isInteger(query.limit) || query.limit < 0)) throw new Error("Memory query limit must be a non-negative integer.");
-    if (query.changedSince !== undefined && Number.isNaN(Date.parse(query.changedSince))) throw new Error("Memory changedSince must be a valid timestamp.");
+    const changedSinceInstant = query.changedSince === undefined ? undefined : parseTimestamp(query.changedSince, "Memory changedSince must be a valid timestamp.");
 
     return this.list().filter((memory) => {
       if (query.projectId && memory.projectId !== query.projectId) return false;
@@ -43,7 +43,7 @@ export class ProjectMemoryStore {
       if (query.authoritativeOnly && memory.authority !== "authoritative") return false;
       if (query.relatedMemoryId && !memory.relatedMemoryIds.includes(query.relatedMemoryId)) return false;
       if (query.relevanceTags && !query.relevanceTags.every((tag) => memory.relevanceTags.includes(tag))) return false;
-      if (query.changedSince && memory.updatedAt <= query.changedSince) return false;
+      if (changedSinceInstant !== undefined && parseTimestamp(memory.updatedAt, `Memory "${memory.id}" has an invalid updatedAt timestamp.`) <= changedSinceInstant) return false;
       return true;
     }).slice(0, query.limit ?? Number.MAX_SAFE_INTEGER);
   }
@@ -95,6 +95,12 @@ export class ProjectMemoryStore {
     if (snapshot.memories.some((memory) => memory.projectId !== snapshot.projectId)) throw new Error("Memory snapshot contains records from another project.");
     this.restore(snapshot.memories);
   }
+}
+
+function parseTimestamp(value: string, errorMessage: string): number {
+  const instant = Date.parse(value);
+  if (Number.isNaN(instant)) throw new Error(errorMessage);
+  return instant;
 }
 
 function cloneMemory(memory: MemoryRecord): MemoryRecord {
