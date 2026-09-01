@@ -6,14 +6,16 @@ const { join } = require('node:path');
 const { createForgeStudioRuntime } = require('../.forge-build/infrastructure/forge-studio-runtime.js');
 const { createDefaultForgeCoreRuntime } = require('../.forge-build/infrastructure/forge-core-runtime.js');
 
-test('Studio composition binds one durable project store directly into Forge Core', async () => {
+test('Studio composition binds one durable project store and core-routed AI boundary directly into Forge Core', async () => {
   const root = await mkdtemp(join(tmpdir(), 'forge-core-runtime-'));
   try {
     const runtime = createForgeStudioRuntime(root, {});
     assert.strictEqual(runtime.core.projectStore, runtime.projectStore);
+    assert.equal(typeof runtime.generateText, 'function');
     assert.equal(runtime.core.readiness().projectStoreAvailable, true);
     assert.equal(runtime.core.readiness().aiConfigured, false);
     assert.equal(runtime.core.readiness().aiOperational, false);
+    await assert.rejects(() => runtime.generateText({ system: 'system', user: 'write' }), /No AI provider is configured/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
