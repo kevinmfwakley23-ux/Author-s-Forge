@@ -20,6 +20,18 @@ export function normalizeStorageKey(value:unknown,label="Storage key",allowEmpty
   return segments.join("/");
 }
 
+export function validateStoredObject(value:unknown):StoredObject{
+  if(!value||typeof value!=="object"||Array.isArray(value))throw new Error("Stored object metadata must be an object.");
+  const input=value as Record<string,unknown>;
+  const key=normalizeStorageKey(input.key,"Stored object key");
+  if(typeof input.size!=="number"||!Number.isSafeInteger(input.size)||input.size<0)throw new Error("Stored object size must be a non-negative safe integer.");
+  const mediaType=text(input.mediaType,"Stored object media type");
+  const updatedAt=text(input.updatedAt,"Stored object updatedAt");
+  if(Number.isNaN(Date.parse(updatedAt)))throw new Error("Stored object updatedAt must be a valid timestamp.");
+  const etag=input.etag===undefined?undefined:text(input.etag,"Stored object etag");
+  return etag===undefined?{key,size:input.size,mediaType,updatedAt}:{key,size:input.size,mediaType,updatedAt,etag};
+}
+
 export function createProjectStorageBinding(input:{projectId:string;providerId:StorageProviderId;keyPrefix?:string}):ProjectStorageBinding{
   if(!input||typeof input!=="object"||Array.isArray(input))throw new Error("Project storage binding input must be an object.");
   const projectId=validateForgeProjectId(input.projectId);
