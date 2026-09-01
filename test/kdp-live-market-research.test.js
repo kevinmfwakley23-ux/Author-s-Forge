@@ -7,6 +7,7 @@ const { createKdpMarketIntelligenceReport } = require("../.forge-build/domain/kd
 
 const sourceA = "https://kdp.amazon.com/en_US/help/topic/G201298500";
 const sourceB = "https://example.org/market/childrens-friendship-books";
+const observedAt = "2026-09-01T10:00:00.000Z";
 
 function researchJson(overrides = {}) {
   return {
@@ -32,6 +33,15 @@ function researchJson(overrides = {}) {
   };
 }
 
+function persistedResearch(overrides = {}) {
+  const source = researchJson(overrides);
+  return {
+    ...source,
+    evidence: source.evidence.map((item) => ({ ...item, observedAt })),
+    comparableTitles: source.comparableTitles.map((item) => ({ ...item, observedAt })),
+  };
+}
+
 function openAiPayload(data = researchJson(), extraSources = []) {
   return {
     id: "resp-market-1",
@@ -48,7 +58,7 @@ function providerWith(payload) {
     requests.push({ url, options, body: JSON.parse(options.body) });
     return { ok: true, status: 200, json: async () => payload };
   };
-  return { requests, provider: new OpenAiWebKdpMarketIntelligenceProvider({ apiKey: "test-key", model: "gpt-test", fetchImpl, now: () => new Date("2026-09-01T10:00:00.000Z") }) };
+  return { requests, provider: new OpenAiWebKdpMarketIntelligenceProvider({ apiKey: "test-key", model: "gpt-test", fetchImpl, now: () => new Date(observedAt) }) };
 }
 
 test("live KDP research requires current hosted web search and returns ranked keyword/niche evidence", async () => {
@@ -69,7 +79,7 @@ test("live KDP research requires current hosted web search and returns ranked ke
   assert.equal(report.keywordRecommendations[0].recommendedForKdpSlot, true);
   assert.equal(report.nicheOpportunities[0].niche, "children's friendship and belonging stories");
   assert.equal(report.nicheOpportunities[0].score, 88);
-  assert.equal(report.evidence[0].observedAt, "2026-09-01T10:00:00.000Z");
+  assert.equal(report.evidence[0].observedAt, observedAt);
   assert.match(report.assessment.disclaimer, /not a guarantee/i);
 });
 
@@ -80,7 +90,7 @@ test("live KDP research rejects hallucinated evidence URLs not returned by web s
 });
 
 test("domain enforces no more than seven selected KDP keyword slots and blocks promotional metadata", () => {
-  const base = researchJson();
+  const base = persistedResearch();
   const eight = Array.from({ length: 8 }, (_, index) => ({ phrase: `friendship theme ${index + 1}`, score: 90 - index, rationale: "Relevant reader phrase.", evidenceIds: ["e1"], recommendedForKdpSlot: true, complianceNotes: [] }));
   assert.throws(() => createKdpMarketIntelligenceReport({ id: "too-many", projectId: "project-1", question: "q", market: "US", ...base, keywordRecommendations: eight }), /At most seven keyword recommendations/i);
   assert.throws(() => createKdpMarketIntelligenceReport({ id: "promo", projectId: "project-1", question: "q", market: "US", ...base, keywordRecommendations: [{ phrase: "free bestselling friendship book", score: 90, rationale: "bad", evidenceIds: ["e1"], recommendedForKdpSlot: true, complianceNotes: [] }] }), /prohibited or promotional metadata/i);
