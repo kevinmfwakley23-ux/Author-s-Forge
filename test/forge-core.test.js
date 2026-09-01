@@ -31,6 +31,7 @@ test("Forge Core owns one shared memory store and AI broker", () => {
   assert.equal(core.readiness().formatVersion, FORGE_CORE_FORMAT_VERSION);
   assert.equal(core.readiness().ready, false);
   assert.equal(core.readiness().aiConfigured, false);
+  assert.equal(core.readiness().aiOperational, false);
   assert.equal(core.readiness().projectStoreAvailable, false);
 });
 
@@ -38,8 +39,24 @@ test("Forge Core becomes ready only after durable project storage and a real con
   const readiness = configuredCore().readiness();
   assert.equal(readiness.ready, true);
   assert.equal(readiness.aiConfigured, true);
+  assert.equal(readiness.aiOperational, true);
   assert.equal(readiness.projectStoreAvailable, true);
   assert.equal(readiness.modelCount, 1);
+  assert.equal(readiness.operationalModelCount, 1);
+});
+
+test("Forge Core does not report ready when configured AI resources are unhealthy or cooling down", () => {
+  const core = createForgeCore({ projectStore: projectStore() });
+  core.registerAiModels([
+    { provider: "unhealthy", model: "broken", configured: true, healthy: false, capabilities: { contextWindow: 128000 } },
+    { provider: "cooling", model: "recovering", configured: true, healthy: true, cooldownUntil: "2026-09-01T05:10:00.000Z", capabilities: { contextWindow: 128000 } },
+  ]);
+  const readiness = core.readiness("2026-09-01T05:00:00.000Z");
+  assert.equal(readiness.aiConfigured, true);
+  assert.equal(readiness.aiOperational, false);
+  assert.equal(readiness.operationalModelCount, 0);
+  assert.equal(readiness.ready, false);
+  assert.ok(readiness.checks.includes("no-operational-models"));
 });
 
 test("Forge Core injects existing infrastructure instead of duplicating it", () => {
@@ -60,6 +77,26 @@ test("Forge Core exposes shared AI registration and durable memory snapshot boun
   const core = createForgeCore(); core.registerAiModels([{ provider: "test-provider", model: "test-model", configured: true, healthy: true, capabilities: { contextWindow: 128000, maxOutputTokens: 16000, creativeWriting: true, instructionFollowing: true } }]);
   const snapshot = core.snapshotMemory("project-1"); const restored = createForgeCore(); restored.restoreMemory(snapshot);
   assert.equal(core.readiness().modelCount, 1); assert.equal(snapshot.projectId, "project-1"); assert.deepEqual(restored.memory.list(), []);
+});
+
+test("Forge Core owns shared broker-driven AI execution and feeds failures back into shared routing state", async () => {
+  const core = createForgeCore({ projectStore: projectStore() });
+  core.registerAiModels([
+    { provider: "alpha", model: "writer-a", configured: true, healthy: true, capabilities: { contextWindow: 128000, creativeWriting: true } },
+    { provider: "beta", model: "writer-b", configured: true, healthy: true, capabilities: { contextWindow: 128000, creativeWriting: true } },
+  ]);
+  let calls = 0;
+  const result = await core.executeAi({ task: "writing", input: "draft", maxAttempts: 2, estimatedInputTokens: 120, estimatedOutputTokens: 80 }, async (_input, context) => {
+    calls += 1;
+    if (calls === 1) throw new Error("temporary provider failure");
+    return `${context.resource.provider}/${context.resource.model}`;
+  });
+  assert.equal(result.value, "beta/writer-b");
+  assert.equal(result.attempts, 2);
+  assert.equal(core.routing.get("alpha", "writer-a").totalFailures, 1);
+  assert.equal(core.routing.get("beta", "writer-b").totalSuccesses, 1);
+  assert.equal(core.routing.get("beta", "writer-b").totalTokens, 200);
+  assert.equal(core.ai.listResources().find((resource) => resource.provider === "alpha").consecutiveFailures, 1);
 });
 
 test("Forge Core durable snapshot captures project state for restart recovery", async () => {
