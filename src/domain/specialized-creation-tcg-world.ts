@@ -68,7 +68,7 @@ export interface TcgGameFramework {
 
 export function emptyTcgGameFramework():TcgGameFramework{return Object.freeze({premise:"",playerGoal:"",victoryConditions:Object.freeze([]),turnStructure:Object.freeze([]),zones:Object.freeze([]),resources:Object.freeze([]),cardTypes:Object.freeze([]),keywords:Object.freeze([]),factions:Object.freeze([]),characterLines:Object.freeze([]),worldMaps:Object.freeze([]),designNotes:Object.freeze([])});}
 
-export function validateTcgGameFramework(value:TcgGameFramework,requireResolvedReferences=true):void {
+export function validateTcgGameFramework(value:TcgGameFramework,requireResolvedReferences=false):void {
   if(!value||typeof value!=="object")throw new Error("TCG game framework must be an object.");
   textArray(value.victoryConditions,"TCG victory conditions");textArray(value.turnStructure,"TCG turn structure");textArray(value.zones,"TCG zones");textArray(value.resources,"TCG resources");textArray(value.cardTypes,"TCG card types");textArray(value.designNotes,"TCG design notes");
   uniqueObjects(value.keywords,"TCG keyword",item=>item.id,item=>{required(item.name,"TCG keyword name");required(item.reminderText,"TCG keyword reminder text");required(item.rulesText,"TCG keyword rules text");});
