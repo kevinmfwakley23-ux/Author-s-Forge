@@ -1,8 +1,52 @@
-/* Author's Forge PWA lifecycle and install UX. No project data is stored here. */
+/* Author's Forge PWA lifecycle, install UX, and cross-office launcher. No project data is stored here. */
 (() => {
   "use strict";
 
+  function currentProjectId() {
+    return new URLSearchParams(location.search).get("project") || localStorage.getItem("forge-project") || "forge-studio";
+  }
+
+  function officeUrl(port) {
+    const protocol = location.protocol === "https:" ? "https:" : "http:";
+    const host = location.hostname || "127.0.0.1";
+    return `${protocol}//${host}:${port}/?project=${encodeURIComponent(currentProjectId())}`;
+  }
+
+  function ensureOfficeLauncher() {
+    if (document.getElementById("forge-office-launcher")) return;
+    const dashboard = document.getElementById("dashboard");
+    if (!dashboard) return;
+    const card = document.createElement("article");
+    card.id = "forge-office-launcher";
+    card.className = "card";
+    card.innerHTML = `
+      <h3>Creation offices</h3>
+      <p class="muted">Open a first-class creation workplace for this same durable Forge project. Start the complete local workplace with <code>npm run forge</code> (or <code>npm run forge:android</code> for LAN/device access).</p>
+      <div class="row">
+        <a class="forge-office-link" id="open-guided-journal-office" href="${officeUrl(4273)}" target="_blank" rel="noopener">Guided Journal</a>
+        <a class="forge-office-link" id="open-workbook-office" href="${officeUrl(4373)}" target="_blank" rel="noopener">Educational Workbooks</a>
+        <a class="forge-office-link" id="open-specialized-office" href="${officeUrl(4473)}" target="_blank" rel="noopener">Specialized Creation</a>
+      </div>`;
+    dashboard.append(card);
+    card.querySelectorAll(".forge-office-link").forEach((link) => {
+      Object.assign(link.style, {
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: "44px",
+        padding: "10px 14px",
+        border: "1px solid #20252b",
+        borderRadius: "7px",
+        background: "#20252b",
+        color: "#fff",
+        textDecoration: "none",
+        flex: "1 1 180px",
+      });
+    });
+  }
+
   function ensureUi() {
+    ensureOfficeLauncher();
     if (document.getElementById("pwa-status")) return;
     const host = document.querySelector(".top-actions") || document.querySelector(".topbar") || document.body;
     const status = document.createElement("span");

@@ -21,6 +21,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      - run: npm run baseline
       - run: npm test
       - run: npm run completion
       - run: node --check public/app.js
@@ -32,6 +33,9 @@ jobs:
       - run: node --check public/forge-publishing-promotion.js
       - run: node --check public/forge-promotion-performance.js
       - run: node --check public/forge-pwa.js
+      - run: node --check public/sw.js
+      - run: node --check scripts/start-forge.js
+      - run: node --check scripts/forge-offices-browser-acceptance.js
       - run: bash -n scripts/termux-forge.sh
 
   browser-acceptance:

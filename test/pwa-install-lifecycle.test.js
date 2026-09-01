@@ -17,8 +17,18 @@ test('PWA lifecycle exposes a real install prompt boundary and app-installed sta
 });
 
 test('PWA lifecycle does not persist project data in browser storage', () => {
-  assert.doesNotMatch(pwa, /localStorage|sessionStorage|indexedDB/);
+  assert.doesNotMatch(pwa, /localStorage\.setItem|sessionStorage\.setItem|indexedDB/i);
   assert.match(pwa, /setStatus/);
+});
+
+test('PWA exposes project-aware, touch-sized links to every first-class creation office', () => {
+  assert.match(pwa, /open-guided-journal-office/);
+  assert.match(pwa, /open-workbook-office/);
+  assert.match(pwa, /open-specialized-office/);
+  assert.match(pwa, /officeUrl\(4273\)/);
+  assert.match(pwa, /officeUrl\(4373\)/);
+  assert.match(pwa, /officeUrl\(4473\)/);
+  assert.match(pwa, /minHeight: "44px"/);
 });
 
 test('service worker upgrades safely and excludes API project state from caching', () => {

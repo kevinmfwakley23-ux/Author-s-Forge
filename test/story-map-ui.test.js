@@ -14,6 +14,6 @@ test("Story Map UI is a live durable-workspace surface", async () => {
   assert.match(script, /lifecycle === "complete"/);
   assert.match(extension, /\/forge-story-map\.js/);
   assert.match(sw, /\/forge-story-map\.js/);
-  assert.match(sw, /authors-forge-shell-v5/);
+  assert.match(sw, /const CACHE = "authors-forge-shell-v\d+"/);
   assert.doesNotMatch(sw, /url\.pathname\.startsWith\("\/api\/"\).*cache/);
 });

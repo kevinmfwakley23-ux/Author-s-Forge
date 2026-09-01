@@ -29,16 +29,21 @@ jobs:
       - name: Build canonical Forge
         run: npm run build
 
+      - name: Run regression suite
+        run: npm test
+
       - name: Run completion meter
         run: npm run completion
 
-      - name: Validate browser-side JavaScript
+      - name: Validate browser and launcher JavaScript
         run: |
           node --check public/app.js
           node --check public/forge-command-center.js
           node --check public/forge-workbench.js
           node --check public/forge-ai-proposals.js
           node --check public/forge-pwa.js
+          node --check scripts/start-forge.js
+          node --check scripts/forge-offices-browser-acceptance.js
           bash -n scripts/termux-forge.sh
 
       - name: Assemble Android/Chromebook portable bundle
@@ -54,17 +59,21 @@ jobs:
           cat > release-bundle/forge/RUN-FORGE.md <<'EOF'
           # Run Author's Forge
 
-          ## Chromebook/Linux
+          ## Chromebook/Linux — complete workplace
           npm install
-          npm run studio
-          Then open http://127.0.0.1:4173/
+          npm run forge
+          Open http://127.0.0.1:4173/
 
-          ## Android / Termux
+          The unified launcher also starts the project-aware Guided Journal, Educational Workbook, and Specialized Creation offices on ports 4273, 4373, and 4473. Open those offices from the main Studio dashboard so the current project id is carried forward automatically.
+
+          ## Android / Termux or LAN/device access
           npm install
-          npm run studio:android
-          Open the Chromebook/Android-accessible LAN address shown by the running device, or use `scripts/termux-forge.sh`.
+          npm run forge:android
+          Open http://<device-ip>:4173/ from the device/browser that will use Forge. The dashboard office links reuse the same host and open the companion office ports automatically.
 
-          Forge project data is persisted by the Forge server. The PWA shell may be installed by the browser, but service-worker caching never replaces server-side project persistence.
+          The individual `studio`, `studio:journal`, `studio:workbooks`, and `studio:specialized` commands remain available for engineering and isolated-office use.
+
+          Forge project data is persisted by the Forge servers under the shared Forge data root. The PWA shell may be installed by the browser, but service-worker caching never replaces server-side project persistence and `/api/` project data is not cached as durable state.
           EOF
           tar -C release-bundle -czf "authors-forge-${GITHUB_SHA::12}.tar.gz" forge
           sha256sum "authors-forge-${GITHUB_SHA::12}.tar.gz" > "authors-forge-${GITHUB_SHA::12}.sha256"
