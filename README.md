@@ -89,16 +89,31 @@ PORTABLE PROJECT PACKAGE
 
 This section is the **living engineering checkpoint** for what is finished, what exists as a foundation, and what is next. Update it whenever a major capability is verified or the active build target changes.
 
+### Permanent Chromebook ↔ Phone two-pass completion workflow
+
+This README is the shared coordination board for the two engineering lanes. Both lanes must read current `main` and this README before beginning a new coherent write phase and after the other lane reports a completed block. GitHub `main` is shared truth; neither lane assumes the other lane's state without checking the repository first.
+
+The project is now worked from the beginning of the author journey forward, office by office, using a **lead pass + verification/improvement pass**:
+
+1. **Phone lead pass** — open the next office/capability in product order, inspect the existing implementation first, research current best practices, relevant open-source repositories and authoritative web sources, identify concrete improvements that fit Forge's architecture, implement those improvements without creating parallel infrastructure, add or strengthen tests, verify the work, and record the completed block plus branch/PR/commit/tests in this README.
+2. **Chromebook follow-behind pass** — after the phone marks that block ready for review, inspect the actual phone diff and current `main`, independently research the same office/capability for additional proven improvements, reconcile rather than rebuild, strengthen implementation/architecture/tests where justified, run the required verification gates, and record either **PASS — MOVE FORWARD** or the remaining blocker in this README.
+3. **Advance rule** — the phone does not treat an office as finally cleared until the Chromebook follow-behind pass is complete. Once Chromebook marks **PASS — MOVE FORWARD**, both lanes move to the next office/capability in product order. The Chromebook therefore stays one verified block behind the phone rather than competing in the same files.
+4. **Research rule** — both passes actively inspect authoritative documentation, current web research and useful open-source implementations. Adopt ideas and proven patterns, not disconnected feature lists or copied proprietary code. Improvements must preserve Forge's Project Brain, durable state, author authority, provider boundaries, production truth and platform-neutral architecture.
+5. **Overlap rule** — only one lane owns a coherent implementation block at a time. A shared-contract change needed by the lead lane must be written here before crossing into the follow-behind lane's active files. The follow-behind pass may modify the lead work after that lead block is explicitly handed off, because review/reconciliation is its assigned job.
+6. **Verification rule** — no block is cleared by source inspection alone. Required evidence is the strongest applicable combination of domain/application tests, build/completion checks, real browser acceptance, restart persistence, artifact inspection, Chromebook fit and Android/mobile acceptance. Tests are never weakened to manufacture green status.
+7. **README handoff rule** — every completed verified block updates this section with: active office/capability; lead owner; follow-behind owner; branch/PR/commit; research/improvements made; verification status; unresolved blockers; and whether the next office is cleared to begin.
+
+**Traversal starts at the Forge Brain / Project Brain and proceeds through the product journey until the whole application has received both passes.** The intended progression is Brain/project memory and governance → project/binder architecture and canon → characters/world/timeline/research/voice memory → Story Map/Writing Desk/AI drafting → editing/craft/continuity → visual/illustration/cover → Specialized Creation and Guided Journal offices → production/KDP/metadata/export → marketing/promotion → delivery/recovery → cross-office navigation/UI polish → final Chromebook + Android release acceptance. Existing completed areas are inspected rather than blindly rebuilt.
+
+**Current handoff state:** Mission 059 work already in flight remains coordinated rather than abandoned. Phone retains its explicitly assigned 059D comic-specific block until that block is handed off. Chromebook continues reconciliation/verification of PR #38 shared Specialized Creation foundation and CI defects. After this active Mission 059 handoff is brought to a clean checkpoint, the phone begins the new traversal at **Forge Brain / Project Brain**, and Chromebook follows behind it using the two-pass workflow above.
+
 ### Mission 059 parallel engineering coordination
 
-This README is the shared coordination checkpoint for simultaneous Chromebook and phone work. Both lanes must read current `main`, this README, `docs/AUTHORS_FORGE_CANONICAL_ARCHITECTURE.md`, and `docs/MISSION-059-SPECIALIZED-CREATION-OFFICE.md` before beginning a new coherent write phase. `main` remains shared truth; no lane should assume the other lane's state without checking GitHub first.
-
-- **Chromebook lane owns 059B shared Specialized Creation foundation**: shared durable project/workspace/revision/proposal storage, project-scoped application facade, Project Brain/provider/asset bridges, renderer-independent composition contract, shared production-profile/preflight foundation, and shared integration/CI fixes required by those contracts.
-- **Phone lane owns 059D comic-specific implementation and hardening**, inheriting PR #38's comic implementation and reconciling/hardening it instead of creating a parallel comic stack.
-- **Boundary rule:** Chromebook must not take over comic-specific scripting, page/panel, reading-order, lettering, comic export, or comic-editor behavior. Phone must not duplicate shared Brain/provider/storage/composition/production infrastructure. A shared-contract change needed by comic work must be explicitly flagged in the README or PR before either lane crosses the boundary.
-- **PR #38 (`office/specialized/mission-059-complete`) is the current integration branch** for Mission 059 implementation. Both lanes must inspect its current head and CI state before writing overlapping files.
-- **Synchronization rule:** after either lane merges or advances shared integration state, the other lane refreshes from the new shared truth before its next write phase. Do not weaken tests, bypass author approval, duplicate infrastructure, or treat preview-only behavior as completion.
-- **Current shared verification focus:** get PR #38 fully green across build, unit, completion, browser, and Android/mobile gates while preserving lane ownership above. Only then should Mission 059 phase completion be claimed.
+- **Chromebook lane currently owns 059B shared Specialized Creation reconciliation/verification**: shared durable project/workspace/revision/proposal storage, project-scoped application facade, Project Brain/provider/asset bridges, renderer-independent composition contract, shared production-profile/preflight foundation, and shared integration/CI fixes required by those contracts.
+- **Phone lane currently owns 059D comic-specific implementation and hardening**, inheriting PR #38's comic implementation and reconciling/hardening it instead of creating a parallel comic stack.
+- **Boundary rule:** Chromebook must not take over comic-specific scripting, page/panel, reading-order, lettering, comic export, or comic-editor behavior while the phone's 059D block is active. Phone must not duplicate shared Brain/provider/storage/composition/production infrastructure.
+- **PR #38 (`office/specialized/mission-059-complete`) is the current Mission 059 integration branch.** Both lanes inspect its current head and CI state before writing overlapping files.
+- **Current shared verification focus:** get PR #38 fully green across build, unit, completion, browser and Android/mobile gates while preserving the ownership boundary above. Only then should a Mission 059 phase-completion claim be recorded.
 
 ### ✅ Completed / verified major capability areas
 
@@ -186,11 +201,12 @@ These areas have foundations or substantial implementation but still require con
 
 ### Current build order
 
-1. **Execute Mission 059 phases 059B–059J and finish Specialized Creation Office** across all six locked modes.
-2. Close remaining cross-Forge live-integration gaps and acceptance gates.
-3. Complete production/marketing/delivery hardening.
-4. Remodel and polish the overall Studio UI/UX once capability coverage is stable.
-5. Run full-product Chromebook + Android release acceptance.
+1. Bring the current Mission 059 parallel handoff to a clean verified checkpoint without discarding in-flight work.
+2. Begin the permanent two-pass traversal at **Forge Brain / Project Brain**: phone lead pass, Chromebook follow-behind pass.
+3. Continue office-by-office through the integrated author journey until every major capability has received both passes.
+4. Complete production/marketing/delivery hardening and cross-office integration discovered during traversal.
+5. Remodel and polish the overall Studio UI/UX once functional coverage is stable.
+6. Run full-product Chromebook + Android release acceptance and clear the final Definition of Complete gate.
 
 ## Mission 058 — Saliency-Aware Character Memory Retrieval
 
