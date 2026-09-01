@@ -3,7 +3,8 @@
 ## Parallel ownership
 
 - **Lane:** forward first pass, Delivery / Recovery / final-release integrity.
-- **Stacked on:** 003B canonical Delivery Audit state persistence.
+- **Base:** merged `main` commit `e1844cceca4b56366f1c04a1056617b36847216d`, which contains verified 003A + 003B Delivery Audit integrity/persistence.
+- **PR:** #95 is retargeted directly to `main`.
 - **Does not modify:** Chromebook-owned Specialized Creation files, Educational Workbook files, Publishing/Promotion files, Project Brain retrieval files, Studio backup/recovery files, or browser shell files.
 
 ## Inspection finding
@@ -41,9 +42,13 @@ This block does **not** delete `FinalProductAudit`, rename its public categories
 - non-blocking failures remain attention-required/attention across both representations;
 - cross-project mutation is rejected before any audit history is recorded.
 
+## Reconciliation state
+
+003B merged only after Forge CI #943 passed build, full regression/completion/syntax, desktop browser, and Android/mobile acceptance. #95 now targets that merged `main`; its implementation remains confined to final-audit convergence application code, regression coverage, and this handoff document.
+
 ## Verification rule
 
-003C is stacked on 003B. It requires its own exact-head Forge CI after the stack is reconciled onto merged `main`: TypeScript build, full regression/completion/syntax checks, desktop browser acceptance, and Android/mobile acceptance. No source-only completion claim is allowed.
+A fresh exact-head Forge CI run is required on this reconciled head before merge: TypeScript build, full regression/completion/syntax checks, desktop browser acceptance, and Android/mobile acceptance. No source-only completion claim is allowed.
 
 ## Next convergence step
 
