@@ -1,6 +1,6 @@
 (() => {
   "use strict";
-  const state=window.forgeSpecializedState,api=window.forgeSpecializedApi,$=selector=>document.querySelector(selector),esc=value=>String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;","&gt;":"&gt;",'"':"&quot;","'":"&#39;"}[char]||char));
+  const state=window.forgeSpecializedState,api=window.forgeSpecializedApi,$=selector=>document.querySelector(selector),esc=value=>String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
   if(!state||!api)return;
   const forgeProjectId=()=>new URLSearchParams(location.search).get("project")||localStorage.getItem("forge-specialized-project")||"forge-specialized";
   const base=()=>`/api/projects/${encodeURIComponent(forgeProjectId())}/specialized/${encodeURIComponent(state.current?.id||"")}`;
