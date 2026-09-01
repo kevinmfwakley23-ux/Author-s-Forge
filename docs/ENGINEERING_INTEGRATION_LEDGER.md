@@ -32,6 +32,13 @@ Use the repository as a reference source for workforce planning, artifact lifecy
 - `jmorenobl/bookwright`: canonical author documents as source material, provenance-aware research, deterministic continuity validation, and a derived knowledge graph.
 - `mushroomfk/long-novel-agent-kit`: local durable continuity infrastructure and safety gates for long-running agent workflows.
 
+### Memory, retrieval, and local-first infrastructure
+- `mem0ai/mem0`: multi-signal memory retrieval that combines semantic, keyword, entity, and temporal signals; useful as a retrieval reference, not a canon-authority model.
+- `getzep/graphiti`: temporal context graphs with provenance, validity windows, incremental updates, and hybrid semantic/keyword/graph retrieval; useful for historical truth and relationship-aware retrieval patterns.
+- `yjs/yjs` + `yjs/y-indexeddb`: CRDT and local browser persistence patterns for offline-first editing and later synchronization.
+- `automerge/automerge`: local-first document/state synchronization with concurrent merge and change history; a future reference for Chromebook/Android multi-device editing.
+- Tiptap/Yjs collaboration patterns: rich-text collaboration, presence, snapshots/version history, and offline persistence; evaluate only if the CRDT layer can remain subordinate to Forge's canonical durable project state.
+
 ### Children's books and illustration
 - `The-Reading-Club/reading-club-ai`: rich editor + text/image AI integration for collaborative children's stories.
 - `MultiTales/childbook-adk`: bounded writer/editor/reviewer/reader/illustrator roles and a closed-loop children's-book production path.
@@ -47,6 +54,25 @@ Use the repository as a reference source for workforce planning, artifact lifecy
 - `jbilcke-hf/ai-comic-factory`: explicit LLM/rendering provider boundaries and multi-stage comic generation.
 
 These projects are engineering references, not dependencies. Forge must only copy/adapt mechanisms that fit its directive, license, architecture, and author-control requirements.
+
+## Standing competitive-intelligence contract
+
+Competitive and technical research is continuous engineering input, not a one-time discovery phase.
+
+Before a substantial new block or when entering a new office/capability, the engineering owner should:
+
+1. inspect the current Forge implementation and automated evidence;
+2. check current production author applications for proven UX/workflow patterns and newly surfaced failure modes;
+3. check active open-source repositories for architectural mechanisms relevant to the block;
+4. classify findings as **adopt now**, **adapt later**, **monitor**, or **reject**;
+5. record materially important findings in `docs/COMPETITIVE-RESEARCH.md`;
+6. prefer Forge-native implementations over dependency accumulation;
+7. verify licensing, maintenance health, platform cost, privacy impact, and offline/recovery implications before importing any dependency;
+8. preserve author authority, provider neutrality, project isolation, provenance, and local recoverability even when competitor systems do not;
+9. add focused regression tests for the adopted mechanism and run full desktop + Android/mobile acceptance;
+10. never treat market popularity, star counts, demos, or benchmark claims as a substitute for Forge's own functional proof.
+
+The goal is not to clone competitors. The goal is to know what currently works, what fails, and what is emerging so Forge can combine the strongest mechanisms into a more coherent author-controlled product.
 
 ## Non-negotiable integration rules
 
