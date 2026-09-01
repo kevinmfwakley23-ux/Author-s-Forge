@@ -23,11 +23,26 @@
       <h3>Creation offices</h3>
       <p class="muted">Open a first-class creation workplace for this same durable Forge project. Start the complete local workplace with <code>npm run forge</code> (or <code>npm run forge:android</code> for LAN/device access).</p>
       <div class="row">
-        <a id="open-guided-journal-office" href="${officeUrl(4273)}" target="_blank" rel="noopener">Guided Journal</a>
-        <a id="open-workbook-office" href="${officeUrl(4373)}" target="_blank" rel="noopener">Educational Workbooks</a>
-        <a id="open-specialized-office" href="${officeUrl(4473)}" target="_blank" rel="noopener">Specialized Creation</a>
+        <a class="forge-office-link" id="open-guided-journal-office" href="${officeUrl(4273)}" target="_blank" rel="noopener">Guided Journal</a>
+        <a class="forge-office-link" id="open-workbook-office" href="${officeUrl(4373)}" target="_blank" rel="noopener">Educational Workbooks</a>
+        <a class="forge-office-link" id="open-specialized-office" href="${officeUrl(4473)}" target="_blank" rel="noopener">Specialized Creation</a>
       </div>`;
     dashboard.append(card);
+    card.querySelectorAll(".forge-office-link").forEach((link) => {
+      Object.assign(link.style, {
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: "44px",
+        padding: "10px 14px",
+        border: "1px solid #20252b",
+        borderRadius: "7px",
+        background: "#20252b",
+        color: "#fff",
+        textDecoration: "none",
+        flex: "1 1 180px",
+      });
+    });
   }
 
   function ensureUi() {
