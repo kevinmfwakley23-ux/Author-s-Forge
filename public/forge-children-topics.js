@@ -4,6 +4,27 @@
   const $ = (selector) => document.querySelector(selector);
   let catalogPromise = null;
 
+  function ensurePromotionPerformanceClient() {
+    if (window.forgePromotionPerformance || document.querySelector('script[data-forge-promotion-performance]')) return;
+    const script = document.createElement('script');
+    script.src = '/forge-promotion-performance.js';
+    script.defer = true;
+    script.dataset.forgePromotionPerformance = 'true';
+    document.head.appendChild(script);
+  }
+  function ensurePublishingPromotionClient() {
+    if (window.forgePublishingPromotion) { ensurePromotionPerformanceClient(); return; }
+    const existing = document.querySelector('script[data-forge-publishing-promotion]');
+    if (existing) { existing.addEventListener('load', ensurePromotionPerformanceClient, { once: true }); return; }
+    const script = document.createElement('script');
+    script.src = '/forge-publishing-promotion.js';
+    script.defer = true;
+    script.dataset.forgePublishingPromotion = 'true';
+    script.addEventListener('load', ensurePromotionPerformanceClient, { once: true });
+    document.head.appendChild(script);
+  }
+  ensurePublishingPromotionClient();
+
   function loadCatalog() {
     if (!catalogPromise) catalogPromise = fetch('/children-story-topics.json', { cache: 'no-cache' }).then(async (response) => {
       if (!response.ok) throw new Error(`Children's story topic catalog failed to load (${response.status}).`);
