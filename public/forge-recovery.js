@@ -2,6 +2,16 @@
 (() => {
   'use strict';
 
+  function ensureChildrenStoryTopicsClient() {
+    if (window.forgeChildrenStoryTopics || document.querySelector('script[data-forge-children-topics]')) return;
+    const script = document.createElement('script');
+    script.src = '/forge-children-topics.js';
+    script.defer = true;
+    script.dataset.forgeChildrenTopics = 'true';
+    document.head.appendChild(script);
+  }
+  ensureChildrenStoryTopicsClient();
+
   const projectId = new URLSearchParams(location.search).get('project') || localStorage.getItem('forge-project') || 'forge-studio';
   const $ = (selector) => document.querySelector(selector);
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
