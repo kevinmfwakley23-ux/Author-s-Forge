@@ -16,7 +16,8 @@ import { validateKdpMarketIntelligenceReport } from "../domain/kdp-market-intell
 import { validateBookPositioningReport } from "../domain/book-positioning";
 import { createAuthorGoal, type AuthorGoal } from "../domain/author-goals";
 import { validateStudioWorkspace, type StudioWorkspaceState } from "../domain/studio-workspace";
-import { mkdir, readFile, rename, writeFile, access } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { access, mkdir, open, readFile, rename, unlink } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 const LEGACY_PROJECT_FORMAT_VERSION = 2 as const;
@@ -27,12 +28,26 @@ export class FileProjectStore {
   public async load(projectId: string): Promise<ProjectState | null> { try { const raw = await readFile(this.projectPath(projectId), "utf8"); return this.validate(JSON.parse(raw), projectId); } catch (error) { if (isMissingFile(error)) return null; throw error; } }
   public async save(project: ProjectState): Promise<void> {
     const path = this.projectPath(project.metadata.id);
-    await mkdir(dirname(path), { recursive: true });
-    const temporaryPath = `${path}.tmp`;
+    const directory = dirname(path);
+    await mkdir(directory, { recursive: true });
+    const temporaryPath = `${path}.${process.pid}.${randomUUID()}.tmp`;
     const persisted = JSON.parse(JSON.stringify(project)) as Record<string, unknown>;
     persisted.formatVersion = PROJECT_FORMAT_VERSION;
-    await writeFile(temporaryPath, `${JSON.stringify(persisted, null, 2)}\n`, "utf8");
-    await rename(temporaryPath, path);
+    const serialized = `${JSON.stringify(persisted, null, 2)}\n`;
+    let handle: Awaited<ReturnType<typeof open>> | undefined;
+    try {
+      handle = await open(temporaryPath, "wx", 0o600);
+      await handle.writeFile(serialized, "utf8");
+      await handle.sync();
+      await handle.close();
+      handle = undefined;
+      await rename(temporaryPath, path);
+      await syncDirectoryBestEffort(directory);
+    } catch (error) {
+      if (handle) await handle.close().catch(() => undefined);
+      await unlink(temporaryPath).catch((cleanupError) => { if (!isMissingFile(cleanupError)) throw cleanupError; });
+      throw error;
+    }
   }
   public async exists(projectId: string): Promise<boolean> { try { await access(this.projectPath(projectId)); return true; } catch (error) { if (isMissingFile(error)) return false; throw error; } }
   private projectPath(projectId: string): string { if (!/^[a-zA-Z0-9_-]+$/.test(projectId)) throw new Error("Project id contains unsupported path characters."); return join(this.rootDirectory, "projects", projectId, "project.json"); }
@@ -71,6 +86,18 @@ export class FileProjectStore {
     if (bookPositioningReports) normalized.bookPositioningReports = bookPositioningReports;
     if (bookGenome) normalized.bookGenome = bookGenome;
     return normalized as unknown as ProjectState;
+  }
+}
+
+async function syncDirectoryBestEffort(directory: string): Promise<void> {
+  let handle: Awaited<ReturnType<typeof open>> | undefined;
+  try {
+    handle = await open(directory, "r");
+    await handle.sync();
+  } catch (error) {
+    if (!isUnsupportedDirectorySync(error)) throw error;
+  } finally {
+    if (handle) await handle.close().catch(() => undefined);
   }
 }
 
@@ -120,3 +147,4 @@ function cloneIllustrationAssetLibrary(library: IllustrationAssetLibraryState): 
 function cloneBookCoverPlan(plan: BookCoverPlan): BookCoverPlan { return JSON.parse(JSON.stringify(plan)) as BookCoverPlan; }
 function isMemoryRecord(value: unknown): value is MemoryRecord { if (!value || typeof value !== "object") return false; const memory = value as Record<string, unknown>; return typeof memory.id === "string" && typeof memory.projectId === "string" && typeof memory.class === "string" && typeof memory.authority === "string" && typeof memory.summary === "string" && typeof memory.content === "string" && typeof memory.createdAt === "string" && typeof memory.updatedAt === "string" && Array.isArray(memory.provenance) && Array.isArray(memory.relatedMemoryIds) && Array.isArray(memory.relevanceTags); }
 function isMissingFile(error: unknown): boolean { return typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "ENOENT"; }
+function isUnsupportedDirectorySync(error: unknown): boolean { if (typeof error !== "object" || error === null || !("code" in error)) return false; return ["EINVAL", "ENOTSUP", "EPERM", "EISDIR"].includes(String((error as { code?: string }).code ?? "")); }
