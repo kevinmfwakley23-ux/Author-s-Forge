@@ -68,9 +68,17 @@ const responseCache = new SemanticCache<AiGenerationResult>({
   ttlMs: readPositiveInteger(process.env.AI_CACHE_TTL_MS),
 });
 
-const liveBroker = new AiModelBroker();
-const liveRoutingState = new AiRoutingState();
-const liveFallback = new AiExecutionFallback(liveBroker, liveRoutingState);
+let liveBroker = new AiModelBroker();
+let liveRoutingState = new AiRoutingState();
+let liveFallback = new AiExecutionFallback(liveBroker, liveRoutingState);
+
+/** Bind live provider execution to the actual ForgeCore broker/routing objects. */
+export function bindForgeAiRuntime(broker: AiModelBroker, routingState: AiRoutingState): void {
+  liveBroker = broker;
+  liveRoutingState = routingState;
+  liveFallback = new AiExecutionFallback(liveBroker, liveRoutingState);
+  refreshLiveBroker();
+}
 
 /**
  * Authoritative live AI boundary for every Forge office.
@@ -124,9 +132,7 @@ export async function generateText(request: AiGenerationRequest): Promise<AiGene
       requiresStreaming: request.requiresStreaming,
       requiresCreativeWriting: request.requiresCreativeWriting ?? (task === "writing" || task === "voice-preservation"),
       requiresInstructionFollowing: request.requiresInstructionFollowing ?? true,
-    }, async (_input, context) => {
-      return generateFromProvider(context.resource.provider as ProviderName, context.resource.model, optimizedRequest);
-    }, (value) => value.usage?.totalTokens);
+    }, async (_input, context) => generateFromProvider(context.resource.provider as ProviderName, context.resource.model, optimizedRequest), (value) => value.usage?.totalTokens);
 
     const attempts: AiProviderAttempt[] = [
       ...execution.failures.map((failure) => ({ provider: failure.provider as ProviderName, model: failure.model, success: false, latencyMs: failure.latencyMs, error: failure.error })),
@@ -205,8 +211,7 @@ function refreshLiveBroker() {
 }
 
 function providerOrder(): ProviderName[] {
-  const configured = (process.env.AI_PROVIDER_ORDER?.trim() || "omniroute,9router,kings,openai,ollama")
-    .split(",").map((value) => value.trim().toLowerCase()).filter(Boolean) as ProviderName[];
+  const configured = (process.env.AI_PROVIDER_ORDER?.trim() || "omniroute,9router,kings,openai,ollama").split(",").map((value) => value.trim().toLowerCase()).filter(Boolean) as ProviderName[];
   const allowed = new Set<ProviderName>(["omniroute", "9router", "kings", "openai", "ollama"]);
   const unique = configured.filter((provider, index) => allowed.has(provider) && configured.indexOf(provider) === index);
   return unique.length ? unique : ["omniroute", "9router", "kings", "openai", "ollama"];
@@ -247,24 +252,18 @@ function readPositiveInteger(value: string | undefined): number | undefined {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
 }
-
 function readFraction(value: string | undefined): number | undefined {
   if (!value?.trim()) return undefined;
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed >= 0 && parsed < 1 ? parsed : undefined;
 }
-
 function routingModeFromEnv(value: string | undefined): AiCostRoutingMode {
   const normalized = value?.trim().toLowerCase();
   return normalized === "balanced" || normalized === "quality" ? normalized : "economy";
 }
 
 async function generateWithOpenAiCompatibleGateway(provider: "omniroute" | "9router", baseUrl: string, apiKey: string | undefined, request: AiGenerationRequest, model: string): Promise<AiGenerationResult> {
-  const response = await fetch(`${baseUrl.replace(/\/$/, "")}/v1/chat/completions`, {
-    method: "POST",
-    headers: { "content-type": "application/json", ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}) },
-    body: JSON.stringify({ model, messages: [{ role: "system", content: request.system }, { role: "user", content: request.user }], temperature: request.temperature ?? 0.7, ...(request.maxOutputTokens ? { max_tokens: request.maxOutputTokens } : {}) }),
-  });
+  const response = await fetch(`${baseUrl.replace(/\/$/, "")}/v1/chat/completions`, { method: "POST", headers: { "content-type": "application/json", ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}) }, body: JSON.stringify({ model, messages: [{ role: "system", content: request.system }, { role: "user", content: request.user }], temperature: request.temperature ?? 0.7, ...(request.maxOutputTokens ? { max_tokens: request.maxOutputTokens } : {}) }) });
   const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
   if (!response.ok) throw new Error(typeof payload.error === "object" && payload.error ? String((payload.error as Record<string, unknown>).message ?? `${provider} request failed (${response.status}).`) : `${provider} request failed (${response.status}).`);
   const choices = Array.isArray(payload.choices) ? payload.choices : [];
@@ -277,11 +276,7 @@ async function generateWithOpenAiCompatibleGateway(provider: "omniroute" | "9rou
 }
 
 async function generateOpenAi(apiKey: string, model: string, request: AiGenerationRequest): Promise<AiGenerationResult> {
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
-    body: JSON.stringify({ model, input: [{ role: "system", content: request.system }, { role: "user", content: request.user }], temperature: request.temperature ?? 0.7, max_output_tokens: request.maxOutputTokens ?? 4000 }),
-  });
+  const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" }, body: JSON.stringify({ model, input: [{ role: "system", content: request.system }, { role: "user", content: request.user }], temperature: request.temperature ?? 0.7, max_output_tokens: request.maxOutputTokens ?? 4000 }) });
   const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
   if (!response.ok) throw new Error(typeof payload.error === "object" && payload.error ? String((payload.error as Record<string, unknown>).message ?? `OpenAI request failed (${response.status}).`) : `OpenAI request failed (${response.status}).`);
   const text = extractOpenAiText(payload);
@@ -291,11 +286,7 @@ async function generateOpenAi(apiKey: string, model: string, request: AiGenerati
 }
 
 async function generateOllama(baseUrl: string, model: string, request: AiGenerationRequest): Promise<AiGenerationResult> {
-  const response = await fetch(`${baseUrl}/api/chat`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ model, stream: false, messages: [{ role: "system", content: request.system }, { role: "user", content: request.user }], options: { temperature: request.temperature ?? 0.7 } }),
-  });
+  const response = await fetch(`${baseUrl}/api/chat`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ model, stream: false, messages: [{ role: "system", content: request.system }, { role: "user", content: request.user }], options: { temperature: request.temperature ?? 0.7 } }) });
   const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
   if (!response.ok) throw new Error(`Ollama request failed (${response.status}).`);
   const message = payload.message as Record<string, unknown> | undefined;
@@ -311,18 +302,13 @@ function chatUsage(payload: Record<string, unknown>): AiTokenUsage | undefined {
   const record = usage as Record<string, unknown>;
   return usageFromNumbers(record.prompt_tokens, record.completion_tokens, record.total_tokens);
 }
-
 function responsesUsage(payload: Record<string, unknown>): AiTokenUsage | undefined {
   const usage = payload.usage;
   if (!usage || typeof usage !== "object" || Array.isArray(usage)) return undefined;
   const record = usage as Record<string, unknown>;
   return usageFromNumbers(record.input_tokens, record.output_tokens, record.total_tokens);
 }
-
-function ollamaUsage(payload: Record<string, unknown>): AiTokenUsage | undefined {
-  return usageFromNumbers(payload.prompt_eval_count, payload.eval_count, undefined);
-}
-
+function ollamaUsage(payload: Record<string, unknown>): AiTokenUsage | undefined { return usageFromNumbers(payload.prompt_eval_count, payload.eval_count, undefined); }
 function usageFromNumbers(input: unknown, output: unknown, total: unknown): AiTokenUsage | undefined {
   const inputTokens = finiteNonnegative(input);
   const outputTokens = finiteNonnegative(output);
@@ -330,11 +316,7 @@ function usageFromNumbers(input: unknown, output: unknown, total: unknown): AiTo
   if (inputTokens === undefined || outputTokens === undefined || totalTokens === undefined) return undefined;
   return { inputTokens, outputTokens, totalTokens, source: "provider" };
 }
-
-function finiteNonnegative(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? Math.round(value) : undefined;
-}
-
+function finiteNonnegative(value: unknown): number | undefined { return typeof value === "number" && Number.isFinite(value) && value >= 0 ? Math.round(value) : undefined; }
 function extractOpenAiText(payload: Record<string, unknown>): string {
   if (typeof payload.output_text === "string") return payload.output_text.trim();
   const output = Array.isArray(payload.output) ? payload.output : [];
