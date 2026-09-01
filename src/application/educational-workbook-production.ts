@@ -140,7 +140,7 @@ function listPage(title: string, items: readonly string[], width: number, height
   y -= 38;
   const maxChars = Math.max(30, Math.floor((right - left) / (fontSize * 0.52)));
   for (const item of items) {
-    const rows = wrap(`• ${item}`, maxChars);
+    const rows = wrap(`- ${item}`, maxChars);
     for (const row of rows) {
       if (y < left + 24) break;
       commands.push(text(row, left, y, fontSize));
@@ -158,7 +158,7 @@ function activityPage(activity: EducationalWorkbookActivityPage, width: number, 
   let y = height - margin;
   const commands: string[] = [];
   commands.push(text(`Activity ${activity.sequence}`, left, y, 10));
-  commands.push(text(`${activity.subject.replace(/-/g, " ")} • ${activity.difficulty} • ${activity.points} point${activity.points === 1 ? "" : "s"}`, left, y - 17, 8));
+  commands.push(text(`${activity.subject.replace(/-/g, " ")} - ${activity.difficulty} - ${activity.points} point${activity.points === 1 ? "" : "s"}`, left, y - 17, 8));
   y -= 50;
   if (options.includeStudentNameLine) {
     commands.push(text("Name: ____________________________________    Date: ______________", left, y, 10));
@@ -215,7 +215,7 @@ function answerKeyPages(workbook: EducationalWorkbookPlan, width: number, height
   const flush = () => { pages.push({ commands: commands.join("\n") }); start(); };
   start();
   for (const entry of workbook.answerKey) {
-    const explanation = entry.explanation ? ` — ${entry.explanation}` : "";
+    const explanation = entry.explanation ? ` - ${entry.explanation}` : "";
     const rows = wrap(`${entry.sequence}. ${entry.answer}${explanation}`, maxChars);
     const needed = rows.length * options.answerFontSizePt * 1.45 + 10;
     if (y - needed < margin && commands.length > 1) flush();
