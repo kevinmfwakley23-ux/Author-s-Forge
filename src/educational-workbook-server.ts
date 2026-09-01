@@ -5,6 +5,7 @@ import { extname, join, normalize } from "node:path";
 import { EducationalWorkbookOfficeService } from "./application/educational-workbook-office";
 import { EducationalWorkbookIntelligenceService } from "./application/educational-workbook-intelligence";
 import { EducationalWorkbookProductionService } from "./application/educational-workbook-production";
+import { createEducationalWorkbookDifferentiationRoutes } from "./application/educational-workbook-differentiation-routes";
 import { ProjectMemoryStore } from "./application/project-memory-store";
 import {
   WORKBOOK_ACTIVITY_KINDS,
@@ -34,6 +35,7 @@ const projects = studioRuntime.projectStore;
 const office = new EducationalWorkbookOfficeService(new FileEducationalWorkbookStore(join(dataRoot, "educational-workbooks.json")));
 const proposals = new FileEducationalWorkbookAiProposalStore(join(dataRoot, "educational-workbook-ai-proposals.json"));
 const production = new EducationalWorkbookProductionService();
+const differentiationRoutes = createEducationalWorkbookDifferentiationRoutes({ office, storePath: join(dataRoot, "educational-workbook-differentiation.json") });
 
 function json(res: ServerResponse, status: number, value: unknown): void {
   res.writeHead(status, {
@@ -215,6 +217,8 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
     json(res, 404, { error: "Project not found." });
     return true;
   }
+
+  if (await differentiationRoutes(req, res, url, projectId)) return true;
 
   if (url.pathname === `/api/projects/${projectId}` && req.method === "GET") {
     const [activities, workbooks, aiProposals] = await Promise.all([
