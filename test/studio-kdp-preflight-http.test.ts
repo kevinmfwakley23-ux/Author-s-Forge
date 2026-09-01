@@ -107,6 +107,27 @@ test("Studio KDP preflight rejects malformed inspection facts rather than silent
   }), /Interior encrypted must be a boolean/);
 });
 
+test("Studio KDP preflight rejects impossible numeric inspection facts", () => {
+  assert.throws(() => runStudioKdpPreflight(projectWithPlan(), {
+    bookId: "book-1",
+    interiorHasBleed: true,
+    interior: { ...cleanInterior, sizeBytes: -1 },
+    cover: cleanCover,
+  }), /Interior sizeBytes must be zero or greater/);
+  assert.throws(() => runStudioKdpPreflight(projectWithPlan(), {
+    bookId: "book-1",
+    interiorHasBleed: true,
+    interior: cleanInterior,
+    cover: { ...cleanCover, widthInches: 0 },
+  }), /Cover widthInches must be greater than zero/);
+  assert.throws(() => runStudioKdpPreflight(projectWithPlan(), {
+    bookId: "book-1",
+    interiorHasBleed: true,
+    interior: { ...cleanInterior, minimumImageDpi: -300 },
+    cover: cleanCover,
+  }), /Interior minimumImageDpi must be greater than zero/);
+});
+
 test("Studio KDP preflight never treats unknown image resolution as silently verified", () => {
   const { minimumImageDpi: _interiorDpi, ...interiorWithoutDpi } = cleanInterior;
   const { minimumImageDpi: _coverDpi, ...coverWithoutDpi } = cleanCover;
