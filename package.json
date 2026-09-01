@@ -5,9 +5,9 @@
   "description": "Author's Forge — durable, local-first AI publishing studio foundation.",
   "scripts": {
     "build": "rm -rf .forge-build && tsc -p tsconfig.json && rm -rf dist && cp -R .forge-build dist && cp -R public dist/public",
-    "test": "npm run build && node --test test",
+    "test": "npm run build && node --test test/*.test.js",
     "check": "npm run build && npm test",
-    "verify": "npm run build && node --test test && npm run completion && npm run test:browser && npm run test:browser:mobile",
+    "verify": "npm run build && node --test test/*.test.js && npm run completion && npm run test:browser && npm run test:browser:mobile",
     "studio": "npm run build && node dist/studio-server.js",
     "studio:android": "HOST=0.0.0.0 PORT=4173 npm run studio",
     "studio:journal": "npm run build && node dist/guided-journal-server.js",
