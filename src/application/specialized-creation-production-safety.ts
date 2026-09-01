@@ -1,14 +1,27 @@
-import type { SpecializedArtifactKind, SpecializedOfficeProject } from "../domain/specialized-creation-office";
+import type { SpecializedArtifactKind, SpecializedOfficeProject, SpecializedProductionProfile } from "../domain/specialized-creation-office";
 import type { SpecializedPreflightIssue, SpecializedPreflightReport } from "./specialized-creation-production-engine";
+import { createSpecializedQrMatrix, specializedQrModuleSizeInches } from "./specialized-creation-qr";
 
 const COMMON_PDF_REPLACEMENTS:Readonly<Record<string,string>>=Object.freeze({
   "’":"'","‘":"'","“":"\"","”":"\"","–":"-","—":"--","…":"...","•":"*"," ":" ","©":"(c)","®":"(R)","™":"(TM)",
 });
+const MIN_QR_MODULE_INCHES=0.012;
+const MIN_QR_PRINTER_PIXELS_PER_MODULE=4;
 
-export function specializedProductionSafetyIssues(project:SpecializedOfficeProject,kind?:SpecializedArtifactKind):SpecializedPreflightIssue[] {
+export function specializedProductionSafetyIssues(project:SpecializedOfficeProject,kind?:SpecializedArtifactKind,profile?:SpecializedProductionProfile):SpecializedPreflightIssue[] {
   const issues:SpecializedPreflightIssue[]=[];
   for(const document of project.documents)for(const surface of document.surfaces)for(const element of surface.elements){
-    if(element.kind==="qr")issues.push({code:"QR_RENDERER_UNAVAILABLE",severity:"error",message:`QR element ${element.id} cannot enter production until a real decodable QR renderer is installed. Destination remains preserved in project state.`,documentId:document.id,surfaceId:surface.id,elementId:element.id});
+    if(element.kind==="qr"){
+      const destination=typeof element.metadata.destination==="string"?element.metadata.destination.trim():"";
+      if(destination){
+        try{
+          const matrix=createSpecializedQrMatrix(destination);
+          const moduleInches=specializedQrModuleSizeInches(destination,element.box.width,element.box.height);
+          const minimum=profile?Math.max(MIN_QR_MODULE_INCHES,MIN_QR_PRINTER_PIXELS_PER_MODULE/profile.dpi):MIN_QR_MODULE_INCHES;
+          if(moduleInches<minimum)issues.push({code:"QR_MODULE_TOO_SMALL",severity:"error",message:`QR element ${element.id} produces ${matrix.size} data modules at about ${(moduleInches*25.4).toFixed(2)} mm per module. Increase its physical size so each module is at least ${(minimum*25.4).toFixed(2)} mm${profile?` (${MIN_QR_PRINTER_PIXELS_PER_MODULE} pixels at ${profile.dpi} DPI)`:""}.`,documentId:document.id,surfaceId:surface.id,elementId:element.id});
+        }catch(error){issues.push({code:"QR_ENCODING_UNSUPPORTED",severity:"error",message:`QR element ${element.id} cannot be encoded for production: ${error instanceof Error?error.message:String(error)}`,documentId:document.id,surfaceId:surface.id,elementId:element.id});}
+      }
+    }
     if(element.kind==="text"&&element.text&&containsNonAscii(element.text)){
       const unsupported=pdfUnsupportedCharacters(element.text);
       if(kind==="pdf"&&unsupported.length)issues.push({code:"PDF_UNSUPPORTED_GLYPHS",severity:"error",message:`Text element ${element.id} contains characters the built-in PDF font cannot preserve (${unsupported.join(" ")}). Use the Unicode SVG path or an approved embedded-font production path.`,documentId:document.id,surfaceId:surface.id,elementId:element.id});
@@ -23,8 +36,8 @@ export function mergeSpecializedPreflight(report:SpecializedPreflightReport,extr
   return Object.freeze({...report,issues,blocking,warnings,ready:blocking===0});
 }
 
-export function prepareSpecializedProjectForArtifact(project:SpecializedOfficeProject,kind:SpecializedArtifactKind):SpecializedOfficeProject {
-  const issues=specializedProductionSafetyIssues(project,kind),errors=issues.filter(issue=>issue.severity==="error");if(errors.length)throw new Error(errors.map(issue=>`${issue.code}: ${issue.message}`).join(" | "));
+export function prepareSpecializedProjectForArtifact(project:SpecializedOfficeProject,kind:SpecializedArtifactKind,profile?:SpecializedProductionProfile):SpecializedOfficeProject {
+  const issues=specializedProductionSafetyIssues(project,kind,profile),errors=issues.filter(issue=>issue.severity==="error");if(errors.length)throw new Error(errors.map(issue=>`${issue.code}: ${issue.message}`).join(" | "));
   if(kind!=="pdf")return clone(project);
   return {...clone(project),documents:project.documents.map(document=>({...clone(document),surfaces:document.surfaces.map(surface=>({...clone(surface),elements:surface.elements.map(element=>element.kind==="text"&&element.text?{...clone(element),text:normalizePdfText(element.text)}:clone(element))}))}))};
 }
