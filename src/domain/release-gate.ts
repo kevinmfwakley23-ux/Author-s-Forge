@@ -28,6 +28,8 @@ export interface ReleaseGateInput {
   readonly projectId: string;
   readonly bookId: string;
   readonly publishingReadiness: PublishingReadinessReport;
+  readonly publishingReadinessCurrent?: boolean;
+  readonly publishingReadinessStaleReasons?: readonly string[];
   readonly promotionReadiness?: PromotionReadinessReport;
   readonly promotionRequired?: boolean;
   readonly marketingCampaign?: MarketingCampaign;
@@ -49,6 +51,15 @@ export function createReleaseGateReport(input: ReleaseGateInput): ReleaseGateRep
   }
   if (input.publishingReadiness.bookId !== undefined && input.publishingReadiness.bookId !== input.bookId) {
     blockers.push({ id: "readiness-book-mismatch", kind: "publishing-readiness", message: "Publishing readiness belongs to a different book.", remediation: "Run publishing readiness for the exact book being released." });
+  }
+  if (input.publishingReadinessCurrent === false) {
+    const reasons = [...new Set((input.publishingReadinessStaleReasons ?? []).map((reason) => reason.trim()).filter(Boolean))];
+    blockers.push({
+      id: "publishing-readiness-stale",
+      kind: "publishing-readiness",
+      message: reasons.length ? `Publishing readiness is stale: ${reasons.join("; ")}.` : "Publishing readiness is stale because release evidence changed after the audit.",
+      remediation: "Run Publishing readiness again for this exact edition after the latest metadata and cover changes.",
+    });
   }
   const publishingErrors = input.publishingReadiness.checks.filter((item) => item.status === "attention" && item.severity === "error");
   if (publishingErrors.length) {
