@@ -13,7 +13,7 @@
   async function call(tail,options={}){return api(`${base()}/${tail}`,options);}
   function jsonBody(value){return{headers:{"content-type":"application/json"},body:JSON.stringify(value)};}
   function report(text,ok=true){const out=$("#tcg-builder-output");if(out)out.textContent=typeof text==="string"?text:JSON.stringify(text,null,2);const status=$("#status");if(status){status.textContent=typeof text==="string"?text:"TCG Game Builder updated.";status.style.background=ok?"#163f28":"#751919";}}
-  async function refreshOffice(){$("#refresh")?.click();}
+  async function refreshOffice(){const project=await current();state.current=project;window.dispatchEvent(new CustomEvent("forge:specialized-ready",{detail:{forgeProjectId:forgeProjectId(),currentId:project.id,mode:project.mode}}));}
 
   function render(){const card=$("#tcg-game-builder"),root=$("#tcg-game-builder-root");if(!card||!root)return;const project=state.current;if(!project||project.mode!=="trading-card-game"){card.classList.add("sc-hidden");return;}card.classList.remove("sc-hidden");const data=project.modeData||{},framework=data.gameFramework||emptyFramework(),lines=framework.characterLines||[],maps=framework.worldMaps||[],templates=data.templates||[],ai=state.summary?.ai||{};
     root.innerHTML=`
