@@ -1,4 +1,5 @@
-import { createSpecializedCreationProject, createSpecializedCreationWorkspace, SPECIALIZED_CREATION_MODES, validateSpecializedCreationProject, type CreateSpecializedCreationInput, type SpecializedCreationMode, type SpecializedCreationWorkspace, type WorkspaceAsset, type WorkspaceDocument } from "./specialized-creation";
+import { createSpecializedCreationProject, SPECIALIZED_CREATION_MODES, validateSpecializedCreationProject, type CreateSpecializedCreationInput, type SpecializedCreationMode } from "./specialized-creation";
+import { createSpecializedCreationWorkspace, type SpecializedCreationWorkspace, type WorkspaceAsset, type WorkspaceDocument } from "./specialized-creation-workspace";
 import { createProductionSpec, validateProductionSpec, type ProductionArtifactKind, type ProductionSpec } from "./specialized-creation-production";
 
 export const SPECIALIZED_CREATION_OFFICE_FORMAT_VERSION = 1 as const;
