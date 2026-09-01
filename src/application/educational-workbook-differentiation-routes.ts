@@ -1,6 +1,8 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { dirname, join } from "node:path";
 import { EducationalWorkbookDifferentiationService } from "./educational-workbook-differentiation";
 import { EducationalWorkbookDifferentiationProductionService } from "./educational-workbook-differentiation-production";
+import { createEducationalAssessmentRoutes } from "./educational-assessment-routes";
 import type { EducationalWorkbookOfficeService } from "./educational-workbook-office";
 import { WORKBOOK_GRADE_BANDS, WORKBOOK_SUBJECTS, type WorkbookGradeBand, type WorkbookSubject } from "../domain/educational-workbook";
 import { FileEducationalWorkbookDifferentiationStore } from "../infrastructure/file-educational-workbook-differentiation-store";
@@ -8,10 +10,13 @@ import { FileEducationalWorkbookDifferentiationStore } from "../infrastructure/f
 export type EducationalWorkbookDifferentiationRouteHandler = (req: IncomingMessage, res: ServerResponse, url: URL, projectId: string) => Promise<boolean>;
 
 export function createEducationalWorkbookDifferentiationRoutes(input: { readonly office: EducationalWorkbookOfficeService; readonly storePath: string }): EducationalWorkbookDifferentiationRouteHandler {
-  const differentiation = new EducationalWorkbookDifferentiationService(input.office, new FileEducationalWorkbookDifferentiationStore(required(input.storePath, "Differentiation store path")));
+  const storePath=required(input.storePath,"Differentiation store path");
+  const differentiation = new EducationalWorkbookDifferentiationService(input.office, new FileEducationalWorkbookDifferentiationStore(storePath));
   const production = new EducationalWorkbookDifferentiationProductionService();
+  const assessmentRoutes=createEducationalAssessmentRoutes(join(dirname(storePath),"educational-assessments.json"));
 
   return async (req, res, url, projectId) => {
+    if(await assessmentRoutes(req,res,url,projectId))return true;
     const base = `/api/projects/${projectId}/workbooks/differentiation`;
     if (url.pathname === `${base}/readiness` && req.method === "GET") {
       const result = await differentiation.readiness({
