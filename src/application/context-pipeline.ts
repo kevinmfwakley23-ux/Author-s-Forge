@@ -1,12 +1,16 @@
 import { selectContextBudget, type ContextPriority, type ContextSection } from "./context-budget-manager";
 import { optimizeContext, estimateTokens } from "./context-optimizer";
 import { assembleProjectBrainContext, type ProjectBrainQuery } from "./project-brain";
+import { assembleRelationshipAwareProjectBrainContext, type ProjectBrainRelationshipEvidence, type ProjectBrainRelationshipOptions } from "./project-brain-relationship-context";
 import type { ProjectMemoryStore } from "./project-memory-store";
+import type { MemoryRelationship } from "../domain/relationship-memory";
 
 export interface ProjectContextPipelineOptions {
   readonly budget?: number;
   readonly query: ProjectBrainQuery;
   readonly includeWorkingState?: boolean;
+  readonly relationships?: readonly MemoryRelationship[];
+  readonly relationshipOptions?: ProjectBrainRelationshipOptions;
 }
 
 export interface ProjectContextPipelineResult {
@@ -32,10 +36,13 @@ export function buildProjectContext(
   store: ProjectMemoryStore,
   options: ProjectContextPipelineOptions,
 ): ProjectContextPipelineResult {
-  const brain = assembleProjectBrainContext(store, {
+  const query = {
     ...options.query,
     includeWorkingState: options.includeWorkingState ?? options.query.includeWorkingState,
-  });
+  };
+  const brain = options.relationships === undefined
+    ? { ...assembleProjectBrainContext(store, query), relationshipEvidence: [] as readonly ProjectBrainRelationshipEvidence[] }
+    : assembleRelationshipAwareProjectBrainContext(store, options.relationships, query, options.relationshipOptions);
 
   const all = [...brain.authoritative, ...brain.working, ...brain.changed];
   const unique = new Map(all.map((memory) => [memory.id, memory]));
@@ -43,7 +50,12 @@ export function buildProjectContext(
     id: memory.id,
     priority: memoryPriority(memory.authority),
     order: index,
-    content: `[${memory.class} | ${memory.authority}] ${memory.summary}\n${memory.content}\nProvenance: ${formatProvenance(memory)}`,
+    content: [
+      `[${memory.class} | ${memory.authority}] ${memory.summary}`,
+      memory.content,
+      `Provenance: ${formatProvenance(memory)}`,
+      formatRelationshipEvidence(memory.id, brain.relationshipEvidence),
+    ].filter(Boolean).join("\n"),
   }));
 
   const budgeted = selectContextBudget(sections, options.budget);
@@ -51,8 +63,6 @@ export function buildProjectContext(
   const originalSystem = "Project context:\n" + context;
   const originalUser = "Use the supplied project context faithfully.";
   const optimized = optimizeContext({ system: originalSystem, user: originalUser });
-  // Report savings against the complete pre-budget context, not only the
-  // already-trimmed payload sent to the optimizer.
   const originalEstimatedTokens = budgeted.originalEstimatedTokens + estimateTokens(originalUser);
   const optimizedEstimatedTokens = optimized.optimizedEstimatedTokens;
   const tokensSaved = Math.max(0, originalEstimatedTokens - optimizedEstimatedTokens);
@@ -66,12 +76,19 @@ export function buildProjectContext(
     optimizedEstimatedTokens,
     tokensSaved,
     compressionRatio: originalEstimatedTokens === 0 ? 1 : optimizedEstimatedTokens / originalEstimatedTokens,
-    strategies: ["project-brain-retrieval", "priority-context-budget", "provenance-attached", ...optimized.strategy],
+    strategies: ["project-brain-retrieval", ...(options.relationships === undefined ? [] : ["bounded-relationship-expansion"]), "priority-context-budget", "provenance-attached", ...optimized.strategy],
   };
 }
-
 
 function formatProvenance(memory: { readonly provenance: readonly { readonly kind: string; readonly reference: string }[] }): string {
   if (!memory.provenance.length) return "none recorded";
   return memory.provenance.map((item) => `${item.kind}:${item.reference}`).join(", ");
+}
+function formatRelationshipEvidence(memoryId: string, evidence: readonly ProjectBrainRelationshipEvidence[]): string {
+  const related = evidence.filter((item) => item.memoryId === memoryId);
+  if (!related.length) return "";
+  return "Relationship context: " + related.map((item) => {
+    const direction = item.direction === "outgoing" ? `${item.seedMemoryId} -> ${memoryId}` : `${memoryId} -> ${item.seedMemoryId}`;
+    return `[${item.relationshipId}] ${direction} (${item.relation}): ${item.context}${item.significance ? `; significance: ${item.significance}` : ""}`;
+  }).join(" | ");
 }
