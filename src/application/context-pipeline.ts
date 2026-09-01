@@ -70,7 +70,7 @@ export function buildProjectContext(
     optimizedEstimatedTokens,
     tokensSaved,
     compressionRatio,
-    strategies: ["project-brain-retrieval", ...(deduplicated.duplicateMemoryIds.length ? ["normalized-memory-deduplication"] : []), ...(budgeted.constrained ? ["priority-context-budget"] : ["priority-context-budget-unconstrained"]), ...optimized.strategy],
+    strategies: ["project-brain-retrieval", ...(deduplicated.duplicateMemoryIds.length ? ["normalized-memory-deduplication"] : []), "priority-context-budget", ...(budgeted.constrained ? ["context-budget-constrained"] : []), ...optimized.strategy],
   };
 }
 
