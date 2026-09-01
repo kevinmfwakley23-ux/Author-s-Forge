@@ -6,14 +6,24 @@ const MAX_QUERY_VALUE_LENGTH = 512;
 export const PROJECT_BRAIN_MAX_RESULTS = 256;
 const WORD_SEGMENTER = new Intl.Segmenter("und", { granularity: "word" });
 
+export interface ProjectBrainEntityMatchRule {
+  readonly entityId: string;
+  readonly aliases: readonly string[];
+  readonly caseSensitive?: boolean;
+  readonly excludedPhrases?: readonly string[];
+}
+
 export interface ProjectBrainQuery {
   readonly projectId: string;
   readonly taskMemoryClasses?: readonly MemoryClass[];
   readonly relevanceTags?: readonly string[];
   readonly queryTerms?: readonly string[];
   readonly relatedMemoryIds?: readonly string[];
+  readonly entityMatchRules?: readonly ProjectBrainEntityMatchRule[];
   readonly includeWorkingState?: boolean;
+  readonly includeDiagnostics?: boolean;
   readonly changedSince?: string;
+  readonly asOf?: string;
   readonly limit?: number;
 }
 
@@ -23,12 +33,30 @@ export interface ProjectBrainSelectionEvidence {
   readonly reasons: readonly string[];
 }
 
+export interface ProjectBrainDiagnostics {
+  readonly sourceCount: number;
+  readonly liveCount: number;
+  readonly classEligibleCount: number;
+  readonly authorityEligibleCount: number;
+  readonly saliencyMatchedCount: number;
+  readonly selectedCount: number;
+  readonly excluded: {
+    readonly inactive: number;
+    readonly classMismatch: number;
+    readonly unrequestedAuthority: number;
+    readonly saliencyMismatch: number;
+    readonly resultLimit: number;
+  };
+}
+
 export interface ProjectBrainContext {
   readonly projectId: string;
   readonly authoritative: readonly MemoryRecord[];
   readonly working: readonly MemoryRecord[];
   readonly changed: readonly MemoryRecord[];
   readonly evidence: readonly ProjectBrainSelectionEvidence[];
+  readonly asOf?: string;
+  readonly diagnostics?: ProjectBrainDiagnostics;
 }
 
 export function assembleProjectBrainContext(store: ProjectMemoryStore, query: ProjectBrainQuery): ProjectBrainContext {
@@ -36,10 +64,16 @@ export function assembleProjectBrainContext(store: ProjectMemoryStore, query: Pr
 
   const classFilter = normalizedQuery.taskMemoryClasses;
   const filterClasses = (memory: MemoryRecord): boolean => classFilter === undefined || classFilter.includes(memory.class);
-  const candidates = store.query({ projectId: normalizedQuery.projectId, changedSince: normalizedQuery.changedSince })
-    .filter(filterClasses)
-    .filter(isContextEligible);
-  const ranked = rankMemories(candidates, normalizedQuery);
+  const sourceMemories = normalizedQuery.asOf
+    ? store.queryAt({ projectId: normalizedQuery.projectId }, normalizedQuery.asOf)
+    : store.query({ projectId: normalizedQuery.projectId, changedSince: normalizedQuery.changedSince });
+  const liveMemories = sourceMemories.filter(isContextEligible);
+  assertNoAuthoritativeStateConflicts(liveMemories);
+  const classEligible = liveMemories.filter(filterClasses);
+  const authorityEligible = normalizedQuery.includeWorkingState
+    ? classEligible
+    : classEligible.filter((memory) => memory.authority === "authoritative");
+  const ranked = rankMemories(authorityEligible, normalizedQuery);
   const limited = ranked.slice(0, normalizedQuery.limit ?? PROJECT_BRAIN_MAX_RESULTS);
   const selected = limited.map(({ memory }) => memory);
 
@@ -50,6 +84,9 @@ export function assembleProjectBrainContext(store: ProjectMemoryStore, query: Pr
   const changed = normalizedQuery.changedSince
     ? [...authoritative, ...working].sort((a, b) => compareRanked(a, b, normalizedQuery))
     : [];
+  const diagnostics = normalizedQuery.includeDiagnostics
+    ? createDiagnostics(sourceMemories, liveMemories, classEligible, authorityEligible, ranked.length, limited.length)
+    : undefined;
 
   return {
     projectId: normalizedQuery.projectId,
@@ -57,7 +94,34 @@ export function assembleProjectBrainContext(store: ProjectMemoryStore, query: Pr
     working,
     changed,
     evidence: limited.map(({ memory, score, reasons }) => ({ memoryId: memory.id, score, reasons })),
+    ...(normalizedQuery.asOf === undefined ? {} : { asOf: normalizedQuery.asOf }),
+    ...(diagnostics === undefined ? {} : { diagnostics }),
   };
+}
+
+function createDiagnostics(
+  sourceMemories: readonly MemoryRecord[],
+  liveMemories: readonly MemoryRecord[],
+  classEligible: readonly MemoryRecord[],
+  authorityEligible: readonly MemoryRecord[],
+  saliencyMatchedCount: number,
+  selectedCount: number,
+): ProjectBrainDiagnostics {
+  return Object.freeze({
+    sourceCount: sourceMemories.length,
+    liveCount: liveMemories.length,
+    classEligibleCount: classEligible.length,
+    authorityEligibleCount: authorityEligible.length,
+    saliencyMatchedCount,
+    selectedCount,
+    excluded: Object.freeze({
+      inactive: sourceMemories.length - liveMemories.length,
+      classMismatch: liveMemories.length - classEligible.length,
+      unrequestedAuthority: classEligible.length - authorityEligible.length,
+      saliencyMismatch: authorityEligible.length - saliencyMatchedCount,
+      resultLimit: saliencyMatchedCount - selectedCount,
+    }),
+  });
 }
 
 function rankMemories(memories: readonly MemoryRecord[], query: ProjectBrainQuery): readonly RankedMemory[] {
@@ -72,6 +136,11 @@ interface RankedMemory {
   readonly score: number;
   readonly reasons: readonly string[];
   readonly saliencyMatches: number;
+}
+
+interface WordToken {
+  readonly raw: string;
+  readonly folded: string;
 }
 
 function scoreMemory(memory: MemoryRecord, query: ProjectBrainQuery): RankedMemory {
@@ -101,9 +170,9 @@ function scoreMemory(memory: MemoryRecord, query: ProjectBrainQuery): RankedMemo
     reasons.push(`related:${matchedRelations.join(",")}`);
   }
 
+  const searchable = `${memory.summary} ${memory.content} ${memory.relevanceTags.join(" ")}`;
   const queryTerms = normalizeTerms(query.queryTerms ?? []);
   if (queryTerms.length > 0) {
-    const searchable = `${memory.summary} ${memory.content} ${memory.relevanceTags.join(" ")}`;
     const searchableWords = segmentWords(searchable);
     const matchedTerms = queryTerms.filter((term) => containsWordSequence(searchableWords, segmentWords(term)));
     if (matchedTerms.length > 0) {
@@ -113,10 +182,20 @@ function scoreMemory(memory: MemoryRecord, query: ProjectBrainQuery): RankedMemo
     }
   }
 
+  for (const rule of query.entityMatchRules ?? []) {
+    const matchedAlias = findEntityAliasMatch(searchable, rule);
+    if (matchedAlias !== undefined) {
+      saliencyMatches += 1;
+      score += 12;
+      reasons.push(`entity:${rule.entityId}:${matchedAlias}`);
+    }
+  }
+
   if (query.changedSince) {
     score += 4;
     reasons.push("changed-since");
   }
+  if (query.asOf) reasons.push(`as-of:${query.asOf}`);
 
   return { memory, score, reasons, saliencyMatches };
 }
@@ -131,6 +210,24 @@ function isContextEligible(memory: MemoryRecord): boolean {
   return memory.authority !== "archived" && memory.authority !== "superseded";
 }
 
+function assertNoAuthoritativeStateConflicts(memories: readonly MemoryRecord[]): void {
+  const byKey = new Map<string, Map<string, string[]>>();
+  for (const memory of memories) {
+    if (memory.authority !== "authoritative" || memory.stateKey === undefined || memory.stateValue === undefined) continue;
+    const normalizedValue = normalizeText(memory.stateValue);
+    const values = byKey.get(memory.stateKey) ?? new Map<string, string[]>();
+    const ids = values.get(normalizedValue) ?? [];
+    ids.push(memory.id);
+    values.set(normalizedValue, ids);
+    byKey.set(memory.stateKey, values);
+  }
+  for (const [stateKey, values] of byKey) {
+    if (values.size <= 1) continue;
+    const memoryIds = [...values.values()].flat().sort();
+    throw new Error(`Project Brain authoritative state conflict for "${stateKey}" across memories ${memoryIds.join(", ")}. Resolve the conflict through author supersession before retrieval.`);
+  }
+}
+
 function authorityWeight(authority: MemoryRecord["authority"]): number {
   switch (authority) {
     case "authoritative": return 40;
@@ -143,7 +240,7 @@ function authorityWeight(authority: MemoryRecord["authority"]): number {
 }
 
 function hasExplicitSaliency(query: ProjectBrainQuery): boolean {
-  return Boolean(query.relevanceTags?.length || query.queryTerms?.length || query.relatedMemoryIds?.length);
+  return Boolean(query.relevanceTags?.length || query.queryTerms?.length || query.relatedMemoryIds?.length || query.entityMatchRules?.length);
 }
 
 function normalizeTerms(values: readonly string[]): string[] {
@@ -151,7 +248,11 @@ function normalizeTerms(values: readonly string[]): string[] {
 }
 
 function normalizeText(value: string): string {
-  return value.normalize("NFKC").trim().toLocaleLowerCase("und").replace(/\s+/g, " ");
+  return normalizeTextPreservingCase(value).toLocaleLowerCase("und");
+}
+
+function normalizeTextPreservingCase(value: string): string {
+  return value.normalize("NFKC").trim().replace(/\s+/g, " ");
 }
 
 function containsWordSequence(valueWords: readonly string[], termWords: readonly string[]): boolean {
@@ -163,9 +264,56 @@ function containsWordSequence(valueWords: readonly string[], termWords: readonly
 }
 
 function segmentWords(value: string): string[] {
-  return [...WORD_SEGMENTER.segment(normalizeText(value))]
+  return segmentWordTokens(value).map((token) => token.folded);
+}
+
+function segmentWordTokens(value: string): WordToken[] {
+  const normalized = value.normalize("NFKC");
+  return [...WORD_SEGMENTER.segment(normalized)]
     .filter((segment) => segment.isWordLike)
-    .map((segment) => segment.segment);
+    .map((segment) => ({ raw: segment.segment, folded: segment.segment.toLocaleLowerCase("und") }));
+}
+
+function findEntityAliasMatch(searchable: string, rule: ProjectBrainEntityMatchRule): string | undefined {
+  const searchableWords = segmentWordTokens(searchable);
+  const exclusions = (rule.excludedPhrases ?? []).map((phrase) => segmentWordTokens(phrase)).filter((tokens) => tokens.length > 0);
+
+  for (const alias of rule.aliases) {
+    const aliasWords = segmentWordTokens(alias);
+    if (aliasWords.length === 0 || aliasWords.length > searchableWords.length) continue;
+    for (let start = 0; start <= searchableWords.length - aliasWords.length; start += 1) {
+      if (!wordSequenceMatches(searchableWords, aliasWords, start, rule.caseSensitive ?? false)) continue;
+      if (isEntityOccurrenceExcluded(searchableWords, start, aliasWords.length, exclusions, rule.caseSensitive ?? false)) continue;
+      return alias;
+    }
+  }
+  return undefined;
+}
+
+function wordSequenceMatches(valueWords: readonly WordToken[], termWords: readonly WordToken[], start: number, caseSensitive: boolean): boolean {
+  return termWords.every((word, offset) => {
+    const candidate = valueWords[start + offset];
+    return caseSensitive ? candidate.raw === word.raw : candidate.folded === word.folded;
+  });
+}
+
+function isEntityOccurrenceExcluded(
+  valueWords: readonly WordToken[],
+  aliasStart: number,
+  aliasLength: number,
+  exclusions: readonly (readonly WordToken[])[],
+  caseSensitive: boolean,
+): boolean {
+  const aliasEnd = aliasStart + aliasLength - 1;
+  for (const exclusion of exclusions) {
+    if (exclusion.length === 0 || exclusion.length > valueWords.length) continue;
+    for (let start = 0; start <= valueWords.length - exclusion.length; start += 1) {
+      if (!wordSequenceMatches(valueWords, exclusion, start, caseSensitive)) continue;
+      const exclusionEnd = start + exclusion.length - 1;
+      if (start <= aliasStart && exclusionEnd >= aliasEnd) return true;
+    }
+  }
+  return false;
 }
 
 function normalizeQuery(query: ProjectBrainQuery): ProjectBrainQuery {
@@ -174,14 +322,20 @@ function normalizeQuery(query: ProjectBrainQuery): ProjectBrainQuery {
   if (query.projectId.trim().length > MAX_QUERY_VALUE_LENGTH) throw new Error("Project Brain project id is too long.");
   if (query.limit !== undefined && (!Number.isInteger(query.limit) || query.limit < 0 || query.limit > PROJECT_BRAIN_MAX_RESULTS)) throw new Error(`Project Brain limit must be an integer from 0 to ${PROJECT_BRAIN_MAX_RESULTS}.`);
   if (query.includeWorkingState !== undefined && typeof query.includeWorkingState !== "boolean") throw new Error("Project Brain includeWorkingState must be a boolean.");
+  if (query.includeDiagnostics !== undefined && typeof query.includeDiagnostics !== "boolean") throw new Error("Project Brain includeDiagnostics must be a boolean.");
   if (query.changedSince !== undefined && (typeof query.changedSince !== "string" || !query.changedSince.trim() || Number.isNaN(Date.parse(query.changedSince)))) {
     throw new Error("Project Brain changedSince must be a valid timestamp.");
   }
+  if (query.asOf !== undefined && (typeof query.asOf !== "string" || !query.asOf.trim() || Number.isNaN(Date.parse(query.asOf)))) {
+    throw new Error("Project Brain asOf must be a valid timestamp.");
+  }
+  if (query.changedSince !== undefined && query.asOf !== undefined) throw new Error("Project Brain changedSince and asOf cannot be combined.");
 
   const taskMemoryClasses = normalizeMemoryClasses(query.taskMemoryClasses);
   const relevanceTags = normalizeStringArray(query.relevanceTags, "relevance tags");
   const queryTerms = normalizeStringArray(query.queryTerms, "query terms");
   const relatedMemoryIds = normalizeStringArray(query.relatedMemoryIds, "related memory ids");
+  const entityMatchRules = normalizeEntityMatchRules(query.entityMatchRules);
   return {
     ...query,
     projectId: query.projectId.trim(),
@@ -189,7 +343,9 @@ function normalizeQuery(query: ProjectBrainQuery): ProjectBrainQuery {
     ...(relevanceTags === undefined ? {} : { relevanceTags }),
     ...(queryTerms === undefined ? {} : { queryTerms }),
     ...(relatedMemoryIds === undefined ? {} : { relatedMemoryIds }),
+    ...(entityMatchRules === undefined ? {} : { entityMatchRules }),
     ...(query.changedSince === undefined ? {} : { changedSince: query.changedSince.trim() }),
+    ...(query.asOf === undefined ? {} : { asOf: query.asOf.trim() }),
   };
 }
 
@@ -205,11 +361,58 @@ function normalizeStringArray(value: readonly string[] | undefined, label: strin
   if (value === undefined) return undefined;
   if (!Array.isArray(value)) throw new Error(`Project Brain ${label} must be an array.`);
   if (value.length > MAX_QUERY_VALUES) throw new Error(`Project Brain ${label} cannot exceed ${MAX_QUERY_VALUES} values.`);
-  const normalized = value.map((item) => {
-    if (typeof item !== "string" || !item.trim()) throw new Error(`Project Brain ${label} must contain non-empty strings.`);
-    const trimmed = item.trim();
-    if (trimmed.length > MAX_QUERY_VALUE_LENGTH) throw new Error(`Project Brain ${label} values cannot exceed ${MAX_QUERY_VALUE_LENGTH} characters.`);
-    return trimmed;
-  });
+  const normalized = value.map((item) => normalizeQueryString(item, label));
   return [...new Set(normalized)];
+}
+
+function normalizeEntityMatchRules(value: readonly ProjectBrainEntityMatchRule[] | undefined): readonly ProjectBrainEntityMatchRule[] | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value)) throw new Error("Project Brain entity match rules must be an array.");
+  if (value.length > MAX_QUERY_VALUES) throw new Error(`Project Brain entity match rules cannot exceed ${MAX_QUERY_VALUES} values.`);
+
+  const seenIds = new Set<string>();
+  return value.map((rawRule) => {
+    if (!rawRule || typeof rawRule !== "object" || Array.isArray(rawRule)) throw new Error("Project Brain entity match rule must be an object.");
+    const rule = rawRule as ProjectBrainEntityMatchRule;
+    const entityId = normalizeQueryString(rule.entityId, "entity match rule ids");
+    if (seenIds.has(entityId)) throw new Error(`Project Brain entity match rule id \"${entityId}\" is duplicated.`);
+    seenIds.add(entityId);
+
+    if (!Array.isArray(rule.aliases) || rule.aliases.length === 0) throw new Error("Project Brain entity match rule aliases must be a non-empty array.");
+    if (rule.aliases.length > MAX_QUERY_VALUES) throw new Error(`Project Brain entity match rule aliases cannot exceed ${MAX_QUERY_VALUES} values.`);
+    if (rule.caseSensitive !== undefined && typeof rule.caseSensitive !== "boolean") throw new Error("Project Brain entity match rule caseSensitive must be a boolean.");
+
+    const caseSensitive = rule.caseSensitive ?? false;
+    const aliases = dedupeMatchStrings(rule.aliases.map((alias) => normalizeQueryString(alias, "entity match rule aliases")), caseSensitive);
+    const excludedPhrasesRaw = rule.excludedPhrases === undefined
+      ? undefined
+      : normalizeStringArray(rule.excludedPhrases, "entity match rule excluded phrases");
+    const excludedPhrases = excludedPhrasesRaw === undefined ? undefined : dedupeMatchStrings(excludedPhrasesRaw, caseSensitive);
+
+    return {
+      entityId,
+      aliases,
+      ...(rule.caseSensitive === undefined ? {} : { caseSensitive }),
+      ...(excludedPhrases === undefined ? {} : { excludedPhrases }),
+    };
+  });
+}
+
+function normalizeQueryString(value: unknown, label: string): string {
+  if (typeof value !== "string" || !value.trim()) throw new Error(`Project Brain ${label} must contain non-empty strings.`);
+  const trimmed = normalizeTextPreservingCase(value);
+  if (trimmed.length > MAX_QUERY_VALUE_LENGTH) throw new Error(`Project Brain ${label} values cannot exceed ${MAX_QUERY_VALUE_LENGTH} characters.`);
+  return trimmed;
+}
+
+function dedupeMatchStrings(values: readonly string[], caseSensitive: boolean): readonly string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const value of values) {
+    const key = caseSensitive ? normalizeTextPreservingCase(value) : normalizeText(value);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(value);
+  }
+  return result;
 }

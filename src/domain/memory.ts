@@ -22,6 +22,7 @@ export interface MemoryRecord {
   readonly summary: string; readonly content: string; readonly createdAt: string; readonly updatedAt: string;
   readonly provenance: readonly MemoryProvenance[]; readonly supersedes?: string; readonly supersededBy?: string;
   readonly relatedMemoryIds: readonly string[]; readonly relevanceTags: readonly string[];
+  readonly stateKey?: string; readonly stateValue?: string;
 }
 export interface MemoryQuery {
   readonly projectId?: string; readonly class?: MemoryClass; readonly authority?: MemoryAuthority; readonly authoritativeOnly?: boolean;
@@ -38,6 +39,8 @@ export interface CreateMemoryRecordInput {
   readonly supersedes?: string;
   readonly relatedMemoryIds?: readonly string[];
   readonly relevanceTags?: readonly string[];
+  readonly stateKey?: string;
+  readonly stateValue?: string;
   readonly now?: string;
 }
 
@@ -59,6 +62,11 @@ export function createMemoryRecord(input: CreateMemoryRecordInput): MemoryRecord
 
   const relatedMemoryIds = normalizeStrings(input.relatedMemoryIds ?? [], "Memory related ids");
   const relevanceTags = normalizeStrings(input.relevanceTags ?? [], "Memory relevance tags");
+  const rawStateKey = optionalString(input.stateKey, "Memory state key");
+  const rawStateValue = optionalString(input.stateValue, "Memory state value");
+  if ((rawStateKey === undefined) !== (rawStateValue === undefined)) throw new Error("Memory state key and state value must be provided together.");
+  const stateKey = rawStateKey === undefined ? undefined : normalizeStateKey(rawStateKey);
+  const stateValue = rawStateValue === undefined ? undefined : normalizeStateValue(rawStateValue);
   const now = input.now ?? new Date().toISOString();
   validateTimestamp(now, "createdAt");
 
@@ -67,6 +75,7 @@ export function createMemoryRecord(input: CreateMemoryRecordInput): MemoryRecord
     summary, content, createdAt: now, updatedAt: now, provenance,
     ...(supersedes ? { supersedes } : {}),
     relatedMemoryIds, relevanceTags,
+    ...(stateKey === undefined ? {} : { stateKey, stateValue }),
   };
   validateMemoryRecord(memory);
   return memory;
@@ -93,6 +102,14 @@ export function validateMemoryRecord(memory: MemoryRecord): void {
   if (!Array.isArray(memory.relatedMemoryIds) || memory.relatedMemoryIds.some((value) => typeof value !== "string" || !value.trim())) throw new Error("Memory related ids must be non-empty strings.");
   if (!Array.isArray(memory.relevanceTags) || memory.relevanceTags.some((value) => typeof value !== "string" || !value.trim())) throw new Error("Memory relevance tags must be non-empty strings.");
   if (memory.supersedes === memory.id || memory.supersededBy === memory.id) throw new Error("Memory cannot supersede itself.");
+  const hasStateKey = memory.stateKey !== undefined;
+  const hasStateValue = memory.stateValue !== undefined;
+  if (hasStateKey !== hasStateValue) throw new Error("Memory state key and state value must be provided together.");
+  if (hasStateKey) {
+    if (typeof memory.stateKey !== "string" || !memory.stateKey.trim()) throw new Error("Memory state key is required when state value is present.");
+    if (memory.stateKey !== normalizeStateKey(memory.stateKey)) throw new Error("Memory state key must use canonical normalization.");
+    if (typeof memory.stateValue !== "string" || !memory.stateValue.trim()) throw new Error("Memory state value is required when state key is present.");
+  }
 }
 
 export function isMemoryClass(value: unknown): value is MemoryClass {
@@ -105,6 +122,14 @@ export function isMemoryAuthority(value: unknown): value is MemoryAuthority {
 
 export function isMemoryProvenanceKind(value: unknown): value is MemoryProvenanceKind {
   return typeof value === "string" && (MEMORY_PROVENANCE_KINDS as readonly string[]).includes(value);
+}
+
+export function normalizeMemoryStateKey(value: string): string {
+  return normalizeStateKey(requiredString(value, "Memory state key"));
+}
+
+export function normalizeMemoryStateValue(value: string): string {
+  return normalizeStateValue(requiredString(value, "Memory state value"));
 }
 
 function requiredString(value: unknown, label: string): string {
@@ -143,4 +168,12 @@ function normalizeStrings(values: unknown, label: string): readonly string[] {
     return value.trim();
   }).filter(Boolean);
   return [...new Set(normalized)].sort();
+}
+
+function normalizeStateKey(value: string): string {
+  return value.normalize("NFKC").trim().toLocaleLowerCase("und").replace(/\s+/g, " ");
+}
+
+function normalizeStateValue(value: string): string {
+  return value.normalize("NFKC").trim().replace(/\s+/g, " ");
 }

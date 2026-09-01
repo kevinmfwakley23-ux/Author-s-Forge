@@ -16,6 +16,7 @@ export interface MemoryLifecycleEvent {
   readonly type: "promotion" | "supersession";
   readonly memoryId: string;
   readonly replacementId?: string;
+  readonly replacementLinkCreated?: boolean;
   readonly from: MemoryAuthority;
   readonly to: MemoryAuthority;
   readonly actor: "author" | "system";
@@ -63,19 +64,25 @@ export class ProjectMemoryStore {
   }
 
   query(query: MemoryQuery = {}): MemoryRecord[] {
-    if (query.limit !== undefined && (!Number.isInteger(query.limit) || query.limit < 0)) throw new Error("Memory query limit must be a non-negative integer.");
+    validateMemoryQuery(query);
     const changedSinceInstant = query.changedSince === undefined ? undefined : parseTimestamp(query.changedSince, "Memory changedSince must be a valid timestamp.");
+    return filterMemoryRecords(this.list(), query, changedSinceInstant);
+  }
 
-    return this.list().filter((memory) => {
-      if (query.projectId && memory.projectId !== query.projectId) return false;
-      if (query.class && memory.class !== query.class) return false;
-      if (query.authority && memory.authority !== query.authority) return false;
-      if (query.authoritativeOnly && memory.authority !== "authoritative") return false;
-      if (query.relatedMemoryId && !memory.relatedMemoryIds.includes(query.relatedMemoryId)) return false;
-      if (query.relevanceTags && !query.relevanceTags.every((tag) => memory.relevanceTags.includes(tag))) return false;
-      if (changedSinceInstant !== undefined && parseTimestamp(memory.updatedAt, `Memory "${memory.id}" has an invalid updatedAt timestamp.`) <= changedSinceInstant) return false;
-      return true;
-    }).slice(0, query.limit ?? Number.MAX_SAFE_INTEGER);
+  queryAt(query: MemoryQuery, asOf: string): MemoryRecord[] {
+    validateMemoryQuery(query);
+    if (typeof query.projectId !== "string" || !query.projectId.trim()) throw new Error("Point-in-time memory query requires a project id.");
+    const asOfInstant = parseTimestamp(asOf, "Point-in-time memory query requires a valid asOf timestamp.");
+    const changedSinceInstant = query.changedSince === undefined ? undefined : parseTimestamp(query.changedSince, "Memory changedSince must be a valid timestamp.");
+    if (changedSinceInstant !== undefined && changedSinceInstant > asOfInstant) throw new Error("Memory changedSince cannot be later than asOf.");
+
+    const projectId = query.projectId.trim();
+    const historical = reconstructProjectMemoryAt(
+      this.list().filter((memory) => memory.projectId === projectId),
+      this.listLifecycleEvents(projectId),
+      asOfInstant,
+    );
+    return filterMemoryRecords(historical, { ...query, projectId }, changedSinceInstant);
   }
 
   promote(memoryId: string, actor: MemoryPromotionDecision["actor"], reason: string, now = new Date().toISOString()): MemoryPromotionDecision {
@@ -124,13 +131,14 @@ export class ProjectMemoryStore {
       throw new Error("Memory supersession cannot precede either record's creation.");
     }
 
+    const replacementLinkCreated = replacement.supersedes === undefined;
     const superseded: MemoryRecord = { ...existing, authority: "superseded", supersededBy: replacementId, updatedAt: now };
     const linkedReplacement: MemoryRecord = { ...replacement, supersedes: memoryId, updatedAt: now };
     validateMemoryRecord(superseded);
     validateMemoryRecord(linkedReplacement);
     const event: MemoryLifecycleEvent = {
       id: `memory-event-${randomUUID()}`, projectId: existing.projectId, type: "supersession", memoryId,
-      replacementId, from: existing.authority, to: "superseded", actor: decision.actor,
+      replacementId, replacementLinkCreated, from: existing.authority, to: "superseded", actor: decision.actor,
       reason: decision.reason.trim(), occurredAt: now,
     };
     validateLifecycleEvent(event, this.records);
@@ -153,6 +161,7 @@ export class ProjectMemoryStore {
   }
 
   restore(records: readonly MemoryRecord[]): void {
+    if (!Array.isArray(records)) throw new Error("Memory restore payload must be an array.");
     const staged = new Map<string, MemoryRecord>();
     for (const record of records) {
       validateMemoryRecord(record);
@@ -193,6 +202,86 @@ export class ProjectMemoryStore {
     this.restore([...stagedRecords.values()]);
     this.lifecycleEvents.push(...stagedEvents.map(cloneLifecycleEvent));
   }
+}
+
+function validateMemoryQuery(query: MemoryQuery): void {
+  if (!query || typeof query !== "object" || Array.isArray(query)) throw new Error("Memory query must be an object.");
+  if (query.limit !== undefined && (!Number.isInteger(query.limit) || query.limit < 0)) throw new Error("Memory query limit must be a non-negative integer.");
+}
+
+function filterMemoryRecords(records: readonly MemoryRecord[], query: MemoryQuery, changedSinceInstant?: number): MemoryRecord[] {
+  return records.filter((memory) => {
+    if (query.projectId && memory.projectId !== query.projectId) return false;
+    if (query.class && memory.class !== query.class) return false;
+    if (query.authority && memory.authority !== query.authority) return false;
+    if (query.authoritativeOnly && memory.authority !== "authoritative") return false;
+    if (query.relatedMemoryId && !memory.relatedMemoryIds.includes(query.relatedMemoryId)) return false;
+    if (query.relevanceTags && !query.relevanceTags.every((tag) => memory.relevanceTags.includes(tag))) return false;
+    if (changedSinceInstant !== undefined && parseTimestamp(memory.updatedAt, `Memory "${memory.id}" has an invalid updatedAt timestamp.`) <= changedSinceInstant) return false;
+    return true;
+  }).slice(0, query.limit ?? Number.MAX_SAFE_INTEGER).map(cloneMemory);
+}
+
+function reconstructProjectMemoryAt(
+  records: readonly MemoryRecord[],
+  events: readonly MemoryLifecycleEvent[],
+  asOfInstant: number,
+): MemoryRecord[] {
+  const existingAtTime = records.filter((memory) => parseTimestamp(memory.createdAt, `Memory "${memory.id}" has an invalid createdAt timestamp.`) <= asOfInstant);
+  const historical = new Map(existingAtTime.map((memory) => [memory.id, cloneMemory(memory)]));
+
+  for (const memory of historical.values()) {
+    const updatedAtInstant = parseTimestamp(memory.updatedAt, `Memory "${memory.id}" has an invalid updatedAt timestamp.`);
+    if (updatedAtInstant <= asOfInstant) continue;
+    const explained = events.some((event) => eventAffectsMemory(event, memory.id)
+      && parseTimestamp(event.occurredAt, "Memory lifecycle event timestamp must be valid.") === updatedAtInstant);
+    if (!explained) throw new Error(`Memory "${memory.id}" cannot be reconstructed at the requested time because its update history is incomplete.`);
+  }
+
+  const futureEvents = events
+    .filter((event) => parseTimestamp(event.occurredAt, "Memory lifecycle event timestamp must be valid.") > asOfInstant)
+    .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt) || b.id.localeCompare(a.id));
+
+  for (const event of futureEvents) {
+    if (event.type === "promotion") {
+      const memory = historical.get(event.memoryId);
+      if (memory) historical.set(event.memoryId, { ...memory, authority: event.from });
+      continue;
+    }
+
+    const memory = historical.get(event.memoryId);
+    if (memory) {
+      const { supersededBy: _supersededBy, ...restored } = memory;
+      historical.set(event.memoryId, { ...restored, authority: event.from });
+    }
+
+    const replacement = event.replacementId ? historical.get(event.replacementId) : undefined;
+    if (replacement?.supersedes === event.memoryId) {
+      if (event.replacementLinkCreated === undefined) {
+        throw new Error(`Memory "${replacement.id}" cannot be reconstructed before supersession because legacy lifecycle evidence does not record whether its replacement link was created by that event.`);
+      }
+      if (event.replacementLinkCreated) {
+        const { supersedes: _supersedes, ...unlinked } = replacement;
+        historical.set(replacement.id, unlinked);
+      }
+    }
+  }
+
+  for (const [memoryId, memory] of historical) {
+    const updatedAtInstant = parseTimestamp(memory.updatedAt, `Memory "${memory.id}" has an invalid updatedAt timestamp.`);
+    if (updatedAtInstant <= asOfInstant) continue;
+    const priorEvent = events
+      .filter((event) => eventAffectsMemory(event, memoryId)
+        && parseTimestamp(event.occurredAt, "Memory lifecycle event timestamp must be valid.") <= asOfInstant)
+      .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt) || b.id.localeCompare(a.id))[0];
+    historical.set(memoryId, { ...memory, updatedAt: priorEvent?.occurredAt ?? memory.createdAt });
+  }
+
+  return [...historical.values()].sort((a, b) => a.id.localeCompare(b.id)).map(cloneMemory);
+}
+
+function eventAffectsMemory(event: MemoryLifecycleEvent, memoryId: string): boolean {
+  return event.memoryId === memoryId || (event.type === "supersession" && event.replacementId === memoryId);
 }
 
 function parseTimestamp(value: string, errorMessage: string): number {
@@ -236,11 +325,13 @@ function validateLifecycleEvent(value: unknown, records: ReadonlyMap<string, Mem
   if (event.actor !== "author" && event.actor !== "system") throw new Error("Memory lifecycle event actor is invalid.");
   if (typeof event.reason !== "string" || !event.reason.trim()) throw new Error("Memory lifecycle event reason is required.");
   if (typeof event.occurredAt !== "string" || !event.occurredAt.trim() || Number.isNaN(Date.parse(event.occurredAt))) throw new Error("Memory lifecycle event timestamp must be valid.");
+  if (event.replacementLinkCreated !== undefined && typeof event.replacementLinkCreated !== "boolean") throw new Error("Memory lifecycle replacement link marker must be a boolean.");
   if (event.type === "supersession") {
     if (typeof event.replacementId !== "string" || !event.replacementId.trim() || !records.has(event.replacementId)) throw new Error("Memory supersession event requires an existing replacement.");
     if (records.get(event.replacementId)?.projectId !== event.projectId) throw new Error("Memory supersession replacement belongs to another project.");
-  } else if (event.replacementId !== undefined) {
-    throw new Error("Memory promotion event cannot contain a replacement.");
+  } else {
+    if (event.replacementId !== undefined) throw new Error("Memory promotion event cannot contain a replacement.");
+    if (event.replacementLinkCreated !== undefined) throw new Error("Memory promotion event cannot contain a replacement link marker.");
   }
   return cloneLifecycleEvent(event);
 }
@@ -281,6 +372,7 @@ function validateLifecycleSnapshotConsistency(events: readonly MemoryLifecycleEv
     if (replacement.id === memory.id) throw new Error(`Memory supersession event "${event.id}" cannot replace a memory with itself.`);
     if (replacement.class !== memory.class) throw new Error(`Memory supersession event "${event.id}" crosses memory classes.`);
     if (occurredAt < Date.parse(replacement.createdAt)) throw new Error(`Memory supersession event "${event.id}" predates its replacement memory.`);
+    if (occurredAt > Date.parse(replacement.updatedAt)) throw new Error(`Memory supersession event "${event.id}" occurs after replacement memory "${replacement.id}" updatedAt.`);
     if (memory.supersededBy !== replacement.id || replacement.supersedes !== memory.id) throw new Error(`Memory supersession event "${event.id}" does not match reciprocal supersession links.`);
     authorityAfterEvent.set(memory.id, "superseded");
   }
