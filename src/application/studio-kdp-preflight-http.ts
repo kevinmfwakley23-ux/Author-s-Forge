@@ -25,14 +25,26 @@ function number(value: unknown, label: string): number {
   return value;
 }
 
+function nonNegativeNumber(value: unknown, label: string): number {
+  const parsed = number(value, label);
+  if (parsed < 0) throw new Error(`${label} must be zero or greater.`);
+  return parsed;
+}
+
+function positiveNumber(value: unknown, label: string): number {
+  const parsed = number(value, label);
+  if (parsed <= 0) throw new Error(`${label} must be greater than zero.`);
+  return parsed;
+}
+
 function text(value: unknown, label: string): string {
   if (typeof value !== "string" || !value.trim()) throw new Error(`${label} is required.`);
   return value.trim();
 }
 
-function optionalNumber(value: unknown, label: string): number | undefined {
+function optionalPositiveNumber(value: unknown, label: string): number | undefined {
   if (value === undefined || value === null || value === "") return undefined;
-  return number(value, label);
+  return positiveNumber(value, label);
 }
 
 function optionalBoolean(value: unknown, label: string): boolean | undefined {
@@ -44,11 +56,11 @@ function parseInterior(value: unknown): KdpInteriorFileFacts {
   const input = record(value, "Interior facts");
   return {
     format: text(input.format, "Interior format"),
-    sizeBytes: number(input.sizeBytes, "Interior sizeBytes"),
+    sizeBytes: nonNegativeNumber(input.sizeBytes, "Interior sizeBytes"),
     encrypted: boolean(input.encrypted, "Interior encrypted"),
     fontsEmbedded: boolean(input.fontsEmbedded, "Interior fontsEmbedded"),
     imagesEmbedded: boolean(input.imagesEmbedded, "Interior imagesEmbedded"),
-    minimumImageDpi: optionalNumber(input.minimumImageDpi, "Interior minimumImageDpi"),
+    minimumImageDpi: optionalPositiveNumber(input.minimumImageDpi, "Interior minimumImageDpi"),
     transparentObjectsFlattened: boolean(input.transparentObjectsFlattened, "Interior transparentObjectsFlattened"),
     hasCropMarks: boolean(input.hasCropMarks, "Interior hasCropMarks"),
     hasTrimMarks: boolean(input.hasTrimMarks, "Interior hasTrimMarks"),
@@ -57,12 +69,12 @@ function parseInterior(value: unknown): KdpInteriorFileFacts {
     hasAnnotations: boolean(input.hasAnnotations, "Interior hasAnnotations"),
     hasPlaceholderText: boolean(input.hasPlaceholderText, "Interior hasPlaceholderText"),
     hasPdfCreationWatermark: boolean(input.hasPdfCreationWatermark, "Interior hasPdfCreationWatermark"),
-    pageWidthInches: number(input.pageWidthInches, "Interior pageWidthInches"),
-    pageHeightInches: number(input.pageHeightInches, "Interior pageHeightInches"),
-    insideMarginInches: number(input.insideMarginInches, "Interior insideMarginInches"),
-    outsideMarginInches: number(input.outsideMarginInches, "Interior outsideMarginInches"),
-    topMarginInches: number(input.topMarginInches, "Interior topMarginInches"),
-    bottomMarginInches: number(input.bottomMarginInches, "Interior bottomMarginInches"),
+    pageWidthInches: positiveNumber(input.pageWidthInches, "Interior pageWidthInches"),
+    pageHeightInches: positiveNumber(input.pageHeightInches, "Interior pageHeightInches"),
+    insideMarginInches: nonNegativeNumber(input.insideMarginInches, "Interior insideMarginInches"),
+    outsideMarginInches: nonNegativeNumber(input.outsideMarginInches, "Interior outsideMarginInches"),
+    topMarginInches: nonNegativeNumber(input.topMarginInches, "Interior topMarginInches"),
+    bottomMarginInches: nonNegativeNumber(input.bottomMarginInches, "Interior bottomMarginInches"),
   };
 }
 
@@ -70,17 +82,17 @@ function parseCover(value: unknown): KdpCoverFileFacts {
   const input = record(value, "Cover facts");
   return {
     format: text(input.format, "Cover format"),
-    sizeBytes: number(input.sizeBytes, "Cover sizeBytes"),
+    sizeBytes: nonNegativeNumber(input.sizeBytes, "Cover sizeBytes"),
     encrypted: boolean(input.encrypted, "Cover encrypted"),
     fontsEmbedded: boolean(input.fontsEmbedded, "Cover fontsEmbedded"),
-    minimumImageDpi: optionalNumber(input.minimumImageDpi, "Cover minimumImageDpi"),
+    minimumImageDpi: optionalPositiveNumber(input.minimumImageDpi, "Cover minimumImageDpi"),
     transparentObjectsFlattened: boolean(input.transparentObjectsFlattened, "Cover transparentObjectsFlattened"),
     hasCropMarks: boolean(input.hasCropMarks, "Cover hasCropMarks"),
     hasTrimMarks: boolean(input.hasTrimMarks, "Cover hasTrimMarks"),
     hasTemplateText: boolean(input.hasTemplateText, "Cover hasTemplateText"),
     titleOnFront: boolean(input.titleOnFront, "Cover titleOnFront"),
-    widthInches: number(input.widthInches, "Cover widthInches"),
-    heightInches: number(input.heightInches, "Cover heightInches"),
+    widthInches: positiveNumber(input.widthInches, "Cover widthInches"),
+    heightInches: positiveNumber(input.heightInches, "Cover heightInches"),
     spineTextPresent: optionalBoolean(input.spineTextPresent, "Cover spineTextPresent"),
   };
 }
