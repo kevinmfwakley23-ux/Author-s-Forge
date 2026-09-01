@@ -51,14 +51,15 @@ function providerWith(payload) {
   return { requests, provider: new OpenAiWebKdpMarketIntelligenceProvider({ apiKey: "test-key", model: "gpt-test", fetchImpl, now: () => new Date("2026-09-01T10:00:00.000Z") }) };
 }
 
-test("live KDP research uses hosted web search and returns ranked keyword/niche evidence", async () => {
+test("live KDP research requires current hosted web search and returns ranked keyword/niche evidence", async () => {
   const { provider, requests } = providerWith(openAiPayload());
   const service = new KdpMarketIntelligenceService(provider);
   const report = await service.research({ id: "market-1", projectId: "project-1", bookId: "book-1", market: "Amazon.com / US children's books", question: "Find current children's friendship niches and KDP keywords." });
 
   assert.equal(requests.length, 1);
   assert.equal(requests[0].url, "https://api.openai.com/v1/responses");
-  assert.deepEqual(requests[0].body.tools, [{ type: "web_search_preview", search_context_size: "high" }]);
+  assert.deepEqual(requests[0].body.tools, [{ type: "web_search", search_context_size: "high" }]);
+  assert.equal(requests[0].body.tool_choice, "required", "live market research must not let the model skip web search");
   assert.deepEqual(requests[0].body.include, ["web_search_call.action.sources"]);
   assert.match(requests[0].body.input[0].content, /up to seven keyword slots/i);
   assert.match(requests[0].body.input[0].content, /not guaranteed future sales/i);
