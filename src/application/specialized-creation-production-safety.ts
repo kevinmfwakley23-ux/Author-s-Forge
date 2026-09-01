@@ -9,8 +9,14 @@ const MIN_QR_MODULE_INCHES=0.012;
 const MIN_QR_PRINTER_PIXELS_PER_MODULE=4;
 
 export function specializedProductionSafetyIssues(project:SpecializedOfficeProject,kind?:SpecializedArtifactKind,profile?:SpecializedProductionProfile):SpecializedPreflightIssue[] {
-  const issues:SpecializedPreflightIssue[]=[];
+  const issues:SpecializedPreflightIssue[]=[],assets=new Map(project.assets.map(asset=>[asset.id,asset]));
   for(const document of project.documents)for(const surface of document.surfaces)for(const element of surface.elements){
+    if(element.kind==="image"){
+      const asset=element.assetId?assets.get(element.assetId):undefined;
+      if(!element.assetId||!asset)issues.push({code:"IMAGE_ASSET_MISSING",severity:"error",message:`Image element ${element.id} references no available project asset.`,documentId:document.id,surfaceId:surface.id,elementId:element.id});
+      else if(!asset.approved)issues.push({code:"IMAGE_ASSET_NOT_APPROVED",severity:"error",message:`Image element ${element.id} references unapproved asset ${asset.id}. Author approval is required before production.`,documentId:document.id,surfaceId:surface.id,elementId:element.id});
+      else if(!asset.uri.trim())issues.push({code:"IMAGE_ASSET_URI_MISSING",severity:"error",message:`Approved image asset ${asset.id} has no renderable URI.`,documentId:document.id,surfaceId:surface.id,elementId:element.id});
+    }
     if(element.kind==="qr"){
       const destination=typeof element.metadata.destination==="string"?element.metadata.destination.trim():"";
       if(destination){
