@@ -4,6 +4,7 @@ const {
   STORAGE_PROVIDER_IDS,
   createProjectStorageBinding,
   validateProjectStorageBinding,
+  validateStoredObject,
   createDownloadableProjectPackageFilename,
   normalizeStorageKey,
   MemoryStorageProvider,
@@ -32,6 +33,15 @@ test("storage key normalization rejects traversal, backslashes, ambiguous segmen
     assert.throws(() => normalizeStorageKey(key), /normalized relative storage path/i, key);
   }
   assert.equal(normalizeStorageKey("recovery/backup.forge-project.json"), "recovery/backup.forge-project.json");
+});
+
+test("stored object metadata is a validated runtime contract", () => {
+  const valid = { key: "projects/p1/backup.json", size: 12, mediaType: "application/json", updatedAt: "2026-09-01T00:00:00.000Z", etag: "abc" };
+  assert.deepEqual(validateStoredObject(valid), valid);
+  assert.throws(() => validateStoredObject(null), /metadata must be an object/i);
+  assert.throws(() => validateStoredObject({ ...valid, key: "../escape" }), /normalized relative storage path/i);
+  assert.throws(() => validateStoredObject({ ...valid, size: -1 }), /non-negative safe integer/i);
+  assert.throws(() => validateStoredObject({ ...valid, updatedAt: "not-a-date" }), /valid timestamp/i);
 });
 
 test("downloadable Forge package filename cannot become a path", () => {
@@ -74,4 +84,37 @@ test("ExternalStorageService rejects unsafe suffixes before calling the provider
   await assert.rejects(() => service.delete(binding, "a/../escape"), /normalized relative storage path/i);
   await assert.rejects(() => service.list(binding, "../escape"), /normalized relative storage path/i);
   assert.deepEqual(calls, []);
+});
+
+test("ExternalStorageService fails closed when a provider reports objects outside the requested namespace", async () => {
+  const binding = createProjectStorageBinding({ projectId: "p1", providerId: "download" });
+  const wrongPutProvider = {
+    id: "download",
+    async put() { return { key: "projects/p2/stolen.json", size: 1, mediaType: "application/json", updatedAt: "2026-09-01T00:00:00.000Z" }; },
+    async get() { return new Uint8Array(); },
+    async delete() {},
+    async list() { return []; },
+  };
+  await assert.rejects(() => new ExternalStorageService(wrongPutProvider).put(binding, "safe.json", bytes("x"), "application/json"), /outside the requested project object key/i);
+
+  const wrongListProvider = {
+    id: "download",
+    async put(key) { return { key, size: 0, mediaType: "application/json", updatedAt: "2026-09-01T00:00:00.000Z" }; },
+    async get() { return new Uint8Array(); },
+    async delete() {},
+    async list() { return [{ key: "projects/p10/other.json", size: 1, mediaType: "application/json", updatedAt: "2026-09-01T00:00:00.000Z" }]; },
+  };
+  await assert.rejects(() => new ExternalStorageService(wrongListProvider).list(binding), /outside the requested project namespace/i);
+});
+
+test("ExternalStorageService rejects non-byte provider reads instead of trusting TypeScript", async () => {
+  const binding = createProjectStorageBinding({ projectId: "p1", providerId: "download" });
+  const provider = {
+    id: "download",
+    async put(key) { return { key, size: 0, mediaType: "application/json", updatedAt: "2026-09-01T00:00:00.000Z" }; },
+    async get() { return "not bytes"; },
+    async delete() {},
+    async list() { return []; },
+  };
+  await assert.rejects(() => new ExternalStorageService(provider).get(binding, "safe.json"), /non-byte content/i);
 });
