@@ -31,10 +31,10 @@ export class StudioPublishingMetadataService {
   ): Promise<PublishingMetadataState> {
     const project = await this.load(projectId);
     this.requireBook(project, bookId);
-    const now = options.now ?? new Date().toISOString();
+    const now = monotonicTimestamp(project, options.now);
     const metadata = createPublishingMetadata({ ...input, projectId, bookId, updatedAt: now });
     const compliance = this.compliance(project, metadata);
-    const priorIds = new Set(this.records(project, bookId).filter((record) => record.authority !== "archived").map((record) => record.id));
+    const priorIds = new Set(this.records(project, bookId).filter((record) => record.authority !== "archived" && record.authority !== "superseded").map((record) => record.id));
     const memories = project.memories.map((record) => priorIds.has(record.id) ? { ...record, authority: "archived" as const, updatedAt: now } : record);
     const memory = createMemoryRecord({
       id: options.memoryId ?? `publishing-metadata-${bookId}-${randomUUID()}`,
@@ -91,7 +91,7 @@ export class StudioPublishingMetadataService {
   public async get(projectId: string, bookId: string): Promise<PublishingMetadataState | null> {
     const project = await this.load(projectId);
     this.requireBook(project, bookId);
-    const current = this.records(project, bookId).filter((record) => record.authority !== "archived" && record.authority !== "superseded").sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+    const current = this.records(project, bookId).filter((record) => record.authority !== "archived" && record.authority !== "superseded").sort(newestRecordFirst)[0];
     if (!current) return null;
     let parsed: unknown;
     try { parsed = JSON.parse(current.content); } catch { throw new Error(`Publishing metadata memory "${current.id}" contains invalid JSON.`); }
@@ -103,7 +103,7 @@ export class StudioPublishingMetadataService {
   public async history(projectId: string, bookId: string): Promise<readonly MemoryRecord[]> {
     const project = await this.load(projectId);
     this.requireBook(project, bookId);
-    return this.records(project, bookId).map((record) => JSON.parse(JSON.stringify(record)) as MemoryRecord);
+    return this.records(project, bookId).sort(newestRecordFirst).map((record) => JSON.parse(JSON.stringify(record)) as MemoryRecord);
   }
 
   private compliance(project: ProjectState, metadata: PublishingMetadata): PublishingMetadataCompliance {
@@ -126,6 +126,28 @@ export class StudioPublishingMetadataService {
     if (!project.studioWorkspace) throw new Error("Project has no Studio workspace.");
     return getBook(validateStudioWorkspace(project.studioWorkspace), bookId);
   }
+}
+
+function newestRecordFirst(left: MemoryRecord, right: MemoryRecord): number {
+  const byUpdated = right.updatedAt.localeCompare(left.updatedAt);
+  if (byUpdated !== 0) return byUpdated;
+  const leftActive = left.authority !== "archived" && left.authority !== "superseded" ? 1 : 0;
+  const rightActive = right.authority !== "archived" && right.authority !== "superseded" ? 1 : 0;
+  if (leftActive !== rightActive) return rightActive - leftActive;
+  const byCreated = right.createdAt.localeCompare(left.createdAt);
+  return byCreated !== 0 ? byCreated : right.id.localeCompare(left.id);
+}
+
+function monotonicTimestamp(project: ProjectState, requested?: string): string {
+  const candidate = requested ?? new Date().toISOString();
+  const timestamps = [project.metadata.createdAt, project.metadata.updatedAt, candidate];
+  let latest = 0;
+  for (const timestamp of timestamps) {
+    const time = Date.parse(timestamp);
+    if (!Number.isFinite(time)) throw new Error("Publishing metadata persistence timestamp must be valid.");
+    latest = Math.max(latest, time);
+  }
+  return new Date(latest).toISOString();
 }
 
 function requiredPhrase(value: unknown): string {
