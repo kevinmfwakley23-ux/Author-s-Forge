@@ -3,7 +3,7 @@
 ## Parallel ownership
 
 - **Lane:** first pass, backup/application boundary.
-- **Depends on:** 001W external-storage namespace integrity.
+- **Depends on:** 001W external-storage namespace integrity, now merged on `main`.
 - **Does not modify:** Studio package recovery route/client or Project Brain retrieval/state-conflict files.
 
 ## Inspection finding
@@ -34,4 +34,8 @@ Tests use both the in-memory provider and `LocalFileStorageProvider`. The filesy
 
 ## Verification
 
-Stacked on 001W. After 001W merges, reparent this block to exact `main`; merge only after TypeScript build, full tests/completion/syntax, desktop browser acceptance (including recovery), and Android/mobile acceptance are green.
+PR #79 is now based directly on merged 001W `main`. Merge only after a fresh exact-head Forge CI passes TypeScript build, full tests/completion/syntax, desktop browser acceptance including the real recovery flow, and Android/mobile acceptance.
+
+## Next first-pass block
+
+001Y will make this backup workflow reachable through the real Studio using a project-scoped configured backup vault while preserving existing author-approved package recovery as the only restore mutation authority.
