@@ -37,7 +37,7 @@ async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "forge-market-research-"));
   const store = new FileProjectStore(root);
   let workspace = createStudioWorkspace();
-  workspace = addWorkspaceBook(workspace, createWorkspaceBook({ id: "book-1", title: "Heartwood Friendship", kind: "children", description: "A gentle story about making a friend.", now: "2026-09-01T09:00:00.000Z" }));
+  workspace = addWorkspaceBook(workspace, createWorkspaceBook({ id: "book-1", title: "Heartwood Friendship", kind: "childrens-book", description: "A gentle story about making a friend.", now: "2026-09-01T09:00:00.000Z" }));
   const project = withProjectStudioWorkspace(createProject({ id: "project-1", title: "Market Research", now: "2026-09-01T09:00:00.000Z" }), workspace, "2026-09-01T09:01:00.000Z");
   await store.create(project);
   const publishing = new StudioPublishingMetadataService(store);
