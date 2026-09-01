@@ -22,7 +22,7 @@ test("retrieval evaluation computes deterministic ID recall and forbidden-memory
   const store = new ProjectMemoryStore();
   store.register(memory("needed-a", "Mara carries the brass key."));
   store.register(memory("needed-b", "Mara hides the brass key beneath the stairs."));
-  store.register(memory("forbidden", "An obsolete brass key note."));
+  store.register(memory("forbidden", "An obsolete brass latch note."));
 
   const report = evaluateProjectBrainRetrieval(store, [{
     id: "brass-key-context",
