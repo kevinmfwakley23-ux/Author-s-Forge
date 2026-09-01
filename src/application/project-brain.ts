@@ -21,6 +21,7 @@ export interface ProjectBrainQuery {
   readonly relatedMemoryIds?: readonly string[];
   readonly entityMatchRules?: readonly ProjectBrainEntityMatchRule[];
   readonly includeWorkingState?: boolean;
+  readonly includeDiagnostics?: boolean;
   readonly changedSince?: string;
   readonly asOf?: string;
   readonly limit?: number;
@@ -32,6 +33,22 @@ export interface ProjectBrainSelectionEvidence {
   readonly reasons: readonly string[];
 }
 
+export interface ProjectBrainDiagnostics {
+  readonly sourceCount: number;
+  readonly liveCount: number;
+  readonly classEligibleCount: number;
+  readonly authorityEligibleCount: number;
+  readonly saliencyMatchedCount: number;
+  readonly selectedCount: number;
+  readonly excluded: {
+    readonly inactive: number;
+    readonly classMismatch: number;
+    readonly unrequestedAuthority: number;
+    readonly saliencyMismatch: number;
+    readonly resultLimit: number;
+  };
+}
+
 export interface ProjectBrainContext {
   readonly projectId: string;
   readonly authoritative: readonly MemoryRecord[];
@@ -39,6 +56,7 @@ export interface ProjectBrainContext {
   readonly changed: readonly MemoryRecord[];
   readonly evidence: readonly ProjectBrainSelectionEvidence[];
   readonly asOf?: string;
+  readonly diagnostics?: ProjectBrainDiagnostics;
 }
 
 export function assembleProjectBrainContext(store: ProjectMemoryStore, query: ProjectBrainQuery): ProjectBrainContext {
@@ -51,8 +69,11 @@ export function assembleProjectBrainContext(store: ProjectMemoryStore, query: Pr
     : store.query({ projectId: normalizedQuery.projectId, changedSince: normalizedQuery.changedSince });
   const liveMemories = sourceMemories.filter(isContextEligible);
   assertNoAuthoritativeStateConflicts(liveMemories);
-  const candidates = liveMemories.filter(filterClasses);
-  const ranked = rankMemories(candidates, normalizedQuery);
+  const classEligible = liveMemories.filter(filterClasses);
+  const authorityEligible = normalizedQuery.includeWorkingState
+    ? classEligible
+    : classEligible.filter((memory) => memory.authority === "authoritative");
+  const ranked = rankMemories(authorityEligible, normalizedQuery);
   const limited = ranked.slice(0, normalizedQuery.limit ?? PROJECT_BRAIN_MAX_RESULTS);
   const selected = limited.map(({ memory }) => memory);
 
@@ -63,6 +84,9 @@ export function assembleProjectBrainContext(store: ProjectMemoryStore, query: Pr
   const changed = normalizedQuery.changedSince
     ? [...authoritative, ...working].sort((a, b) => compareRanked(a, b, normalizedQuery))
     : [];
+  const diagnostics = normalizedQuery.includeDiagnostics
+    ? createDiagnostics(sourceMemories, liveMemories, classEligible, authorityEligible, ranked.length, limited.length)
+    : undefined;
 
   return {
     projectId: normalizedQuery.projectId,
@@ -71,7 +95,33 @@ export function assembleProjectBrainContext(store: ProjectMemoryStore, query: Pr
     changed,
     evidence: limited.map(({ memory, score, reasons }) => ({ memoryId: memory.id, score, reasons })),
     ...(normalizedQuery.asOf === undefined ? {} : { asOf: normalizedQuery.asOf }),
+    ...(diagnostics === undefined ? {} : { diagnostics }),
   };
+}
+
+function createDiagnostics(
+  sourceMemories: readonly MemoryRecord[],
+  liveMemories: readonly MemoryRecord[],
+  classEligible: readonly MemoryRecord[],
+  authorityEligible: readonly MemoryRecord[],
+  saliencyMatchedCount: number,
+  selectedCount: number,
+): ProjectBrainDiagnostics {
+  return Object.freeze({
+    sourceCount: sourceMemories.length,
+    liveCount: liveMemories.length,
+    classEligibleCount: classEligible.length,
+    authorityEligibleCount: authorityEligible.length,
+    saliencyMatchedCount,
+    selectedCount,
+    excluded: Object.freeze({
+      inactive: sourceMemories.length - liveMemories.length,
+      classMismatch: liveMemories.length - classEligible.length,
+      unrequestedAuthority: classEligible.length - authorityEligible.length,
+      saliencyMismatch: authorityEligible.length - saliencyMatchedCount,
+      resultLimit: saliencyMatchedCount - selectedCount,
+    }),
+  });
 }
 
 function rankMemories(memories: readonly MemoryRecord[], query: ProjectBrainQuery): readonly RankedMemory[] {
@@ -272,6 +322,7 @@ function normalizeQuery(query: ProjectBrainQuery): ProjectBrainQuery {
   if (query.projectId.trim().length > MAX_QUERY_VALUE_LENGTH) throw new Error("Project Brain project id is too long.");
   if (query.limit !== undefined && (!Number.isInteger(query.limit) || query.limit < 0 || query.limit > PROJECT_BRAIN_MAX_RESULTS)) throw new Error(`Project Brain limit must be an integer from 0 to ${PROJECT_BRAIN_MAX_RESULTS}.`);
   if (query.includeWorkingState !== undefined && typeof query.includeWorkingState !== "boolean") throw new Error("Project Brain includeWorkingState must be a boolean.");
+  if (query.includeDiagnostics !== undefined && typeof query.includeDiagnostics !== "boolean") throw new Error("Project Brain includeDiagnostics must be a boolean.");
   if (query.changedSince !== undefined && (typeof query.changedSince !== "string" || !query.changedSince.trim() || Number.isNaN(Date.parse(query.changedSince)))) {
     throw new Error("Project Brain changedSince must be a valid timestamp.");
   }
