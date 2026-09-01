@@ -21,8 +21,9 @@ export interface SpecializedPreflightReport { readonly projectId:string; readonl
 export interface SpecializedRenderedArtifact { readonly kind:SpecializedArtifactKind; readonly fileName:string; readonly mimeType:string; readonly bytesBase64:string; readonly byteLength:number; readonly sha256:string; readonly pageCount?:number; readonly sourceDocumentIds:readonly string[]; }
 
 export class SpecializedCreationProductionEngine {
-  preflight(project:SpecializedOfficeProject, profile:SpecializedProductionProfile, now=new Date().toISOString()):SpecializedPreflightReport {
+  preflight(project:SpecializedOfficeProject, profile:SpecializedProductionProfile, now=new Date().toISOString(), modeContext:SpecializedOfficeProject=project):SpecializedPreflightReport {
     validateProductionProfile(profile);
+    if(modeContext.id!==project.id||modeContext.forgeProjectId!==project.forgeProjectId||modeContext.mode!==project.mode)throw new Error("Specialized preflight mode context must match the scoped project identity and mode.");
     const issues:SpecializedPreflightIssue[]=[];
     if(!project.documents.length) issues.push(issue("NO_DOCUMENTS","error","No specialized creation documents exist."));
     for(const document of project.documents){
@@ -53,13 +54,13 @@ export class SpecializedCreationProductionEngine {
         }
       }
     }
-    this.modePreflight(project,issues);
+    this.modePreflight(modeContext,issues);
     const blocking=issues.filter(item=>item.severity==="error").length,warnings=issues.filter(item=>item.severity==="warning").length;
     return Object.freeze({projectId:project.id,profileId:profile.id,generatedAt:now,issues:Object.freeze(issues),blocking,warnings,ready:blocking===0});
   }
 
-  render(project:SpecializedOfficeProject,profile:SpecializedProductionProfile,kind:SpecializedArtifactKind):SpecializedRenderedArtifact {
-    const report=this.preflight(project,profile);
+  render(project:SpecializedOfficeProject,profile:SpecializedProductionProfile,kind:SpecializedArtifactKind,modeContext:SpecializedOfficeProject=project):SpecializedRenderedArtifact {
+    const report=this.preflight(project,profile,new Date().toISOString(),modeContext);
     if(!profile.artifactKinds.includes(kind))throw new Error(`${kind} is not enabled by production profile ${profile.id}.`);
     if(report.blocking)throw new Error(`Specialized production is blocked by ${report.blocking} preflight error(s).`);
     if(kind==="svg")return artifact(kind,`${safeName(project.title)}.svg`,"image/svg+xml",Buffer.from(renderSvgDocument(project.documents[0],project),"utf8"),project.documents.map(d=>d.id),1);
