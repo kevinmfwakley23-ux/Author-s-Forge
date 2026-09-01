@@ -49,9 +49,9 @@ export function assembleProjectBrainContext(store: ProjectMemoryStore, query: Pr
   const sourceMemories = normalizedQuery.asOf
     ? store.queryAt({ projectId: normalizedQuery.projectId }, normalizedQuery.asOf)
     : store.query({ projectId: normalizedQuery.projectId, changedSince: normalizedQuery.changedSince });
-  const candidates = sourceMemories
-    .filter(filterClasses)
-    .filter(isContextEligible);
+  const liveMemories = sourceMemories.filter(isContextEligible);
+  assertNoAuthoritativeStateConflicts(liveMemories);
+  const candidates = liveMemories.filter(filterClasses);
   const ranked = rankMemories(candidates, normalizedQuery);
   const limited = ranked.slice(0, normalizedQuery.limit ?? PROJECT_BRAIN_MAX_RESULTS);
   const selected = limited.map(({ memory }) => memory);
@@ -153,11 +153,29 @@ function scoreMemory(memory: MemoryRecord, query: ProjectBrainQuery): RankedMemo
 function compareRanked(a: MemoryRecord, b: MemoryRecord, query: ProjectBrainQuery): number {
   const left = scoreMemory(a, query);
   const right = scoreMemory(b, query);
-  return right.score - left.score || authorityWeight(b.authority) - authorityWeight(a.authority) || b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id);
+  return right.score - left.score || authorityWeight(b.authority) - authorityWeight(a.authority) || b.memory.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id);
 }
 
 function isContextEligible(memory: MemoryRecord): boolean {
   return memory.authority !== "archived" && memory.authority !== "superseded";
+}
+
+function assertNoAuthoritativeStateConflicts(memories: readonly MemoryRecord[]): void {
+  const byKey = new Map<string, Map<string, string[]>>();
+  for (const memory of memories) {
+    if (memory.authority !== "authoritative" || memory.stateKey === undefined || memory.stateValue === undefined) continue;
+    const normalizedValue = normalizeText(memory.stateValue);
+    const values = byKey.get(memory.stateKey) ?? new Map<string, string[]>();
+    const ids = values.get(normalizedValue) ?? [];
+    ids.push(memory.id);
+    values.set(normalizedValue, ids);
+    byKey.set(memory.stateKey, values);
+  }
+  for (const [stateKey, values] of byKey) {
+    if (values.size <= 1) continue;
+    const memoryIds = [...values.values()].flat().sort();
+    throw new Error(`Project Brain authoritative state conflict for "${stateKey}" across memories ${memoryIds.join(", ")}. Resolve the conflict through author supersession before retrieval.`);
+  }
 }
 
 function authorityWeight(authority: MemoryRecord["authority"]): number {
