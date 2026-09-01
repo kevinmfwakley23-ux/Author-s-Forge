@@ -33,10 +33,12 @@ import { KdpPreflightHistoryService } from "./application/kdp-preflight-history"
 import { listKdpPreflightHistoryFromHttp, runKdpPreflightFromHttp } from "./application/kdp-preflight-http";
 import { StudioProjectRecoveryService } from "./application/studio-project-recovery";
 import { restoreStudioProjectFromHttp } from "./application/studio-project-recovery-http";
+import { StudioProjectBackupVault } from "./application/studio-project-backup-vault";
 
 const port = Number(process.env.PORT ?? 4173);
 const host = process.env.HOST ?? "127.0.0.1";
 const dataRoot = process.env.FORGE_DATA_DIR ?? join(process.cwd(), ".forge-data");
+const backupRoot = process.env.FORGE_BACKUP_DIR?.trim() || join(process.cwd(), ".forge-backups");
 const publicRoot = join(process.cwd(), "public");
 const store = new FileProjectStore(dataRoot);
 const genome = new BookGenomeService();
@@ -47,6 +49,7 @@ const editor = new IntelligentEditingService();
 const coverStudio = new BookCoverStudioService();
 const projectPackages = new ProjectPackageService();
 const projectRecovery = new StudioProjectRecoveryService(store, projectPackages);
+const projectBackups = new StudioProjectBackupVault(store, backupRoot, projectPackages);
 const authorGoals = new StudioAuthorGoalsService(store);
 const kdpPreflightHistory = new KdpPreflightHistoryService(new FileKdpPreflightStore(join(dataRoot, "kdp-preflight-reports.json")));
 const aiProposalStore = new FileAiProposalStore(join(dataRoot, "ai-proposals.json"));
@@ -95,6 +98,11 @@ if(url.pathname===`/api/projects/${projectId}/ai/writing/generate`&&req.method==
 if(url.pathname===`/api/projects/${projectId}/ai/editing/propose`&&req.method==="POST"){const input=await body(req);const workspace=workspaceOf(project);const book=getBook(workspace,String(input.bookId??workspace.activeBookId??""));const chapterId=String(input.chapterId??"");const chapter=book.chapters.find((item)=>item.id===chapterId);if(!chapter)throw new Error("A valid chapter is required for an AI editing proposal.");const sceneId=String(input.sceneId??"");const scene=chapter.scenes.find((item)=>item.id===sceneId);if(!scene)throw new Error("A valid scene is required for an AI editing proposal.");const findingMessage=String(input.findingMessage??"").trim();const recommendation=String(input.recommendation??"").trim();if(!findingMessage)throw new Error("An editorial finding is required for an AI editing proposal.");if(!recommendation)throw new Error("An editorial recommendation is required for an AI editing proposal.");const proposal=await aiEditingStudio.propose({projectId,bookId:book.id,chapterId:chapter.id,sceneId:scene.id,sourceContent:scene.content,findingMessage,recommendation,findingStart:Number(input.findingStart),findingEnd:Number(input.findingEnd),instruction:input.instruction===undefined?undefined:String(input.instruction),sourceMemoryIds:Array.isArray(input.sourceMemoryIds)?input.sourceMemoryIds.map(String):[],proposalId:String(input.proposalId??`editing-proposal-${randomUUID()}`),now:input.now===undefined?undefined:String(input.now)});json(res,201,{proposal,providerBoundary:"durable-editing-proposal"});return true;}
 if(url.pathname===`/api/projects/${projectId}/package`&&req.method==="GET"){const workspace=workspaceOf(project);const pkg=projectPackages.exportSnapshot({projectId,projectState:{project,studioWorkspace:workspace}});json(res,200,pkg);return true;}
 if(url.pathname===`/api/projects/${projectId}/package/restore`&&req.method==="POST"){const input=await body(req);json(res,200,await restoreStudioProjectFromHttp(projectRecovery,projectId,input));return true;}
+if(url.pathname===`/api/projects/${projectId}/backups`&&req.method==="GET"){json(res,200,{projectId,backups:await projectBackups.list(projectId)});return true;}
+if(url.pathname===`/api/projects/${projectId}/backups`&&req.method==="POST"){const input=await body(req);json(res,201,await projectBackups.create(projectId,input));return true;}
+if(url.pathname===`/api/projects/${projectId}/backups/preview`&&req.method==="POST"){const input=await body(req);json(res,200,await projectBackups.preview(projectId,input));return true;}
+if(url.pathname===`/api/projects/${projectId}/backups/restore`&&req.method==="POST"){const input=await body(req);json(res,200,await projectBackups.restore(projectId,input));return true;}
+if(url.pathname===`/api/projects/${projectId}/backups`&&req.method==="DELETE"){const input=await body(req);json(res,200,await projectBackups.delete(projectId,input));return true;}
 if(url.pathname===`/api/projects/${projectId}/workspace`&&req.method==="GET"){json(res,200,workspaceOf(project));return true;}
 if(url.pathname===`/api/projects/${projectId}/workspace/activate`&&req.method==="POST"){const input=await body(req);const workspace=setActiveBook(workspaceOf(project),String(input.bookId??""));await store.save(saveWorkspace(project,workspace));json(res,200,workspace);return true;}
 if(url.pathname===`/api/projects/${projectId}/workspace/books`&&req.method==="POST"){const input=await body(req);const workspace=addWorkspaceBook(workspaceOf(project),createWorkspaceBook({id:String(input.id??`book-${randomUUID()}`),title:String(input.title??""),kind:input.kind as never,description:String(input.description??"")}));await store.save(saveWorkspace(project,workspace));json(res,201,workspace.books.find((b)=>b.id===workspace.activeBookId));return true;}
