@@ -1,5 +1,5 @@
 import type { FileSpecializedCreationStore } from "../infrastructure/file-specialized-creation-store";
-import type { SpecializedArtifactKind, SpecializedOfficeProject } from "../domain/specialized-creation-office";
+import type { SpecializedArtifactKind, SpecializedOfficeProject, SpecializedRevision } from "../domain/specialized-creation-office";
 import { SpecializedCreationProductionEngine, type SpecializedPreflightReport, type SpecializedRenderedArtifact } from "./specialized-creation-production-engine";
 
 export class SpecializedCreationScopedArtifactService {
@@ -13,7 +13,7 @@ export class SpecializedCreationScopedArtifactService {
     const scoped:SpecializedOfficeProject={...project,documents};
     const now=input.now??new Date().toISOString(),preflight=this.production.preflight(scoped,profile,now);if(!preflight.ready)throw new Error(`Production blocked by ${preflight.blocking} preflight error(s).`);
     const artifact=this.production.render(scoped,profile,input.kind);
-    const revisions=ids.map(documentId=>project.revisions.filter(revision=>revision.documentId===documentId).at(-1)).filter(Boolean);if(revisions.length!==ids.length)throw new Error("Every scoped production document requires a durable revision.");
+    const revisions:SpecializedRevision[]=[];for(const documentId of ids){const revision=project.revisions.filter(item=>item.documentId===documentId).at(-1);if(!revision)throw new Error(`Production document \"${documentId}\" has no durable revision.`);revisions.push(revision);}
     const revisionId=revisions.map(revision=>revision.id).join("+");
     const record={id:`artifact-${artifact.sha256.slice(0,16)}`,projectId:project.id,revisionId,profileId:profile.id,kind:input.kind,fileName:artifact.fileName,mimeType:artifact.mimeType,byteLength:artifact.byteLength,sha256:artifact.sha256,createdAt:now};
     const saved=await this.store.save({...project,artifacts:[...project.artifacts.filter(item=>item.id!==record.id),record],stage:"production",updatedAt:now});
