@@ -25,6 +25,9 @@ export function discoverConfiguredAiModelResources(env: NodeJS.ProcessEnv = proc
     }, env, prefix, uniqueModels.length === 1));
   };
 
+  // Preserve this canonical discovery order. It is the stable preference order
+  // when all resources are otherwise equally eligible; the broker may still
+  // rotate away for quota reserve, cooldown, health, capability, latency or cost.
   addProvider("omniroute", Boolean(env.OMNIROUTE_BASE_URL?.trim()), models(env.OMNIROUTE_MODELS, env.OMNIROUTE_MODEL, "auto"), "OMNIROUTE");
   addProvider("9router", Boolean(env.ROUTER9_BASE_URL?.trim()), models(env.ROUTER9_MODELS, env.ROUTER9_MODEL, "auto"), "ROUTER9");
   addProvider("kings", Boolean(env.KINGS_AI_ENDPOINT?.trim()), models(env.KINGS_AI_MODELS, env.KINGS_AI_MODEL), "KINGS_AI");
@@ -34,7 +37,7 @@ export function discoverConfiguredAiModelResources(env: NodeJS.ProcessEnv = proc
   const overrides = parseExplicitResources(env.AI_MODEL_RESOURCES_JSON, env);
   const byKey = new Map(resources.map((resource) => [`${resource.provider}::${resource.model}`, resource]));
   for (const resource of overrides) byKey.set(`${resource.provider}::${resource.model}`, resource);
-  return [...byKey.values()].sort((a, b) => a.provider.localeCompare(b.provider) || a.model.localeCompare(b.model));
+  return [...byKey.values()];
 }
 
 function models(list: string | undefined, single: string | undefined, fallback?: string): string[] {
