@@ -1,0 +1,59 @@
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { readFile } from "node:fs/promises";
+import { extname, join, normalize } from "node:path";
+import { randomUUID } from "node:crypto";
+import { FileProjectStore } from "./infrastructure/file-project-store";
+import { FileSpecializedCreationStore } from "./infrastructure/file-specialized-creation-store";
+import { ProjectMemoryStore } from "./application/project-memory-store";
+import { SpecializedCreationOfficeService } from "./application/specialized-creation-office-service";
+import { composeSpecializedProject, reflowDocument, tcgSetStatistics, addTcgPlaytestSnapshot } from "./application/specialized-creation-mode-composer";
+import { createProject, withProjectMemories, type ProjectState } from "./domain/project";
+import { SPECIALIZED_CREATION_MODES, type SpecializedCreationMode } from "./domain/specialized-creation";
+import type { SpecializedArtifactKind, SpecializedAsset, SpecializedDocument, SpecializedModeData, SpecializedProductionProfile, TcgData } from "./domain/specialized-creation-office";
+
+const port=Number(process.env.SPECIALIZED_PORT??process.env.PORT??4373);
+const host=process.env.HOST??"127.0.0.1";
+const dataRoot=process.env.FORGE_DATA_DIR??join(process.cwd(),".forge-data");
+const publicRoot=join(process.cwd(),"public");
+const forgeProjects=new FileProjectStore(dataRoot);
+const specializedStore=new FileSpecializedCreationStore(join(dataRoot,"specialized-creation.json"));
+
+function json(res:ServerResponse,status:number,value:unknown):void{res.writeHead(status,{"content-type":"application/json; charset=utf-8","cache-control":"no-store","x-content-type-options":"nosniff"});res.end(JSON.stringify(value));}
+async function body(req:IncomingMessage):Promise<Record<string,unknown>>{let raw="";for await(const chunk of req){raw+=String(chunk);if(raw.length>20*1024*1024)throw new Error("Request body exceeds 20 MiB limit.");}if(!raw.trim())return{};const parsed=JSON.parse(raw);if(!parsed||typeof parsed!=="object"||Array.isArray(parsed))throw new Error("JSON object body required.");return parsed as Record<string,unknown>;}
+function required(value:unknown,label:string):string{if(typeof value!=="string"||!value.trim())throw new Error(`${label} is required.`);return value.trim();}
+function mode(value:unknown):SpecializedCreationMode{if(typeof value!=="string"||!SPECIALIZED_CREATION_MODES.includes(value as SpecializedCreationMode))throw new Error("Unsupported specialized creation mode.");return value as SpecializedCreationMode;}
+function projectIdFrom(path:string):string|null{return path.match(/^\/api\/projects\/([A-Za-z0-9_-]+)(?:\/|$)/)?.[1]??null;}
+function artifactKind(value:unknown):SpecializedArtifactKind{const allowed=["pdf","svg","png","cbz","json","csv"] as const;if(typeof value!=="string"||!allowed.includes(value as never))throw new Error("Unsupported specialized artifact kind.");return value as SpecializedArtifactKind;}
+function aiStatus(){return{omniroute:Boolean(process.env.OMNIROUTE_BASE_URL?.trim()),router9:Boolean(process.env.ROUTER9_BASE_URL?.trim()),kings:Boolean(process.env.KINGS_AI_ENDPOINT?.trim()),openai:Boolean(process.env.OPENAI_API_KEY?.trim()&&process.env.OPENAI_MODEL?.trim()),ollama:Boolean(process.env.OLLAMA_BASE_URL?.trim()&&process.env.OLLAMA_MODEL?.trim())};}
+
+async function runtime(project:ProjectState){const memory=new ProjectMemoryStore();memory.restore(project.memories);return{office:new SpecializedCreationOfficeService(specializedStore,memory),memory};}
+async function persistMemory(project:ProjectState,memory:ProjectMemoryStore){const next=withProjectMemories(project,memory.toPortableState());await forgeProjects.save(next);return next;}
+
+async function handleApi(req:IncomingMessage,res:ServerResponse,url:URL):Promise<boolean>{
+  if(url.pathname==="/api/health"&&req.method==="GET"){json(res,200,{ok:true,service:"authors-forge-specialized-creation-office",modes:SPECIALIZED_CREATION_MODES,sharedDataRoot:dataRoot,ai:aiStatus()});return true;}
+  if(url.pathname==="/api/projects"&&req.method==="POST"){const input=await body(req);const project=createProject({id:required(input.id,"Project id"),title:required(input.title,"Project title")});await forgeProjects.create(project);json(res,201,project);return true;}
+  const forgeProjectId=projectIdFrom(url.pathname);if(!forgeProjectId)return false;const forgeProject=await forgeProjects.load(forgeProjectId);if(!forgeProject){json(res,404,{error:"Forge project not found."});return true;}const {office,memory}=await runtime(forgeProject);
+  if(url.pathname===`/api/projects/${forgeProjectId}/specialized`&&req.method==="GET"){json(res,200,{project:forgeProject.metadata,items:await office.list(forgeProjectId),ai:aiStatus()});return true;}
+  if(url.pathname===`/api/projects/${forgeProjectId}/specialized`&&req.method==="POST"){const input=await body(req);const created=await office.create({id:typeof input.id==="string"&&input.id.trim()?input.id.trim():`specialized-${randomUUID()}`,forgeProjectId,mode:mode(input.mode),title:required(input.title,"Title"),brief:required(input.brief,"Brief"),...(typeof input.audience==="string"&&input.audience.trim()?{audience:input.audience.trim()}: {})});await persistMemory(forgeProject,memory);json(res,201,created);return true;}
+  const match=url.pathname.match(new RegExp(`^/api/projects/${forgeProjectId}/specialized/([^/]+)(?:/(.*))?$`));if(!match)return false;const id=decodeURIComponent(match[1]),tail=match[2]??"";const current=await office.get(forgeProjectId,id);if(!current){json(res,404,{error:"Specialized project not found."});return true;}
+  if(!tail&&req.method==="GET"){json(res,200,current);return true;}
+  if(tail==="mode-data"&&req.method==="PUT"){const input=await body(req);if(!input.modeData||typeof input.modeData!=="object")throw new Error("modeData object is required.");const saved=await office.setModeData(forgeProjectId,id,input.modeData as SpecializedModeData,typeof input.reason==="string"?input.reason:undefined);await persistMemory(forgeProject,memory);json(res,200,saved);return true;}
+  if(tail==="compose"&&req.method==="POST"){const project=await office.get(forgeProjectId,id);if(!project)throw new Error("Specialized project not found.");const profileId=(await body(req)).profileId;const profile=typeof profileId==="string"?project.productionProfiles.find(p=>p.id===profileId):project.productionProfiles[0];if(!profile)throw new Error("Production profile not found.");const document=composeSpecializedProject(project,profile);const saved=await office.saveDocument(forgeProjectId,id,document,"Mode adapter generated composition");await persistMemory(forgeProject,memory);json(res,201,{project:saved,document});return true;}
+  if(tail==="documents"&&req.method==="POST"){const input=await body(req);if(!input.document||typeof input.document!=="object")throw new Error("document object is required.");const saved=await office.saveDocument(forgeProjectId,id,input.document as SpecializedDocument,typeof input.reason==="string"?input.reason:undefined);await persistMemory(forgeProject,memory);json(res,200,saved);return true;}
+  if(tail==="reflow"&&req.method==="POST"){const input=await body(req);const documentId=required(input.documentId,"Document id"),doc=current.documents.find(d=>d.id===documentId);if(!doc)throw new Error("Document not found.");const width=Number(input.widthInches),height=Number(input.heightInches);const reflowed=reflowDocument(doc,width,height);const saved=await office.saveDocument(forgeProjectId,id,reflowed,"Created alternate-size reflow variant");await persistMemory(forgeProject,memory);json(res,201,{project:saved,document:reflowed});return true;}
+  if(tail==="assets"&&req.method==="POST"){const input=await body(req);const asset=input.asset;if(!asset||typeof asset!=="object")throw new Error("asset object is required.");const saved=await office.addAsset(forgeProjectId,id,asset as Omit<SpecializedAsset,"projectId"|"createdAt">);json(res,201,saved);return true;}
+  if(tail==="profiles"&&req.method==="PUT"){const input=await body(req);if(!input.profile||typeof input.profile!=="object")throw new Error("profile object is required.");json(res,200,await office.setProductionProfile(forgeProjectId,id,input.profile as SpecializedProductionProfile));return true;}
+  if(tail==="preflight"&&req.method==="POST"){const input=await body(req);json(res,200,office.preflight(current,typeof input.profileId==="string"?input.profileId:undefined));return true;}
+  if(tail==="render"&&req.method==="POST"){const input=await body(req);const rendered=await office.render(forgeProjectId,id,artifactKind(input.kind),typeof input.profileId==="string"?input.profileId:undefined);await persistMemory(forgeProject,memory);json(res,201,rendered);return true;}
+  if(tail==="ai/propose"&&req.method==="POST"){const input=await body(req);const kind=input.kind;if(kind!=="copy"&&kind!=="layout"&&kind!=="art-direction"&&kind!=="revision")throw new Error("Invalid proposal kind.");const result=await office.propose(forgeProjectId,id,{projectId:forgeProjectId,kind,instruction:required(input.instruction,"Instruction"),...(typeof input.focus==="string"?{focus:input.focus}: {})});json(res,201,result);return true;}
+  const proposalMatch=tail.match(/^ai\/proposals\/([^/]+)\/(approve|reject)$/);if(proposalMatch&&req.method==="POST"){const proposalId=decodeURIComponent(proposalMatch[1]);const saved=proposalMatch[2]==="approve"?await office.approveProposal(forgeProjectId,id,proposalId,(await body(req)).apply===true):await office.rejectProposal(forgeProjectId,id,proposalId);await persistMemory(forgeProject,memory);json(res,200,saved);return true;}
+  if(tail==="advance"&&req.method==="POST"){const saved=await office.advance(forgeProjectId,id);await persistMemory(forgeProject,memory);json(res,200,saved);return true;}
+  if(tail==="tcg/statistics"&&req.method==="GET"){if(current.mode!=="trading-card-game")throw new Error("TCG statistics require trading-card-game mode.");json(res,200,tcgSetStatistics(current.modeData as TcgData));return true;}
+  if(tail==="tcg/snapshot"&&req.method==="POST"){if(current.mode!=="trading-card-game")throw new Error("TCG snapshots require trading-card-game mode.");const input=await body(req);const data=addTcgPlaytestSnapshot(current.modeData as TcgData,typeof input.note==="string"?input.note:"");const saved=await office.setModeData(forgeProjectId,id,data,"Created TCG playtest snapshot");await persistMemory(forgeProject,memory);json(res,201,saved);return true;}
+  return false;
+}
+
+async function serveStatic(req:IncomingMessage,res:ServerResponse,url:URL):Promise<void>{let pathname=url.pathname;if(pathname==="/"||pathname==="/specialized")pathname="/specialized-creation.html";const candidate=normalize(pathname).replace(/^([.][.][/\\])+/,"");const path=join(publicRoot,candidate);if(!path.startsWith(publicRoot)){res.writeHead(403);res.end("Forbidden");return;}try{const bytes=await readFile(path);const mime:Record<string,string>={".html":"text/html; charset=utf-8",".js":"text/javascript; charset=utf-8",".css":"text/css; charset=utf-8",".svg":"image/svg+xml"};res.writeHead(200,{"content-type":mime[extname(path)]??"application/octet-stream","cache-control":"no-cache"});res.end(bytes);}catch{res.writeHead(404,{"content-type":"text/plain; charset=utf-8"});res.end("Not found");}}
+
+const server=createServer(async(req,res)=>{try{const url=new URL(req.url??"/",`http://${req.headers.host??"localhost"}`);if(await handleApi(req,res,url))return;await serveStatic(req,res,url);}catch(error){json(res,400,{error:error instanceof Error?error.message:String(error)});}});
+server.listen(port,host,()=>console.log(`Author's Forge Specialized Creation Office listening on http://${host}:${port}`));
