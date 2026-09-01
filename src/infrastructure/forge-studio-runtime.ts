@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import type { ProjectStorePort } from "../application/project-store-port";
 import { ForgeCore, createForgeCore } from "../application/forge-core";
+import { bindForgeAiRuntime } from "./ai-provider";
 import { FileProjectStore } from "./file-project-store";
 import { discoverConfiguredAiModelResources } from "./ai-model-resources";
 
@@ -14,6 +15,10 @@ export function createForgeStudioRuntime(dataRoot: string, env: NodeJS.ProcessEn
   const projectStore = new FileProjectStore(dataRoot);
   const core = createForgeCore({ projectStore });
   core.registerAiModels(discoverConfiguredAiModelResources(env));
+  // Production callers use the real process environment and therefore bind the
+  // shared provider boundary to this exact ForgeCore broker/routing instance.
+  // Tests that inject an isolated env retain deterministic local composition.
+  if (env === process.env) bindForgeAiRuntime(core.ai, core.routing);
   return { core, projectStore };
 }
 
