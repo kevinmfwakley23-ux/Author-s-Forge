@@ -1,5 +1,3 @@
-[first-pass/001f-brain-query-saliency-integrity bf21b83] Docs: link 001F handoff PR
- 1 file changed, 1 insertion(+), 1 deletion(-)
 # Author's Forge
 
 **Author's Forge** is a local-first author workplace for taking books from idea to finished, edited, illustrated, produced, and publication-ready material.
@@ -181,7 +179,7 @@ The project is worked from the beginning of the author journey forward, office b
 - **Active office/capability:** Forge Brain task-context selection and retrieval evidence.
 - **First-pass owner:** Codex co-chief engineer.
 - **Second-pass owner:** Android after completing its active preceding block.
-- **Branch / PR:** `first-pass/001f-brain-query-saliency-integrity`; PR #52.
+- **Branch / PR:** `first-pass/001f-brain-query-saliency-integrity`; PR to be recorded after publication.
 - **Inspection finding:** raw substring matching could select irrelevant canon (`art` matched `party`), while malformed runtime query values could bypass TypeScript assumptions and reach retrieval.
 - **Improvements:** task queries now receive bounded runtime validation, selector normalization and deduplication; saliency uses Unicode-aware whole-word and adjacent-phrase matching; evidence is emitted only for exact selected terms.
 - **Regression coverage:** proves false-positive substrings are rejected, multilingual and Unicode-normalized terms remain deterministic, malformed query shapes fail closed, and normalized selectors retain stable evidence.
