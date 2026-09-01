@@ -153,7 +153,7 @@ function scoreMemory(memory: MemoryRecord, query: ProjectBrainQuery): RankedMemo
 function compareRanked(a: MemoryRecord, b: MemoryRecord, query: ProjectBrainQuery): number {
   const left = scoreMemory(a, query);
   const right = scoreMemory(b, query);
-  return right.score - left.score || authorityWeight(b.authority) - authorityWeight(a.authority) || b.memory.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id);
+  return right.score - left.score || authorityWeight(b.authority) - authorityWeight(a.authority) || b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id);
 }
 
 function isContextEligible(memory: MemoryRecord): boolean {
