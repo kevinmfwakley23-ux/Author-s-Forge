@@ -1,6 +1,6 @@
 import { AiModelBroker, type AiModelResource } from "./ai-model-broker";
 import { AiExecutionFallback, type AiExecutionRequest, type AiExecutionResult, type AiExecutor } from "./ai-execution-fallback";
-import { AiRoutingState, type AiRoutingStateSnapshot } from "./ai-routing-state";
+import { AiRoutingState, type AiProviderRuntimeState, type AiRoutingStateSnapshot } from "./ai-routing-state";
 import { buildProjectContext, type ProjectContextPipelineOptions, type ProjectContextPipelineResult } from "./context-pipeline";
 import { ProjectMemoryStore, type ProjectMemorySnapshot } from "./project-memory-store";
 import type { ProjectState } from "../domain/project";
@@ -95,8 +95,9 @@ export class ForgeCore {
     const resources = this.ai.listResources();
     const modelCount = resources.length;
     const aiConfigured = modelCount > 0;
-    const checkedAt = Date.parse(now);
-    const operationalModelCount = resources.filter(resource => isOperationalResource(resource, checkedAt)).length;
+    const parsedNow = Date.parse(now);
+    const checkedAt = Number.isFinite(parsedNow) ? parsedNow : Date.now();
+    const operationalModelCount = resources.filter(resource => isOperationalResource(resource, this.routing.get(resource.provider, resource.model, now), checkedAt)).length;
     const aiOperational = operationalModelCount > 0;
     const checks = [memoryAvailable ? "memory-store" : "memory-store-missing", aiRoutingAvailable ? "ai-routing" : "ai-routing-missing", aiConfigured ? "configured-models" : "no-configured-models", aiOperational ? "operational-models" : "no-operational-models", projectStoreAvailable ? "durable-project-store" : "durable-project-store-unbound", "context-pipeline", "portable-memory-snapshot", "durable-routing-state", "durable-project-snapshot", "shared-ai-execution-fallback"];
     return { formatVersion: FORGE_CORE_FORMAT_VERSION, ready: memoryAvailable && aiRoutingAvailable && aiConfigured && aiOperational && projectStoreAvailable, memoryAvailable, aiRoutingAvailable, aiConfigured, aiOperational, projectStoreAvailable, modelCount, operationalModelCount, checks };
@@ -110,11 +111,14 @@ export class ForgeCore {
   private requireProjectStore(): ProjectStorePort { if (!this.projectStore) throw new Error("Forge Core durable project store is not configured."); return this.projectStore; }
 }
 
-function isOperationalResource(resource: AiModelResource, now: number): boolean {
-  if (resource.healthy === false) return false;
-  if (!resource.cooldownUntil) return true;
-  const cooldownUntil = Date.parse(resource.cooldownUntil);
-  return !Number.isFinite(cooldownUntil) || !Number.isFinite(now) || cooldownUntil <= now;
+function isOperationalResource(resource: AiModelResource, state: AiProviderRuntimeState, now: number): boolean {
+  if (resource.healthy === false || state.consecutiveFailures > 0) return false;
+  const hasHealthEvidence = resource.healthy === true || state.totalSuccesses > 0;
+  if (!hasHealthEvidence) return false;
+  const cooldownUntil = resource.cooldownUntil ?? state.cooldownUntil;
+  if (!cooldownUntil) return true;
+  const parsedCooldown = Date.parse(cooldownUntil);
+  return !Number.isFinite(parsedCooldown) || parsedCooldown <= now;
 }
 
 export function createForgeCore(dependencies: ForgeCoreDependencies = {}): ForgeCore { return new ForgeCore(dependencies); }
