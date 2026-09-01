@@ -24,11 +24,13 @@ This lane does not replace the comic implementation already present in PR #38. I
 
 ## Shared-base reconciliation — 2026-08-31
 
-Before continuing this work block, the phone lane reread current `main` README, the locked canonical architecture, and the Mission 059 contract, then rechecked PR #38 rather than assuming the Chromebook lane was unchanged.
+Before each continuation, the phone lane rereads current `main` README, the locked canonical architecture, and the Mission 059 contract, then rechecks PR #38 rather than assuming the Chromebook lane is unchanged.
 
-PR #38 had advanced from the phone lane's inherited `bfca1b08d74306e9e77cac97f42de6a5b7c9b492` base to `6f3eaea349c75a4a267cc18d1d6b65a012080461`. The intervening shared changes were limited to the Chromebook/phone sync note plus the shared embedded renderer and shared finishing/profile implementation. They included fixes for the two shared compiler blockers exposed by the phone lane's first CI run (`33467471479`). No comic-specific file was changed by the Chromebook lane.
+The phone lane originally inherited PR #38 at `bfca1b08d74306e9e77cac97f42de6a5b7c9b492`. While the comic slice was being built, Chromebook advanced the shared branch through compiler and scoped-artifact corrections. The phone branch was repeatedly rebuilt directly on the newer PR #38 head while preserving only phone-owned comic files.
 
-The phone branch was rebuilt directly on `6f3eaea349c75a4a267cc18d1d6b65a012080461`, preserving only the phone-owned comic files. The comic authoring layer now delegates LTR/RTL mutation to the inherited `setComicReadingDirection` helper instead of duplicating that behavior. This preserves one comic stack and one shared Specialized Creation trunk.
+The latest inherited shared head for this work block is `5920897b27abae15b6bd2edd9c6a44cb2c4f574e`. Its final shared correction, `fix(059B): preflight scoped artifacts against authoritative mode context`, keeps scoped artifact bytes limited to selected documents while validating mode-wide requirements against authoritative project context. No comic-specific file was changed by Chromebook during these reconciliations.
+
+The comic authoring layer delegates LTR/RTL mutation to the inherited `setComicReadingDirection` helper instead of duplicating that behavior. This preserves one comic stack and one shared Specialized Creation trunk.
 
 ## First hardening slice
 
@@ -55,8 +57,15 @@ The phone branch was rebuilt directly on `6f3eaea349c75a4a267cc18d1d6b65a0120804
 - SC-COMIC-010
 - SC-COMIC-011
 
-## Verification gate
+## Verification evidence
 
-The first CI run (`33467471479`) reached TypeScript compilation and produced no phone-comic compiler errors, but stopped on the two inherited shared-layer errors described above. Chromebook subsequently corrected those shared defects in PR #38. A fresh exact-head canonical CI run is required for the rebased phone slice before it is considered verified.
+Forge CI #595 (`33467908981`) tested the previous phone head on PR #38 head `c3c2f15e78a614141c6e15e1f27ecc43449258f9`:
 
-This slice is not Mission 059D completion by itself. Remaining 059D work includes integrating these semantics into the live comic workflow, proving comic-specific preflight through the production path, verifying page-image/PDF/CBZ lineage from the same approved revision, and Chromebook/Android human-device acceptance where applicable.
+- TypeScript build passed;
+- all six phone comic regression tests passed;
+- the full unit suite reached 398/399 passing;
+- the sole failure was shared `specialized-creation-finishing.test.js`, where scoped greeting-card rendering was incorrectly mode-preflighted against only the selected document and therefore reported four `CARD_SURFACE_MISSING` errors.
+
+Chromebook corrected that shared contract in PR #38 at `5920897b27abae15b6bd2edd9c6a44cb2c4f574e`. The phone branch has now been rebased onto that correction. A fresh exact-head canonical CI run is required before this slice is marked verified.
+
+This slice is not Mission 059D completion by itself. Remaining 059D work includes SC-COMIC-012 through SC-COMIC-015: production-profile proof, same-approved-revision PDF/CBZ/high-resolution page-image lineage, full live comic acceptance, and Chromebook/Android human-device verification where applicable.
