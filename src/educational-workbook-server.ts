@@ -3,28 +3,36 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { EducationalWorkbookOfficeService } from "./application/educational-workbook-office";
+import { EducationalWorkbookIntelligenceService } from "./application/educational-workbook-intelligence";
 import { EducationalWorkbookProductionService } from "./application/educational-workbook-production";
+import { ProjectMemoryStore } from "./application/project-memory-store";
 import {
   WORKBOOK_ACTIVITY_KINDS,
   WORKBOOK_DIFFICULTIES,
   WORKBOOK_GRADE_BANDS,
   WORKBOOK_SUBJECTS,
+  type WorkbookActivity,
   type WorkbookActivityInput,
   type WorkbookActivityKind,
   type WorkbookDifficulty,
   type WorkbookGradeBand,
   type WorkbookSubject,
 } from "./domain/educational-workbook";
-import { createProject } from "./domain/project";
+import { createProject, withProjectMemories, type ProjectState } from "./domain/project";
+import { FileEducationalWorkbookAiProposalStore } from "./infrastructure/file-educational-workbook-ai-proposal-store";
 import { FileEducationalWorkbookStore } from "./infrastructure/file-educational-workbook-store";
-import { FileProjectStore } from "./infrastructure/file-project-store";
+import { aiRoutingTelemetry } from "./infrastructure/ai-provider";
+import { discoverConfiguredAiModelResources } from "./infrastructure/ai-model-resources";
+import { createForgeStudioRuntime } from "./infrastructure/forge-studio-runtime";
 
 const port = Number(process.env.WORKBOOK_PORT ?? process.env.PORT ?? 4373);
 const host = process.env.HOST ?? "127.0.0.1";
 const dataRoot = process.env.FORGE_DATA_DIR ?? join(process.cwd(), ".forge-data");
 const publicRoot = join(process.cwd(), "public");
-const projects = new FileProjectStore(dataRoot);
+const studioRuntime = createForgeStudioRuntime(dataRoot);
+const projects = studioRuntime.projectStore;
 const office = new EducationalWorkbookOfficeService(new FileEducationalWorkbookStore(join(dataRoot, "educational-workbooks.json")));
+const proposals = new FileEducationalWorkbookAiProposalStore(join(dataRoot, "educational-workbook-ai-proposals.json"));
 const production = new EducationalWorkbookProductionService();
 
 function json(res: ServerResponse, status: number, value: unknown): void {
@@ -129,12 +137,61 @@ function activityInput(projectId: string, input: Record<string, unknown>, fallba
   };
 }
 
+function memoryFor(project: ProjectState): ProjectMemoryStore {
+  const memory = new ProjectMemoryStore();
+  memory.restore(project.memories);
+  return memory;
+}
+
+async function persistMemories(project: ProjectState, memory: ProjectMemoryStore, now = new Date().toISOString()): Promise<ProjectState> {
+  const next = withProjectMemories(project, memory.toPortableState(), now);
+  await projects.save(next);
+  return next;
+}
+
+function aiStatus() {
+  const resources = discoverConfiguredAiModelResources(process.env);
+  return {
+    configured: resources.length > 0,
+    resources: resources.map((resource) => ({
+      provider: resource.provider,
+      model: resource.model,
+      contextWindow: resource.capabilities.contextWindow,
+      maxOutputTokens: resource.capabilities.maxOutputTokens,
+      remainingQuota: resource.remainingQuota,
+      quotaLimit: resource.quotaLimit,
+    })),
+    routing: aiRoutingTelemetry(),
+  };
+}
+
+function proposalImport(activity: WorkbookActivity): Omit<WorkbookActivityInput, "projectId"> {
+  return {
+    id: activity.id,
+    subject: activity.subject,
+    gradeBands: activity.gradeBands,
+    kind: activity.kind,
+    difficulty: activity.difficulty,
+    prompt: activity.prompt,
+    ...(activity.choices ? { choices: activity.choices } : {}),
+    ...(activity.answer ? { answer: activity.answer } : {}),
+    ...(activity.explanation ? { explanation: activity.explanation } : {}),
+    standards: activity.standards,
+    tags: activity.tags,
+    points: activity.points,
+    enabled: activity.enabled,
+    now: activity.createdAt,
+  };
+}
+
 async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): Promise<boolean> {
   if (url.pathname === "/api/health" && req.method === "GET") {
     json(res, 200, {
       ok: true,
       service: "authors-forge-educational-workbook-office",
       sharedDataRoot: dataRoot,
+      forgeCore: studioRuntime.core.readiness(),
+      ai: aiStatus(),
       gradeBands: WORKBOOK_GRADE_BANDS,
       subjects: WORKBOOK_SUBJECTS,
       activityKinds: WORKBOOK_ACTIVITY_KINDS,
@@ -160,8 +217,20 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
   }
 
   if (url.pathname === `/api/projects/${projectId}` && req.method === "GET") {
-    const [activities, workbooks] = await Promise.all([office.listActivities(projectId), office.listWorkbooks(projectId)]);
-    json(res, 200, { project: project.metadata, activityCount: activities.length, workbookCount: workbooks.length });
+    const [activities, workbooks, aiProposals] = await Promise.all([
+      office.listActivities(projectId),
+      office.listWorkbooks(projectId),
+      proposals.list(projectId),
+    ]);
+    json(res, 200, {
+      project: project.metadata,
+      activityCount: activities.length,
+      workbookCount: workbooks.length,
+      memoryCount: project.memories.length,
+      aiProposalCount: aiProposals.length,
+      pendingAiProposalCount: aiProposals.filter((proposal) => proposal.status === "pending").length,
+      ai: aiStatus(),
+    });
     return true;
   }
 
@@ -197,6 +266,52 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
     return true;
   }
 
+  if (url.pathname === `/api/projects/${projectId}/workbooks/ai/proposals` && req.method === "GET") {
+    json(res, 200, await proposals.list(projectId));
+    return true;
+  }
+
+  if (url.pathname === `/api/projects/${projectId}/workbooks/ai/activities` && req.method === "POST") {
+    const input = await body(req);
+    const memory = memoryFor(project);
+    const intelligence = new EducationalWorkbookIntelligenceService(memory);
+    const proposal = await intelligence.proposeActivities({
+      projectId,
+      subject: subject(input.subject),
+      gradeBands: gradeBands(input.gradeBands),
+      kind: activityKind(input.kind),
+      count: Math.trunc(number(input.count, 0)),
+      learningObjective: required(input.learningObjective, "Learning objective"),
+      difficulty: difficulty(input.difficulty),
+      standards: strings(input.standards),
+      tags: strings(input.tags),
+      ...(typeof input.audience === "string" && input.audience.trim() ? { audience: input.audience.trim() } : {}),
+    });
+    const stored = await proposals.create({ id: `workbook-ai-${randomUUID()}`, projectId, proposal });
+    json(res, 201, stored);
+    return true;
+  }
+
+  const proposalMatch = url.pathname.match(new RegExp(`^/api/projects/${projectId}/workbooks/ai/proposals/([^/]+)/(approve|reject)$`));
+  if (proposalMatch && req.method === "POST") {
+    const proposalId = decodeURIComponent(proposalMatch[1]);
+    const action = proposalMatch[2];
+    const proposal = await proposals.get(projectId, proposalId);
+    if (!proposal) {
+      json(res, 404, { error: "Workbook AI proposal not found." });
+      return true;
+    }
+    if (action === "reject") {
+      json(res, 200, await proposals.decide(projectId, proposalId, "rejected"));
+      return true;
+    }
+    if (proposal.status === "rejected") throw new Error("Rejected workbook AI proposal cannot be approved.");
+    const activities = await office.importActivities(projectId, proposal.activities.map(proposalImport));
+    const decided = await proposals.decide(projectId, proposalId, "approved");
+    json(res, 200, { proposal: decided, activities });
+    return true;
+  }
+
   if (url.pathname === `/api/projects/${projectId}/workbooks/editions` && req.method === "GET") {
     json(res, 200, await office.listWorkbooks(projectId));
     return true;
@@ -226,6 +341,9 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
         ...(strings(input.excludedActivityIds).length ? { excludedActivityIds: strings(input.excludedActivityIds) } : {}),
       },
     });
+    const memory = memoryFor(project);
+    new EducationalWorkbookIntelligenceService(memory).rememberEdition(workbook);
+    await persistMemories(project, memory);
     json(res, 201, workbook);
     return true;
   }
