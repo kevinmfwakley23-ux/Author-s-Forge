@@ -4,6 +4,16 @@
   const $ = (selector) => document.querySelector(selector);
   let catalogPromise = null;
 
+  function ensurePublishingPromotionClient() {
+    if (window.forgePublishingPromotion || document.querySelector('script[data-forge-publishing-promotion]')) return;
+    const script = document.createElement('script');
+    script.src = '/forge-publishing-promotion.js';
+    script.defer = true;
+    script.dataset.forgePublishingPromotion = 'true';
+    document.head.appendChild(script);
+  }
+  ensurePublishingPromotionClient();
+
   function loadCatalog() {
     if (!catalogPromise) catalogPromise = fetch('/children-story-topics.json', { cache: 'no-cache' }).then(async (response) => {
       if (!response.ok) throw new Error(`Children's story topic catalog failed to load (${response.status}).`);
