@@ -7,13 +7,16 @@ function projectStore() {
   return { async create() {}, async load() { return null; }, async save() {}, async exists() { return false; } };
 }
 
-test('core health reports configured AI and durable storage as ready', () => {
+test('core health reports configured operational AI and durable storage as ready', () => {
   const core = createForgeCore({ projectStore: projectStore() });
   core.registerAiModels([{ provider:'test', model:'model', configured:true, healthy:true, capabilities:{} }]);
   const report = inspectForgeCore(core, '2026-08-30T00:00:00.000Z');
   assert.equal(report.status, 'ready');
   assert.equal(report.aiModels, 1);
+  assert.equal(report.operationalAiModels, 1);
   assert.equal(report.checkedAt, '2026-08-30T00:00:00.000Z');
+  assert.equal(report.checks.find((check) => check.name === 'ai-operational-capacity').ok, true);
+  assert.equal(report.checks.find((check) => check.name === 'ai-execution').ok, true);
   assert.equal(report.checks.find((check) => check.name === 'durable-project-store').ok, true);
 });
 
@@ -21,5 +24,21 @@ test('core health reports missing AI capacity or durable storage as degraded', (
   const report = inspectForgeCore(createForgeCore(), '2026-08-30T00:00:00.000Z');
   assert.equal(report.status, 'degraded');
   assert.equal(report.aiModels, 0);
+  assert.equal(report.operationalAiModels, 0);
+  assert.equal(report.checks.find((check) => check.name === 'ai-operational-capacity').ok, false);
   assert.equal(report.checks.find((check) => check.name === 'durable-project-store').ok, false);
+});
+
+test('core health refuses a false-ready state when all configured models are unavailable', () => {
+  const core = createForgeCore({ projectStore: projectStore() });
+  core.registerAiModels([
+    { provider:'test', model:'unhealthy', configured:true, healthy:false, capabilities:{} },
+    { provider:'test', model:'cooling', configured:true, healthy:true, cooldownUntil:'2026-09-01T05:30:00.000Z', capabilities:{} },
+  ]);
+  const report = inspectForgeCore(core, '2026-09-01T05:00:00.000Z');
+  assert.equal(report.status, 'degraded');
+  assert.equal(report.aiModels, 2);
+  assert.equal(report.operationalAiModels, 0);
+  assert.equal(report.checks.find((check) => check.name === 'ai-capacity').ok, true);
+  assert.equal(report.checks.find((check) => check.name === 'ai-operational-capacity').ok, false);
 });
