@@ -12,10 +12,12 @@
     "studio:android": "HOST=0.0.0.0 PORT=4173 npm run studio",
     "studio:journal": "npm run build && node dist/guided-journal-server.js",
     "studio:journal:android": "HOST=0.0.0.0 JOURNAL_PORT=4273 npm run studio:journal",
+    "studio:workbooks": "npm run build && node dist/educational-workbook-server.js",
+    "studio:workbooks:android": "HOST=0.0.0.0 WORKBOOK_PORT=4373 npm run studio:workbooks",
     "completion": "node scripts/forge-completion.js",
     "baseline": "node scripts/forge-baseline-check.js",
     "browser:install": "playwright install chromium",
-    "test:browser": "npm run build && node scripts/studio-browser-acceptance.js && node scripts/studio-context-browser-acceptance.js && node scripts/studio-kdp-preflight-browser-acceptance.js && node scripts/studio-recovery-browser-acceptance.js && node scripts/studio-children-topics-browser-acceptance.js && node scripts/guided-journal-browser-acceptance.js",
+    "test:browser": "npm run build && node scripts/studio-browser-acceptance.js && node scripts/studio-context-browser-acceptance.js && node scripts/studio-kdp-preflight-browser-acceptance.js && node scripts/studio-recovery-browser-acceptance.js && node scripts/studio-children-topics-browser-acceptance.js && node scripts/guided-journal-browser-acceptance.js && node scripts/educational-workbook-browser-acceptance.js",
     "test:browser:mobile": "npm run build && node scripts/studio-mobile-acceptance.js"
   },
   "engines": {
