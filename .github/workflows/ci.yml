@@ -28,6 +28,7 @@ jobs:
       - run: node --check public/forge-workbench.js
       - run: node --check public/forge-ai-proposals.js
       - run: node --check public/forge-editing-proposals.js
+      - run: node --check public/forge-kdp-preflight.js
       - run: node --check public/forge-pwa.js
       - run: bash -n scripts/termux-forge.sh
 
