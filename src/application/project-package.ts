@@ -1,7 +1,14 @@
 import { createHash } from "node:crypto";
 import { assertJsonValue } from "../domain/json-value";
+import type { ProjectState } from "../domain/project";
+import { validateStudioWorkspace, type StudioWorkspaceState } from "../domain/studio-workspace";
 import { createProjectPackage, deserializeProjectPackage, serializeProjectPackage, validateProjectPackage } from "../domain/project-package";
 import type { ForgeProjectPackage, ProjectPackageFile } from "../domain/project-package";
+
+export interface StudioProjectPackageState {
+  readonly project: ProjectState;
+  readonly studioWorkspace: StudioWorkspaceState;
+}
 
 export class ProjectPackageService {
   export(input:{projectId:string;projectState:unknown;files?:readonly ProjectPackageFile[];exportedAt?:string}):ForgeProjectPackage {
@@ -22,6 +29,11 @@ export class ProjectPackageService {
         sha256,
       }],
     });
+  }
+
+  exportStudioSnapshot(input:{projectId:string;project:ProjectState;studioWorkspace:StudioWorkspaceState;exportedAt?:string}):ForgeProjectPackage {
+    const projectState = validateStudioProjectPackageState({ project: input.project, studioWorkspace: input.studioWorkspace }, input.projectId);
+    return this.exportSnapshot({ projectId: input.projectId, projectState, exportedAt: input.exportedAt });
   }
 
   serialize(pkg:ForgeProjectPackage):string {
@@ -45,7 +57,38 @@ export class ProjectPackageService {
     return state;
   }
 
+  restoreStudioSnapshot(pkg:ForgeProjectPackage, expectedProjectId?:string):ProjectState {
+    const validatedPackage = this.validate(pkg);
+    const projectId = expectedProjectId ?? validatedPackage.manifest.projectId;
+    const state = this.restoreSnapshot(validatedPackage, projectId);
+    return validateStudioProjectPackageState(state, projectId).project;
+  }
+
   validate(pkg:ForgeProjectPackage):ForgeProjectPackage {
     return validateProjectPackage(pkg);
   }
+}
+
+function validateStudioProjectPackageState(value: unknown, expectedProjectId: string): StudioProjectPackageState {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Studio project package state must be an object.");
+  const envelope = value as Record<string, unknown>;
+  if (!envelope.project || typeof envelope.project !== "object" || Array.isArray(envelope.project)) throw new Error("Studio project package requires a project object.");
+  if (!envelope.studioWorkspace || typeof envelope.studioWorkspace !== "object" || Array.isArray(envelope.studioWorkspace)) throw new Error("Studio project package requires a studioWorkspace object.");
+
+  const project = envelope.project as ProjectState;
+  if (!project.metadata || typeof project.metadata !== "object" || project.metadata.id !== expectedProjectId) {
+    throw new Error("Studio project package nested project id does not match the package project id.");
+  }
+
+  const workspace = validateStudioWorkspace(envelope.studioWorkspace as StudioWorkspaceState);
+  if (project.studioWorkspace !== undefined) {
+    const nestedWorkspace = validateStudioWorkspace(project.studioWorkspace);
+    if (JSON.stringify(nestedWorkspace) !== JSON.stringify(workspace)) {
+      throw new Error("Studio project package workspace does not match the nested project workspace.");
+    }
+  }
+
+  const clonedWorkspace = validateStudioWorkspace(JSON.parse(JSON.stringify(workspace)));
+  const normalizedProject = { ...project, studioWorkspace: clonedWorkspace } as ProjectState;
+  return { project: normalizedProject, studioWorkspace: validateStudioWorkspace(JSON.parse(JSON.stringify(clonedWorkspace))) };
 }
