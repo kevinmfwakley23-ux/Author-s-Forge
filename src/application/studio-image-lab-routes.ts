@@ -27,7 +27,14 @@ export function createStudioImageLabRoutes(store: FileProjectStore): StudioImage
         characterId: input.characterId === undefined ? undefined : String(input.characterId),
         locationId: input.locationId === undefined ? undefined : String(input.locationId),
       });
-      json(res, 201, result);
+      json(res, 201, {
+        asset: result.asset,
+        ...(result.sourceAsset ? { sourceAsset: result.sourceAsset } : {}),
+        provider: result.provider,
+        model: result.model,
+        ...(result.requestId ? { requestId: result.requestId } : {}),
+        url: result.url,
+      });
       return true;
     }
     const review = url.pathname.match(new RegExp(`^/api/projects/${projectId}/ai/images/([A-Za-z0-9_-]+)/review$`));
@@ -35,7 +42,8 @@ export function createStudioImageLabRoutes(store: FileProjectStore): StudioImage
       const input = await body(req);
       const decision = input.decision === "approved" || input.decision === "rejected" ? input.decision : undefined;
       if (!decision) throw new Error("Image review decision must be approved or rejected.");
-      json(res, 200, await service.review({ projectId, assetId: review[1], decision }));
+      const result = await service.review({ projectId, assetId: review[1], decision });
+      json(res, 200, result.asset);
       return true;
     }
     return false;
