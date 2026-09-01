@@ -1,4 +1,4 @@
-import type { AiGenerationRequest, AiGenerationResult } from "./ai-provider";
+import type { AiGenerationRequest, AiGenerationResult, AiTokenUsage } from "./ai-provider";
 
 export interface KingsAiBridgeConfig {
   readonly endpoint: string;
@@ -40,7 +40,8 @@ export async function generateWithKingsAi(config: KingsAiBridgeConfig, request: 
 
   const text = extractText(payload);
   if (!text) throw new Error("K.I.N.G.S. returned no generated text.");
-  return { provider: "kings", model, text, requestId: typeof payload.id === "string" ? payload.id : undefined };
+  const usage = extractUsage(payload);
+  return { provider: "kings", model, text, requestId: typeof payload.id === "string" ? payload.id : undefined, ...(usage ? { usage } : {}) };
 }
 
 function extractText(payload: Record<string, unknown>): string {
@@ -58,4 +59,19 @@ function extractText(payload: Record<string, unknown>): string {
     }
   }
   return parts.join("\n").trim();
+}
+
+function extractUsage(payload: Record<string, unknown>): AiTokenUsage | undefined {
+  const usage = payload.usage;
+  if (!usage || typeof usage !== "object" || Array.isArray(usage)) return undefined;
+  const record = usage as Record<string, unknown>;
+  const inputTokens = numeric(record.input_tokens ?? record.prompt_tokens);
+  const outputTokens = numeric(record.output_tokens ?? record.completion_tokens);
+  const totalTokens = numeric(record.total_tokens) ?? (inputTokens !== undefined && outputTokens !== undefined ? inputTokens + outputTokens : undefined);
+  if (inputTokens === undefined || outputTokens === undefined || totalTokens === undefined) return undefined;
+  return { inputTokens, outputTokens, totalTokens, source: "provider" };
+}
+
+function numeric(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? Math.round(value) : undefined;
 }
