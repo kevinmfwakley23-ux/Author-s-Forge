@@ -8,13 +8,13 @@ export type MemoryClass =
 
 export type MemoryAuthority = "proposed" | "working" | "verified" | "authoritative" | "superseded" | "archived";
 
-const MEMORY_CLASSES: readonly MemoryClass[] = [
+export const MEMORY_CLASSES: readonly MemoryClass[] = [
   "author-memory", "project-memory", "story-canon", "character-memory", "relationship-memory",
   "location-memory", "timeline-memory", "style-memory", "research-memory", "creative-note",
   "working-draft", "hypothesis", "open-thread", "visual-identity", "production-memory",
   "publishing-memory", "marketing-memory", "generated-alternative", "decision-memory",
 ];
-const MEMORY_AUTHORITIES: readonly MemoryAuthority[] = ["proposed", "working", "verified", "authoritative", "superseded", "archived"];
+export const MEMORY_AUTHORITIES: readonly MemoryAuthority[] = ["proposed", "working", "verified", "authoritative", "superseded", "archived"];
 const PROVENANCE_KINDS: readonly MemoryProvenance["kind"][] = ["source", "author", "system"];
 
 export interface MemoryProvenance { readonly kind: "source" | "author" | "system"; readonly reference: string; readonly recordedAt: string; }
@@ -71,6 +71,14 @@ export function validateMemoryRecord(memory: MemoryRecord): void {
   if (!Array.isArray(memory.relatedMemoryIds) || memory.relatedMemoryIds.some((value) => typeof value !== "string" || !value.trim())) throw new Error("Memory related ids must be non-empty strings.");
   if (!Array.isArray(memory.relevanceTags) || memory.relevanceTags.some((value) => typeof value !== "string" || !value.trim())) throw new Error("Memory relevance tags must be non-empty strings.");
   if (memory.supersedes === memory.id || memory.supersededBy === memory.id) throw new Error("Memory cannot supersede itself.");
+}
+
+export function isMemoryClass(value: unknown): value is MemoryClass {
+  return typeof value === "string" && MEMORY_CLASSES.includes(value as MemoryClass);
+}
+
+export function isMemoryAuthority(value: unknown): value is MemoryAuthority {
+  return typeof value === "string" && MEMORY_AUTHORITIES.includes(value as MemoryAuthority);
 }
 
 function validateTimestamp(value: string, field: string): void {
