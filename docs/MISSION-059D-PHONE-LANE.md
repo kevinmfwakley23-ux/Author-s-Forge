@@ -69,3 +69,37 @@ Forge CI #595 (`33467908981`) tested the previous phone head on PR #38 head `c3c
 Chromebook corrected that shared contract in PR #38 at `5920897b27abae15b6bd2edd9c6a44cb2c4f574e`. The phone branch has now been rebased onto that correction. A fresh exact-head canonical CI run is required before this slice is marked verified.
 
 This slice is not Mission 059D completion by itself. Remaining 059D work includes SC-COMIC-012 through SC-COMIC-015: production-profile proof, same-approved-revision PDF/CBZ/high-resolution page-image lineage, full live comic acceptance, and Chromebook/Android human-device verification where applicable.
+
+
+## Research-backed accessibility hardening — 2026-09-01
+
+Authoritative review of W3C fixed-layout accessibility guidance, EPUB 3.3 reading-order semantics, Amazon Kindle Guided View guidance, KDP print geometry, and Readium CBZ ordering led to these comic-owned improvements:
+
+- deterministic accessible reading sequence derived from explicit panel lettering semantics;
+- page, panel description, semantic role, source index, text and speaker retained for downstream fixed-layout accessibility/export work;
+- comic preflight warning when dialogue, caption or SFX sources lack explicit reading-order semantics;
+- browser acceptance now proves speaker association and normalized balloon-tail anchors survive AI proposal approval, reload and server restart;
+- the comic browser journey is now part of the canonical desktop acceptance command instead of an uninvoked standalone script.
+
+W3C guidance makes deterministic reading order and meaningful text alternatives essential for fixed-layout publications. Amazon's current comic guidance continues to emphasize guided panel navigation. Readium documents stable zero-padded CBZ filenames, already proven by the comic artifact tests.
+
+## Exact-head verification and handoff blockers — 2026-09-01
+
+PR #39 head `fb90bcb6418fc075e869de17590449266bbe36ec` synchronized the Chromebook-owned one-line composer correction from PR #38 without modifying its behavior.
+
+Forge CI #632 (`33470731686`):
+
+- TypeScript build: PASS;
+- full unit suite: PASS;
+- completion audit and syntax checks: PASS;
+- core Studio, context, KDP, Guided Journal and baseline Specialized Creation browser journeys: PASS;
+- shared Specialized Creation finishing browser journey: reproducible FAIL before the comic journey, timing out after 30 seconds;
+- comic browser journey: not reached because the canonical browser command stops at the shared finishing failure;
+- Android/mobile acceptance: skipped by CI after the desktop failure.
+
+Two Chromebook-owned shared blockers remain before Mission 059D can be called complete:
+
+1. Stabilize the shared `specialized-creation-finishing-browser-acceptance.js` wait that times out reproducibly on CI.
+2. Remove or redesign the shared renderer's 1800-pixel PNG cap so a 6.625-inch US comic profile at 300 DPI can produce at least 1988-pixel-wide high-resolution page images, as required by SC-COMIC-014.
+
+The phone comic slice is ready for Chromebook follow-behind review, but it is not marked PASS — MOVE FORWARD until those shared gates are corrected and the exact-head comic desktop/mobile journey runs.
