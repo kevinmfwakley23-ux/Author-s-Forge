@@ -64,6 +64,17 @@ export interface ComicModePreflightIssue {
   readonly letteringId?: string;
 }
 
+export interface ComicAccessibleReadingItem {
+  readonly page: number;
+  readonly panelId: string;
+  readonly panelDescription: string;
+  readonly kind: ComicLetteringKind;
+  readonly sourceIndex: number;
+  readonly readingOrder: number;
+  readonly text: string;
+  readonly speaker?: string;
+}
+
 export interface ComicBrainContextRequest {
   readonly capability: "comic-panel";
   readonly issueTitle: string;
@@ -143,6 +154,37 @@ export function comicPacingSummary(data: ComicData): readonly ComicPacingPageSum
     })));
 }
 
+export function comicAccessibleReadingSequence(data: ComicData): readonly ComicAccessibleReadingItem[] {
+  const comic = data as ComicAuthoringData;
+  const sequence: ComicAccessibleReadingItem[] = [];
+  for (const page of [...comic.pages].sort((a, b) => a.page - b.page)) {
+    const panelSequence = [...page.panels]
+      .sort((a, b) => a.order - b.order)
+      .flatMap((panel) => (panel.letteringSemantics ?? []).map((semantic) => {
+        const source = semantic.kind === "dialogue"
+          ? panel.dialogue[semantic.sourceIndex]?.text
+          : semantic.kind === "caption"
+            ? panel.captions[semantic.sourceIndex]
+            : panel.sfx[semantic.sourceIndex];
+        if (source === undefined) return undefined;
+        return Object.freeze({
+          page: page.page,
+          panelId: panel.id,
+          panelDescription: panel.description,
+          kind: semantic.kind,
+          sourceIndex: semantic.sourceIndex,
+          readingOrder: semantic.readingOrder,
+          text: source,
+          ...(semantic.kind === "dialogue"
+            ? { speaker: semantic.speaker?.trim() || panel.dialogue[semantic.sourceIndex]?.speaker.trim() }
+            : {}),
+        });
+      }).filter((item): item is ComicAccessibleReadingItem => item !== undefined));
+    sequence.push(...panelSequence.sort((a, b) => a.readingOrder - b.readingOrder));
+  }
+  return Object.freeze(sequence);
+}
+
 export function comicBrainContextRequest(data: ComicData, pageNumber: number, panelId: string): ComicBrainContextRequest {
   const comic = data as ComicAuthoringData;
   const page = comic.pages.find((candidate) => candidate.page === pageNumber);
@@ -181,6 +223,7 @@ export function comicModePreflight(data: ComicData): readonly ComicModePreflight
         if (layoutProblem) issues.push(issue("COMIC_PANEL_GEOMETRY", "error", `${panel.id}: ${layoutProblem}`, page.page, panel.id));
       }
       validatePanelLettering(page.page, panel, issues);
+      validateLetteringCoverage(page.page, panel, issues);
       if (panel.assetIds.length > 1) issues.push(issue("COMIC_ART_CANDIDATES", "info", `Comic panel ${panel.id} retains ${panel.assetIds.length} art candidates/revisions.`, page.page, panel.id));
     });
 
@@ -193,6 +236,29 @@ export function comicModePreflight(data: ComicData): readonly ComicModePreflight
     }
   });
   return Object.freeze(issues);
+}
+
+function validateLetteringCoverage(pageNumber: number, panel: ComicAuthoringPanel, issues: ComicModePreflightIssue[]): void {
+  const semantics = panel.letteringSemantics ?? [];
+  const covered = new Set(semantics.map((semantic) => `${semantic.kind}:${semantic.sourceIndex}`));
+  const sources: readonly [ComicLetteringKind, number][] = [
+    ["dialogue", panel.dialogue.length],
+    ["caption", panel.captions.length],
+    ["sfx", panel.sfx.length],
+  ];
+  for (const [kind, length] of sources) {
+    for (let sourceIndex = 0; sourceIndex < length; sourceIndex += 1) {
+      if (!covered.has(`${kind}:${sourceIndex}`)) {
+        issues.push(issue(
+          "COMIC_LETTERING_SEMANTICS_MISSING",
+          "warning",
+          `${kind} ${sourceIndex + 1} in panel ${panel.id} has no explicit reading-order semantic.`,
+          pageNumber,
+          panel.id,
+        ));
+      }
+    }
+  }
 }
 
 function validatePanelLettering(pageNumber: number, panel: ComicAuthoringPanel, issues: ComicModePreflightIssue[]): void {
