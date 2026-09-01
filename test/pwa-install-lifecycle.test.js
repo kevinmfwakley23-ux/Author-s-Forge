@@ -31,7 +31,10 @@ test('PWA exposes project-aware, touch-sized links to every first-class creation
   assert.match(pwa, /minHeight: "44px"/);
 });
 
-test('service worker upgrades safely and excludes API project state from caching', () => {
+test('PWA loads and caches the durable Image Lab extension without caching API state', () => {
+  assert.match(pwa, /forge-image-lab\.js/);
+  assert.match(pwa, /data-forge-extension/);
+  assert.match(sw, /\/forge-image-lab\.js/);
   assert.match(sw, /const CACHE = "authors-forge-shell-v\d+"/);
   assert.match(sw, /SKIP_WAITING/);
   assert.match(sw, /url\.pathname\.startsWith\("\/api\/"\)/);
