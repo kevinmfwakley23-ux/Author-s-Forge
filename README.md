@@ -85,6 +85,100 @@ DELIVERY AUDIT
 PORTABLE PROJECT PACKAGE
 ```
 
+## Build Progress Tracker — Current Source of Truth
+
+This section is the **living engineering checkpoint** for what is finished, what exists as a foundation, and what is next. Update it whenever a major capability is verified or the active build target changes.
+
+### ✅ Completed / verified major capability areas
+
+- **Core local-first Studio foundation** — durable projects, browser application, Chromebook/Android targets, PWA shell boundary, project package/recovery foundations and CI acceptance gates.
+- **Project Brain / canon memory foundation** — durable project memories, governed context assembly, provenance and author-controlled canon boundaries.
+- **Manuscript and Writing Desk foundation** — durable book/chapter/scene workspace, real AI provider boundary, durable proposal/review behavior and author-controlled application.
+- **Character Bible and living character-state foundation** — structured character profiles, versioned state/history and saliency-aware retrieval services.
+- **Research and research-honesty foundations** — provenance-aware research records and explicit fact/inference/creative/uncertain distinctions.
+- **Editing / Craft Lens foundations** — deterministic editorial analysis and author-reviewable proposal workflows without silent rewriting.
+- **Cover Studio / KDP production foundations** — production geometry, cover planning and KDP preflight infrastructure.
+- **Guided Journal Office — COMPLETE** — merged through PR #37 (`fe8125941b09159a57520ac39ecbdac040d322e2`) after build, unit, completion, desktop-browser, Guided Journal browser and Android/mobile acceptance passed.
+
+### ✅ Guided Journal Office capability checklist
+
+The Guided Journal Office now includes:
+
+- six Better Question-compatible categories: **Remember, Discover, Challenge, Create, Become, Hope**;
+- durable project-scoped master question and cover-statement libraries;
+- author add/revise, enable/disable, remove and JSON import/export controls;
+- deterministic single-question randomization;
+- category filters, exclusions, reproducible seeds and balanced generation;
+- no-repeat protection within an edition and across prior editions by default;
+- durable edition ordering and restart-safe history;
+- blank, lined, lightly-lined, dot-grid and guided-response page styles;
+- trim size, margins, typography, prompt alignment, line/dot spacing, page numbering, category labels, front matter, closing matter and response-page controls;
+- real print-PDF rendering with exact page count, byte length, SHA-256 and shared production validation;
+- live page preview and PDF download;
+- shared Project Brain context and production memory;
+- shared AI/provider stack through `generateProjectText` with configured OmniRoute, 9Router, K.I.N.G.S., OpenAI and Ollama routing/failover;
+- Brain-aware AI question proposals with explicit author approval before library promotion;
+- Brain-aware AI cover direction and back-cover copy;
+- direct `BookCoverStudioService` handoff using the journal's actual rendered page count/trim geometry for cover/spine calculations;
+- responsive dedicated journal workplace with Chromebook and Android launch paths;
+- real-browser regression coverage for durable library, randomizer, edition generation, lined PDF bytes, AI proposal/approval, cover geometry, restart persistence and phone-sized touch/overflow.
+
+### 🟡 Active next build — Specialized Creation Office
+
+The Specialized Creation Office is **not starting from zero**. Domain/workflow/production foundations already exist for exactly these six canonical modes:
+
+1. **Comic books**
+2. **Greeting cards**
+3. **Birthday cards**
+4. **Invitations**
+5. **Flyers**
+6. **Trading card game cards**
+
+Existing foundations already define specialized creation identity, production dimensions/bleed, and the shared workflow:
+
+**brief → plan → create → review → production**
+
+The next engineering phase is to turn those foundations into a complete live office. Completion requires:
+
+- durable specialized-project/application services and restart-safe storage;
+- Project Brain connection and shared AI-provider access rather than a separate AI silo;
+- shared illustration/image-generation integration where appropriate;
+- author-controlled AI proposals and revisions;
+- real mode-specific editors/workflows for all six creation types;
+- comic page/panel/script/lettering/asset workflows;
+- greeting/birthday card front/inside/back composition and fold/print handling;
+- invitation event-information, hierarchy, layout and production workflows;
+- flyer content hierarchy, image/text layout, bleed/safe-area and export workflows;
+- trading-card-game template, card data, rules/stat fields, fronts/backs, set/deck consistency and sheet/export workflows;
+- real production artifacts rather than preview-only controls;
+- integration with shared Brain, visual/illustration capabilities, Cover/production systems where applicable;
+- responsive live Studio surface with Chromebook and Android touch support;
+- domain, application, browser and mobile acceptance proving every major path.
+
+**Guided journals remain a separate completed office and must not be folded into Specialized Creation.**
+
+### 🟡 Remaining cross-Forge integration / hardening
+
+These areas have foundations or substantial implementation but still require continued integration/hardening before the entire Author's Forge product is considered complete:
+
+- finish the Mission 058 live Writing Desk/provider path so saliency-aware character context is proven end-to-end in ordinary drafting;
+- integrate Author Voice Memory and visible drift checks into live AI drafting/proposal application;
+- extend saliency-aware retrieval across character memory, canon, timeline, research and author voice;
+- continue Author Goals, Craft Lens, Knowledge Gap Radar and Story Map integration/hardening;
+- strengthen full-product production preview/KDP, metadata, export and delivery-audit flows;
+- complete marketing/promotion planning and measurement workflows;
+- complete final cross-office navigation/workflow consolidation;
+- perform the planned UI/UX redesign after functional office capability is in place, without weakening durable behavior;
+- verify complete end-to-end author journeys on Chromebook and Android with real configured providers.
+
+### Current build order
+
+1. **Finish Specialized Creation Office** across all six locked modes.
+2. Close remaining cross-Forge live-integration gaps and acceptance gates.
+3. Complete production/marketing/delivery hardening.
+4. Remodel and polish the overall Studio UI/UX once capability coverage is stable.
+5. Run full-product Chromebook + Android release acceptance.
+
 ## Mission 058 — Saliency-Aware Character Memory Retrieval
 
 Forge's living Character Bible now has an application-integrated retrieval boundary that can supply **only the most relevant character state needed for a drafting task**, instead of dumping every character into every AI request.
@@ -120,11 +214,11 @@ Regression coverage verifies the application boundary, including salient charact
 
 ### Mission 058 completion gate
 
-Mission 058 remains active until the live Studio route/provider execution is wired to this governed application boundary and CI/build verification proves the complete request path. The required final path is:
+Mission 058 remains active as a cross-Forge integration item until the live Studio route/provider execution is wired to this governed application boundary and CI/build verification proves the complete request path. The required final path is:
 
 **Writing Desk request → authoritative project load → character retrieval → assembled context → real model/provider → durable proposal → character continuity evidence before application → author review.**
 
-No subsequent mission is promoted until that path is proven.
+This no longer blocks completion of independent offices; it remains explicitly tracked above under cross-Forge integration/hardening.
 
 ## Mission 057 — Versioned Character State Memory
 
@@ -176,19 +270,6 @@ Forge's product goal is to connect these concerns to the same authoritative Book
 ## CI / PWA Integrity
 
 Canonical CI covers installation, build, tests, completion measurement, client syntax checks, browser acceptance, and mobile acceptance. The PWA shell remains separate from durable `/api/` project state.
-
-## Current Build Priorities
-
-1. **Finish Mission 058** — prove the live Studio/provider drafting path consumes saliency-aware character context and exposes character continuity evidence before proposal application.
-2. Integrate Author Voice Memory into live AI drafting/proposal generation and make voice drift visible before application.
-3. Build saliency-aware retrieval across character memory, canon, timeline, research, and author voice.
-4. Integrate Author Goals into durable Studio project state.
-5. Integrate Craft Lens into Editing Room and governed proposal review.
-6. Build Knowledge Gap Radar from provenance-aware research and project-memory signals.
-7. Strengthen Story Map with scene attributes, plotlines, character arcs, and continuity indicators.
-8. Build Production Preview/KDP preflight so cover, trim, metadata, manuscript and export problems are caught before release.
-9. Build promotion planning and measurement around audience, retailer, launch, discount, preorder and campaign goals.
-10. Verify the complete running product on Chromebook and Android with real configured AI providers.
 
 ## Definition of Complete
 
