@@ -94,7 +94,7 @@ export class GuidedJournalIntelligenceService {
         projectId: request.projectId,
         taskMemoryClasses: ["author-memory", "project-memory", "style-memory", "research-memory", "decision-memory", "production-memory"],
         relevanceTags: ["guided-journal"],
-        queryTerms: [request.category, request.purpose ?? "journal", request.audience ?? "reader"],
+        queryTerms: [request.category, optionalContextTerm(request.purpose, "journal"), optionalContextTerm(request.audience, "reader")],
         includeWorkingState: true,
         limit: 30,
       },
@@ -133,7 +133,7 @@ export class GuidedJournalIntelligenceService {
         projectId: request.projectId,
         taskMemoryClasses: ["author-memory", "project-memory", "style-memory", "visual-identity", "marketing-memory", "research-memory", "decision-memory", "production-memory"],
         relevanceTags: ["guided-journal"],
-        queryTerms: [request.journal.title, request.audience ?? "journal", request.tone ?? "reflective"],
+        queryTerms: [request.journal.title, optionalContextTerm(request.audience, "journal"), optionalContextTerm(request.tone, "reflective")],
         includeWorkingState: true,
         limit: 30,
       },
@@ -223,6 +223,10 @@ function parseJsonObject(text: string, label: string): Record<string, unknown> {
 function requiredString(value: unknown, label: string): string {
   if (typeof value !== "string" || !value.trim()) throw new Error(`${label} is required.`);
   return value.trim();
+}
+
+function optionalContextTerm(value: string | undefined, fallback: string): string {
+  return value?.trim() || fallback;
 }
 
 function normalize(value: string): string { return value.trim().toLocaleLowerCase().replace(/\s+/g, " "); }
