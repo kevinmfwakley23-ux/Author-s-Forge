@@ -17,11 +17,25 @@ Non-negotiable:
 - real persistence only;
 - no fake AI responses;
 - no fake image generation;
+- no fake, stub, canned, demo-only, placeholder, or simulated production behavior presented as complete;
 - no placeholder controls presented as complete;
 - no dead navigation;
 - no silent canon mutation;
 - no weakening/deleting tests to make builds green;
 - major autonomous actions observable, reversible, attributable, and author-controlled.
+
+### No fake-ass code rule
+
+**No fake-ass code.** If Forge says a feature is built, that feature must be **real, workable, usable, connected to the actual application/state boundary, and verifiable through the real product path.**
+
+The following are forbidden when presented as finished production behavior:
+
+- stubs, mocks, canned responses, hard-coded provider answers, fabricated artifacts, or fake success states;
+- demo-only or placeholder buttons, routes, editors, exports, persistence, AI calls, image generation, publishing actions, statistics, or production outputs masquerading as working features;
+- swallowing a real error and returning a success-looking result;
+- claiming an artifact is KDP-ready, publish-ready, provider-generated, persisted, downloaded, uploaded, measured, researched, or verified unless that operation actually happened and the evidence exists.
+
+Mocks/fakes are allowed **only inside clearly identified automated-test fixtures**. They must never become a production fallback or be used as proof that an unavailable real provider/capability is working. When a required real provider, service, credential, dependency, or capability is missing, Forge must fail honestly, preserve the user's work, and report exactly what is unavailable.
 
 A green unit-test suite is evidence, not proof. Major capabilities must be reachable from Studio, use durable project state, survive reload/restart, participate downstream, report real errors, and have end-to-end evidence.
 
@@ -104,7 +118,7 @@ The project is worked from the beginning of the author journey forward, office b
 7. **Verification rule** — no block is cleared by source inspection alone. Required evidence is the strongest applicable combination of domain/application tests, build/completion checks, real browser acceptance, restart persistence, artifact inspection, Chromebook fit and Android/mobile acceptance. Tests are never weakened to manufacture green status.
 8. **README handoff rule** — every completed verified block updates this section with: active office/capability; pass owner; next-pass owner; branch/PR/commit; research/improvements made; verification status; unresolved blockers; and whether the next block is cleared to begin.
 
-**Traversal starts at the Forge Brain / Project Brain and proceeds through the product journey until the whole application has received all three passes.** The intended progression is Brain/project memory and governance → project/binder architecture and canon → characters/world/timeline/research/voice memory → Story Map/Writing Desk/AI drafting → editing/craft/continuity → visual/illustration/cover → Specialized Creation and Guided Journal offices → production/KDP/metadata/export → marketing/promotion → delivery/recovery → cross-office navigation/UI polish → final Chromebook + Android release acceptance. Existing completed areas are inspected rather than blindly rebuilt.
+**Traversal starts at the Forge Brain / Project Brain and proceeds through the product journey until the whole application has received all three passes.** The intended progression is Brain/project memory and governance → project/binder architecture and canon → characters/world/timeline/research/voice memory → Story Map/Writing Desk/AI drafting → editing/craft/continuity → visual/illustration/cover → Specialized Creation, Guided Journal, and Educational Workbook offices → production/KDP/metadata/export → marketing/promotion → delivery/recovery → cross-office navigation/UI polish → final Chromebook + Android release acceptance. Existing completed areas are inspected rather than blindly rebuilt.
 
 **Current handoff state:** merged `main` contains blocks **001D** and **001E**. First-pass block **001F** is fully verified on PR #52 and is cleared for merge and Android second pass. Codex advances immediately to **001G** after the 001F merge so Android retains a clean completed block behind the forward lane. Mission 059 remains open with its known shared TCG finishing-browser and raster-production defects recorded; it will be handled when the forward traversal reaches Specialized Creation.
 

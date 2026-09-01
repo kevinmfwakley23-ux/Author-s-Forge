@@ -16,6 +16,20 @@ test('routing state records success, usage, and resets failure streak', () => {
   assert.equal(current.cooldownUntil, undefined);
 });
 
+test('routing state derives initial used tokens from quota limit and remaining quota', () => {
+  const state = new AiRoutingState();
+  state.hydrate([{ provider: 'gateway', model: 'writer', configured: true, healthy: true, capabilities: {}, quotaLimit: 10000, remainingQuota: 7600 }], '2026-01-01T00:00:00.000Z');
+  assert.equal(state.get('gateway', 'writer').totalTokens, 2400);
+  state.recordSuccess('gateway', 'writer', 50, 125, '2026-01-01T00:01:00.000Z');
+  assert.equal(state.get('gateway', 'writer').totalTokens, 2525);
+});
+
+test('routing state prefers explicit used-token baseline when both usage forms exist', () => {
+  const state = new AiRoutingState();
+  state.hydrate([{ provider: 'gateway', model: 'writer', configured: true, healthy: true, capabilities: {}, quotaLimit: 10000, remainingQuota: 7600, usedTokens: 3000 }], '2026-01-01T00:00:00.000Z');
+  assert.equal(state.get('gateway', 'writer').totalTokens, 3000);
+});
+
 test('routing state accumulates failure streak and cooldown', () => {
   const state = new AiRoutingState();
   state.recordFailure('x', 'm', 'rate limited', '2026-01-01T00:00:00.000Z', 60000);

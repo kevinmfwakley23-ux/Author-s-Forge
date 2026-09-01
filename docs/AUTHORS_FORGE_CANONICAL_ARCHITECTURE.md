@@ -77,6 +77,18 @@ AUTHOR DESK / PROJECT START / RESUME
    visual continuity
               |               |
               +-------+-------+
+                      |
+             +--------+--------+
+             |                 |
+             v                 v
+09B EDUCATIONAL        OTHER WORK TYPES
+    WORKBOOK OFFICE
+   activity banks,
+   grade/subject/standards,
+   exercises, answer keys,
+   reproducible editions
+             |                 |
+             +--------+--------+
                       v
 10 BOOK DESIGN / LAYOUT OFFICE
    interior layout, typography, page styles, margins,
@@ -90,7 +102,7 @@ AUTHOR DESK / PROJECT START / RESUME
                       v
 12 PRODUCTION + KDP OFFICE
    trim-size profiles, paperback, hardcover, children's,
-   comic, journal, EPUB/PDF, spine math, preflight
+   comic, journal, workbook, EPUB/PDF, spine math, preflight
                       |
                       v
 13 PROMOTION OFFICE
@@ -128,6 +140,26 @@ Guided journals are a first-class creation mode and use the shared document/layo
 - blank, lined, lightly lined, dot-grid and guided-response page styles
 - durable page ordering and regeneration
 
+## Educational Workbook Placement
+
+Educational workbooks are a first-class creation mode with their own office while still consuming the shared Forge project, Brain, document/layout, production, publishing, promotion and recovery trunk.
+
+The Educational Workbook Office owns:
+
+- durable project-scoped activity banks;
+- grade-band, subject, activity-kind, difficulty, standards/framework-id and tag metadata;
+- validated answer truth for scored exercises;
+- multiple-choice, short-answer, fill-in-the-blank, true/false, writing-prompt and math-practice workflows;
+- author-defined learning objectives and directions;
+- deterministic/reproducible seeded workbook editions;
+- author-controlled source pools, filters and exclusions;
+- balanced mixed-subject selection without claiming pedagogical certification;
+- answer-key generation from actual stored answers;
+- durable source-activity provenance and edition history;
+- real printable PDF interior production before downstream KDP preflight.
+
+Standards identifiers are organizational/review metadata, not automatic proof of standards alignment. The office must never invent an answer, alignment finding, provider result or production-readiness status. AI-generated educational content, if added, must flow through the shared real provider boundary and remain author-reviewable before it enters the durable activity library.
+
 ## Workflow Navigation Rule
 
 The Studio should present the author with a **guided next step** so the normal path is sequential rather than forcing the author to jump between unrelated offices. Side trips remain possible for correction, research, continuity repair, asset changes or author-directed revisions, but the Forge must remember the return point and preserve workflow state.
@@ -136,8 +168,9 @@ A downstream office must consume upstream approved state rather than creating co
 
 - Writing consumes approved story, character, world, timeline and voice state.
 - Art consumes approved character/world/story state and visual identities.
+- Educational Workbooks consume approved project intent and durable activity-bank state, then hand real edition/layout artifacts downstream.
 - Covers consume project metadata, genre, positioning and approved visual direction.
-- Layout consumes the manuscript and production profile.
+- Layout consumes the manuscript or product interior and production profile.
 - KDP production consumes the finalized layout, cover and metadata.
 - Publishing consumes validated production artifacts.
 - Vault stores the complete portable project state and recovery package.
@@ -160,6 +193,7 @@ main
 +-- office/comic/*
 +-- office/cards/*
 +-- office/journal/*
++-- office/workbooks/*
 +-- office/layout/*
 +-- office/cover/*
 +-- office/production/*
@@ -203,4 +237,4 @@ The core completion gate includes:
 
 ## Definition of Architectural Success
 
-An author should be able to start at the Forge Brain, create an idea, proceed naturally through story development and supporting character/world systems, write and edit, create the appropriate visual/product assets, format the finished work, prepare production files, promote and publish it, and finally restore the complete project from the Vault without losing context, provenance, decisions, assets or author control.
+An author should be able to start at the Forge Brain, create an idea, proceed naturally through story development and supporting character/world systems, write and edit, create the appropriate visual/product assets — including first-class Educational Workbooks when that is the selected work type — format the finished work, prepare production files, promote and publish it, and finally restore the complete project from the Vault without losing context, provenance, decisions, assets or author control.

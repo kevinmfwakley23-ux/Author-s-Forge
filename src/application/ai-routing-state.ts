@@ -30,7 +30,7 @@ export class AiRoutingState {
       if (!current) this.states.set(key, {
         provider: resource.provider, model: resource.model,
         consecutiveFailures: Math.max(0, resource.consecutiveFailures ?? 0),
-        totalFailures: 0, totalSuccesses: 0, totalTokens: Math.max(0, resource.usedTokens ?? 0),
+        totalFailures: 0, totalSuccesses: 0, totalTokens: initialUsedTokens(resource),
         lastLatencyMs: resource.latencyMs, cooldownUntil: resource.cooldownUntil, updatedAt: now
       });
     }
@@ -82,6 +82,14 @@ export class AiRoutingState {
   clear(): void { this.states.clear(); }
 
   private key(provider: string, model: string): string { return `${provider}::${model}`; }
+}
+
+function initialUsedTokens(resource: AiModelResource): number {
+  if (resource.usedTokens !== undefined) return Math.max(0, resource.usedTokens);
+  if (resource.quotaLimit !== undefined && resource.remainingQuota !== undefined) {
+    return Math.max(0, resource.quotaLimit - Math.min(resource.quotaLimit, resource.remainingQuota));
+  }
+  return 0;
 }
 
 function byProviderModel(a: AiProviderRuntimeState, b: AiProviderRuntimeState): number {
