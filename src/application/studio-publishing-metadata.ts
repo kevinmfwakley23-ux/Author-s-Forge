@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createMemoryRecord, type MemoryRecord } from "../domain/memory";
+import { validateKdpMarketIntelligenceReport, type KdpMarketIntelligenceReport } from "../domain/kdp-market-intelligence";
 import { withProjectMemories, type ProjectState } from "../domain/project";
 import { getBook, validateStudioWorkspace } from "../domain/studio-workspace";
 import {
@@ -51,6 +52,42 @@ export class StudioPublishingMetadataService {
     return { metadata, compliance, kdpAiDisclosureRequired: requiresKdpAiDisclosure(metadata), memoryId: memory.id };
   }
 
+  /**
+   * Apply evidence-backed market-research phrases only after explicit author approval.
+   * The research report never mutates publishing metadata by itself.
+   */
+  public async applyMarketKeywords(
+    projectId: string,
+    bookId: string,
+    report: KdpMarketIntelligenceReport,
+    input: { readonly authorApproved: boolean; readonly phrases?: readonly string[]; readonly now?: string },
+  ): Promise<PublishingMetadataState> {
+    if (input.authorApproved !== true) throw new Error("Explicit author approval is required before applying market-research keywords to publishing metadata.");
+    const researched = validateKdpMarketIntelligenceReport(report);
+    if (researched.projectId !== projectId) throw new Error("Market research report belongs to another project.");
+    if (researched.bookId !== undefined && researched.bookId !== bookId) throw new Error("Market research report belongs to another book.");
+    const candidates = researched.keywordRecommendations ?? [];
+    if (!candidates.length) throw new Error("Market research report contains no keyword recommendations.");
+    const allowed = new Map(candidates.map((item) => [item.phrase.toLocaleLowerCase(), item.phrase]));
+    const selected = input.phrases === undefined
+      ? candidates.filter((item) => item.recommendedForKdpSlot).sort((a, b) => b.score - a.score).slice(0, 7).map((item) => item.phrase)
+      : [...new Set(input.phrases.map((phrase) => requiredPhrase(phrase)))];
+    if (!selected.length) throw new Error("Select at least one evidence-backed market keyword phrase.");
+    if (selected.length > 7) throw new Error("KDP supports up to seven keyword phrases.");
+    const normalized = selected.map((phrase) => {
+      const candidate = allowed.get(phrase.toLocaleLowerCase());
+      if (!candidate) throw new Error(`Keyword phrase "${phrase}" is not an evidence-backed recommendation in market report "${researched.id}".`);
+      return candidate;
+    });
+    const current = await this.get(projectId, bookId);
+    if (!current) throw new Error("Save publishing metadata before applying market-research keywords.");
+    const { formatVersion: _formatVersion, projectId: _projectId, bookId: _bookId, updatedAt: _updatedAt, ...editable } = current.metadata;
+    return this.save(projectId, bookId, { ...editable, keywords: normalized }, {
+      now: input.now,
+      reference: `market-research:${researched.id}`,
+    });
+  }
+
   public async get(projectId: string, bookId: string): Promise<PublishingMetadataState | null> {
     const project = await this.load(projectId);
     this.requireBook(project, bookId);
@@ -89,4 +126,9 @@ export class StudioPublishingMetadataService {
     if (!project.studioWorkspace) throw new Error("Project has no Studio workspace.");
     return getBook(validateStudioWorkspace(project.studioWorkspace), bookId);
   }
+}
+
+function requiredPhrase(value: unknown): string {
+  if (typeof value !== "string" || !value.trim()) throw new Error("Selected market keyword phrases must be non-empty strings.");
+  return value.trim();
 }
