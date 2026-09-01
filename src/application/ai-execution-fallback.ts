@@ -4,7 +4,7 @@ import { AiRoutingState } from './ai-routing-state';
 
 export interface AiExecutionRequest extends AiModelSelectionRequest { readonly input: unknown; readonly maxAttempts?: number; readonly estimatedOutputTokens?: number; readonly routingMode?: AiCostRoutingMode; }
 export interface AiExecutionContext { readonly resource: AiModelResource; readonly attempt: number; readonly remainingAttempts: number; }
-export interface AiExecutionFailure { readonly provider:string; readonly model:string; readonly error:string; readonly retryable:boolean; readonly attempt:number; readonly latencyMs:number; }
+export interface AiExecutionFailure { readonly provider:string; readonly model:string; readonly error:string; readonly retryable:boolean; readonly failoverEligible:boolean; readonly attempt:number; readonly latencyMs:number; }
 export interface AiExecutionResult<T> { readonly value:T; readonly resource:AiModelResource; readonly attempts:number; readonly failures:readonly AiExecutionFailure[]; readonly latencyMs:number; }
 export type AiExecutor<T>=(input:unknown,context:AiExecutionContext)=>Promise<T>;
 
@@ -29,11 +29,15 @@ export class AiExecutionFallback {
     this.syncBrokerState();
     return{value,resource:selection.resource,attempts:attempt,failures,latencyMs:Date.now()-startedAll};
    }catch(error){
-    const latencyMs=Date.now()-started; const message=this.message(error); const retryable=this.isRetryable(error);
-    failures.push({provider:selection.resource.provider,model:selection.resource.model,error:message,retryable,attempt,latencyMs});
-    this.state.recordFailure(selection.resource.provider,selection.resource.model,error,new Date().toISOString(),retryable?this.cooldownFor(failures.length):0);
+    const latencyMs=Date.now()-started;
+    const message=this.message(error);
+    const retryable=this.isRetryable(error);
+    const providerSpecific=this.isProviderSpecificFailure(error);
+    const failoverEligible=retryable||providerSpecific;
+    failures.push({provider:selection.resource.provider,model:selection.resource.model,error:message,retryable,failoverEligible,attempt,latencyMs});
+    this.state.recordFailure(selection.resource.provider,selection.resource.model,error,new Date().toISOString(),failoverEligible?this.cooldownFor(error,failures.length):0);
     this.syncBrokerState();
-    if(!retryable)break;
+    if(!failoverEligible)break;
    }
   }
   this.syncBrokerState();
@@ -44,7 +48,11 @@ export class AiExecutionFallback {
  private syncBrokerState():void{
   this.broker.applyRoutingTelemetry(this.state.snapshot().map(s=>({provider:s.provider,model:s.model,consecutiveFailures:s.consecutiveFailures,totalTokens:s.totalTokens,lastLatencyMs:s.lastLatencyMs,cooldownUntil:s.cooldownUntil})));
  }
- private cooldownFor(attempt:number):number{return Math.min(120000,Math.max(5000,attempt*5000));}
+ private cooldownFor(error:unknown,attempt:number):number{
+  if(this.isProviderSpecificFailure(error))return 5*60*1000;
+  return Math.min(120000,Math.max(5000,attempt*5000));
+ }
  private message(error:unknown):string{return error instanceof Error?error.message:String(error);}
  private isRetryable(error:unknown):boolean{return /timeout|timed out|temporar|rate.?limit|429|503|502|504|overloaded|unavailable|network|connection|econn|reset|quota/i.test(this.message(error).toLowerCase());}
+ private isProviderSpecificFailure(error:unknown):boolean{return /\b401\b|\b403\b|\b404\b|unauthor|forbidden|authentication|invalid\s+(?:api\s+)?key|credential|unknown\s+model|model[^;]*not\s+found|provider[^;]*not\s+configured|endpoint[^;]*not\s+found/i.test(this.message(error));}
 }
