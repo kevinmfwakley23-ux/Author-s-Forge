@@ -9,7 +9,7 @@ export function discoverConfiguredAiModelResources(env: NodeJS.ProcessEnv = proc
   };
   add("omniroute", env.OMNIROUTE_MODEL, Boolean(env.OMNIROUTE_BASE_URL?.trim()), { contextWindow: 128000, maxOutputTokens: 16000, streaming: true, creativeWriting: true, instructionFollowing: true, longContext: true });
   add("9router", env.ROUTER9_MODEL, Boolean(env.ROUTER9_BASE_URL?.trim()), { contextWindow: 128000, maxOutputTokens: 16000, streaming: true, creativeWriting: true, instructionFollowing: true, longContext: true });
-  add("kings", env.KINGS_AI_MODEL, Boolean(env.KINGS_AI_ENDPOINT?.trim()), { contextWindow: 128000, maxOutputTokens: 16000, reasoning: true, vision: true, streaming: true, toolCalls: true, creativeWriting: true, instructionFollowing: true, longContext: true });
+  add("kings", env.KINGS_AI_MODEL, Boolean(env.KINGS_AI_ENDPOINT?.trim() && env.KINGS_AI_MODEL?.trim()), { contextWindow: 128000, maxOutputTokens: 16000, reasoning: true, vision: true, streaming: true, toolCalls: true, creativeWriting: true, instructionFollowing: true, longContext: true });
   add("openai", env.OPENAI_MODEL, Boolean(env.OPENAI_API_KEY?.trim() && env.OPENAI_MODEL?.trim()), { contextWindow: 128000, maxOutputTokens: 16000, reasoning: true, vision: true, streaming: true, toolCalls: true, creativeWriting: true, instructionFollowing: true, longContext: true });
   add("ollama", env.OLLAMA_MODEL, Boolean(env.OLLAMA_BASE_URL?.trim() && env.OLLAMA_MODEL?.trim()), { contextWindow: 32768, maxOutputTokens: 8192, creativeWriting: true, instructionFollowing: true });
   return resources;
