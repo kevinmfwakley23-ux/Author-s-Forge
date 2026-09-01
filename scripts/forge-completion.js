@@ -43,12 +43,23 @@ const capabilities = [
   ['Visual identity / illustration assets', ['src/domain/character-visual-continuity.ts', 'src/domain/illustration-asset-library.ts'], () => hasTest(/illustration|visual/)],
   ['Cover / KDP production planning', ['src/domain/book-cover-studio.ts'], () => hasTest(/book-cover/)],
   ['Manuscript production artifacts', ['src/domain/manuscript-production.ts', 'src/application/manuscript-production.ts'], () => hasTest(/manuscript-production/)],
-  ['Publishing readiness / positioning / marketing', ['src/domain/publishing-readiness.ts', 'src/domain/book-positioning.ts', 'src/domain/marketing-campaign.ts'], () => hasTest(/publishing|marketing|positioning/)],
+  ['Publishing / market intelligence / Promotion', [
+    'src/domain/publishing-readiness.ts',
+    'src/application/studio-publishing-metadata.ts',
+    'src/domain/kdp-market-intelligence.ts',
+    'src/infrastructure/openai-kdp-market-intelligence-provider.ts',
+    'src/domain/marketing-campaign.ts',
+    'src/domain/promotion-readiness.ts',
+    'src/domain/promotion-performance.ts',
+    'src/application/studio-publishing-promotion-routes.ts',
+    'public/forge-publishing-promotion.js',
+    'public/forge-promotion-performance.js'
+  ], () => hasTest(/publishing|marketing|promotion-performance|kdp-live-market-research|kdp-market/)],
   ['Version control & author authority', ['src/domain/book-version-control.ts', 'src/domain/author-control.ts'], () => hasTest(/version-control-author-control-series-voice/)],
   ['Workflow gates / delivery audit / Book Genome', ['src/domain/workflow-gate.ts', 'src/domain/delivery-audit.ts', 'src/domain/final-product-systems.ts'], () => hasTest(/workflow|delivery-audit|final-product/)],
   ['Portable project package / recovery', ['src/domain/project-package.ts', 'src/application/project-package.ts'], () => hasTest(/project-package|external-storage/)],
   ['AI context optimization / cost governance', ['src/application/context-engine-stack.ts', 'src/application/ai-cost-guard.ts'], () => hasTest(/context|cost-guard/)],
-  ['Integrated Studio / browser acceptance', ['src/studio-server.ts', 'scripts/studio-browser-acceptance.js'], () => exists('scripts/studio-browser-acceptance.js')],
+  ['Integrated Studio / browser acceptance', ['src/studio-server.ts', 'scripts/studio-browser-acceptance.js', 'scripts/studio-publishing-promotion-browser-acceptance.js', 'scripts/studio-promotion-performance-browser-acceptance.js'], () => exists('scripts/studio-browser-acceptance.js') && exists('scripts/studio-publishing-promotion-browser-acceptance.js') && exists('scripts/studio-promotion-performance-browser-acceptance.js')],
   ['Android / PWA delivery surface', ['public/manifest.webmanifest', 'public/sw.js', 'public/forge-pwa.js'], () => exists('scripts/studio-mobile-acceptance.js') && hasTest(/pwa|mobile/)],
 ];
 
@@ -62,7 +73,7 @@ const rows = capabilities.map(([name, required, verification]) => {
 });
 
 const engineering = Math.round(earned / capabilities.length);
-const browserEvidence = exists('scripts/studio-browser-acceptance.js') ? 100 : 0;
+const browserEvidence = exists('scripts/studio-browser-acceptance.js') && exists('scripts/studio-publishing-promotion-browser-acceptance.js') && exists('scripts/studio-promotion-performance-browser-acceptance.js') ? 100 : 0;
 const mobileEvidence = exists('scripts/studio-mobile-acceptance.js') ? 100 : 0;
 const providerBoundary = /KINGS_AI_ENDPOINT|OMNIROUTE_BASE_URL|OpenAI|Ollama/.test(sourceText) ? 100 : 0;
 const honestAi = /fabricat|real provider|provider.*unavailable|not configured/i.test(sourceText + testText) ? 100 : 0;

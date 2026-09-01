@@ -15,7 +15,7 @@
     "completion": "node scripts/forge-completion.js",
     "baseline": "node scripts/forge-baseline-check.js",
     "browser:install": "playwright install chromium",
-    "test:browser": "npm run build && node scripts/studio-browser-acceptance.js && node scripts/studio-context-browser-acceptance.js && node scripts/studio-kdp-preflight-browser-acceptance.js && node scripts/studio-recovery-browser-acceptance.js && node scripts/studio-children-topics-browser-acceptance.js && node scripts/guided-journal-browser-acceptance.js",
+    "test:browser": "npm run build && node scripts/studio-browser-acceptance.js && node scripts/studio-context-browser-acceptance.js && node scripts/studio-kdp-preflight-browser-acceptance.js && node scripts/studio-recovery-browser-acceptance.js && node scripts/studio-children-topics-browser-acceptance.js && node scripts/guided-journal-browser-acceptance.js && node scripts/studio-publishing-promotion-browser-acceptance.js && node scripts/studio-promotion-performance-browser-acceptance.js",
     "test:browser:mobile": "npm run build && node scripts/studio-mobile-acceptance.js"
   },
   "engines": {
