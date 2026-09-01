@@ -3,6 +3,7 @@ import type { ProjectMemoryStore } from "./project-memory-store";
 
 const MAX_QUERY_VALUES = 64;
 const MAX_QUERY_VALUE_LENGTH = 512;
+export const PROJECT_BRAIN_MAX_RESULTS = 256;
 const WORD_SEGMENTER = new Intl.Segmenter("und", { granularity: "word" });
 
 export interface ProjectBrainQuery {
@@ -39,7 +40,7 @@ export function assembleProjectBrainContext(store: ProjectMemoryStore, query: Pr
     .filter(filterClasses)
     .filter(isContextEligible);
   const ranked = rankMemories(candidates, normalizedQuery);
-  const limited = ranked.slice(0, normalizedQuery.limit ?? Number.MAX_SAFE_INTEGER);
+  const limited = ranked.slice(0, normalizedQuery.limit ?? PROJECT_BRAIN_MAX_RESULTS);
   const selected = limited.map(({ memory }) => memory);
 
   const authoritative = selected.filter((memory) => memory.authority === "authoritative");
@@ -171,7 +172,7 @@ function normalizeQuery(query: ProjectBrainQuery): ProjectBrainQuery {
   if (!query || typeof query !== "object") throw new Error("Project Brain query is required.");
   if (typeof query.projectId !== "string" || !query.projectId.trim()) throw new Error("Project Brain project id is required.");
   if (query.projectId.trim().length > MAX_QUERY_VALUE_LENGTH) throw new Error("Project Brain project id is too long.");
-  if (query.limit !== undefined && (!Number.isInteger(query.limit) || query.limit < 0)) throw new Error("Project Brain limit must be a non-negative integer.");
+  if (query.limit !== undefined && (!Number.isInteger(query.limit) || query.limit < 0 || query.limit > PROJECT_BRAIN_MAX_RESULTS)) throw new Error(`Project Brain limit must be an integer from 0 to ${PROJECT_BRAIN_MAX_RESULTS}.`);
   if (query.includeWorkingState !== undefined && typeof query.includeWorkingState !== "boolean") throw new Error("Project Brain includeWorkingState must be a boolean.");
   if (query.changedSince !== undefined && (typeof query.changedSince !== "string" || !query.changedSince.trim() || Number.isNaN(Date.parse(query.changedSince)))) {
     throw new Error("Project Brain changedSince must be a valid timestamp.");
