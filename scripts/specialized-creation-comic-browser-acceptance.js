@@ -126,8 +126,8 @@ async function main(){
     assert.match(await page.locator('#mode-summary').innerText(),/comic-book/);
     assert.match(await page.locator('#history').innerText(),/production artifacts/);
     assert.ok(await page.locator('#composition-svg [data-element]').count()>0,'browser must render the durable comic composition');
-    const pageText=await page.locator('#composition-svg').innerText();
-    assert.match(pageText,/Something is listening/,'browser render must include approved editable dialogue');
+    const pageText=await page.locator('#composition-svg').textContent();
+    assert.match(pageText??'',/Something is listening/,'browser render must include approved editable dialogue');
     await page.reload({waitUntil:'networkidle'});
     await page.waitForFunction(()=>document.querySelector('#history')?.textContent.includes('production artifacts'));
     await desktop.close();
