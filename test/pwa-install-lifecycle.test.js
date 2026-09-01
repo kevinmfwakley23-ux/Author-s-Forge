@@ -21,14 +21,16 @@ test('PWA lifecycle does not persist project data in browser storage', () => {
   assert.match(pwa, /setStatus/);
 });
 
-test('PWA exposes project-aware, touch-sized links to every first-class creation office and workbook differentiation', () => {
+test('PWA exposes project-aware, touch-sized links to creation offices, differentiation, and assessment', () => {
   assert.match(pwa, /open-guided-journal-office/);
   assert.match(pwa, /open-workbook-office/);
   assert.match(pwa, /open-workbook-differentiation/);
+  assert.match(pwa, /open-workbook-assessment/);
   assert.match(pwa, /open-specialized-office/);
   assert.match(pwa, /officeUrl\(4273\)/);
   assert.match(pwa, /officeUrl\(4373\)/);
   assert.match(pwa, /officeUrl\(4373, "\/educational-differentiation\.html"\)/);
+  assert.match(pwa, /officeUrl\(4373, "\/educational-assessment\.html"\)/);
   assert.match(pwa, /officeUrl\(4473\)/);
   assert.match(pwa, /minHeight: "44px"/);
 });
