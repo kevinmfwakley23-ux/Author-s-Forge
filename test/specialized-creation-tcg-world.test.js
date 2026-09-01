@@ -18,14 +18,17 @@ const map={id:'forge-world',name:'Forge World',description:'Three connected terr
 ]};
 
 test('TCG framework preserves character progression and canonical map locations',()=>{
-  let framework=emptyTcgGameFramework();framework=withTcgCharacterLine(framework,line);framework=withTcgWorldMap(framework,map);validateTcgGameFramework(framework);
+  let framework=emptyTcgGameFramework();framework=withTcgCharacterLine(framework,line);framework=withTcgWorldMap(framework,map);validateTcgGameFramework(framework,true);
   assert.deepEqual(framework.characterLines[0].stages.map(stage=>stage.lifeStage),['birth','youth','final-evolution']);
   assert.equal(framework.worldMaps[0].territories.find(t=>t.id==='sun-citadel').characterStageRefs[0].stageId,'ember-final');
 });
 
-test('TCG framework rejects evolution stages assigned to nonexistent territory',()=>{
+test('draft TCG framework permits unresolved world links while production validation rejects them',()=>{
   const bad={...line,stages:line.stages.map((stage,index)=>index?stage:{...stage,territoryIds:['missing-place']})};
-  let framework=withTcgCharacterLine(emptyTcgGameFramework(),bad);framework={...framework,worldMaps:[map]};assert.throws(()=>validateTcgGameFramework(framework),/missing territory/);
+  const draft=withTcgCharacterLine(emptyTcgGameFramework(),bad);
+  assert.doesNotThrow(()=>validateTcgGameFramework(draft));
+  const framework={...draft,worldMaps:[map]};
+  assert.throws(()=>validateTcgGameFramework(framework,true),/missing territory/);
 });
 
 test('character evolution line deterministically becomes one card per life stage with locked approved art',()=>{
