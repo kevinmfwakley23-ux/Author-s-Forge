@@ -33,11 +33,30 @@ export interface ComparableTitle {
   readonly title: string;
   readonly author?: string;
   readonly genre?: string;
+  readonly category?: string;
   readonly price?: number;
   readonly currency?: string;
+  readonly bestSellerRank?: number;
+  readonly reviewCount?: number;
+  readonly rating?: number;
   readonly publishedDate?: string;
   readonly sourceUrl?: string;
   readonly observedAt: string;
+}
+
+export interface MarketSampleStatistics {
+  readonly sampledTitles: number;
+  readonly pricedTitles: number;
+  readonly rankedTitles: number;
+  readonly reviewedTitles: number;
+  readonly ratedTitles: number;
+  readonly medianPrice?: number;
+  readonly medianBestSellerRank?: number;
+  readonly medianReviewCount?: number;
+  readonly medianRating?: number;
+  readonly publishedWithin365Days: number;
+  readonly categoriesObserved: readonly string[];
+  readonly disclaimer: string;
 }
 
 export interface MarketKeywordRecommendation {
@@ -98,6 +117,7 @@ export interface CreateMarketIntelligenceReportInput {
 }
 
 const DISCLAIMER = "This report describes observable market signals and research evidence. It is not a guarantee, forecast, or promise of sales, rankings, revenue, or commercial performance.";
+const STATISTICS_DISCLAIMER = "These statistics summarize only the observable comparable-title sample captured by this research report. They are not unit-sales estimates and do not represent the entire market.";
 const FORBIDDEN_KEYWORD_PATTERNS = [
   /\bbestsell(?:er|ing)\b/i, /\bfree\b/i, /\bon\s+sale\b/i, /\bkindle\s+unlimited\b/i,
   /\bkdp\s+select\b/i, /<[^>]+>/, /https?:\/\//i, /\bamazon\b/i,
@@ -164,6 +184,33 @@ export function validateKdpMarketIntelligenceReport(report: KdpMarketIntelligenc
   return JSON.parse(JSON.stringify({ ...report, evidence, signals, comparableTitles, ...(keywordRecommendations.length ? { keywordRecommendations } : {}), ...(nicheOpportunities.length ? { nicheOpportunities } : {}), assessment })) as KdpMarketIntelligenceReport;
 }
 
+export function calculateMarketSampleStatistics(report: KdpMarketIntelligenceReport): MarketSampleStatistics {
+  const validated = validateKdpMarketIntelligenceReport(report);
+  const titles = validated.comparableTitles;
+  const prices = titles.flatMap((item) => item.price === undefined ? [] : [item.price]);
+  const ranks = titles.flatMap((item) => item.bestSellerRank === undefined ? [] : [item.bestSellerRank]);
+  const reviews = titles.flatMap((item) => item.reviewCount === undefined ? [] : [item.reviewCount]);
+  const ratings = titles.flatMap((item) => item.rating === undefined ? [] : [item.rating]);
+  const researchedAt = Date.parse(validated.researchedAt);
+  const recentCutoff = researchedAt - 365 * 24 * 60 * 60 * 1000;
+  const publishedWithin365Days = titles.filter((item) => item.publishedDate !== undefined && Number.isFinite(Date.parse(item.publishedDate)) && Date.parse(item.publishedDate) >= recentCutoff && Date.parse(item.publishedDate) <= researchedAt).length;
+  const categoriesObserved = [...new Set(titles.flatMap((item) => item.category?.trim() ? [item.category.trim()] : []))].sort((a, b) => a.localeCompare(b));
+  return {
+    sampledTitles: titles.length,
+    pricedTitles: prices.length,
+    rankedTitles: ranks.length,
+    reviewedTitles: reviews.length,
+    ratedTitles: ratings.length,
+    ...(prices.length ? { medianPrice: median(prices) } : {}),
+    ...(ranks.length ? { medianBestSellerRank: median(ranks) } : {}),
+    ...(reviews.length ? { medianReviewCount: median(reviews) } : {}),
+    ...(ratings.length ? { medianRating: median(ratings) } : {}),
+    publishedWithin365Days,
+    categoriesObserved,
+    disclaimer: STATISTICS_DISCLAIMER,
+  };
+}
+
 export function summarizeMarketIntelligence(report: KdpMarketIntelligenceReport): string {
   const validated = validateKdpMarketIntelligenceReport(report);
   const attention = validated.assessment.limitations.length;
@@ -191,7 +238,11 @@ function validateSignal(value: MarketSignal): MarketSignal {
 function validateComparable(value: ComparableTitle): ComparableTitle {
   required(value.title, "Comparable title"); required(value.observedAt, "Comparable title observedAt");
   if (!isIsoDate(value.observedAt)) throw new Error(`Comparable title "${value.title}" has an invalid observedAt timestamp.`);
-  if (value.price !== undefined && (!Number.isFinite(value.price) || value.price < 0)) throw new Error(`Comparable title "${value.title}" has an invalid price.`);
+  optionalNonNegative(value.price, `Comparable title "${value.title}" price`);
+  optionalPositiveInteger(value.bestSellerRank, `Comparable title "${value.title}" bestseller rank`);
+  optionalNonNegativeInteger(value.reviewCount, `Comparable title "${value.title}" review count`);
+  if (value.rating !== undefined && (!Number.isFinite(value.rating) || value.rating < 0 || value.rating > 5)) throw new Error(`Comparable title "${value.title}" rating must be between 0 and 5.`);
+  if (value.publishedDate !== undefined && Number.isNaN(Date.parse(value.publishedDate))) throw new Error(`Comparable title "${value.title}" publishedDate is invalid.`);
   if (value.sourceUrl !== undefined) validateHttpUrl(value.sourceUrl, `Comparable title "${value.title}" source URL`);
   return { ...value };
 }
@@ -220,6 +271,10 @@ function validateAssessment(value: MarketOpportunityAssessment): MarketOpportuni
   if (!Array.isArray(value.signals) || !Array.isArray(value.limitations)) throw new Error("Opportunity assessment signals and limitations must be arrays.");
   return { ...value, signals: uniqueStrings(value.signals, "Opportunity signals"), limitations: uniqueStrings(value.limitations, "Opportunity limitations"), disclaimer: value.disclaimer ?? DISCLAIMER };
 }
+function median(values: readonly number[]): number { const sorted = [...values].sort((a, b) => a - b); const middle = Math.floor(sorted.length / 2); return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2; }
+function optionalNonNegative(value: number | undefined, label: string): void { if (value !== undefined && (!Number.isFinite(value) || value < 0)) throw new Error(`${label} must be a non-negative number.`); }
+function optionalPositiveInteger(value: number | undefined, label: string): void { if (value !== undefined && (!Number.isInteger(value) || value <= 0)) throw new Error(`${label} must be a positive integer.`); }
+function optionalNonNegativeInteger(value: number | undefined, label: string): void { if (value !== undefined && (!Number.isInteger(value) || value < 0)) throw new Error(`${label} must be a non-negative integer.`); }
 function ensureEvidenceRefs(values: readonly string[], known: ReadonlySet<string>, label: string): void { for (const id of values) if (!known.has(id)) throw new Error(`${label} references missing evidence "${id}".`); }
 function uniqueStrings(values: readonly string[], label: string): string[] { if (!Array.isArray(values)) throw new Error(`${label} must be an array.`); const normalized = values.map((value) => required(value, label)); return [...new Set(normalized)]; }
 function validateHttpUrl(value: string, label: string): string { let url: URL; try { url = new URL(value); } catch { throw new Error(`${label} must be a valid URL.`); } if (url.protocol !== "https:" && url.protocol !== "http:") throw new Error(`${label} must use HTTP or HTTPS.`); return url.toString(); }
