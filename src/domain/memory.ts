@@ -27,23 +27,46 @@ export interface MemoryQuery {
   readonly projectId?: string; readonly class?: MemoryClass; readonly authority?: MemoryAuthority; readonly authoritativeOnly?: boolean;
   readonly relatedMemoryId?: string; readonly relevanceTags?: readonly string[]; readonly changedSince?: string; readonly limit?: number;
 }
-export function createMemoryRecord(input: {
-  id: string; projectId: string; class: MemoryClass; authority: MemoryAuthority; summary: string; content: string;
-  provenance?: readonly MemoryProvenance[]; supersedes?: string; relatedMemoryIds?: readonly string[]; relevanceTags?: readonly string[]; now?: string;
-}): MemoryRecord {
-  if (!input.id.trim()) throw new Error("Memory id is required.");
-  if (!input.projectId.trim()) throw new Error("Memory project id is required.");
-  if (!input.summary.trim()) throw new Error("Memory summary is required.");
-  if (!input.content.trim()) throw new Error("Memory content is required.");
-  if (input.supersedes === input.id) throw new Error("Memory cannot supersede itself.");
+export interface CreateMemoryRecordInput {
+  readonly id: string;
+  readonly projectId: string;
+  readonly class: MemoryClass;
+  readonly authority: MemoryAuthority;
+  readonly summary: string;
+  readonly content: string;
+  readonly provenance?: readonly MemoryProvenance[];
+  readonly supersedes?: string;
+  readonly relatedMemoryIds?: readonly string[];
+  readonly relevanceTags?: readonly string[];
+  readonly now?: string;
+}
+
+export function createMemoryRecord(input: CreateMemoryRecordInput): MemoryRecord {
+  if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("Memory input object is required.");
+
+  const id = requiredString(input.id, "Memory id");
+  const projectId = requiredString(input.projectId, "Memory project id");
+  const summary = requiredString(input.summary, "Memory summary");
+  const content = requiredString(input.content, "Memory content");
+  if (!isMemoryClass(input.class)) throw new Error(`Unsupported memory class "${String(input.class)}".`);
+  if (!isMemoryAuthority(input.authority)) throw new Error(`Unsupported memory authority "${String(input.authority)}".`);
+
   const provenance = normalizeProvenance(input.provenance ?? []);
   if (input.authority === "authoritative" && provenance.length === 0) throw new Error("Authoritative memory requires provenance.");
+
+  const supersedes = optionalString(input.supersedes, "Memory supersedes");
+  if (supersedes === id) throw new Error("Memory cannot supersede itself.");
+
+  const relatedMemoryIds = normalizeStrings(input.relatedMemoryIds ?? [], "Memory related ids");
+  const relevanceTags = normalizeStrings(input.relevanceTags ?? [], "Memory relevance tags");
   const now = input.now ?? new Date().toISOString();
+  validateTimestamp(now, "createdAt");
+
   const memory: MemoryRecord = {
-    id: input.id.trim(), projectId: input.projectId.trim(), class: input.class, authority: input.authority,
-    summary: input.summary.trim(), content: input.content.trim(), createdAt: now, updatedAt: now, provenance,
-    ...(input.supersedes ? { supersedes: input.supersedes.trim() } : {}),
-    relatedMemoryIds: normalizeStrings(input.relatedMemoryIds ?? []), relevanceTags: normalizeStrings(input.relevanceTags ?? [])
+    id, projectId, class: input.class, authority: input.authority,
+    summary, content, createdAt: now, updatedAt: now, provenance,
+    ...(supersedes ? { supersedes } : {}),
+    relatedMemoryIds, relevanceTags,
   };
   validateMemoryRecord(memory);
   return memory;
@@ -84,14 +107,40 @@ export function isMemoryProvenanceKind(value: unknown): value is MemoryProvenanc
   return typeof value === "string" && (MEMORY_PROVENANCE_KINDS as readonly string[]).includes(value);
 }
 
+function requiredString(value: unknown, label: string): string {
+  if (typeof value !== "string" || !value.trim()) throw new Error(`${label} is required.`);
+  return value.trim();
+}
+
+function optionalString(value: unknown, label: string): string | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+  if (typeof value !== "string") throw new Error(`${label} must be a string.`);
+  const normalized = value.trim();
+  return normalized || undefined;
+}
+
 function validateTimestamp(value: string, field: string): void {
   if (typeof value !== "string" || !value.trim() || Number.isNaN(Date.parse(value))) throw new Error(`Memory ${field} must be a valid timestamp.`);
 }
-function normalizeProvenance(provenance: readonly MemoryProvenance[]): readonly MemoryProvenance[] {
+
+function normalizeProvenance(provenance: unknown): readonly MemoryProvenance[] {
+  if (!Array.isArray(provenance)) throw new Error("Memory provenance must be an array.");
   return provenance.map((item) => {
-    if (!item.reference.trim()) throw new Error("Memory provenance reference is required.");
-    validateTimestamp(item.recordedAt, "provenance recordedAt");
-    return { ...item, reference: item.reference.trim() };
+    if (!item || typeof item !== "object" || Array.isArray(item)) throw new Error("Memory provenance entry must be an object.");
+    const value = item as Record<string, unknown>;
+    if (!isMemoryProvenanceKind(value.kind)) throw new Error("Memory provenance kind is invalid.");
+    const reference = requiredString(value.reference, "Memory provenance reference");
+    if (typeof value.recordedAt !== "string") throw new Error("Memory provenance recordedAt must be a valid timestamp.");
+    validateTimestamp(value.recordedAt, "provenance recordedAt");
+    return { kind: value.kind, reference, recordedAt: value.recordedAt };
   });
 }
-function normalizeStrings(values: readonly string[]): readonly string[] { return [...new Set(values.map((value) => value.trim()).filter(Boolean))].sort(); }
+
+function normalizeStrings(values: unknown, label: string): readonly string[] {
+  if (!Array.isArray(values)) throw new Error(`${label} must be an array.`);
+  const normalized = values.map((value) => {
+    if (typeof value !== "string") throw new Error(`${label} must contain strings.`);
+    return value.trim();
+  }).filter(Boolean);
+  return [...new Set(normalized)].sort();
+}

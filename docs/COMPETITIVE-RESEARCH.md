@@ -119,3 +119,79 @@ BookBub demonstrates why targeting, testing, and feedback loops matter. cite�
 **Rule:** research informs implementation; it never substitutes for functional proof.
 
 External product names and research are references only. Forge does not copy proprietary code or assets.
+
+---
+
+## Intelligence update — 2026-09-01
+
+This update establishes a standing engineering rule: **every substantial Author's Forge block should begin with a targeted competitive/technical research pass when current external patterns can materially improve the design.** Research should cover both production author applications and relevant open-source infrastructure. Findings must be classified as adopt now, adapt later, monitor, or reject; implementation still requires Forge-native design, tests, author-control review, and platform verification.
+
+### Memory and context systems
+
+**Graphiti / Zep temporal context graphs**
+- Current pattern: temporal entities and facts retain validity windows and provenance instead of overwriting history.
+- Retrieval combines semantic, keyword/BM25, and graph traversal signals.
+- Incremental graph updates avoid full recomputation after every change.
+- **Forge adaptation:** Project Brain should continue toward hybrid retrieval while preserving Forge's stronger explicit authority/lifecycle model. Relationship expansion must remain bounded, project-scoped, explainable, and provenance-backed.
+- **Do not copy:** external graph-database dependence for the core product. Forge remains local/recoverable and must not require Neo4j or a managed cloud graph to write a book.
+
+**Mem0 current memory architecture**
+- Current pattern: durable fact extraction plus multi-signal retrieval using semantic, keyword, entity, and temporal signals; entity graph links boost retrieval rather than forcing graph-specific output shapes.
+- Current managed graph memory automatically links memories through shared entities.
+- **Forge adaptation:** add entity/alias-aware ranking and temporal intent as scoring signals, but keep author-promoted canon and explicit memory authority separate from inferred/project-working memory.
+- **Do not copy:** silent inference that can become project truth. Forge's canon boundary remains author-controlled.
+
+### Author-app intelligence
+
+**Novelcrafter Codex — 2026 tracking controls**
+- Novelcrafter added case-sensitive entry matching and excluded-phrase controls to reduce false positives for ambiguous names such as ordinary words or common modal verbs.
+- It also supports cross-book Codex sharing, flexible context injection, custom prompt presets/components, personas, and local/external model providers.
+- **Forge adaptation:** add per-entity matching policy (aliases, case sensitivity, excluded phrases, perhaps exact-only mode) to Project Brain/Character/World retrieval rather than relying only on generic lexical saliency.
+- **Forge advantage target:** every match should expose why it was selected and which author-controlled entity/canon rule caused the match.
+
+**Sudowrite Plugins**
+- Current product pattern: composable custom AI tools can write, edit, analyze, consume Story Bible context, choose models, and run multi-stage workflows.
+- **Forge adaptation:** long-term Forge extension architecture should expose governed capability modules/prompt recipes with explicit input context, provider policy, output type, approval requirement, and artifact destination.
+- **Do not copy:** unrestricted prompt macros that can bypass canon or durable proposal review.
+
+**Plottr 2026 direction**
+- Plottr is deliberately emphasizing human-crafted planning rather than embedding AI, while continuing visual timelines, story/series bibles, family trees, offline use, cross-device access, synchronization, and collaboration.
+- **Forge lesson:** AI is not the product center. The manual author workflow must remain first-class even when no AI provider is configured.
+- **Forge adaptation:** keep visual planning and story-bible manipulation fully usable without AI; AI augments those workflows under author control.
+
+### Local-first / collaboration infrastructure
+
+**Yjs + y-indexeddb / Tiptap collaboration**
+- Current pattern: local browser persistence can keep document state available offline, then synchronize only changes when network service returns.
+- Yjs providers can be composed with local persistence and network synchronization; Tiptap builds collaborative editing/version features over Yjs.
+- **Forge adaptation candidate:** evaluate a CRDT-backed manuscript editing layer for eventual multi-device/collaborative editing while retaining the canonical durable project store and explicit revision/audit boundaries.
+- **Risk:** do not introduce a second hidden source of truth. Any CRDT layer must reconcile deterministically into Forge project state and preserve author-control/version evidence.
+
+**Automerge local-first model**
+- Current pattern: device-local application state remains primary, works offline, merges concurrent changes automatically, and retains change history/branching possibilities.
+- **Forge adaptation candidate:** useful reference for future Chromebook ↔ Android multi-device continuity, especially when both devices edit while offline.
+- **Decision:** monitor until the current single-author durable workflow is fully stable; collaboration must not destabilize the canonical manuscript/persistence model.
+
+### Near-term engineering consequences
+
+1. **001K:** runtime/type memory contracts become a single immutable source of truth.
+2. **001L:** `createMemoryRecord` becomes a deliberate runtime trust boundary instead of assuming TypeScript-perfect callers.
+3. **Next Brain candidate after Android's 001J:** entity-aware matching policy inspired by real Codex false-positive controls: aliases, case-sensitive matching, excluded phrases, and explainable evidence.
+4. **Following retrieval candidate:** evaluate hybrid lexical/entity/temporal scoring without requiring an external graph or vector service.
+5. **Later Studio architecture:** evaluate local-first CRDT collaboration only behind the existing durable project state and version-control contracts.
+6. **Later extension architecture:** define safe composable Forge capabilities/prompt recipes that cannot mutate canon without explicit author approval.
+
+### Research discipline
+
+For each future substantial block:
+
+1. inspect the current Forge implementation and tests first;
+2. search current relevant author products and open-source systems;
+3. record what works, what fails in practice, and what is changing;
+4. prefer mechanisms with evidence over feature-count imitation;
+5. check licensing and dependency cost before adopting code;
+6. adapt the idea to Forge's author-control, local/recoverable, provider-neutral architecture;
+7. prove the adaptation with focused tests plus full desktop/mobile acceptance;
+8. update this research file when the finding changes product direction materially.
+
+**Standing rule:** competitive intelligence is continuous input to engineering, not a one-time research phase and not permission to chase every trend.
