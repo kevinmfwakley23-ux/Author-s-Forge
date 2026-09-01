@@ -1,13 +1,13 @@
 (() => {
   "use strict";
-  const state=window.forgeSpecializedState,api=window.forgeSpecializedApi,$=selector=>document.querySelector(selector),esc=value=>String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
+  const state=window.forgeSpecializedState,api=window.forgeSpecializedApi,$=selector=>document.querySelector(selector),esc=value=>String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;","&gt;":"&gt;",'"':"&quot;","'":"&#39;"}[char]||char));
   if(!state||!api)return;
   const forgeProjectId=()=>new URLSearchParams(location.search).get("project")||localStorage.getItem("forge-specialized-project")||"forge-specialized";
   const base=()=>`/api/projects/${encodeURIComponent(forgeProjectId())}/specialized/${encodeURIComponent(state.current?.id||"")}`;
   const lines=value=>String(value||"").split(/\r?\n/).map(item=>item.trim()).filter(Boolean);
   const value=(name,fallback="")=>state.current?.modeData?.[name]??fallback;
   const select=(name,options,current)=>`<label>${label(name)}<select name="${name}">${options.map(option=>`<option value="${esc(option)}" ${option===current?"selected":""}>${esc(option.replaceAll("-"," "))}</option>`).join("")}</select></label>`;
-  const label=name=>({sentimentIntensity:"Sentiment intensity",humorPreference:"Humor preference",personalizationFacts:"Explicit personalization facts (one per line)",explicitFaithLanguage:"Explicit faith / religious wording to use (optional)",greetingPurpose:"Message purpose",birthdayContext:"Birthday context",distanceContext:"Across-distance context",belatedContext:"Belated context",privacyShareIntent:"Privacy / share intent",valueProposition:"Value / offer / event promise",brandElements:"Brand elements (one per line)",trustElements:"Trust elements (one per line)",contact:"Contact information",qrDestination:"QR destination"}[name]||name);
+  const label=name=>({sentimentIntensity:"Sentiment intensity",humorPreference:"Humor preference",personalizationFacts:"Explicit personalization facts (one per line)",explicitFaithLanguage:"Explicit faith / religious wording to use (optional)",greetingPurpose:"Message purpose",birthdayContext:"Birthday context",distanceContext:"Across-distance context",belatedContext:"Belated context",dressCode:"Dress code (optional)",privacyShareIntent:"Privacy / share intent",valueProposition:"Value / offer / event promise",brandElements:"Brand elements (one per line)",trustElements:"Trust elements (one per line)",contact:"Contact information",qrDestination:"QR destination"}[name]||name);
 
   function render(){const mode=state.current?.mode,root=$("#mode-fields");if(!root||!mode)return;root.querySelector('[data-extended-mode-fields]')?.remove();let html="";
     if(mode==="greeting-card"||mode==="birthday-card"){
@@ -16,7 +16,7 @@
       html+=`<label>${label("personalizationFacts")}<textarea name="personalizationFacts">${esc((value("personalizationFacts",[])||[]).join("\n"))}</textarea></label><label>${label("explicitFaithLanguage")}<textarea name="explicitFaithLanguage">${esc(value("explicitFaithLanguage"))}</textarea></label>`;
       if(mode==="greeting-card")html+=`<label>${label("greetingPurpose")}<input name="greetingPurpose" value="${esc(value("greetingPurpose"))}" placeholder="thank, encourage, celebrate, support…"></label>`;
       else html+=select("birthdayContext",["standard","milestone","across-distance","belated"],value("birthdayContext","standard"))+`<label>${label("distanceContext")}<textarea name="distanceContext">${esc(value("distanceContext"))}</textarea></label><label>${label("belatedContext")}<textarea name="belatedContext">${esc(value("belatedContext"))}</textarea></label>`;
-    } else if(mode==="invitation")html+=select("privacyShareIntent",["private","invite-only","shareable","public"],value("privacyShareIntent","invite-only"));
+    } else if(mode==="invitation")html+=`<label>${label("dressCode")}<input name="dressCode" value="${esc(value("dressCode"))}"></label>`+select("privacyShareIntent",["private","invite-only","shareable","public"],value("privacyShareIntent","invite-only"));
     else if(mode==="flyer")html+=`<label>${label("valueProposition")}<textarea name="valueProposition">${esc(value("valueProposition"))}</textarea></label><label>${label("brandElements")}<textarea name="brandElements">${esc((value("brandElements",[])||[]).join("\n"))}</textarea></label><label>${label("trustElements")}<textarea name="trustElements">${esc((value("trustElements",[])||[]).join("\n"))}</textarea></label><label>${label("contact")}<input name="contact" value="${esc(value("contact"))}"></label><label>${label("qrDestination")}<input name="qrDestination" value="${esc(value("qrDestination"))}"></label>`;
     if(!html)return;const extended=document.createElement("div");extended.dataset.extendedModeFields="true";extended.className="sc-mode-fields";extended.innerHTML=html;root.append(extended);
   }
