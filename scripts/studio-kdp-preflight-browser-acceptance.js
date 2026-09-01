@@ -71,6 +71,7 @@ async function main() {
     await page.locator("#kdp-cover-height").fill(String(layout.dimensions.heightInches));
     await page.locator("#kdp-preflight-form").evaluate((form) => form.requestSubmit());
     await page.waitForFunction(() => document.querySelector("#kdp-preflight-summary")?.textContent.startsWith("READY"));
+    await page.waitForFunction(() => document.querySelector("#kdp-preflight-history")?.textContent.includes("READY"));
     assert.match(await page.locator("#kdp-preflight-summary").innerText(), /0 errors/);
     assert.match(await page.locator("#kdp-preflight-history").innerText(), /READY/);
 
