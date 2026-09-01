@@ -89,6 +89,17 @@ PORTABLE PROJECT PACKAGE
 
 This section is the **living engineering checkpoint** for what is finished, what exists as a foundation, and what is next. Update it whenever a major capability is verified or the active build target changes.
 
+### Mission 059 parallel engineering coordination
+
+This README is the shared coordination checkpoint for simultaneous Chromebook and phone work. Both lanes must read current `main`, this README, `docs/AUTHORS_FORGE_CANONICAL_ARCHITECTURE.md`, and `docs/MISSION-059-SPECIALIZED-CREATION-OFFICE.md` before beginning a new coherent write phase. `main` remains shared truth; no lane should assume the other lane's state without checking GitHub first.
+
+- **Chromebook lane owns 059B shared Specialized Creation foundation**: shared durable project/workspace/revision/proposal storage, project-scoped application facade, Project Brain/provider/asset bridges, renderer-independent composition contract, shared production-profile/preflight foundation, and shared integration/CI fixes required by those contracts.
+- **Phone lane owns 059D comic-specific implementation and hardening**, inheriting PR #38's comic implementation and reconciling/hardening it instead of creating a parallel comic stack.
+- **Boundary rule:** Chromebook must not take over comic-specific scripting, page/panel, reading-order, lettering, comic export, or comic-editor behavior. Phone must not duplicate shared Brain/provider/storage/composition/production infrastructure. A shared-contract change needed by comic work must be explicitly flagged in the README or PR before either lane crosses the boundary.
+- **PR #38 (`office/specialized/mission-059-complete`) is the current integration branch** for Mission 059 implementation. Both lanes must inspect its current head and CI state before writing overlapping files.
+- **Synchronization rule:** after either lane merges or advances shared integration state, the other lane refreshes from the new shared truth before its next write phase. Do not weaken tests, bypass author approval, duplicate infrastructure, or treat preview-only behavior as completion.
+- **Current shared verification focus:** get PR #38 fully green across build, unit, completion, browser, and Android/mobile gates while preserving lane ownership above. Only then should Mission 059 phase completion be claimed.
+
 ### ✅ Completed / verified major capability areas
 
 - **Core local-first Studio foundation** — durable projects, browser application, Chromebook/Android targets, PWA shell boundary, project package/recovery foundations and CI acceptance gates.
