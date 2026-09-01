@@ -1,11 +1,11 @@
 import type { AiModelResource } from "../application/ai-model-broker";
 
-/** Build the canonical broker resource registry from real runtime configuration only. */
+/** Build the canonical broker resource registry from real runtime configuration only. Configuration means eligible to try; health is established by probes or successful routed execution. */
 export function discoverConfiguredAiModelResources(env: NodeJS.ProcessEnv = process.env): AiModelResource[] {
   const resources: AiModelResource[] = [];
   const add = (provider: string, model: string | undefined, configured: boolean, capabilities: AiModelResource["capabilities"]): void => {
     if (!configured) return;
-    resources.push({ provider, model: model?.trim() || "auto", configured: true, healthy: true, capabilities });
+    resources.push({ provider, model: model?.trim() || "auto", configured: true, capabilities });
   };
   add("omniroute", env.OMNIROUTE_MODEL, Boolean(env.OMNIROUTE_BASE_URL?.trim()), { contextWindow: 128000, maxOutputTokens: 16000, streaming: true, creativeWriting: true, instructionFollowing: true, longContext: true });
   add("9router", env.ROUTER9_MODEL, Boolean(env.ROUTER9_BASE_URL?.trim()), { contextWindow: 128000, maxOutputTokens: 16000, streaming: true, creativeWriting: true, instructionFollowing: true, longContext: true });
