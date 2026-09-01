@@ -1,4 +1,5 @@
 import type { SpecializedCreationMode } from "./specialized-creation";
+import { emptyTcgGameFramework, validateTcgGameFramework, type TcgGameFramework } from "./specialized-creation-tcg-world";
 
 export const SPECIALIZED_OFFICE_FORMAT_VERSION = 1 as const;
 export const SPECIALIZED_DOCUMENT_FORMAT_VERSION = 1 as const;
@@ -131,8 +132,26 @@ export interface InvitationData { readonly eventType:string; readonly primaryNam
 export interface FlyerData { readonly objective:string; readonly audience:string; readonly headline:string; readonly subhead?:string; readonly details:string; readonly primaryCta:string; readonly destination:string; readonly secondaryActions:readonly string[]; readonly disclaimer?:string; }
 export type CardFieldType = "text"|"number"|"boolean"|"enum";
 export interface TcgFieldDefinition { readonly key:string; readonly label:string; readonly type:CardFieldType; readonly required:boolean; readonly values?:readonly string[]; }
-export interface TcgCardRecord { readonly id:string; readonly collectorNumber:string; readonly fields:Readonly<Record<string,string|number|boolean>>; readonly artworkAssetId?:string; readonly templateId:string; }
-export interface TcgData { readonly gameTitle:string; readonly setId:string; readonly setName:string; readonly fields:readonly TcgFieldDefinition[]; readonly cards:readonly TcgCardRecord[]; readonly templates:readonly {id:string; name:string; parentId?:string; tokens:Readonly<Record<string,string|number>>}[]; readonly playtestSnapshots:readonly {id:string; createdAt:string; cardIds:readonly string[]; note:string}[]; }
+export interface TcgCardRecord {
+  readonly id:string;
+  readonly collectorNumber:string;
+  readonly fields:Readonly<Record<string,string|number|boolean>>;
+  readonly artworkAssetId?:string;
+  readonly templateId:string;
+  readonly characterLineId?:string;
+  readonly evolutionStageId?:string;
+  readonly territoryId?:string;
+}
+export interface TcgData {
+  readonly gameTitle:string;
+  readonly setId:string;
+  readonly setName:string;
+  readonly fields:readonly TcgFieldDefinition[];
+  readonly cards:readonly TcgCardRecord[];
+  readonly templates:readonly {id:string; name:string; parentId?:string; tokens:Readonly<Record<string,string|number>>}[];
+  readonly playtestSnapshots:readonly {id:string; createdAt:string; cardIds:readonly string[]; note:string}[];
+  readonly gameFramework?:TcgGameFramework;
+}
 export type SpecializedModeData = ComicData | FoldedCardData | InvitationData | FlyerData | TcgData;
 
 export interface SpecializedOfficeProject {
@@ -170,7 +189,7 @@ export function emptyModeData(mode:SpecializedCreationMode):SpecializedModeData 
   if(mode==="birthday-card") return Object.freeze({occasion:"birthday",tone:"warm",message:""}) as FoldedCardData;
   if(mode==="invitation") return Object.freeze({eventType:"event",primaryNames:[]}) as InvitationData;
   if(mode==="flyer") return Object.freeze({objective:"",audience:"",headline:"",details:"",primaryCta:"",destination:"",secondaryActions:[]}) as FlyerData;
-  return Object.freeze({gameTitle:"",setId:"",setName:"",fields:[],cards:[],templates:[],playtestSnapshots:[]}) as TcgData;
+  return Object.freeze({gameTitle:"",setId:"",setName:"",fields:[],cards:[],templates:[],playtestSnapshots:[],gameFramework:emptyTcgGameFramework()}) as TcgData;
 }
 
 export function createSpecializedOfficeProject(input:{id:string;forgeProjectId:string;mode:SpecializedCreationMode;title:string;brief:string;audience?:string;now?:string}):SpecializedOfficeProject {
@@ -203,9 +222,10 @@ export function validateModeData(mode:SpecializedCreationMode,data:SpecializedMo
   if(mode==="invitation"){const invite=data as InvitationData;if(!invite.eventType.trim())throw new Error("Invitation event type is required.");return;}
   if(mode==="flyer"){const flyer=data as FlyerData;if(flyer.secondaryActions.length>20)throw new Error("Flyer secondary action list is unreasonable.");return;}
   if(mode==="trading-card-game"){
-    const tcg=data as TcgData;const fields=new Set<string>();for(const field of tcg.fields){required(field.key,"TCG field key");required(field.label,"TCG field label");if(fields.has(field.key))throw new Error(`Duplicate TCG field "${field.key}".`);fields.add(field.key);if(field.type==="enum"&&(!field.values?.length||new Set(field.values).size!==field.values.length))throw new Error(`Enum TCG field "${field.key}" requires unique allowed values.`);}
+    const tcg=data as TcgData;if(tcg.gameFramework)validateTcgGameFramework(tcg.gameFramework);const fields=new Set<string>();for(const field of tcg.fields){required(field.key,"TCG field key");required(field.label,"TCG field label");if(fields.has(field.key))throw new Error(`Duplicate TCG field "${field.key}".`);fields.add(field.key);if(field.type==="enum"&&(!field.values?.length||new Set(field.values).size!==field.values.length))throw new Error(`Enum TCG field "${field.key}" requires unique allowed values.`);}
     const templates=new Map<string,{id:string;name:string;parentId?:string;tokens:Readonly<Record<string,string|number>>}>();for(const template of tcg.templates){required(template.id,"TCG template id");required(template.name,"TCG template name");if(templates.has(template.id))throw new Error(`Duplicate TCG template "${template.id}".`);templates.set(template.id,template);}for(const template of tcg.templates){if(template.parentId&&!templates.has(template.parentId))throw new Error(`TCG template "${template.id}" references missing parent "${template.parentId}".`);if(template.parentId===template.id)throw new Error(`TCG template "${template.id}" cannot inherit itself.`);assertNoTemplateCycle(template.id,templates);}
-    const ids=new Set<string>(),numbers=new Set<string>();for(const card of tcg.cards){required(card.id,"TCG card id");required(card.collectorNumber,"TCG collector number");required(card.templateId,"TCG card template id");if(ids.has(card.id))throw new Error(`Duplicate TCG card id "${card.id}".`);if(numbers.has(card.collectorNumber))throw new Error(`Duplicate collector number "${card.collectorNumber}".`);if(!templates.has(card.templateId))throw new Error(`Card "${card.id}" references missing template "${card.templateId}".`);ids.add(card.id);numbers.add(card.collectorNumber);for(const field of tcg.fields){const value=card.fields[field.key];if(field.required&&(value===undefined||value===null||String(value).trim()===""))throw new Error(`Card "${card.id}" missing required field "${field.key}".`);if(value!==undefined&&value!==null)validateTcgFieldValue(card.id,field,value);}}
+    const characterLines=new Map(tcg.gameFramework?.characterLines.map(line=>[line.id,line])??[]),territoryIds=new Set(tcg.gameFramework?.worldMaps.flatMap(map=>map.territories.map(territory=>territory.id))??[]);
+    const ids=new Set<string>(),numbers=new Set<string>();for(const card of tcg.cards){required(card.id,"TCG card id");required(card.collectorNumber,"TCG collector number");required(card.templateId,"TCG card template id");if(ids.has(card.id))throw new Error(`Duplicate TCG card id "${card.id}".`);if(numbers.has(card.collectorNumber))throw new Error(`Duplicate collector number "${card.collectorNumber}".`);if(!templates.has(card.templateId))throw new Error(`Card "${card.id}" references missing template "${card.templateId}".`);if(card.evolutionStageId&&!card.characterLineId)throw new Error(`Card "${card.id}" evolution stage requires character-line lineage.`);if(card.characterLineId){const line=characterLines.get(card.characterLineId);if(!line)throw new Error(`Card "${card.id}" references missing character line "${card.characterLineId}".`);if(card.evolutionStageId&&!line.stages.some(stage=>stage.id===card.evolutionStageId))throw new Error(`Card "${card.id}" references missing evolution stage "${card.evolutionStageId}".`);}if(card.territoryId&&!territoryIds.has(card.territoryId))throw new Error(`Card "${card.id}" references missing territory "${card.territoryId}".`);ids.add(card.id);numbers.add(card.collectorNumber);for(const field of tcg.fields){const value=card.fields[field.key];if(field.required&&(value===undefined||value===null||String(value).trim()===""))throw new Error(`Card "${card.id}" missing required field "${field.key}".`);if(value!==undefined&&value!==null)validateTcgFieldValue(card.id,field,value);}}
     return;
   }
   const card=data as FoldedCardData;if(!card.occasion.trim()||!card.tone.trim())throw new Error("Card occasion and tone are required.");
