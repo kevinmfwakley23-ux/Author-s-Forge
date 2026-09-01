@@ -17,6 +17,8 @@ export interface PromotionPerformanceState {
   readonly memoryId: string;
 }
 
+type PromotionPerformanceRecordInput = Omit<PromotionPerformanceSnapshot, "formatVersion" | "projectId" | "bookId" | "campaignId" | "id"> & { readonly id?: string };
+
 export class StudioPromotionPerformanceService {
   private readonly campaigns: StudioMarketingCampaignService;
 
@@ -28,7 +30,7 @@ export class StudioPromotionPerformanceService {
     projectId: string,
     bookId: string,
     campaignId: string,
-    input: Omit<PromotionPerformanceSnapshot, "formatVersion" | "projectId" | "bookId" | "campaignId">,
+    input: PromotionPerformanceRecordInput,
     options: { readonly now?: string; readonly memoryId?: string } = {},
   ): Promise<PromotionPerformanceState> {
     const project = await this.load(projectId);
