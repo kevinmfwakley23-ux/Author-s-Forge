@@ -82,6 +82,14 @@ function memoryIds(project) {
   return project.memories.map((memory) => memory.id).sort();
 }
 
+function packageProject(pkg) {
+  const stateFile = pkg.files.find((file) => file.path === "project-state.json" && file.encoding === "utf8");
+  assert.ok(stateFile, "Rollback package must contain project-state.json");
+  const envelope = JSON.parse(stateFile.content);
+  assert.ok(envelope.project, "Rollback package must contain the Studio project envelope");
+  return envelope.project;
+}
+
 test.before(async () => {
   dataDir = await mkdtemp(join(tmpdir(), "forge-studio-backup-data-"));
   backupDir = await mkdtemp(join(tmpdir(), "forge-studio-backup-vault-"));
@@ -181,7 +189,7 @@ test("Studio backup vault creates, persists, previews, restores, and deletes aut
   });
   assert.equal(result.response.status, 200, JSON.stringify(result.body));
   assert.deepEqual(memoryIds(result.body.restored), ["baseline-memory"]);
-  assert.deepEqual(memoryIds(result.body.rollbackPackage.projectState.project), ["baseline-memory", "later-memory"]);
+  assert.deepEqual(memoryIds(packageProject(result.body.rollbackPackage)), ["baseline-memory", "later-memory"]);
 
   await stopServer();
   await startServer();
