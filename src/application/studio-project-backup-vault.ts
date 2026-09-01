@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { createProjectStorageBinding, validateForgeProjectId } from "../domain/external-storage";
 import { FileProjectStore } from "../infrastructure/file-project-store";
 import { LocalFileStorageProvider } from "../infrastructure/local-storage-provider";
@@ -24,8 +25,8 @@ export class StudioProjectBackupVault {
   public async create(projectId: string, input: unknown = {}) {
     const id = validateForgeProjectId(projectId);
     const request = objectInput(input, "Project backup request");
-    const exportedAt = optionalTimestamp(request.exportedAt, "Project backup exportedAt");
-    const backupId = optionalText(request.backupId, "Project backup id");
+    const exportedAt = optionalTimestamp(request.exportedAt, "Project backup exportedAt") ?? new Date().toISOString();
+    const backupId = optionalText(request.backupId, "Project backup id") ?? randomUUID();
     return this.backups.backupExisting(id, this.binding(id), exportedAt, backupId);
   }
 
