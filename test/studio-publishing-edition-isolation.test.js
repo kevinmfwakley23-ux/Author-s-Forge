@@ -98,6 +98,20 @@ async function fixture() {
   return { root, store, projectId, bookId };
 }
 
+function ebookReadinessEvidence(withCover = false) {
+  return {
+    manuscript: {
+      hasTitlePage: true,
+      hasCopyrightPage: true,
+      hasTableOfContents: true,
+    },
+    ...(withCover ? { cover: { format: "ebook", fileType: "jpeg", hasFront: true, validated: true } } : {}),
+    images: { required: false },
+    formatting: { fileTypes: ["epub"], validated: true },
+    production: { fileTypes: ["epub"], validated: true },
+  };
+}
+
 test("ebook readiness cannot inherit an approved paperback cover from the same book", async (t) => {
   const { root, store, projectId, bookId } = await fixture();
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -106,16 +120,7 @@ test("ebook readiness cannot inherit an approved paperback cover from the same b
     bookId,
     releaseFormat: "ebook",
     now: "2026-08-31T10:05:00.000Z",
-    evidence: {
-      manuscript: {
-        hasTitlePage: true,
-        hasCopyrightPage: true,
-        hasTableOfContents: true,
-      },
-      images: { required: false },
-      formatting: { fileTypes: ["epub"], validated: true },
-      production: { fileTypes: ["epub"], validated: true },
-    },
+    evidence: ebookReadinessEvidence(false),
   });
 
   assert.equal(response.status, 201);
@@ -128,4 +133,35 @@ test("ebook readiness cannot inherit an approved paperback cover from the same b
   assert.equal(coverValidation.status, "attention", "paperback approval must not satisfy ebook cover validation");
   assert.equal(response.payload.checks.find((check) => check.id === "cover-back").status, "passed", "ebook correctly does not require a back cover");
   assert.equal(response.payload.checks.find((check) => check.id === "cover-spine").status, "passed", "ebook correctly does not require a spine");
+});
+
+test("release gate blocks an ebook readiness audit after Publishing metadata changes", async (t) => {
+  const { root, store, projectId, bookId } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const handler = createStudioPublishingRoutes(store);
+  const readiness = await invoke(handler, projectId, `/api/projects/${projectId}/publishing/readiness`, {
+    bookId,
+    releaseFormat: "ebook",
+    now: "2026-08-31T10:05:00.000Z",
+    evidence: ebookReadinessEvidence(true),
+  });
+  assert.equal(readiness.status, 201);
+  assert.equal(readiness.payload.checks.filter((check) => check.status === "attention" && check.severity === "error").length, 0, "fixture should have no release-blocking Publishing errors before mutation");
+
+  const metadataService = new StudioPublishingMetadataService(store);
+  const current = await metadataService.get(projectId, bookId);
+  assert.ok(current);
+  const { formatVersion, projectId: ignoredProject, bookId: ignoredBook, updatedAt, ...editable } = current.metadata;
+  await metadataService.save(projectId, bookId, {
+    ...editable,
+    description: `${editable.description} This later revision intentionally invalidates the earlier readiness audit.`,
+  }, { now: "2026-08-31T10:06:00.000Z", reference: "stale-readiness-test" });
+
+  const gate = await invoke(handler, projectId, `/api/projects/${projectId}/release-gate?bookId=${encodeURIComponent(bookId)}&format=ebook`);
+  assert.equal(gate.status, 200);
+  assert.equal(gate.payload.status, "blocked");
+  const stale = gate.payload.blockers.find((blocker) => blocker.id === "publishing-readiness-stale");
+  assert.ok(stale, "release gate must surface a stale Publishing readiness blocker");
+  assert.match(stale.message, /metadata changed after the readiness audit/i);
+  assert.match(stale.remediation, /run Publishing readiness again/i);
 });
