@@ -22,6 +22,7 @@ export interface ProjectBrainQuery {
   readonly entityMatchRules?: readonly ProjectBrainEntityMatchRule[];
   readonly includeWorkingState?: boolean;
   readonly changedSince?: string;
+  readonly asOf?: string;
   readonly limit?: number;
 }
 
@@ -37,6 +38,7 @@ export interface ProjectBrainContext {
   readonly working: readonly MemoryRecord[];
   readonly changed: readonly MemoryRecord[];
   readonly evidence: readonly ProjectBrainSelectionEvidence[];
+  readonly asOf?: string;
 }
 
 export function assembleProjectBrainContext(store: ProjectMemoryStore, query: ProjectBrainQuery): ProjectBrainContext {
@@ -44,7 +46,10 @@ export function assembleProjectBrainContext(store: ProjectMemoryStore, query: Pr
 
   const classFilter = normalizedQuery.taskMemoryClasses;
   const filterClasses = (memory: MemoryRecord): boolean => classFilter === undefined || classFilter.includes(memory.class);
-  const candidates = store.query({ projectId: normalizedQuery.projectId, changedSince: normalizedQuery.changedSince })
+  const sourceMemories = normalizedQuery.asOf
+    ? store.queryAt({ projectId: normalizedQuery.projectId }, normalizedQuery.asOf)
+    : store.query({ projectId: normalizedQuery.projectId, changedSince: normalizedQuery.changedSince });
+  const candidates = sourceMemories
     .filter(filterClasses)
     .filter(isContextEligible);
   const ranked = rankMemories(candidates, normalizedQuery);
@@ -65,6 +70,7 @@ export function assembleProjectBrainContext(store: ProjectMemoryStore, query: Pr
     working,
     changed,
     evidence: limited.map(({ memory, score, reasons }) => ({ memoryId: memory.id, score, reasons })),
+    ...(normalizedQuery.asOf === undefined ? {} : { asOf: normalizedQuery.asOf }),
   };
 }
 
@@ -139,6 +145,7 @@ function scoreMemory(memory: MemoryRecord, query: ProjectBrainQuery): RankedMemo
     score += 4;
     reasons.push("changed-since");
   }
+  if (query.asOf) reasons.push(`as-of:${query.asOf}`);
 
   return { memory, score, reasons, saliencyMatches };
 }
@@ -250,6 +257,10 @@ function normalizeQuery(query: ProjectBrainQuery): ProjectBrainQuery {
   if (query.changedSince !== undefined && (typeof query.changedSince !== "string" || !query.changedSince.trim() || Number.isNaN(Date.parse(query.changedSince)))) {
     throw new Error("Project Brain changedSince must be a valid timestamp.");
   }
+  if (query.asOf !== undefined && (typeof query.asOf !== "string" || !query.asOf.trim() || Number.isNaN(Date.parse(query.asOf)))) {
+    throw new Error("Project Brain asOf must be a valid timestamp.");
+  }
+  if (query.changedSince !== undefined && query.asOf !== undefined) throw new Error("Project Brain changedSince and asOf cannot be combined.");
 
   const taskMemoryClasses = normalizeMemoryClasses(query.taskMemoryClasses);
   const relevanceTags = normalizeStringArray(query.relevanceTags, "relevance tags");
@@ -265,6 +276,7 @@ function normalizeQuery(query: ProjectBrainQuery): ProjectBrainQuery {
     ...(relatedMemoryIds === undefined ? {} : { relatedMemoryIds }),
     ...(entityMatchRules === undefined ? {} : { entityMatchRules }),
     ...(query.changedSince === undefined ? {} : { changedSince: query.changedSince.trim() }),
+    ...(query.asOf === undefined ? {} : { asOf: query.asOf.trim() }),
   };
 }
 
