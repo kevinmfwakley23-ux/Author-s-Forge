@@ -51,12 +51,13 @@ test("Guided Journal AI uses shared Project Brain context and returns provider e
     return { provider: "openai", model: "test-model", requestId: "req-1", text: JSON.stringify({ prompts: [{ text: "What part of your past still teaches you today?", tags: ["reflection"] }, { text: "Which memory would you preserve for someone you love?", tags: ["memory"] }] }) };
   };
   const service = new GuidedJournalIntelligenceService(memory, new BookCoverStudioService(), fakeAi);
-  const proposal = await service.proposePrompts({ projectId: "project-1", category: "remember", count: 2, purpose: "family reflection", existingPromptTexts: ["What did you learn yesterday?"] });
+  const proposal = await service.proposePrompts({ projectId: "project-1", category: "remember", count: 2, purpose: " family reflection ", audience: "   ", existingPromptTexts: ["What did you learn yesterday?"] });
   assert.equal(proposal.prompts.length, 2);
   assert.equal(proposal.prompts[0].category, "remember");
   assert.equal(proposal.ai.provider, "openai");
   assert.equal(captured.context.projectId, "project-1");
   assert.ok(captured.context.taskMemoryClasses.includes("style-memory"));
+  assert.deepEqual(captured.context.queryTerms, ["remember", "family reflection", "reader"]);
   assert.ok(captured.user.includes("Do not repeat"));
 });
 
@@ -68,13 +69,18 @@ test("Guided Journal AI rejects fake or malformed provider output instead of inv
 test("journal edition and cover plan are connected to Project Brain and authoritative production geometry", async () => {
   const memory = new ProjectMemoryStore();
   const covers = new BookCoverStudioService();
-  const fakeAi = async () => ({ provider: "kings", model: "journal-cover", text: JSON.stringify({ frontPrompt: "A thoughtful minimal journal cover with a subtle question mark motif", backText: "A guided place to remember, discover, challenge, create, become, and hope.", coverStatement: { text: "Ask a better question.", tags: ["better-question"] } }) });
+  let capturedCoverRequest;
+  const fakeAi = async (request) => {
+    capturedCoverRequest = request;
+    return { provider: "kings", model: "journal-cover", text: JSON.stringify({ frontPrompt: "A thoughtful minimal journal cover with a subtle question mark motif", backText: "A guided place to remember, discover, challenge, create, become, and hope.", coverStatement: { text: "Ask a better question.", tags: ["better-question"] } }) };
+  };
   const service = new GuidedJournalIntelligenceService(memory, covers, fakeAi);
   const edition = journal("lined");
   const format = defaultJournalInteriorFormat("lined", 2);
   const layout = service.createProductionLayout(edition, format);
-  const direction = await service.proposeCoverDirection({ projectId: "project-1", journal: edition, audience: "adults", tone: "thoughtful" });
+  const direction = await service.proposeCoverDirection({ projectId: "project-1", journal: edition, audience: " adults ", tone: "   " });
   assert.equal(direction.ai.provider, "kings");
+  assert.deepEqual(capturedCoverRequest.context.queryTerms, ["The Better Question", "adults", "reflective"]);
   const cover = service.createCoverPlan({ journal: edition, layout, bookId: "book-1", coverPlanId: "cover-1", author: "Kevin Wakley", frontPrompt: direction.frontPrompt, backText: direction.backText, now: "2026-09-01T00:00:00.000Z" });
   assert.equal(cover.publishing.pageCount, layout.totalPages);
   assert.equal(cover.publishing.trimWidthInches, format.trimWidthInches);

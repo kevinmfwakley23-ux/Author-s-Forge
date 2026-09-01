@@ -89,68 +89,69 @@ PORTABLE PROJECT PACKAGE
 
 This section is the **living engineering checkpoint** for what is finished, what exists as a foundation, and what is next. Update it whenever a major capability is verified or the active build target changes.
 
-### Permanent Chromebook ↔ Phone two-pass completion workflow
+### Permanent Codex → Android → Codex three-pass completion workflow
 
-This README is the shared coordination board for the two engineering lanes. Both lanes must read current `main` and this README before beginning a new coherent write phase and after the other lane reports a completed block. GitHub `main` is shared truth; neither lane assumes the other lane's state without checking the repository first.
+This README is the shared coordination board for the two engineering lanes and three passes. Both lanes must read current `main`, open pull requests and this README before beginning a coherent write phase and after the other lane reports a completed block. GitHub `main` is shared truth; neither lane assumes the other lane's state without checking the repository first.
 
-The project is now worked from the beginning of the author journey forward, office by office, using a **lead pass + verification/improvement pass**:
+The project is worked from the beginning of the author journey forward, office by office, using a **Codex first pass + Android second pass + Codex final pass**:
 
-1. **Phone lead pass** — open the next office/capability in product order, inspect the existing implementation first, research current best practices, relevant open-source repositories and authoritative web sources, identify concrete improvements that fit Forge's architecture, implement those improvements without creating parallel infrastructure, add or strengthen tests, verify the work, and record the completed block plus branch/PR/commit/tests in this README.
-2. **Chromebook follow-behind pass** — after the phone marks that block ready for review, inspect the actual phone diff and current `main`, independently research the same office/capability for additional proven improvements, reconcile rather than rebuild, strengthen implementation/architecture/tests where justified, run the required verification gates, and record either **PASS — MOVE FORWARD** or the remaining blocker in this README.
-3. **Advance rule** — the phone does not treat an office as finally cleared until the Chromebook follow-behind pass is complete. Once Chromebook marks **PASS — MOVE FORWARD**, both lanes move to the next office/capability in product order. The Chromebook therefore stays one verified block behind the phone rather than competing in the same files.
-4. **Research rule** — both passes actively inspect authoritative documentation, current web research and useful open-source implementations. Adopt ideas and proven patterns, not disconnected feature lists or copied proprietary code. Improvements must preserve Forge's Project Brain, durable state, author authority, provider boundaries, production truth and platform-neutral architecture.
-5. **Overlap rule** — only one lane owns a coherent implementation block at a time. A shared-contract change needed by the lead lane must be written here before crossing into the follow-behind lane's active files. The follow-behind pass may modify the lead work after that lead block is explicitly handed off, because review/reconciliation is its assigned job.
-6. **Verification rule** — no block is cleared by source inspection alone. Required evidence is the strongest applicable combination of domain/application tests, build/completion checks, real browser acceptance, restart persistence, artifact inspection, Chromebook fit and Android/mobile acceptance. Tests are never weakened to manufacture green status.
-7. **README handoff rule** — every completed verified block updates this section with: active office/capability; lead owner; follow-behind owner; branch/PR/commit; research/improvements made; verification status; unresolved blockers; and whether the next office is cleared to begin.
+1. **Codex first pass** — Codex opens the next office/capability in product order, inspects the existing implementation first, researches current best practices, useful open-source repositories and authoritative sources, implements improvements inside Forge's existing architecture, strengthens tests, verifies the work and records an exact branch/PR/commit handoff here.
+2. **Lead-distance rule** — Codex keeps a queue of several coherent completed blocks ahead of Android. Codex continues forward while Android has verified handoffs available and does not wait on Android after every block.
+3. **Android second pass** — Android follows completed Codex handoffs in product order, inspects the actual diff and current `main`, independently checks the same capability, reconciles rather than rebuilds, and records either **SECOND PASS CLEAR** or the remaining blocker. Android never duplicates Codex's active forward block.
+4. **Codex final pass** — only after the several-block first-pass lead exists, Codex returns to **001A** and traverses every block, branch and office again. This pass reconciles Android's findings against current `main`, performs the strongest applicable release verification and records either **FINAL PASS — MOVE FORWARD** or an exact blocker.
+5. **Research rule** — every pass actively inspects authoritative documentation, current web research and useful open-source implementations. Adopt ideas and proven patterns, not disconnected feature lists or copied proprietary code. Improvements must preserve Forge's Project Brain, durable state, author authority, provider boundaries, production truth and platform-neutral architecture.
+6. **Overlap rule** — only one lane owns a coherent implementation block at a time. A shared-contract change needed by the first-pass lane must be written here before crossing into Android's active files. Android may modify a handed-off block during its assigned reconciliation pass; Codex may modify it again during the final pass.
+7. **Verification rule** — no block is cleared by source inspection alone. Required evidence is the strongest applicable combination of domain/application tests, build/completion checks, real browser acceptance, restart persistence, artifact inspection, Chromebook fit and Android/mobile acceptance. Tests are never weakened to manufacture green status.
+8. **README handoff rule** — every completed verified block updates this section with: active office/capability; pass owner; next-pass owner; branch/PR/commit; research/improvements made; verification status; unresolved blockers; and whether the next block is cleared to begin.
 
-**Traversal starts at the Forge Brain / Project Brain and proceeds through the product journey until the whole application has received both passes.** The intended progression is Brain/project memory and governance → project/binder architecture and canon → characters/world/timeline/research/voice memory → Story Map/Writing Desk/AI drafting → editing/craft/continuity → visual/illustration/cover → Specialized Creation and Guided Journal offices → production/KDP/metadata/export → marketing/promotion → delivery/recovery → cross-office navigation/UI polish → final Chromebook + Android release acceptance. Existing completed areas are inspected rather than blindly rebuilt.
+**Traversal starts at the Forge Brain / Project Brain and proceeds through the product journey until the whole application has received all three passes.** The intended progression is Brain/project memory and governance → project/binder architecture and canon → characters/world/timeline/research/voice memory → Story Map/Writing Desk/AI drafting → editing/craft/continuity → visual/illustration/cover → Specialized Creation and Guided Journal offices → production/KDP/metadata/export → marketing/promotion → delivery/recovery → cross-office navigation/UI polish → final Chromebook + Android release acceptance. Existing completed areas are inspected rather than blindly rebuilt.
 
-**Current handoff state:** The owner removed the former Chromebook ownership lock on Mission 059. Mission 059 remains open with its known shared TCG finishing-browser and raster-production defects recorded; it will be completed when the first-pass traversal reaches Specialized Creation. The permanent traversal has started at **Forge Brain / Project Brain**, with Codex owning the lead pass and Chromebook following completed blocks.
+**Current handoff state:** merged `main` contains blocks **001D** and **001E**. First-pass block **001F** is fully verified on PR #52 and is cleared for merge and Android second pass. Codex advances immediately to **001G** after the 001F merge so Android retains a clean completed block behind the forward lane. Mission 059 remains open with its known shared TCG finishing-browser and raster-production defects recorded; it will be handled when the forward traversal reaches Specialized Creation.
 
-### ✅ First pass 001A — Project Brain context authority — READY FOR CHROMEBOOK REVIEW
+### ✅ First pass 001A — Project Brain context authority — READY FOR ANDROID SECOND PASS
 
 - **Active office/capability:** Forge Brain / Project Brain retrieval authority.
 - **Lead owner:** Codex co-chief engineer.
-- **Follow-behind owner:** Chromebook after this handoff.
+- **Second-pass owner:** Android after this handoff.
 - **Branch / PR / commits:** `first-pass/001-forge-brain`; PR #42; code `96422ce43f77f97c23a9142e6b8a1dda4ce6b45c`; regression coverage `caf7e123c0b6864e48afa1a28d158726662358d9`.
 - **Inspection finding:** archived and superseded records could re-enter live AI prompts through the `changed` projection, including requests with no `changedSince` intent. This could revive obsolete canon during drafting.
 - **Improvement:** historical records remain durable and auditable, but Project Brain now excludes archived/superseded authority from live context and emits changed-state context only for explicit `changedSince` queries.
 - **Regression coverage:** verifies normal retrieval and changed-since retrieval exclude obsolete history while preserving current authoritative canon.
 - **Verification:** Forge CI #638 / run `33471875890` passed TypeScript build, full unit suite, completion checks, client/shell syntax checks, desktop browser acceptance, and Android/mobile acceptance on code head `caf7e123c0b6864e48afa1a28d158726662358d9`.
 - **Unresolved blockers:** none in this coherent block.
-- **Handoff:** ready for Chromebook independent review. Codex advances to the next Forge Brain block after the documentation head is green and PR #42 is merged.
+- **Handoff:** ready for Android independent review. Codex advances to the next Forge Brain block after the documentation head is green and PR #42 is merged.
 
-### ✅ First pass 001B — Brain memory integrity and atomic recovery — READY FOR CHROMEBOOK REVIEW
+### ✅ First pass 001B — Brain memory integrity and atomic recovery — READY FOR ANDROID SECOND PASS
 
 - **Active office/capability:** Forge Brain durable memory validation and recovery.
 - **Lead owner:** Codex co-chief engineer.
-- **Follow-behind owner:** Chromebook after this handoff.
+- **Second-pass owner:** Android after this handoff.
 - **Branch / PR / commits:** `first-pass/001b-brain-memory-integrity`; PR #45; runtime validation `6b8383279187a6adf32b2c1c37aaa2f00dff57c5`; atomic store `be60f92f58caa4160196921b818e20d2e8d5a3df`; tests/fix head `8e3f738d77f8bb7aab4114f6b2a19f0a6e6f6acf`.
 - **Inspection finding:** recovery cleared valid memory before validating the complete imported payload, so a malformed or duplicate record could leave a partially restored Brain.
 - **Improvements:** runtime validation now covers memory class, authority, required content, lifecycle/provenance timestamps, relationship/tag shape and self-supersession; registration and lifecycle mutations validate records; restore stages and validates every record before atomically replacing current state.
 - **Regression coverage:** proves duplicate IDs, malformed records, invalid authority and invalid timestamps fail without changing the valid store; snapshot project isolation remains enforced.
 - **Verification:** Forge CI #646 / run `33475774626` passed TypeScript build, all 383 unit tests, completion and syntax checks, desktop browser acceptance, and Android/mobile acceptance on code head `8e3f738d77f8bb7aab4114f6b2a19f0a6e6f6acf`.
 - **Unresolved blockers:** none in this coherent block.
-- **Handoff:** ready for Chromebook independent review. Codex advances to Brain lifecycle-transition integrity after the documentation head is green and PR #45 is merged.
+- **Handoff:** ready for Android independent review. Codex advances to Brain lifecycle-transition integrity after the documentation head is green and PR #45 is merged.
 
-### ✅ First pass 001C — Brain canon lifecycle-transition integrity — READY FOR CHROMEBOOK REVIEW
+### ✅ First pass 001C — Brain canon lifecycle-transition integrity — READY FOR ANDROID SECOND PASS
 
 - **Active office/capability:** Forge Brain promotion/supersession integrity.
 - **Lead owner:** Codex co-chief engineer.
-- **Follow-behind owner:** Chromebook after completing 001A and 001B reviews.
+- **Second-pass owner:** Android after completing 001A and 001B reviews.
 - **Branch / PR / commits:** `first-pass/001c-brain-lifecycle-integrity`; PR #48; transition guard `786b09b6967805d594af2c0bfb631b8c21cd8eb9`; regression head `357af6618a30f441ea1573b40baefcaedc2235f7`.
 - **Inspection finding:** supersession allowed cross-class replacement, inactive source/replacement reuse, repeated replacement and ambiguous reuse of a replacement already linked to another source. Those paths could create non-reciprocal canon history.
 - **Improvements:** replacements must share project and memory class; both records must be active; existing replacement links cannot be silently reused; transition time cannot predate either record; both reciprocal records validate before either mutation commits.
 - **Regression coverage:** proves cross-class, archived, ambiguous, repeated and nonchronological transitions fail atomically, while a valid transition creates exactly one reciprocal `supersededBy` / `supersedes` relationship.
 - **Verification:** Forge CI #649 / run `33476955533` passed TypeScript build, all 387 unit tests, completion and syntax checks, desktop browser acceptance, and Android/mobile acceptance on code head `357af6618a30f441ea1573b40baefcaedc2235f7`.
 - **Unresolved blockers:** none in this coherent block.
-- **Handoff:** ready for Chromebook independent review after 001A and 001B. Codex advances to the next Forge Brain block after the documentation head is green and PR #48 is merged.
+- **Handoff:** ready for Android independent review after 001A and 001B. Codex advances to the next Forge Brain block after the documentation head is green and PR #48 is merged.
 
-### ✅ First pass 001D — Brain lifecycle attribution ledger — READY FOR CHROMEBOOK REVIEW
+### ✅ First pass 001D — Brain lifecycle attribution ledger — READY FOR ANDROID SECOND PASS
 
 - **Active office/capability:** Forge Brain durable promotion/supersession attribution and recovery.
 - **Lead owner:** Codex co-chief engineer.
-- **Follow-behind owner:** Chromebook after 001A–001C reviews.
+- **Second-pass owner:** Android after 001A–001C reviews.
 - **Branch / PR / commits:** `first-pass/001d-brain-lifecycle-ledger`; PR #50; ledger `39c2061bd696bda78dedf113dc2b2667f559b624`; regression coverage `c8a652cd1f94148f9c96e702e3262bbec705db49`; public contracts `67fe49031b1b73541e72a0c12e9183903e8f60b2`.
 - **Inspection finding:** promotion and supersession changed durable canon, but actor, reason, transition time and replacement evidence existed only as transient call results and disappeared across snapshot/export/restart.
 - **Improvements:** project-scoped lifecycle events persist promotion/supersession actor, reason, time, prior/new authority and replacement link; supersession requires explicit attribution; events commit only after transition validation; snapshots preserve and restore the ledger while older snapshots without events remain compatible.
@@ -158,20 +159,35 @@ The project is now worked from the beginning of the author journey forward, offi
 - **Regression coverage:** proves restart persistence, snapshot round-trip, defensive cloning, project isolation, malformed-event rollback and required attribution.
 - **Verification:** Forge CI #653 / run `33477853720` passed TypeScript build, all 391 unit tests, completion and syntax checks, desktop browser acceptance, and Android/mobile acceptance on code head `67fe49031b1b73541e72a0c12e9183903e8f60b2`.
 - **Unresolved blockers:** none in this coherent block.
-- **Handoff:** ready for Chromebook independent review after 001A–001C. Codex advances to the next Forge Brain block after the documentation head is green and PR #50 is merged.
+- **Handoff:** ready for Android independent review after 001A–001C.
 
-### ✅ First pass 001E — Brain context provenance and budget integrity — READY FOR CHROMEBOOK REVIEW
+### ✅ First pass 001E — Brain context provenance and budget integrity — READY FOR ANDROID SECOND PASS
 
 - **Active office/capability:** Forge Brain context assembly, provenance and context-budget reporting.
 - **Lead owner:** Codex co-chief engineer.
-- **Follow-behind owner:** Chromebook after the 001D review.
+- **Second-pass owner:** Android after the 001D review.
 - **Branch / PR / commits:** `first-pass/001e-brain-context-integrity`; PR #51; pipeline fix `413506accc07ae3983e9f2b4e8f34ad866584604`; regression head `79fd330d9c73448c4f6547798644ad1191235e63`.
 - **Inspection finding:** the pipeline calculated `originalEstimatedTokens` after budget trimming while adding pre-budget savings separately, making token metrics internally inconsistent; provider-facing context also omitted memory provenance.
 - **Improvements:** every assembled memory section now carries explicit provenance; savings and compression ratio use one complete pre-budget baseline; selected/omitted IDs remain visible; provenance is reported as a strategy signal.
 - **Regression coverage:** proves provenance reaches context, budget omissions remain honest, and `tokensSaved === originalEstimatedTokens - optimizedEstimatedTokens`.
 - **Verification:** Forge CI #656 / run `33478534682` passed TypeScript build, all 392 unit tests, completion and syntax checks, desktop browser acceptance, and Android/mobile acceptance on code head `79fd330d9c73448c4f6547798644ad1191235e63`.
 - **Unresolved blockers:** none in this coherent block.
-- **Handoff:** ready for Chromebook independent review after 001D. Codex advances to the next Brain capability after the documentation head is green and PR #51 is merged.
+- **Handoff:** ready for Android independent review after 001D.
+
+### ✅ First pass 001F — Brain saliency and runtime query integrity — READY FOR ANDROID SECOND PASS
+
+- **Active office/capability:** Forge Brain task-context selection, retrieval evidence and strict runtime query contracts.
+- **First-pass owner:** Codex co-chief engineer.
+- **Second-pass owner:** Android after completing its active preceding block.
+- **Branch / PR / verified head:** `first-pass/001f-brain-query-saliency-integrity`; PR #52; `ae7a72bc433c472e5c01c086216e476eef59a91b`.
+- **Inspection findings:** raw substring matching could select irrelevant canon (`art` matched `party`), malformed runtime query values could bypass TypeScript assumptions, and the stricter Brain contract exposed a real Guided Journal caller bug where whitespace-only optional fields were forwarded as blank query terms.
+- **Improvements:** task queries now receive bounded runtime validation, selector normalization and deduplication; saliency uses Unicode-aware whole-word and adjacent-phrase matching; evidence is emitted only for exact selected terms; canonical memory class/authority guards are exported; Guided Journal prompt/cover callers trim optional values and substitute meaningful non-empty context defaults without weakening Brain validation.
+- **Regression coverage:** proves false-positive substrings are rejected, multilingual and Unicode-normalized terms remain deterministic, malformed query shapes fail closed, normalized selectors retain stable evidence, and Guided Journal prompt/cover paths never forward blank Brain query terms.
+- **Acceptance hardening:** Guided Journal browser acceptance now reports real failing HTTP status/body instead of crashing on downstream undefined values, which made the cross-office contract defect observable and repairable.
+- **Research applied:** Unicode-aware segmentation and bounded runtime input validation were checked against current platform/security guidance while preserving Forge's provider-neutral and author-authoritative architecture.
+- **Verification:** Forge CI #667 / run `33480952798` passed TypeScript build, all **396** unit tests, 100% completion checks, client/shell syntax checks, the complete desktop browser suite including Guided Journal integration, and Android/mobile acceptance on the verified PR head.
+- **Unresolved blockers:** none in this coherent block.
+- **Handoff:** 001F is ready for Android independent review after merge. Codex advances immediately to 001G and does not wait on the second pass.
 
 ### Mission 059 parallel engineering coordination
 
@@ -267,9 +283,9 @@ These areas have foundations or substantial implementation but still require con
 
 ### Current build order
 
-1. Bring the current Mission 059 parallel handoff to a clean verified checkpoint without discarding in-flight work.
-2. Begin the permanent two-pass traversal at **Forge Brain / Project Brain**: phone lead pass, Chromebook follow-behind pass.
-3. Continue office-by-office through the integrated author journey until every major capability has received both passes.
+1. Continue the Codex first pass from the active Forge Brain block while maintaining several coherent verified handoffs ahead of Android.
+2. Run the Android second pass behind those completed handoffs without duplicating Codex's active forward work.
+3. Once the lead cushion exists, begin Codex's final pass at 001A and continue through every block and office in order.
 4. Complete production/marketing/delivery hardening and cross-office integration discovered during traversal.
 5. Remodel and polish the overall Studio UI/UX once functional coverage is stable.
 6. Run full-product Chromebook + Android release acceptance and clear the final Definition of Complete gate.
