@@ -84,17 +84,33 @@ export class ProjectMemoryStore {
     return { formatVersion: MEMORY_FORMAT_VERSION, projectId, memories: this.query({ projectId }) };
   }
 
+  /** Replace the complete in-memory state only after validating all ids, so a bad restore cannot partially clear the Brain. */
   restore(records: readonly MemoryRecord[]): void {
+    const replacement = buildRecordMap(records);
     this.records.clear();
-    for (const record of records) this.register(record);
+    for (const [id, memory] of replacement) this.records.set(id, memory);
   }
 
+  /** Restore one project's snapshot without deleting any other project's loaded memory. */
   restoreSnapshot(snapshot: ProjectMemorySnapshot): void {
     if (snapshot.formatVersion !== MEMORY_FORMAT_VERSION) throw new Error("Unsupported memory snapshot format.");
     if (!snapshot.projectId.trim()) throw new Error("Memory snapshot project id is required.");
     if (snapshot.memories.some((memory) => memory.projectId !== snapshot.projectId)) throw new Error("Memory snapshot contains records from another project.");
-    this.restore(snapshot.memories);
+
+    const preserved = this.list().filter((memory) => memory.projectId !== snapshot.projectId);
+    const replacement = buildRecordMap([...preserved, ...snapshot.memories]);
+    this.records.clear();
+    for (const [id, memory] of replacement) this.records.set(id, memory);
   }
+}
+
+function buildRecordMap(records: readonly MemoryRecord[]): Map<string, MemoryRecord> {
+  const replacement = new Map<string, MemoryRecord>();
+  for (const record of records) {
+    if (replacement.has(record.id)) throw new Error(`Duplicate memory id "${record.id}" in restore state.`);
+    replacement.set(record.id, cloneMemory(record));
+  }
+  return replacement;
 }
 
 function cloneMemory(memory: MemoryRecord): MemoryRecord {
