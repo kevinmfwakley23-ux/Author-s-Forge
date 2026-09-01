@@ -65,11 +65,24 @@ export function versionProductionProfile(profile:SpecializedProductionProfile,in
   return Object.freeze({...profile,...changes,formatVersion:SPECIALIZED_PRODUCTION_PROFILE_VERSION,id:`${profile.id}-v${version}`,label:changes.label??`${profile.label} v${version}`,notes:Object.freeze([...(changes.notes??profile.notes),`Derived from ${profile.id}; profile revision ${version}.`])});
 }
 
-function productionProfileChanges(value:unknown):Partial<Omit<SpecializedProductionProfile,"formatVersion"|"id">> {
+type MutableProductionProfileChanges = {
+  label?:string;
+  widthInches?:number;
+  heightInches?:number;
+  bleedInches?:number;
+  safeMarginInches?:number;
+  dpi?:number;
+  colorIntent?:SpecializedProductionProfile["colorIntent"];
+  artifactKinds?:readonly SpecializedArtifactKind[];
+  duplex?:boolean;
+  notes?:readonly string[];
+};
+
+function productionProfileChanges(value:unknown):MutableProductionProfileChanges {
   if(value===undefined)return{};
   if(!value||typeof value!=="object"||Array.isArray(value))throw new Error("Production profile changes must be an object.");
-  const input=value as Record<string,unknown>,out:Partial<Omit<SpecializedProductionProfile,"formatVersion"|"id">>={};
-  const numberField=(key:"widthInches"|"heightInches"|"bleedInches"|"safeMarginInches"|"dpi")=>{if(input[key]!==undefined){const n=Number(input[key]);if(!Number.isFinite(n))throw new Error(`Production profile ${key} must be numeric.`);Object.assign(out,{[key]:n});}};
+  const input=value as Record<string,unknown>,out:MutableProductionProfileChanges={};
+  const numberField=(key:"widthInches"|"heightInches"|"bleedInches"|"safeMarginInches"|"dpi")=>{if(input[key]!==undefined){const n=Number(input[key]);if(!Number.isFinite(n))throw new Error(`Production profile ${key} must be numeric.`);out[key]=n;}};
   numberField("widthInches");numberField("heightInches");numberField("bleedInches");numberField("safeMarginInches");numberField("dpi");
   if(input.label!==undefined){if(typeof input.label!=="string"||!input.label.trim())throw new Error("Production profile label must be non-empty.");out.label=input.label.trim();}
   if(input.colorIntent!==undefined){if(input.colorIntent!=="sRGB"&&input.colorIntent!=="CMYK")throw new Error("Production profile colorIntent must be sRGB or CMYK.");out.colorIntent=input.colorIntent;}
