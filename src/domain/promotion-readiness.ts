@@ -63,14 +63,15 @@ export function createPromotionReadinessReport(input: {
     for (const [index, plan] of (campaign.amazonAdsPlans ?? []).entries()) {
       const targetReady = plan.targeting === "automatic" || plan.keywordTargets.length > 0 || plan.productTargets.length > 0;
       checks.push(check(`amazon-ads-targeting-${index + 1}`, `Amazon Ads targeting ${index + 1}`, targetReady, "Amazon Ads targeting is defined.", "Add keyword/product targets or use automatic targeting."));
+      checks.push(check(`amazon-ads-account-eligibility-${index + 1}`, `Amazon Ads account/book eligibility ${index + 1}`, false, "Amazon Ads account and book eligibility must be verified in Amazon before activation.", "Confirm the book is available in the target marketplace and claimed in Author Central, and confirm the Ads account is active/in good standing with a valid payment method.", "warning"));
       if (plan.campaignType === "sponsored-brands") {
-        checks.push(check(`sponsored-brands-eligibility-${index + 1}`, `Sponsored Brands eligibility ${index + 1}`, false, "Sponsored Brands eligibility must be verified in the current marketplace.", "Verify the current Amazon Ads author/title eligibility before activating this Sponsored Brands plan.", "warning"));
+        checks.push(check(`sponsored-brands-eligibility-${index + 1}`, `Sponsored Brands author eligibility ${index + 1}`, false, "Sponsored Brands author eligibility must be verified in Amazon.", "Current Amazon author guidance requires at least three eligible book titles under the same pen name claimed in Author Central. Verify that condition in the target marketplace before activation.", "warning"));
       }
     }
 
     for (const [index, plan] of (campaign.aPlusContentPlans ?? []).entries()) {
       checks.push(check(`a-plus-modules-${index + 1}`, `A+ modules ${index + 1}`, plan.moduleAssetIds.length > 0, "A+ plan references real module assets.", "Add at least one compliant A+ module asset."));
-      checks.push(check(`a-plus-asin-${index + 1}`, `A+ ASIN assignment ${index + 1}`, plan.asinTargets.length > 0, "A+ plan has target ASINs.", "Assign eligible ASINs after the detail page/title is available.", "warning"));
+      checks.push(check(`a-plus-asin-${index + 1}`, `A+ ASIN assignment ${index + 1}`, plan.asinTargets.length > 0, "A+ plan has target ASINs.", "Assign eligible live/pre-order KDP ASINs to this A+ project in the target marketplace.", "warning"));
     }
   }
 
@@ -103,8 +104,8 @@ export function validatePromotionReadinessReport(report: PromotionReadinessRepor
     required(item.id, "Promotion readiness check id");
     required(item.label, "Promotion readiness check label");
     required(item.message, "Promotion readiness check message");
-    if (![("passed"), ("attention")].includes(item.status)) throw new Error("Promotion readiness check status is invalid.");
-    if (![("error"), ("warning")].includes(item.severity)) throw new Error("Promotion readiness check severity is invalid.");
+    if (!["passed", "attention"].includes(item.status)) throw new Error("Promotion readiness check status is invalid.");
+    if (!["error", "warning"].includes(item.severity)) throw new Error("Promotion readiness check severity is invalid.");
   }
   const passedCount = report.checks.filter((item) => item.status === "passed").length;
   const errorCount = report.checks.filter((item) => item.status === "attention" && item.severity === "error").length;
