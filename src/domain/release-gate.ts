@@ -47,6 +47,9 @@ export function createReleaseGateReport(input: ReleaseGateInput): ReleaseGateRep
   if (input.publishingReadiness.projectId !== input.projectId) {
     blockers.push({ id: "readiness-project-mismatch", kind: "publishing-readiness", message: "Publishing readiness belongs to a different project.", remediation: "Run publishing readiness for the current project." });
   }
+  if (input.publishingReadiness.bookId !== undefined && input.publishingReadiness.bookId !== input.bookId) {
+    blockers.push({ id: "readiness-book-mismatch", kind: "publishing-readiness", message: "Publishing readiness belongs to a different book.", remediation: "Run publishing readiness for the exact book being released." });
+  }
   const publishingErrors = input.publishingReadiness.checks.filter((item) => item.status === "attention" && item.severity === "error");
   if (publishingErrors.length) {
     blockers.push({ id: "publishing-readiness", kind: "publishing-readiness", message: `${publishingErrors.length} release-blocking publishing readiness check(s) require attention.`, remediation: "Resolve every error-severity publishing readiness check before release. Warning-only omissions may remain visible without blocking launch." });
