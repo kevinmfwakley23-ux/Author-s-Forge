@@ -42,6 +42,7 @@ const browserHarnesses = [
   'scripts/studio-publishing-promotion-browser-acceptance.js',
   'scripts/studio-promotion-performance-browser-acceptance.js',
   'scripts/educational-workbook-browser-acceptance.js',
+  'scripts/educational-workbook-differentiation-browser-acceptance.js',
   'scripts/specialized-creation-browser-acceptance.js',
   'scripts/specialized-creation-briefs-browser-acceptance.js',
   'scripts/specialized-creation-tcg-builder-browser-acceptance.js',
@@ -80,6 +81,15 @@ const capabilities = [
     'public/educational-workbooks.html',
     'scripts/educational-workbook-browser-acceptance.js',
   ], () => hasTest(/educational-workbook/)],
+  ['Educational differentiation & teacher support', [
+    'src/domain/educational-workbook-differentiation.ts',
+    'src/application/educational-workbook-differentiation.ts',
+    'src/application/educational-workbook-differentiation-production.ts',
+    'src/application/educational-workbook-differentiation-routes.ts',
+    'src/infrastructure/file-educational-workbook-differentiation-store.ts',
+    'public/educational-differentiation.html',
+    'scripts/educational-workbook-differentiation-browser-acceptance.js',
+  ], () => hasTest(/educational-workbook-differentiation/)],
   ['Specialized Creation Office', [
     'src/domain/specialized-creation-office.ts',
     'src/application/specialized-creation-office-service.ts',
@@ -142,6 +152,6 @@ for (const row of rows) {
 }
 console.log('');
 console.log('Interpretation: 100% is reserved for a complete, verified product journey.');
-console.log('The meter requires the Guided Journal, Educational Workbook, and Specialized Creation offices, the unified workplace launcher, plus every canonical browser/mobile harness.');
+console.log('The meter requires the Guided Journal, Educational Workbook including differentiation/teacher support, and Specialized Creation offices, the unified workplace launcher, plus every canonical browser/mobile harness.');
 console.log('This meter never substitutes source presence for real browser/device proof; CI must execute the harnesses successfully.');
 console.log('Run after a clean checkout/build: npm run completion');

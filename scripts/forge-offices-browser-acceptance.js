@@ -66,16 +66,17 @@ async function main() {
     assert.ok(overflow.body <= overflow.viewport + 1 && overflow.doc <= overflow.viewport + 1, `Cross-office launcher overflows mobile viewport: ${JSON.stringify(overflow)}`);
 
     const offices = [
-      ["#open-guided-journal-office", PORTS.journal, /Guided Journal/i],
-      ["#open-workbook-office", PORTS.workbooks, /Educational Workbook/i],
-      ["#open-specialized-office", PORTS.specialized, /Specialized Creation/i],
+      ["#open-guided-journal-office", `http://${HOST}:${PORTS.journal}/?project=${encodeURIComponent(projectId)}`, /Guided Journal/i],
+      ["#open-workbook-office", `http://${HOST}:${PORTS.workbooks}/?project=${encodeURIComponent(projectId)}`, /Educational Workbook/i],
+      ["#open-workbook-differentiation", `http://${HOST}:${PORTS.workbooks}/educational-differentiation.html?project=${encodeURIComponent(projectId)}`, /Educational Workbook Differentiation/i],
+      ["#open-specialized-office", `http://${HOST}:${PORTS.specialized}/?project=${encodeURIComponent(projectId)}`, /Specialized Creation/i],
     ];
 
-    for (const [selector, port, titlePattern] of offices) {
+    for (const [selector, expectedHref, titlePattern] of offices) {
       const link = page.locator(selector);
       await link.waitFor();
       const href = await link.getAttribute("href");
-      assert.equal(href, `http://${HOST}:${port}/?project=${encodeURIComponent(projectId)}`);
+      assert.equal(href, expectedHref);
       assert.equal(await link.getAttribute("target"), "_blank");
       const box = await link.boundingBox();
       assert.ok(box && box.height >= 44, `${selector} must remain a touch-sized launcher control.`);
@@ -88,7 +89,7 @@ async function main() {
     }
 
     await context.close();
-    console.log("FORGE CROSS-OFFICE BROWSER ACCEPTANCE PASSED: one launcher starts all four workplaces; main Studio exposes project-aware, Android-touch-sized links to Guided Journal, Educational Workbooks, and Specialized Creation; every target is live.");
+    console.log("FORGE CROSS-OFFICE BROWSER ACCEPTANCE PASSED: one launcher starts all four workplaces; main Studio exposes project-aware Android-touch-sized links to Guided Journal, Educational Workbooks, Workbook Differentiation, and Specialized Creation; every target is live.");
   } finally {
     if (browser) await browser.close().catch(() => {});
     await stop(launcher).catch(() => {});

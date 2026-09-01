@@ -6,10 +6,11 @@
     return new URLSearchParams(location.search).get("project") || localStorage.getItem("forge-project") || "forge-studio";
   }
 
-  function officeUrl(port) {
+  function officeUrl(port, path = "/") {
     const protocol = location.protocol === "https:" ? "https:" : "http:";
     const host = location.hostname || "127.0.0.1";
-    return `${protocol}//${host}:${port}/?project=${encodeURIComponent(currentProjectId())}`;
+    const pathname = path.startsWith("/") ? path : `/${path}`;
+    return `${protocol}//${host}:${port}${pathname}?project=${encodeURIComponent(currentProjectId())}`;
   }
 
   function ensureOfficeLauncher() {
@@ -25,6 +26,7 @@
       <div class="row">
         <a class="forge-office-link" id="open-guided-journal-office" href="${officeUrl(4273)}" target="_blank" rel="noopener">Guided Journal</a>
         <a class="forge-office-link" id="open-workbook-office" href="${officeUrl(4373)}" target="_blank" rel="noopener">Educational Workbooks</a>
+        <a class="forge-office-link" id="open-workbook-differentiation" href="${officeUrl(4373, "/educational-differentiation.html")}" target="_blank" rel="noopener">Workbook Differentiation</a>
         <a class="forge-office-link" id="open-specialized-office" href="${officeUrl(4473)}" target="_blank" rel="noopener">Specialized Creation</a>
       </div>`;
     dashboard.append(card);
