@@ -1,6 +1,7 @@
-import type { SpecializedArtifactKind, SpecializedOfficeProject, SpecializedProductionProfile, TcgData } from "../domain/specialized-creation-office";
+import type { ComicData, SpecializedArtifactKind, SpecializedOfficeProject, SpecializedProductionProfile, TcgData } from "../domain/specialized-creation-office";
 import { validateTcgGameFramework } from "../domain/specialized-creation-tcg-world";
 import type { SpecializedPreflightIssue, SpecializedPreflightReport } from "./specialized-creation-production-engine";
+import { comicModePreflight } from "./specialized-creation-comic";
 import { createSpecializedQrMatrix, specializedQrModuleSizeInches } from "./specialized-creation-qr";
 
 const COMMON_PDF_REPLACEMENTS:Readonly<Record<string,string>>=Object.freeze({
@@ -11,10 +12,14 @@ const MIN_QR_PRINTER_PIXELS_PER_MODULE=4;
 
 export function specializedProductionSafetyIssues(project:SpecializedOfficeProject,kind?:SpecializedArtifactKind,profile?:SpecializedProductionProfile):SpecializedPreflightIssue[] {
   const issues:SpecializedPreflightIssue[]=[],assets=new Map(project.assets.map(asset=>[asset.id,asset]));
+  if(project.mode==="comic-book"){
+    for(const comicIssue of comicModePreflight(project.modeData as ComicData))issues.push({code:comicIssue.code,severity:comicIssue.severity,message:comicIssue.message});
+  }
   if(project.mode==="trading-card-game"){
     const framework=(project.modeData as TcgData).gameFramework;if(framework)try{validateTcgGameFramework(framework,true);}catch(error){issues.push({code:"TCG_WORLD_REFERENCES_UNRESOLVED",severity:"error",message:error instanceof Error?error.message:String(error)});}
   }
   for(const document of project.documents)for(const surface of document.surfaces)for(const element of surface.elements){
+    if(element.metadata.hidden===true)continue;
     if(element.kind==="image"){
       const asset=element.assetId?assets.get(element.assetId):undefined;
       if(!element.assetId||!asset)issues.push({code:"IMAGE_ASSET_MISSING",severity:"error",message:`Image element ${element.id} references no available project asset.`,documentId:document.id,surfaceId:surface.id,elementId:element.id});
