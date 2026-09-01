@@ -5,13 +5,14 @@ import { AiRoutingState } from './ai-routing-state';
 export interface AiExecutionRequest extends AiModelSelectionRequest { readonly input: unknown; readonly maxAttempts?: number; readonly estimatedOutputTokens?: number; readonly routingMode?: AiCostRoutingMode; }
 export interface AiExecutionContext { readonly resource: AiModelResource; readonly attempt: number; readonly remainingAttempts: number; }
 export interface AiExecutionFailure { readonly provider:string; readonly model:string; readonly error:string; readonly retryable:boolean; readonly attempt:number; readonly latencyMs:number; }
-export interface AiExecutionResult<T> { readonly value:T; readonly resource:AiModelResource; readonly attempts:number; readonly failures:readonly AiExecutionFailure[]; readonly latencyMs:number; }
+export interface AiExecutionResult<T> { readonly value:T; readonly resource:AiModelResource; readonly attempts:number; readonly failures:readonly AiExecutionFailure[]; readonly latencyMs:number; readonly accountedTokens:number; readonly usageSource:'provider'|'estimated'; }
 export type AiExecutor<T>=(input:unknown,context:AiExecutionContext)=>Promise<T>;
+export type AiUsageReader<T>=(value:T)=>number|undefined;
 
 /** Executes ordered broker candidates and feeds observed runtime facts back into the shared routing state. */
 export class AiExecutionFallback {
  constructor(private readonly broker:AiModelBroker, private readonly state = new AiRoutingState()) {}
- async execute<T>(request:AiExecutionRequest,executor:AiExecutor<T>):Promise<AiExecutionResult<T>>{
+ async execute<T>(request:AiExecutionRequest,executor:AiExecutor<T>,usageReader?:AiUsageReader<T>):Promise<AiExecutionResult<T>>{
   const failures:AiExecutionFailure[]=[];
   const configured=this.broker.listResources().length;
   const maxAttempts=Math.max(1,Math.min(request.maxAttempts??8,configured||1));
@@ -24,10 +25,13 @@ export class AiExecutionFallback {
    try{
     const value=await executor(request.input,{resource:selection.resource,attempt,remainingAttempts:maxAttempts-attempt});
     const latencyMs=Date.now()-started;
-    const tokens=Math.max(0,request.estimatedInputTokens??0)+Math.max(0,request.estimatedOutputTokens??0);
-    this.state.recordSuccess(selection.resource.provider,selection.resource.model,latencyMs,tokens);
+    const measured=usageReader?.(value);
+    const estimated=Math.max(0,request.estimatedInputTokens??0)+Math.max(0,request.estimatedOutputTokens??0);
+    const accountedTokens=measured!==undefined&&Number.isFinite(measured)&&measured>=0?Math.round(measured):estimated;
+    const usageSource=measured!==undefined&&Number.isFinite(measured)&&measured>=0?'provider' as const:'estimated' as const;
+    this.state.recordSuccess(selection.resource.provider,selection.resource.model,latencyMs,accountedTokens);
     this.syncBrokerState();
-    return{value,resource:selection.resource,attempts:attempt,failures,latencyMs:Date.now()-startedAll};
+    return{value,resource:selection.resource,attempts:attempt,failures,latencyMs:Date.now()-startedAll,accountedTokens,usageSource};
    }catch(error){
     const latencyMs=Date.now()-started; const message=this.message(error); const retryable=this.isRetryable(error);
     failures.push({provider:selection.resource.provider,model:selection.resource.model,error:message,retryable,attempt,latencyMs});
