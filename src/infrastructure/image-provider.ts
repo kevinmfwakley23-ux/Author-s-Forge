@@ -44,7 +44,7 @@ function generationRequest(input:{key:string;model:string;prompt:string;size:Ima
 function referenceRequest(input:{key:string;model:string;prompt:string;size:ImageGenerationSize;quality:ImageGenerationQuality;background:"opaque"|"transparent"|"auto";references:readonly NormalizedReference[]}):RequestInit{
   const form=new FormData();form.append("model",input.model);form.append("prompt",input.prompt);form.append("size",input.size);form.append("quality",input.quality);form.append("background",input.background);form.append("output_format","png");form.append("n","1");
   // gpt-image-2 processes image inputs at high fidelity automatically; do not send input_fidelity.
-  input.references.forEach((reference,index)=>form.append("image[]",new Blob([reference.bytes],{type:reference.mimeType}),referenceFileName(index,reference.mimeType)));
+  input.references.forEach((reference,index)=>form.append("image[]",new Blob([concreteArrayBuffer(reference.bytes)],{type:reference.mimeType}),referenceFileName(index,reference.mimeType)));
   return{method:"POST",headers:{authorization:`Bearer ${input.key}`},body:form};
 }
 interface NormalizedReference {readonly mimeType:"image/png"|"image/jpeg"|"image/webp";readonly bytes:Uint8Array;readonly label?:string;}
@@ -55,8 +55,9 @@ function normalizeReferenceImages(values:readonly ImageReferenceInput[]):Normali
 function parseImageDataUri(value:string,index:number):NormalizedReference{
   if(typeof value!=="string")throw new Error(`Image reference ${index} must be an inline data URI.`);const match=value.match(/^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/]+={0,2})$/i);if(!match)throw new Error(`Image reference ${index} must be a base64 PNG, JPEG, or WebP data URI. Forge will not fetch arbitrary reference URLs.`);
   const mimeType=match[1].toLowerCase() as NormalizedReference["mimeType"];if(!ALLOWED_REFERENCE_MIME_TYPES.has(mimeType))throw new Error(`Image reference ${index} uses an unsupported image type.`);const encoded=match[2];if(encoded.length%4===1)throw new Error(`Image reference ${index} contains invalid base64 data.`);const raw=Buffer.from(encoded,"base64");if(!raw.byteLength)throw new Error(`Image reference ${index} is empty.`);if(raw.byteLength>MAX_REFERENCE_BYTES)throw new Error(`Image reference ${index} exceeds the ${MAX_REFERENCE_BYTES/1024/1024} MiB per-image limit.`);
-  const canonical=raw.toString("base64").replace(/=+$/,""),provided=encoded.replace(/=+$/," ").trim();if(canonical!==provided)throw new Error(`Image reference ${index} contains invalid base64 data.`);
+  const canonical=raw.toString("base64").replace(/=+$/,""),provided=encoded.replace(/=+$/g,"");if(canonical!==provided)throw new Error(`Image reference ${index} contains invalid base64 data.`);
   return{mimeType,bytes:Uint8Array.from(raw)};
 }
+function concreteArrayBuffer(bytes:Uint8Array):ArrayBuffer{const buffer=new ArrayBuffer(bytes.byteLength);new Uint8Array(buffer).set(bytes);return buffer;}
 function referenceFileName(index:number,mimeType:string):string{const extension=mimeType==="image/jpeg"?"jpg":mimeType.split("/")[1]||"png";return`forge-reference-${index+1}.${extension}`;}
 function required(value:string,label:string):string{if(typeof value!=="string"||!value.trim())throw new Error(`${label} is required.`);return value.trim();}
