@@ -127,9 +127,15 @@ export interface SpecializedArtifactRecord {
 
 export interface ComicPanelData { readonly id:string; readonly page:number; readonly order:number; readonly description:string; readonly dialogue:readonly {speaker:string;text:string}[]; readonly captions:readonly string[]; readonly sfx:readonly string[]; readonly assetIds:readonly string[]; }
 export interface ComicData { readonly issueTitle:string; readonly issueNumber?:string; readonly readingDirection?:"ltr"|"rtl"; readonly pages:readonly {page:number; pageTurnIntent?:string; panels:readonly ComicPanelData[]}[]; }
-export interface FoldedCardData { readonly recipient?:string; readonly relationship?:string; readonly occasion:string; readonly tone:string; readonly milestone?:string; readonly message:string; readonly signature?:string; }
-export interface InvitationData { readonly eventType:string; readonly primaryNames:readonly string[]; readonly date?:string; readonly startTime?:string; readonly timezone?:string; readonly venue?:string; readonly address?:string; readonly rsvpMethod?:string; readonly rsvpDeadline?:string; readonly dressCode?:string; readonly details?:string; readonly accessibilityNotes?:string; readonly website?:string; readonly qrDestination?:string; }
-export interface FlyerData { readonly objective:string; readonly audience:string; readonly headline:string; readonly subhead?:string; readonly details:string; readonly primaryCta:string; readonly destination:string; readonly secondaryActions:readonly string[]; readonly disclaimer?:string; }
+export type CardSentimentIntensity="light"|"moderate"|"deep";
+export type CardHumorPreference="none"|"light"|"playful"|"bold";
+export type BirthdayContext="standard"|"milestone"|"across-distance"|"belated";
+export interface FoldedCardData { readonly recipient?:string; readonly relationship?:string; readonly occasion:string; readonly tone:string; readonly milestone?:string; readonly sentimentIntensity?:CardSentimentIntensity; readonly humorPreference?:CardHumorPreference; readonly personalizationFacts?:readonly string[]; readonly explicitFaithLanguage?:string; readonly message:string; readonly signature?:string; }
+export interface GreetingCardData extends FoldedCardData { readonly greetingPurpose?:string; }
+export interface BirthdayCardData extends FoldedCardData { readonly birthdayContext?:BirthdayContext; readonly distanceContext?:string; readonly belatedContext?:string; }
+export type InvitationPrivacyShareIntent="private"|"invite-only"|"shareable"|"public";
+export interface InvitationData { readonly eventType:string; readonly primaryNames:readonly string[]; readonly date?:string; readonly startTime?:string; readonly timezone?:string; readonly venue?:string; readonly address?:string; readonly rsvpMethod?:string; readonly rsvpDeadline?:string; readonly dressCode?:string; readonly details?:string; readonly accessibilityNotes?:string; readonly website?:string; readonly qrDestination?:string; readonly privacyShareIntent?:InvitationPrivacyShareIntent; }
+export interface FlyerData { readonly objective:string; readonly audience:string; readonly headline:string; readonly subhead?:string; readonly valueProposition?:string; readonly details:string; readonly brandElements?:readonly string[]; readonly trustElements?:readonly string[]; readonly contact?:string; readonly primaryCta:string; readonly destination:string; readonly qrDestination?:string; readonly secondaryActions:readonly string[]; readonly disclaimer?:string; }
 export type CardFieldType = "text"|"number"|"boolean"|"enum";
 export interface TcgFieldDefinition { readonly key:string; readonly label:string; readonly type:CardFieldType; readonly required:boolean; readonly values?:readonly string[]; }
 export interface TcgCardRecord {
@@ -152,7 +158,7 @@ export interface TcgData {
   readonly playtestSnapshots:readonly {id:string; createdAt:string; cardIds:readonly string[]; note:string}[];
   readonly gameFramework?:TcgGameFramework;
 }
-export type SpecializedModeData = ComicData | FoldedCardData | InvitationData | FlyerData | TcgData;
+export type SpecializedModeData = ComicData | GreetingCardData | BirthdayCardData | InvitationData | FlyerData | TcgData;
 
 export interface SpecializedOfficeProject {
   readonly formatVersion:typeof SPECIALIZED_OFFICE_FORMAT_VERSION;
@@ -185,10 +191,10 @@ export function defaultProductionProfile(mode:SpecializedCreationMode):Specializ
 
 export function emptyModeData(mode:SpecializedCreationMode):SpecializedModeData {
   if(mode==="comic-book") return Object.freeze({issueTitle:"",readingDirection:"ltr",pages:[]}) as ComicData;
-  if(mode==="greeting-card") return Object.freeze({occasion:"general",tone:"warm",message:""}) as FoldedCardData;
-  if(mode==="birthday-card") return Object.freeze({occasion:"birthday",tone:"warm",message:""}) as FoldedCardData;
-  if(mode==="invitation") return Object.freeze({eventType:"event",primaryNames:[]}) as InvitationData;
-  if(mode==="flyer") return Object.freeze({objective:"",audience:"",headline:"",details:"",primaryCta:"",destination:"",secondaryActions:[]}) as FlyerData;
+  if(mode==="greeting-card") return Object.freeze({occasion:"general",tone:"warm",sentimentIntensity:"moderate",humorPreference:"none",personalizationFacts:[],message:""}) as GreetingCardData;
+  if(mode==="birthday-card") return Object.freeze({occasion:"birthday",tone:"warm",sentimentIntensity:"moderate",humorPreference:"light",personalizationFacts:[],birthdayContext:"standard",message:""}) as BirthdayCardData;
+  if(mode==="invitation") return Object.freeze({eventType:"event",primaryNames:[],privacyShareIntent:"invite-only"}) as InvitationData;
+  if(mode==="flyer") return Object.freeze({objective:"",audience:"",headline:"",details:"",brandElements:[],trustElements:[],primaryCta:"",destination:"",secondaryActions:[]}) as FlyerData;
   return Object.freeze({gameTitle:"",setId:"",setName:"",fields:[],cards:[],templates:[],playtestSnapshots:[],gameFramework:emptyTcgGameFramework()}) as TcgData;
 }
 
@@ -219,8 +225,8 @@ export function validateModeData(mode:SpecializedCreationMode,data:SpecializedMo
   if(mode==="comic-book"){
     const comic=data as ComicData;if(comic.readingDirection!==undefined&&comic.readingDirection!=="ltr"&&comic.readingDirection!=="rtl")throw new Error("Comic reading direction must be ltr or rtl.");const pages=new Set<number>();const panelIds=new Set<string>();for(const page of comic.pages){if(!Number.isInteger(page.page)||page.page<1)throw new Error("Comic page number must be positive.");if(pages.has(page.page))throw new Error(`Duplicate comic page ${page.page}.`);pages.add(page.page);const orders=new Set<number>();for(const panel of page.panels){required(panel.id,"Comic panel id");if(panelIds.has(panel.id))throw new Error(`Duplicate comic panel id "${panel.id}".`);panelIds.add(panel.id);if(panel.page!==page.page)throw new Error("Comic panel page mismatch.");if(!Number.isInteger(panel.order)||panel.order<1)throw new Error("Comic panel order must be a positive integer.");if(orders.has(panel.order))throw new Error(`Duplicate comic panel order ${panel.order} on page ${page.page}.`);orders.add(panel.order);}}return;
   }
-  if(mode==="invitation"){const invite=data as InvitationData;if(!invite.eventType.trim())throw new Error("Invitation event type is required.");return;}
-  if(mode==="flyer"){const flyer=data as FlyerData;if(flyer.secondaryActions.length>20)throw new Error("Flyer secondary action list is unreasonable.");return;}
+  if(mode==="invitation"){const invite=data as InvitationData;if(!invite.eventType.trim())throw new Error("Invitation event type is required.");if(invite.privacyShareIntent&&!(["private","invite-only","shareable","public"] as const).includes(invite.privacyShareIntent))throw new Error("Invitation privacy/share intent is invalid.");return;}
+  if(mode==="flyer"){const flyer=data as FlyerData;if(flyer.secondaryActions.length>20)throw new Error("Flyer secondary action list is unreasonable.");for(const value of flyer.brandElements??[])required(value,"Flyer brand element");for(const value of flyer.trustElements??[])required(value,"Flyer trust element");return;}
   if(mode==="trading-card-game"){
     const tcg=data as TcgData;if(tcg.gameFramework)validateTcgGameFramework(tcg.gameFramework);const fields=new Set<string>();for(const field of tcg.fields){required(field.key,"TCG field key");required(field.label,"TCG field label");if(fields.has(field.key))throw new Error(`Duplicate TCG field "${field.key}".`);fields.add(field.key);if(field.type==="enum"&&(!field.values?.length||new Set(field.values).size!==field.values.length))throw new Error(`Enum TCG field "${field.key}" requires unique allowed values.`);}
     const templates=new Map<string,{id:string;name:string;parentId?:string;tokens:Readonly<Record<string,string|number>>}>();for(const template of tcg.templates){required(template.id,"TCG template id");required(template.name,"TCG template name");if(templates.has(template.id))throw new Error(`Duplicate TCG template "${template.id}".`);templates.set(template.id,template);}for(const template of tcg.templates){if(template.parentId&&!templates.has(template.parentId))throw new Error(`TCG template "${template.id}" references missing parent "${template.parentId}".`);if(template.parentId===template.id)throw new Error(`TCG template "${template.id}" cannot inherit itself.`);assertNoTemplateCycle(template.id,templates);}
@@ -228,7 +234,7 @@ export function validateModeData(mode:SpecializedCreationMode,data:SpecializedMo
     const ids=new Set<string>(),numbers=new Set<string>();for(const card of tcg.cards){required(card.id,"TCG card id");required(card.collectorNumber,"TCG collector number");required(card.templateId,"TCG card template id");if(ids.has(card.id))throw new Error(`Duplicate TCG card id "${card.id}".`);if(numbers.has(card.collectorNumber))throw new Error(`Duplicate collector number "${card.collectorNumber}".`);if(!templates.has(card.templateId))throw new Error(`Card "${card.id}" references missing template "${card.templateId}".`);if(card.evolutionStageId&&!card.characterLineId)throw new Error(`Card "${card.id}" evolution stage requires character-line lineage.`);if(card.characterLineId){const line=characterLines.get(card.characterLineId);if(!line)throw new Error(`Card "${card.id}" references missing character line "${card.characterLineId}".`);if(card.evolutionStageId&&!line.stages.some(stage=>stage.id===card.evolutionStageId))throw new Error(`Card "${card.id}" references missing evolution stage "${card.evolutionStageId}".`);}if(card.territoryId&&!territoryIds.has(card.territoryId))throw new Error(`Card "${card.id}" references missing territory "${card.territoryId}".`);ids.add(card.id);numbers.add(card.collectorNumber);for(const field of tcg.fields){const value=card.fields[field.key];if(field.required&&(value===undefined||value===null||String(value).trim()===""))throw new Error(`Card "${card.id}" missing required field "${field.key}".`);if(value!==undefined&&value!==null)validateTcgFieldValue(card.id,field,value);}}
     return;
   }
-  const card=data as FoldedCardData;if(!card.occasion.trim()||!card.tone.trim())throw new Error("Card occasion and tone are required.");
+  const card=data as FoldedCardData;if(!card.occasion.trim()||!card.tone.trim())throw new Error("Card occasion and tone are required.");if(card.sentimentIntensity&&!(["light","moderate","deep"] as const).includes(card.sentimentIntensity))throw new Error("Card sentiment intensity is invalid.");if(card.humorPreference&&!(["none","light","playful","bold"] as const).includes(card.humorPreference))throw new Error("Card humor preference is invalid.");for(const fact of card.personalizationFacts??[])required(fact,"Card personalization fact");if(mode==="birthday-card"){const birthday=data as BirthdayCardData;if(birthday.birthdayContext&&!(["standard","milestone","across-distance","belated"] as const).includes(birthday.birthdayContext))throw new Error("Birthday context is invalid.");}
 }
 
 export function nextSpecializedStage(stage:SpecializedStage):SpecializedStage {const order:SpecializedStage[]=["brief","plan","create","review","production"];return order[Math.min(order.length-1,order.indexOf(stage)+1)];}
