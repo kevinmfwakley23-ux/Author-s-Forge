@@ -1,5 +1,5 @@
 import type { ProjectState } from "../domain/project";
-import type { KdpCoverFileFacts, KdpInteriorFileFacts, KdpPreflightReport } from "../domain/kdp-preflight";
+import type { KdpCoverFileFacts, KdpInteriorFileFacts, KdpPreflightFinding, KdpPreflightReport } from "../domain/kdp-preflight";
 import { KdpPreflightService } from "./kdp-preflight";
 
 export interface StudioKdpPreflightBody {
@@ -85,6 +85,25 @@ function parseCover(value: unknown): KdpCoverFileFacts {
   };
 }
 
+function unverifiedResolutionFindings(interior: KdpInteriorFileFacts, cover: KdpCoverFileFacts): KdpPreflightFinding[] {
+  const findings: KdpPreflightFinding[] = [];
+  if (interior.minimumImageDpi === undefined) findings.push({
+    code: "INTERIOR_IMAGE_DPI_UNVERIFIED",
+    severity: "warning",
+    area: "interior",
+    message: "Interior image resolution has not been verified.",
+    remediation: "Inspect the final interior artifact and confirm every image is at least 300 DPI before KDP upload.",
+  });
+  if (cover.minimumImageDpi === undefined) findings.push({
+    code: "COVER_IMAGE_DPI_UNVERIFIED",
+    severity: "warning",
+    area: "cover",
+    message: "Cover image resolution has not been verified.",
+    remediation: "Inspect the final cover PDF and confirm all raster artwork is at least 300 DPI before KDP upload.",
+  });
+  return findings;
+}
+
 /**
  * Governed HTTP/application adapter for the Studio Production Office.
  *
@@ -103,13 +122,22 @@ export function runStudioKdpPreflight(
     .sort((a, b) => b.version - a.version)[0];
   if (!plan) throw new Error("Create a KDP cover plan for this book before running production preflight.");
 
-  return service.audit({
+  const interior = parseInterior(body.interior);
+  const cover = parseCover(body.cover);
+  const report = service.audit({
     id: `kdp-preflight-${bookId}-${plan.version}`,
     projectId: project.metadata.id,
     publishing: plan.publishing,
     interiorHasBleed: boolean(body.interiorHasBleed, "interiorHasBleed"),
-    interior: parseInterior(body.interior),
-    cover: parseCover(body.cover),
+    interior,
+    cover,
     now: body.now === undefined ? undefined : text(body.now, "now"),
+  });
+  const unverified = unverifiedResolutionFindings(interior, cover);
+  if (!unverified.length) return report;
+  return Object.freeze({
+    ...report,
+    findings: Object.freeze([...report.findings, ...unverified]),
+    warningCount: report.warningCount + unverified.length,
   });
 }
