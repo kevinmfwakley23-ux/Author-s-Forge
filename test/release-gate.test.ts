@@ -26,6 +26,23 @@ test("release gate blocks mismatched readiness", () => {
   assert.ok(report.blockers.some((blocker) => blocker.id === "readiness-project-mismatch"));
 });
 
+test("release gate blocks stale Publishing readiness even when the old audit was ready", () => {
+  const report = createReleaseGateReport({
+    id: "release",
+    projectId: "p",
+    bookId: "b",
+    publishingReadiness: ready,
+    publishingReadinessCurrent: false,
+    publishingReadinessStaleReasons: ["Publishing metadata changed after the readiness audit", "the ebook cover changed after the readiness audit"],
+  });
+  assert.equal(report.status, "blocked");
+  const blocker = report.blockers.find((item) => item.id === "publishing-readiness-stale");
+  assert.ok(blocker);
+  assert.match(blocker.message, /metadata changed/i);
+  assert.match(blocker.message, /ebook cover changed/i);
+  assert.match(blocker.remediation, /run Publishing readiness again/i);
+});
+
 test("promotion can be explicitly required and must be release-ready", () => {
   const missing = createReleaseGateReport({ id: "release", projectId: "p", bookId: "b", publishingReadiness: ready, promotionRequired: true });
   assert.equal(missing.status, "blocked");
