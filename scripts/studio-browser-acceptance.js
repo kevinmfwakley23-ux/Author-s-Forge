@@ -107,7 +107,9 @@ async function main() {
     assert.equal(workspaceResponse.ok, true);
     const workspace = await workspaceResponse.json();
     const bookId = workspace.books?.[0]?.id;
+    const sceneId = workspace.books?.[0]?.chapters?.[0]?.scenes?.[0]?.id;
     assert.equal(typeof bookId, "string");
+    assert.equal(typeof sceneId, "string");
 
     const workflowBlocked = await fetch(`${baseUrl}/api/projects/${projectId}/workflow/advance`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ bookId, checks: { concept: [{ id: "concept.ready", label: "Concept approved", passed: true }] } }) });
     assert.equal(workflowBlocked.status, 409);
@@ -127,10 +129,10 @@ async function main() {
     assert.equal(persistedWorkflow.currentStage, "architecture");
 
     await page.locator('nav a[data-route="writing"]').click();
-    await page.locator("#editor-scene").selectOption({ index: 1 });
-    await page.locator("#editor-body").fill(CRAFT_FIXTURE);
+    await page.locator("#editor-scene").selectOption(sceneId);
+    await page.locator("#editor-content").fill(CRAFT_FIXTURE);
     await page.locator("#save-scene").click();
-    await page.waitForFunction(() => document.querySelector("#save-status")?.textContent.includes("Saved"));
+    await page.waitForFunction(() => document.querySelector("#success-banner")?.textContent.includes("Scene saved"));
 
     await page.locator("#craft-lens-analyze").click();
     await page.waitForFunction(() => document.querySelector("#craft-lens-status")?.textContent.includes("finding"), null, { timeout: 10000 });
@@ -143,7 +145,7 @@ async function main() {
     await page.waitForFunction(() => document.querySelector("#author-goal-status")?.textContent.includes("250"));
 
     await page.locator('nav a[data-route="health"]').click();
-    await page.waitForFunction(() => document.querySelector("#health-content")?.textContent.includes("architecture"));
+    await page.waitForFunction(() => document.querySelector("#health-detail")?.textContent.includes("architecture"));
 
     await context.close();
   } finally {
