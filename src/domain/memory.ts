@@ -68,11 +68,21 @@ export function validateMemoryRecord(memory: MemoryRecord): void {
     validateTimestamp(item.recordedAt, "provenance recordedAt");
   }
   if (memory.authority === "authoritative" && memory.provenance.length === 0) throw new Error("Authoritative memory requires provenance.");
-  if (!Array.isArray(memory.relatedMemoryIds) || memory.relatedMemoryIds.some((value) => typeof value !== "string" || !value.trim())) throw new Error("Memory related ids must be non-empty strings.");
-  if (!Array.isArray(memory.relevanceTags) || memory.relevanceTags.some((value) => typeof value !== "string" || !value.trim())) throw new Error("Memory relevance tags must be non-empty strings.");
+  validateUniqueStringCollection(memory.relatedMemoryIds, "related ids");
+  validateUniqueStringCollection(memory.relevanceTags, "relevance tags");
+  validateOptionalLink(memory.supersedes, "supersedes");
+  validateOptionalLink(memory.supersededBy, "supersededBy");
   if (memory.supersedes === memory.id || memory.supersededBy === memory.id) throw new Error("Memory cannot supersede itself.");
+  if (memory.supersedes !== undefined && memory.supersededBy !== undefined && memory.supersedes === memory.supersededBy) throw new Error("Memory supersession links cannot point to the same record in both directions.");
 }
 
+function validateUniqueStringCollection(value: readonly string[], field: string): void {
+  if (!Array.isArray(value) || value.some((item) => typeof item !== "string" || !item.trim())) throw new Error(`Memory ${field} must be non-empty strings.`);
+  if (new Set(value).size !== value.length) throw new Error(`Memory ${field} must not contain duplicates.`);
+}
+function validateOptionalLink(value: string | undefined, field: string): void {
+  if (value !== undefined && (typeof value !== "string" || !value.trim())) throw new Error(`Memory ${field} must be a non-empty string when present.`);
+}
 function validateTimestamp(value: string, field: string): void {
   if (typeof value !== "string" || !value.trim() || Number.isNaN(Date.parse(value))) throw new Error(`Memory ${field} must be a valid timestamp.`);
 }
