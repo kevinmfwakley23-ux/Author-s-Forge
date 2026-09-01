@@ -8,14 +8,17 @@ const { homedir, tmpdir } = require("node:os");
 const { join } = require("node:path");
 const { chromium } = require("@playwright/test");
 const { FileProjectStore } = require("../dist/infrastructure/file-project-store.js");
-const { createProject, withProjectStudioWorkspace, withProjectKdpMarketIntelligenceReports } = require("../dist/domain/project.js");
-const { createStudioWorkspace, createWorkspaceBook, addWorkspaceBook } = require("../dist/domain/studio-workspace.js");
+const { createProject, withProjectStudioWorkspace, withProjectKdpMarketIntelligenceReports, withProjectIllustrationAssetLibrary } = require("../dist/domain/project.js");
+const { createStudioWorkspace, createWorkspaceBook, addWorkspaceBook, addWorkspaceChapter, addWorkspaceScene } = require("../dist/domain/studio-workspace.js");
 const { createKdpMarketIntelligenceReport } = require("../dist/domain/kdp-market-intelligence.js");
+const { createIllustrationAsset } = require("../dist/domain/illustration-asset-library.js");
 
 const HOST = "127.0.0.1";
 const PORT = 5680 + Math.floor(Math.random() * 150);
 const projectId = `publishing-promotion-${Date.now()}`;
 const bookId = "book-release";
+const chapterId = "chapter-release";
+const sceneId = "scene-release";
 
 function findBrowser() {
   if (process.env.FORGE_BROWSER_EXECUTABLE) {
@@ -53,21 +56,31 @@ async function jsonRequest(baseUrl, path, options = {}, expectedOk = true) {
 async function seed(dataDir) {
   const store = new FileProjectStore(dataDir);
   let workspace = createStudioWorkspace();
-  workspace = addWorkspaceBook(workspace, createWorkspaceBook({ id: bookId, title: "Heartwood Friendship", kind: "childrens-book", description: "A gentle animal story about making a new friend and belonging.", now: "2026-09-01T15:00:00.000Z" }));
-  let project = withProjectStudioWorkspace(createProject({ id: projectId, title: "Publishing Promotion Acceptance", now: "2026-09-01T15:00:00.000Z" }), workspace, "2026-09-01T15:01:00.000Z");
+  workspace = addWorkspaceBook(workspace, createWorkspaceBook({ id: bookId, title: "Heartwood Friendship", kind: "childrens-book", description: "A gentle animal story about making a new friend and belonging.", now: "2026-08-31T00:00:00.000Z" }));
+  workspace = addWorkspaceChapter(workspace, bookId, { id: chapterId, number: 1, title: "One Brave Hello", synopsis: "A small act of courage opens the door to friendship." });
+  workspace = addWorkspaceScene(workspace, bookId, chapterId, { id: sceneId, number: 1, title: "The Hello", synopsis: "The Heartwood character reaches out to a possible new friend." });
+  let project = withProjectStudioWorkspace(createProject({ id: projectId, title: "Publishing Promotion Acceptance", now: "2026-08-31T00:00:00.000Z" }), workspace, "2026-08-31T00:01:00.000Z");
+
+  const illustration = createIllustrationAsset({
+    id: "illustration-release-1", projectId, bookId, chapterId, sceneId, characterId: "heartwood-character", locationId: "heartwood-jungle",
+    prompt: "A gentle original Heartwood Jungle friendship scene.", references: [], style: "children's picture-book illustration", generationSettings: { dpi: 300 },
+    approvalStatus: "approved", assetUri: "/api/test-assets/heartwood-friendship.png", now: "2026-08-31T00:02:00.000Z",
+  });
+  project = withProjectIllustrationAssetLibrary(project, { formatVersion: 1, projectId, assets: [illustration], characterDesignLocks: [] }, "2026-08-31T00:03:00.000Z");
+
   const report = createKdpMarketIntelligenceReport({
-    id: "market-browser-1", projectId, bookId, question: "Find friendship story keywords and observable market signals.", market: "Amazon.com / United States", researchedAt: "2026-09-01T15:02:00.000Z",
-    evidence: [{ id: "e1", source: "Current observed sample", url: "https://example.org/current-market", observedAt: "2026-09-01T15:02:00.000Z", observation: "The observed sample contains current friendship and belonging titles.", strength: "moderate" }],
+    id: "market-browser-1", projectId, bookId, question: "Find friendship story keywords and observable market signals.", market: "Amazon.com / United States", researchedAt: "2026-08-31T00:04:00.000Z",
+    evidence: [{ id: "e1", source: "Current observed sample", url: "https://example.org/current-market", observedAt: "2026-08-31T00:04:00.000Z", observation: "The observed sample contains current friendship and belonging titles.", strength: "moderate" }],
     signals: [{ id: "s1", topic: "keyword-opportunities", label: "Friendship intent", observation: "Making-friends language matches the proposed book.", direction: "positive", evidenceIds: ["e1"] }],
     comparableTitles: [
-      { title: "Friendship Sample A", category: "Children's Friendship", price: 9.99, currency: "USD", bestSellerRank: 12000, reviewCount: 140, rating: 4.7, publishedDate: "2026-05-01", sourceUrl: "https://example.org/current-market", observedAt: "2026-09-01T15:02:00.000Z" },
-      { title: "Friendship Sample B", category: "Children's Friendship", price: 11.99, currency: "USD", bestSellerRank: 18000, reviewCount: 80, rating: 4.5, publishedDate: "2025-12-01", sourceUrl: "https://example.org/current-market", observedAt: "2026-09-01T15:02:00.000Z" },
+      { title: "Friendship Sample A", category: "Children's Friendship", price: 9.99, currency: "USD", bestSellerRank: 12000, reviewCount: 140, rating: 4.7, publishedDate: "2026-05-01", sourceUrl: "https://example.org/current-market", observedAt: "2026-08-31T00:04:00.000Z" },
+      { title: "Friendship Sample B", category: "Children's Friendship", price: 11.99, currency: "USD", bestSellerRank: 18000, reviewCount: 80, rating: 4.5, publishedDate: "2025-12-01", sourceUrl: "https://example.org/current-market", observedAt: "2026-08-31T00:04:00.000Z" },
     ],
     keywordRecommendations: [{ phrase: "making new friends", score: 94, rationale: "Specific reader-search intent aligned to the actual story.", evidenceIds: ["e1"], recommendedForKdpSlot: true, complianceNotes: ["accurate to the central theme"] }],
     nicheOpportunities: [{ niche: "gentle animal friendship and belonging stories", score: 88, demandSignal: "high", competitionSignal: "moderate", rationale: "Current sample supports reader interest while differentiation still matters.", evidenceIds: ["e1"] }],
     assessment: { level: "promising", rationale: "The current observed sample supports further consideration.", signals: ["friendship search intent"], limitations: ["sample is not the entire market"], disclaimer: "This report describes observable market signals and research evidence. It is not a guarantee, forecast, or promise of sales, rankings, revenue, or commercial performance." },
   });
-  project = withProjectKdpMarketIntelligenceReports(project, [report], "2026-09-01T15:03:00.000Z");
+  project = withProjectKdpMarketIntelligenceReports(project, [report], "2026-08-31T00:05:00.000Z");
   await store.create(project);
 }
 
@@ -76,7 +89,7 @@ async function main() {
   if (!executablePath) throw new Error("PUBLISHING/PROMOTION BROWSER ACCEPTANCE BLOCKED: no Chrome/Chromium executable found.");
   const dataDir = await mkdtemp(join(tmpdir(), "authors-forge-publishing-promotion-"));
   await seed(dataDir);
-  const server = spawn(process.execPath, ["dist/studio-server.js"], { env: { ...process.env, PORT: String(PORT), HOST, FORGE_DATA_DIR: dataDir, OPENAI_API_KEY: "", OPENAI_MODEL: "", OPENAI_MARKET_RESEARCH_MODEL: "", OLLAMA_BASE_URL: "", OLLAMA_MODEL: "" }, stdio: ["ignore", "pipe", "pipe"] });
+  const server = spawn(process.execPath, ["dist/studio-server.js"], { env: { ...process.env, PORT: String(PORT), HOST, FORGE_DATA_DIR: dataDir, OPENAI_API_KEY: "", OPENAI_MODEL: "", OPENAI_MARKET_RESEARCH_MODEL: "", OLLAMA_BASE_URL: "", OLLAMA_MODEL: "", OMNIROUTE_BASE_URL: "", ROUTER9_BASE_URL: "", KINGS_AI_ENDPOINT: "" }, stdio: ["ignore", "pipe", "pipe"] });
   let browser;
   try {
     const baseUrl = `http://${HOST}:${PORT}`;
@@ -121,9 +134,18 @@ async function main() {
 
     const researchFailure = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname.endsWith("/market-research"));
     await page.locator("#run-market-research").click();
-    const failed = await researchFailure;
-    assert.equal(failed.ok(), false, "live market research must fail honestly when credentials/model are absent");
-    assert.match(await failed.text(), /OPENAI_API_KEY|OPENAI_MARKET_RESEARCH_MODEL|OPENAI_MODEL/);
+    const failedResearch = await researchFailure;
+    assert.equal(failedResearch.ok(), false, "live market research must fail honestly when credentials/model are absent");
+    assert.match(await failedResearch.text(), /OPENAI_API_KEY|OPENAI_MARKET_RESEARCH_MODEL|OPENAI_MODEL/);
+
+    const promotionForm = page.locator("#promotion-generate-form");
+    await promotionForm.locator('[name="audience"]').fill("Parents and teachers");
+    await promotionForm.locator('[name="readerPromise"]').fill("A warm friendship and belonging story");
+    const promotionFailure = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname.endsWith("/promotion/generate"));
+    await promotionForm.locator('button[type="submit"]').click();
+    const failedPromotion = await promotionFailure;
+    assert.equal(failedPromotion.ok(), false, "AI Promotion must fail honestly when no real provider is configured");
+    assert.match(await failedPromotion.text(), /No AI provider is configured|All configured AI resources failed/);
 
     const campaign = {
       id: "campaign-browser-1", projectId, bookId, objective: "Launch accurately", audience: "Parents and teachers", readerPromise: "A warm friendship and belonging story", researchReportIds: ["market-browser-1"],
@@ -135,40 +157,58 @@ async function main() {
     const approveResponse = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname.endsWith("/approve"));
     await page.locator('[data-promo-action="approve"]').click();
     assert.equal((await approveResponse).ok(), true, "Promotion approval must use durable Studio route");
+    await page.waitForFunction(() => document.querySelector("#promotion-campaigns")?.textContent.includes("approved"));
     await page.locator("#promotion-readiness").click();
     await page.waitForFunction(() => document.querySelector("#promotion-readiness-result")?.textContent.includes("Promotion is release-ready"));
 
     await page.locator('nav a[data-route="publishing"]').click();
     const readiness = page.locator("#publishing-readiness-form");
+    await readiness.locator('[name="releaseFormat"]').selectOption("ebook");
     await readiness.locator('[name="hasTitlePage"]').check();
     await readiness.locator('[name="hasCopyrightPage"]').check();
     await readiness.locator('[name="hasTableOfContents"]').check();
-    await readiness.locator('[name="formattingValidated"]').check();
-    await readiness.locator('[name="pageNumbering"]').check();
-    await readiness.locator('[name="imagesResolved"]').check();
-    await readiness.locator('[name="imagesApproved"]').check();
+    await readiness.locator('[name="imagesRequired"]').check();
     await readiness.locator('[name="resolutionValidated"]').check();
+    await readiness.locator('[name="formattingValidated"]').check();
     await readiness.locator('[name="productionValidated"]').check();
     await readiness.locator('[name="fileTypes"]').fill("epub");
-    const readinessResponse = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname.endsWith("/publishing/readiness"));
+
+    let readinessResponse = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname.endsWith("/publishing/readiness"));
     await readiness.locator('button[type="submit"]').click();
     assert.equal((await readinessResponse).ok(), true);
     await page.locator("#run-release-gate").click();
     await page.waitForFunction(() => document.querySelector("#release-gate-result")?.textContent.includes("RELEASE BLOCKED"));
     assert.match(await page.locator("#release-gate-result").textContent(), /publishing-readiness/i, "missing final cover evidence must remain a real release blocker");
 
+    await readiness.locator('[name="coverFileType"]').fill("jpeg");
+    await readiness.locator('[name="coverFront"]').check();
+    await readiness.locator('[name="coverValidated"]').check();
+    readinessResponse = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname.endsWith("/publishing/readiness"));
+    await readiness.locator('button[type="submit"]').click();
+    assert.equal((await readinessResponse).ok(), true);
+    const editionReports = (await jsonRequest(baseUrl, `/api/projects/${projectId}/publishing/readiness?bookId=${bookId}&format=ebook`)).payload.reports;
+    assert.equal(editionReports[0].releaseFormat, "ebook");
+    assert.equal(editionReports[0].checks.filter((item) => item.status === "attention" && item.severity === "error").length, 0, "valid eBook evidence should remove all Publishing release blockers");
+
+    await page.locator("#run-release-gate").click();
+    await page.waitForFunction(() => document.querySelector("#release-gate-result")?.textContent.includes("READY TO RELEASE"));
+    assert.doesNotMatch(await page.locator("#release-gate-result").textContent(), /publishing-readiness|promotion-readiness/i, "complete Publishing + Promotion evidence should clear the combined gate");
+
     const mobileContext = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, userAgent: "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 Chrome/150 Mobile Safari/537.36" });
     const mobile = await mobileContext.newPage();
     await mobile.goto(`${baseUrl}/?project=${encodeURIComponent(projectId)}#marketing`, { waitUntil: "networkidle" });
     await mobile.waitForFunction(() => window.forgePublishingPromotion && document.querySelector("#run-market-research"));
-    const buttonBox = await mobile.locator("#run-market-research").boundingBox();
-    assert.ok(buttonBox && buttonBox.height >= 40, `market research touch target too small: ${JSON.stringify(buttonBox)}`);
+    const marketBox = await mobile.locator("#run-market-research").boundingBox();
+    assert.ok(marketBox && marketBox.height >= 40, `market research touch target too small: ${JSON.stringify(marketBox)}`);
+    await mobile.locator('nav a[data-route="publishing"]').tap();
+    const releaseBox = await mobile.locator("#run-release-gate").boundingBox();
+    assert.ok(releaseBox && releaseBox.height >= 40, `release gate touch target too small: ${JSON.stringify(releaseBox)}`);
     const dimensions = await mobile.evaluate(() => ({ viewport: document.documentElement.clientWidth, body: document.body.scrollWidth, document: document.documentElement.scrollWidth }));
     assert.ok(dimensions.body <= dimensions.viewport + 1, `Publishing/Promotion body overflows Android viewport: ${JSON.stringify(dimensions)}`);
     assert.ok(dimensions.document <= dimensions.viewport + 1, `Publishing/Promotion document overflows Android viewport: ${JSON.stringify(dimensions)}`);
     await mobileContext.close();
 
-    console.log("PUBLISHING/PROMOTION BROWSER ACCEPTANCE PASSED: durable metadata + saved market statistics + author-approved keywords + honest live-provider failure + durable promotion approval/readiness + release blocking + Android touch/overflow.");
+    console.log("PUBLISHING/PROMOTION BROWSER ACCEPTANCE PASSED: durable metadata + saved market statistics + author-approved keywords + honest live-provider failures + durable promotion approval/readiness + blocked-to-ready format-scoped release gate + Android touch/overflow.");
   } finally {
     if (browser) await browser.close().catch(() => {});
     server.kill("SIGTERM");
