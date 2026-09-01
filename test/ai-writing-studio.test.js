@@ -12,7 +12,7 @@ import { createStudioWorkspace, addWorkspaceBook, addWorkspaceChapter, addWorksp
 
 async function fixture(root, characters = [], authorVoiceMemory) {
   const projects = new FileProjectStore(root);
-  let project = createProject({ id: "project-1", title: "Studio Test" });
+  let project = createProject({ id: "project-1", title: "Studio Test", now: "2026-08-30T08:00:00.000Z" });
   if (authorVoiceMemory) project = withProjectAuthorVoiceMemory(project, authorVoiceMemory, "2026-08-30T09:00:00.000Z");
   let workspace = createStudioWorkspace();
   workspace = addWorkspaceBook(workspace, { id: "book-1", title: "Book", kind: "novel", lifecycle: "active", description: "", chapters: [], updatedAt: "2026-08-30T09:00:00.000Z" });

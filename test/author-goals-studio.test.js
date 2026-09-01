@@ -16,7 +16,7 @@ async function fixture(root) {
   workspace = addWorkspaceChapter(workspace, "book-1", { id: "chapter-1", number: 1, title: "Chapter One", now: "2026-08-30T09:00:00.000Z" });
   workspace = addWorkspaceScene(workspace, "book-1", "chapter-1", { id: "scene-1", number: 1, title: "Opening", now: "2026-08-30T09:00:00.000Z" });
   workspace = saveSceneContent(workspace, "book-1", "chapter-1", "scene-1", "one two three four five six seven eight nine ten", "2026-08-30T09:01:00.000Z");
-  await projects.create({ ...createProject({ id: "project-1", title: "Goals" }), studioWorkspace: workspace });
+  await projects.create({ ...createProject({ id: "project-1", title: "Goals", now: "2026-08-30T08:00:00.000Z" }), studioWorkspace: workspace });
   return projects;
 }
 
