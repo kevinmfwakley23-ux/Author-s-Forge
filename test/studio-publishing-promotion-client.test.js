@@ -21,7 +21,9 @@ test("canonical Studio loads the Publishing and Promotion client and server rout
 });
 
 test("author-visible market workflow caps KDP selection at seven and requires confirmation before metadata mutation", () => {
-  assert.match(client, /selected\.length>7/);
+  assert.match(client, /selected\.length<=7/);
+  assert.match(client, /this\.checked=false/);
+  assert.match(client, /phrases\.length>7/);
   assert.match(client, /KDP supports up to seven keyword phrases/);
   assert.match(client, /window\.confirm\(`Apply/);
   assert.match(client, /authorApproved:true/);
