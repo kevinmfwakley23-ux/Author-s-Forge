@@ -13,6 +13,25 @@ test('Studio composition binds one durable project store directly into Forge Cor
     assert.strictEqual(runtime.core.projectStore, runtime.projectStore);
     assert.equal(runtime.core.readiness().projectStoreAvailable, true);
     assert.equal(runtime.core.readiness().aiConfigured, false);
+    assert.equal(runtime.core.readiness().aiOperational, false);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('configured Studio AI is eligible to try but not operational until real execution establishes health evidence', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'forge-core-health-evidence-'));
+  try {
+    const runtime = createForgeStudioRuntime(root, { OPENAI_API_KEY: 'configured-key', OPENAI_MODEL: 'configured-model' });
+    assert.equal(runtime.core.readiness().aiConfigured, true);
+    assert.equal(runtime.core.readiness().aiOperational, false);
+    assert.equal(runtime.core.readiness().ready, false);
+
+    const result = await runtime.core.executeAi({ task: 'writing', input: 'health-check', maxAttempts: 1 }, async (_input, context) => context.resource.model);
+    assert.equal(result.value, 'configured-model');
+    assert.equal(runtime.core.readiness().aiOperational, true);
+    assert.equal(runtime.core.readiness().operationalModelCount, 1);
+    assert.equal(runtime.core.readiness().ready, true);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
