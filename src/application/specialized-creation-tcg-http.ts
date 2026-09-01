@@ -5,7 +5,7 @@ import type { ProjectMemoryStore } from "./project-memory-store";
 import type { SpecializedCreationOfficeService } from "./specialized-creation-office-service";
 import { SpecializedCreationAiAssetService } from "./specialized-creation-ai-assets";
 import { SpecializedCreationTcgAiService,type TcgAiProposalScope } from "./specialized-creation-tcg-ai";
-import { buildTcgCharacterContinuityContext,bridgeApprovedTcgStageArtwork } from "./specialized-creation-tcg-character-bridge";
+import { buildTcgCharacterContinuityContext,bridgeApprovedTcgStageArtwork,type TcgCharacterContinuityContext } from "./specialized-creation-tcg-character-bridge";
 import { createCharacterEvolutionCards,createTerritoryCards,setTcgGameFramework,tcgGameFramework,upsertTcgCharacterEvolutionLine,upsertTcgWorldMap } from "./specialized-creation-tcg-design";
 import { validateTcgGameFramework,type TcgCharacterEvolutionLine,type TcgGameFramework,type TcgWorldMap } from "../domain/specialized-creation-tcg-world";
 import { validateModeData,type SpecializedOfficeProject,type TcgData } from "../domain/specialized-creation-office";
@@ -25,10 +25,10 @@ export async function handleSpecializedTcgAction(input:{tail:string;method?:stri
   if(input.tail==="tcg/ai/propose"&&input.method==="POST"){const scope=tcgScope(input.body.scope);const result=await tcgAi.propose({forgeProjectId:input.forgeProjectId,specializedProjectId:input.specializedProjectId,scope,instruction:required(input.body.instruction,"instruction"),...(typeof input.body.focusId==="string"&&input.body.focusId.trim()?{focusId:input.body.focusId.trim()}: {})});return ok(201,result);}
   const proposal=input.tail.match(/^tcg\/ai\/proposals\/([^/]+)\/(approve|reject)$/);if(proposal&&input.method==="POST"){const proposalId=decodeURIComponent(proposal[1]);const saved=proposal[2]==="approve"?await tcgAi.approveAndApply({forgeProjectId:input.forgeProjectId,specializedProjectId:input.specializedProjectId,proposalId}):await tcgAi.reject({forgeProjectId:input.forgeProjectId,specializedProjectId:input.specializedProjectId,proposalId});return ok(200,saved,true);}
   if(input.tail==="tcg/art/stage/generate"&&input.method==="POST"){
-    const lineId=required(input.body.lineId,"lineId"),stageId=required(input.body.stageId,"stageId"),forgeProject=await requireForgeProject(input.forgeProjectId),continuity=buildTcgCharacterContinuityContext({forgeProject,specializedProject:input.current,lineId,stageId});
+    const lineId=required(input.body.lineId,"lineId"),stageId=required(input.body.stageId,"stageId"),forgeProject=await requireForgeProject(input.forgeProjectId),continuity=buildTcgCharacterContinuityContext({forgeProject,specializedProject:input.current,lineId,stageId}),referenceImages=approvedVisualReferences(continuity);
     const requestedStyle=typeof input.body.styleDirection==="string"&&input.body.styleDirection.trim()?input.body.styleDirection.trim():"";
     const styleDirection=["CHARACTER CONTINUITY CONSTRAINT",continuity.text,requestedStyle?`AUTHOR ART DIRECTION\n${requestedStyle}`:""].filter(Boolean).join("\n\n");
-    const result=await aiAssets.generateTcgStageArtwork({forgeProjectId:input.forgeProjectId,specializedProjectId:input.specializedProjectId,lineId,stageId,styleDirection});return ok(201,{...result,continuity:{characterId:continuity.characterId,hasApprovedVisualReference:Boolean(continuity.approvedReferenceAssetUri)}});
+    const result=await aiAssets.generateTcgStageArtwork({forgeProjectId:input.forgeProjectId,specializedProjectId:input.specializedProjectId,lineId,stageId,styleDirection,referenceImages});return ok(201,{...result,continuity:{characterId:continuity.characterId,hasApprovedVisualReference:Boolean(continuity.approvedReferenceAssetUri),visualReferenceSupplied:referenceImages.length>0}});
   }
   if(input.tail==="tcg/art/stage/approve"&&input.method==="POST"){
     const lineId=required(input.body.lineId,"lineId"),stageId=required(input.body.stageId,"stageId"),assetId=required(input.body.assetId,"assetId");
@@ -41,6 +41,7 @@ export async function handleSpecializedTcgAction(input:{tail:string;method?:stri
   if(input.tail==="tcg/assets/approval"&&input.method==="POST"){const saved=await aiAssets.setAssetApproval({forgeProjectId:input.forgeProjectId,specializedProjectId:input.specializedProjectId,assetId:required(input.body.assetId,"assetId"),approved:input.body.approved===true});return ok(200,saved);}
   return undefined;
 }
+function approvedVisualReferences(continuity:TcgCharacterContinuityContext){const uri=continuity.approvedReferenceAssetUri;if(!uri||!/^data:image\/(?:png|jpeg|webp);base64,/i.test(uri))return[];return[{dataUri:uri,label:"Current author-approved Character Design Lock"}] as const;}
 function projectStore():FileProjectStore{return new FileProjectStore(process.env.FORGE_DATA_DIR?.trim()||join(process.cwd(),".forge-data"));}
 async function requireForgeProject(id:string){const project=await projectStore().load(id);if(!project)throw new Error(`Forge project "${id}" not found for TCG character continuity.`);return project;}
 function tcgScope(value:unknown):TcgAiProposalScope{if(value==="game-framework"||value==="character-line"||value==="world-map"||value==="balance-review")return value;throw new Error("TCG AI scope must be game-framework, character-line, world-map, or balance-review.");}
