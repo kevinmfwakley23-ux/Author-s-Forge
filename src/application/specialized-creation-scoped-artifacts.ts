@@ -1,6 +1,7 @@
 import type { FileSpecializedCreationStore } from "../infrastructure/file-specialized-creation-store";
 import type { SpecializedArtifactKind, SpecializedOfficeProject, SpecializedRevision } from "../domain/specialized-creation-office";
 import { SpecializedCreationProductionEngine, type SpecializedPreflightReport, type SpecializedRenderedArtifact } from "./specialized-creation-production-engine";
+import { mergeSpecializedPreflight, prepareSpecializedProjectForArtifact, specializedProductionSafetyIssues } from "./specialized-creation-production-safety";
 
 export class SpecializedCreationScopedArtifactService {
   constructor(private readonly store:FileSpecializedCreationStore,private readonly production=new SpecializedCreationProductionEngine()) {}
@@ -11,8 +12,8 @@ export class SpecializedCreationScopedArtifactService {
     const documents=ids.map(id=>{const document=project.documents.find(item=>item.id===id);if(!document)throw new Error(`Specialized document \"${id}\" not found.`);return document;});
     const profile=project.productionProfiles.find(item=>item.id===input.profileId);if(!profile)throw new Error(`Production profile \"${input.profileId}\" not found.`);
     const scoped:SpecializedOfficeProject={...project,documents};
-    const now=input.now??new Date().toISOString(),preflight=this.production.preflight(scoped,profile,now);if(!preflight.ready)throw new Error(`Production blocked by ${preflight.blocking} preflight error(s).`);
-    const artifact=this.production.render(scoped,profile,input.kind);
+    const now=input.now??new Date().toISOString(),preflight=mergeSpecializedPreflight(this.production.preflight(scoped,profile,now),specializedProductionSafetyIssues(scoped,input.kind));if(!preflight.ready)throw new Error(`Production blocked by ${preflight.blocking} preflight error(s): ${preflight.issues.filter(issue=>issue.severity==="error").map(issue=>issue.code).join(", ")}`);
+    const artifact=this.production.render(prepareSpecializedProjectForArtifact(scoped,input.kind),profile,input.kind);
     const revisions:SpecializedRevision[]=[];for(const documentId of ids){const revision=project.revisions.filter(item=>item.documentId===documentId).at(-1);if(!revision)throw new Error(`Production document \"${documentId}\" has no durable revision.`);revisions.push(revision);}
     const revisionId=revisions.map(revision=>revision.id).join("+");
     const record={id:`artifact-${artifact.sha256.slice(0,16)}`,projectId:project.id,revisionId,profileId:profile.id,kind:input.kind,fileName:artifact.fileName,mimeType:artifact.mimeType,byteLength:artifact.byteLength,sha256:artifact.sha256,createdAt:now};
