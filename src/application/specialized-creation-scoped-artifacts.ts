@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { FileSpecializedCreationStore } from "../infrastructure/file-specialized-creation-store";
 import type { SpecializedArtifactKind, SpecializedOfficeProject, SpecializedRevision } from "../domain/specialized-creation-office";
 import { SpecializedCreationProductionEngine, type SpecializedPreflightReport, type SpecializedRenderedArtifact } from "./specialized-creation-production-engine";
@@ -19,8 +20,8 @@ export class SpecializedCreationScopedArtifactService {
     const artifact=input.kind==="pdf"?renderEmbeddedPdf(prepared):input.kind==="svg"?renderEmbeddedSvg(prepared):input.kind==="jpeg"?renderSpecializedJpegFromPng(this.production.render(prepared,profile,"png",project)):this.production.render(prepared,profile,input.kind,project);
     const revisions:SpecializedRevision[]=[];for(const documentId of ids){const revision=project.revisions.filter(item=>item.documentId===documentId).at(-1);if(!revision)throw new Error(`Production document \"${documentId}\" has no durable revision.`);revisions.push(revision);}
     const revisionId=revisions.map(revision=>revision.id).join("+");
-    const record={id:`artifact-${artifact.sha256.slice(0,16)}`,projectId:project.id,revisionId,profileId:profile.id,kind:input.kind,fileName:artifact.fileName,mimeType:artifact.mimeType,byteLength:artifact.byteLength,sha256:artifact.sha256,createdAt:now};
-    const saved=await this.store.save({...project,artifacts:[...project.artifacts.filter(item=>item.id!==record.id),record],stage:"production",updatedAt:now});
+    const record={id:`artifact-${randomUUID()}`,projectId:project.id,revisionId,profileId:profile.id,kind:input.kind,fileName:artifact.fileName,mimeType:artifact.mimeType,byteLength:artifact.byteLength,sha256:artifact.sha256,createdAt:now};
+    const saved=await this.store.save({...project,artifacts:[...project.artifacts,record],stage:"production",updatedAt:now});
     return {project:saved,artifact,preflight};
   }
 }
