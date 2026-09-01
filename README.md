@@ -125,6 +125,8 @@ The Guided Journal Office now includes:
 
 ### 🟡 Active next build — Specialized Creation Office
 
+**Research lock is complete.** The implementation contract is [`docs/MISSION-059-SPECIALIZED-CREATION-OFFICE.md`](docs/MISSION-059-SPECIALIZED-CREATION-OFFICE.md). Specialized Creation implementation must follow its requirement IDs, phase gates, research adoption ledger, ADR triggers, verification matrix and anti-drift rules. The reusable format for future major work is [`docs/ENGINEERING_MISSION_TEMPLATE.md`](docs/ENGINEERING_MISSION_TEMPLATE.md).
+
 The Specialized Creation Office is **not starting from zero**. Domain/workflow/production foundations already exist for exactly these six canonical modes:
 
 1. **Comic books**
@@ -173,7 +175,7 @@ These areas have foundations or substantial implementation but still require con
 
 ### Current build order
 
-1. **Finish Specialized Creation Office** across all six locked modes.
+1. **Execute Mission 059 phases 059B–059J and finish Specialized Creation Office** across all six locked modes.
 2. Close remaining cross-Forge live-integration gaps and acceptance gates.
 3. Complete production/marketing/delivery hardening.
 4. Remodel and polish the overall Studio UI/UX once capability coverage is stable.
