@@ -7,7 +7,8 @@ IMPLEMENTED — exact-head Forge CI required before merge.
 ## Coordination
 
 - First-pass owner: ChatGPT co-chief engineer.
-- Base: 002A children's story topic discovery.
+- Base: current `main`, after merged 002A children's story topic discovery.
+- Android is working in the separate Specialized Creation lane; this block does not touch that office.
 - No external-backup or Project Brain retrieval files are modified.
 
 ## Capability
@@ -35,6 +36,10 @@ The restore path writes an `author-approved` decision into the existing project 
 ## Regression coverage
 
 Tests use the real FileProjectStore and prove restart-safe capture/list/compare; refusal of unapproved restore without mutation; automatic rollback checkpoint creation; durable author attribution; undoing a restore by restoring its checkpoint; branch persistence; non-overlapping three-way merge and merged-version durability.
+
+## Verification gate
+
+Merge only after Forge CI passes the exact current head against merged `main`, including build/tests, completion checks, desktop browser acceptance and Android/mobile acceptance.
 
 ## Next block
 
