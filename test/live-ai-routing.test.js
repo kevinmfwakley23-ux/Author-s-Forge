@@ -66,6 +66,40 @@ test("live Forge AI broker fails over between configured models and accounts pro
   }
 });
 
+test("live Forge AI broker rotates to a less-used eligible model before either model is exhausted", { concurrency: false }, async () => {
+  const restoreEnv = isolatedEnv({
+    OMNIROUTE_BASE_URL: "http://omniroute-rotate.test",
+    OMNIROUTE_MODELS: "rotate-a,rotate-b",
+    AI_PROVIDER_ORDER: "omniroute",
+    AI_ROUTING_MODE: "balanced",
+  });
+  const oldFetch = global.fetch;
+  const seen = [];
+  global.fetch = async (_url, options) => {
+    const payload = JSON.parse(options.body);
+    seen.push(payload.model);
+    return new Response(JSON.stringify({
+      id: `rotation-${seen.length}`,
+      choices: [{ message: { content: `result from ${payload.model}` } }],
+      usage: { prompt_tokens: 60, completion_tokens: 40, total_tokens: 100 },
+    }), { status: 200, headers: { "content-type": "application/json" } });
+  };
+
+  try {
+    const first = await generateText({ system: "System", user: "First request", task: "writing", maxOutputTokens: 100 });
+    const second = await generateText({ system: "System", user: "Second request", task: "writing", maxOutputTokens: 100 });
+    assert.equal(first.model, "rotate-a");
+    assert.equal(second.model, "rotate-b");
+    assert.deepEqual(seen, ["rotate-a", "rotate-b"]);
+    const telemetry = aiRoutingTelemetry();
+    assert.equal(telemetry.find((item) => item.model === "rotate-a").totalTokens, 100);
+    assert.equal(telemetry.find((item) => item.model === "rotate-b").totalTokens, 100);
+  } finally {
+    global.fetch = oldFetch;
+    restoreEnv();
+  }
+});
+
 test("live Forge AI broker protects quota reserve using prompt plus response budget and rotates providers before exhaustion", { concurrency: false }, async () => {
   const restoreEnv = isolatedEnv({
     OMNIROUTE_BASE_URL: "http://omniroute-quota.test",
