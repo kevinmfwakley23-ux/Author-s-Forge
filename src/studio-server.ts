@@ -5,7 +5,7 @@ import { extname, join, normalize } from "node:path";
 import { FileProjectStore } from "./infrastructure/file-project-store";
 import { FileKdpPreflightStore } from "./infrastructure/file-kdp-preflight-store";
 import { createProject, withProjectBookGenome, withProjectCharacters, withProjectAiCollaborationPolicy, withProjectBookCoverPlans, withProjectStudioWorkspace, type ProjectState } from "./domain/project";
-import { createMemoryRecord, type MemoryAuthority, type MemoryClass } from "./domain/memory";
+import { createMemoryRecord, MEMORY_AUTHORITIES, MEMORY_CLASSES } from "./domain/memory";
 import { assembleWritingContext, CONTEXT_INCLUSION_MODES, type ContextSectionPolicy } from "./domain/context-assembly";
 import { BookGenomeService, FinalProductAuditService, GovernanceService } from "./application/final-product-systems";
 import { DELIVERY_AUDIT_CATEGORIES as FINAL_AUDIT_CATEGORIES, type BookGenomeNode, type FinalDeliveryCheck } from "./domain/final-product-systems";
@@ -51,8 +51,6 @@ const aiWritingCoordinator = new AiWritingCoordinator(aiProposalStore);
 const aiWritingStudio = new AiWritingStudioService(store, aiWritingCoordinator);
 const aiEditingStudio = new AiEditingStudioService(aiProposalStore, generateText);
 const defaultProjectId = "forge-studio";
-const MEMORY_CLASSES: readonly MemoryClass[] = ["author-memory", "project-memory", "story-canon", "character-memory", "relationship-memory", "location-memory", "timeline-memory", "style-memory", "research-memory", "creative-note", "working-draft", "hypothesis", "open-thread", "visual-identity", "production-memory", "publishing-memory", "marketing-memory", "generated-alternative", "decision-memory"];
-const MEMORY_AUTHORITIES: readonly MemoryAuthority[] = ["proposed", "working", "verified", "authoritative", "superseded", "archived"];
 const AUTHOR_GOAL_METRICS: readonly AuthorGoalMetric[] = ["words", "scenes", "chapters"];
 const AUTHOR_GOAL_PERIODS = ["session", "day", "week", "project"] as const;
 
