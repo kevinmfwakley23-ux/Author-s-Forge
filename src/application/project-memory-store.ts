@@ -1,5 +1,5 @@
 import type { MemoryAuthority, MemoryQuery, MemoryRecord } from "../domain/memory";
-import { MEMORY_FORMAT_VERSION } from "../domain/memory";
+import { MEMORY_FORMAT_VERSION, validateMemoryRecord } from "../domain/memory";
 
 export interface MemoryPromotionDecision {
   readonly memoryId: string;
@@ -19,6 +19,7 @@ export class ProjectMemoryStore {
   private readonly records = new Map<string, MemoryRecord>();
 
   register(memory: MemoryRecord): void {
+    validateMemoryRecord(memory);
     if (this.records.has(memory.id)) throw new Error(`Duplicate memory id "${memory.id}".`);
     this.records.set(memory.id, cloneMemory(memory));
   }
@@ -58,6 +59,7 @@ export class ProjectMemoryStore {
     if (!isPromotableAuthority(existing.authority)) throw new Error(`Memory "${memoryId}" cannot be promoted from ${existing.authority}.`);
 
     const promoted: MemoryRecord = { ...existing, authority: "authoritative", updatedAt: new Date().toISOString() };
+    validateMemoryRecord(promoted);
     this.records.set(memoryId, cloneMemory(promoted));
     return { memoryId, from: existing.authority, to: promoted.authority, actor, reason: reason.trim() };
   }
@@ -71,8 +73,10 @@ export class ProjectMemoryStore {
     if (memoryId === replacementId) throw new Error("Memory cannot supersede itself.");
 
     const superseded: MemoryRecord = { ...existing, authority: "superseded", supersededBy: replacementId, updatedAt: now };
-    this.records.set(memoryId, cloneMemory(superseded));
     const linkedReplacement: MemoryRecord = { ...replacement, supersedes: replacement.supersedes ?? memoryId, updatedAt: replacement.updatedAt };
+    validateMemoryRecord(superseded);
+    validateMemoryRecord(linkedReplacement);
+    this.records.set(memoryId, cloneMemory(superseded));
     this.records.set(replacementId, cloneMemory(linkedReplacement));
     return cloneMemory(superseded);
   }
@@ -85,8 +89,14 @@ export class ProjectMemoryStore {
   }
 
   restore(records: readonly MemoryRecord[]): void {
+    const staged = new Map<string, MemoryRecord>();
+    for (const record of records) {
+      validateMemoryRecord(record);
+      if (staged.has(record.id)) throw new Error(`Duplicate memory id "${record.id}" in restore payload.`);
+      staged.set(record.id, cloneMemory(record));
+    }
     this.records.clear();
-    for (const record of records) this.register(record);
+    for (const [id, record] of staged) this.records.set(id, record);
   }
 
   restoreSnapshot(snapshot: ProjectMemorySnapshot): void {

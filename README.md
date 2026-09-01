@@ -120,6 +120,19 @@ The project is now worked from the beginning of the author journey forward, offi
 - **Unresolved blockers:** none in this coherent block.
 - **Handoff:** ready for Chromebook independent review. Codex advances to the next Forge Brain block after the documentation head is green and PR #42 is merged.
 
+### ✅ First pass 001B — Brain memory integrity and atomic recovery — READY FOR CHROMEBOOK REVIEW
+
+- **Active office/capability:** Forge Brain durable memory validation and recovery.
+- **Lead owner:** Codex co-chief engineer.
+- **Follow-behind owner:** Chromebook after this handoff.
+- **Branch / PR / commits:** `first-pass/001b-brain-memory-integrity`; PR #45; runtime validation `6b8383279187a6adf32b2c1c37aaa2f00dff57c5`; atomic store `be60f92f58caa4160196921b818e20d2e8d5a3df`; tests/fix head `8e3f738d77f8bb7aab4114f6b2a19f0a6e6f6acf`.
+- **Inspection finding:** recovery cleared valid memory before validating the complete imported payload, so a malformed or duplicate record could leave a partially restored Brain.
+- **Improvements:** runtime validation now covers memory class, authority, required content, lifecycle/provenance timestamps, relationship/tag shape and self-supersession; registration and lifecycle mutations validate records; restore stages and validates every record before atomically replacing current state.
+- **Regression coverage:** proves duplicate IDs, malformed records, invalid authority and invalid timestamps fail without changing the valid store; snapshot project isolation remains enforced.
+- **Verification:** Forge CI #646 / run `33475774626` passed TypeScript build, all 383 unit tests, completion and syntax checks, desktop browser acceptance, and Android/mobile acceptance on code head `8e3f738d77f8bb7aab4114f6b2a19f0a6e6f6acf`.
+- **Unresolved blockers:** none in this coherent block.
+- **Handoff:** ready for Chromebook independent review. Codex advances to Brain lifecycle-transition integrity after the documentation head is green and PR #45 is merged.
+
 ### Mission 059 parallel engineering coordination
 
 - **Chromebook lane currently owns 059B shared Specialized Creation reconciliation/verification**: shared durable project/workspace/revision/proposal storage, project-scoped application facade, Project Brain/provider/asset bridges, renderer-independent composition contract, shared production-profile/preflight foundation, and shared integration/CI fixes required by those contracts.
