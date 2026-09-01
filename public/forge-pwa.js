@@ -45,8 +45,18 @@
     });
   }
 
+  function ensureStudioExtensions() {
+    if (document.querySelector('script[data-forge-extension="image-lab"]')) return;
+    const script = document.createElement("script");
+    script.src = "/forge-image-lab.js";
+    script.defer = true;
+    script.dataset.forgeExtension = "image-lab";
+    document.head.appendChild(script);
+  }
+
   function ensureUi() {
     ensureOfficeLauncher();
+    ensureStudioExtensions();
     if (document.getElementById("pwa-status")) return;
     const host = document.querySelector(".top-actions") || document.querySelector(".topbar") || document.body;
     const status = document.createElement("span");
