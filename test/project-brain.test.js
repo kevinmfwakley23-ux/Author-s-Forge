@@ -37,12 +37,12 @@ test("preserves superseded history and explicit audit links", () => {
   store.register(createMemoryRecord({ id: "old", projectId: "p1", class: "story-canon", authority: "authoritative", summary: "Old age", content: "Daniel is 37.", provenance: [{ kind: "author", reference: "canon", recordedAt: "2026-01-01T00:00:00.000Z" }], now: "2026-01-01T00:00:00.000Z" }));
   store.register(createMemoryRecord({ id: "new", projectId: "p1", class: "story-canon", authority: "authoritative", summary: "New age", content: "Daniel is 38.", provenance: [{ kind: "author", reference: "canon-update", recordedAt: "2026-02-01T00:00:00.000Z" }], now: "2026-02-01T00:00:00.000Z" }));
   store.register(createMemoryRecord({ id: "other", projectId: "p2", class: "story-canon", authority: "authoritative", summary: "Other", content: "Unrelated.", provenance: [{ kind: "author", reference: "other", recordedAt: "2026-01-01T00:00:00.000Z" }] }));
-  store.supersede("old", "new", "2026-03-01T00:00:00.000Z");
+  store.supersede("old", "new", { actor: "author", reason: "Author approved replacement.", now: "2026-03-01T00:00:00.000Z" });
   assert.equal(store.get("old")?.authority, "superseded");
   assert.equal(store.get("old")?.content, "Daniel is 37.");
   assert.equal(store.get("old")?.supersededBy, "new");
   assert.equal(store.get("new")?.supersedes, "old");
-  assert.throws(() => store.supersede("old", "other"), /same project/);
+  assert.throws(() => store.supersede("old", "other", { actor: "author", reason: "Author approved replacement." }), /same project/);
 });
 
 test("retrieval filters by project, class, authority, relationship, relevance, and change time", () => {
@@ -75,7 +75,7 @@ test("Project Brain never feeds archived or superseded history into live or chan
   store.register(createMemoryRecord({ id: "active", projectId: "p1", class: "story-canon", authority: "authoritative", summary: "Current age", content: "Daniel is 38.", provenance: [{ kind: "author", reference: "canon-current", recordedAt: "2026-03-01T00:00:00.000Z" }], relevanceTags: ["draft"], now: "2026-03-01T00:00:00.000Z" }));
   store.register(createMemoryRecord({ id: "archived", projectId: "p1", class: "story-canon", authority: "archived", summary: "Archived age", content: "Daniel is 36.", provenance: [{ kind: "author", reference: "archive", recordedAt: "2025-01-01T00:00:00.000Z" }], relevanceTags: ["draft"], now: "2026-03-02T00:00:00.000Z" }));
   store.register(createMemoryRecord({ id: "superseded", projectId: "p1", class: "story-canon", authority: "working", summary: "Old age", content: "Daniel is 37.", provenance: [{ kind: "author", reference: "canon-old", recordedAt: "2026-02-01T00:00:00.000Z" }], relevanceTags: ["draft"], now: "2026-02-01T00:00:00.000Z" }));
-  store.supersede("superseded", "active", "2026-03-03T00:00:00.000Z");
+  store.supersede("superseded", "active", { actor: "author", reason: "Author approved replacement.", now: "2026-03-03T00:00:00.000Z" });
 
   const normal = assembleProjectBrainContext(store, { projectId: "p1", relevanceTags: ["draft"], includeWorkingState: true });
   assert.deepEqual(normal.authoritative.map((memory) => memory.id), ["active"]);
@@ -195,9 +195,9 @@ test("supersession rejects cross-class and inactive replacements without mutatin
   store.register(archived);
   const before = store.list();
 
-  assert.throws(() => store.supersede("canon-source", "wrong-class", "2026-03-01T00:00:00.000Z"), /same memory class/);
+  assert.throws(() => store.supersede("canon-source", "wrong-class", { actor: "author", reason: "Author approved replacement.", now: "2026-03-01T00:00:00.000Z" }), /same memory class/);
   assert.deepEqual(store.list(), before);
-  assert.throws(() => store.supersede("canon-source", "archived-replacement", "2026-03-01T00:00:00.000Z"), /must be active/);
+  assert.throws(() => store.supersede("canon-source", "archived-replacement", { actor: "author", reason: "Author approved replacement.", now: "2026-03-01T00:00:00.000Z" }), /must be active/);
   assert.deepEqual(store.list(), before);
 });
 
@@ -209,9 +209,9 @@ test("supersession rejects ambiguous replacement links and nonchronological tran
   store.register(alreadyLinked);
   const before = store.list();
 
-  assert.throws(() => store.supersede("source", "linked", "2026-03-01T00:00:00.000Z"), /already supersedes/);
+  assert.throws(() => store.supersede("source", "linked", { actor: "author", reason: "Author approved replacement.", now: "2026-03-01T00:00:00.000Z" }), /already supersedes/);
   assert.deepEqual(store.list(), before);
-  assert.throws(() => store.supersede("source", "linked", "not-a-date"), /already supersedes|timestamp/);
+  assert.throws(() => store.supersede("source", "linked", { actor: "author", reason: "Author approved replacement.", now: "not-a-date" }), /already supersedes|timestamp/);
   assert.deepEqual(store.list(), before);
 });
 
@@ -222,12 +222,12 @@ test("supersession creates reciprocal links once and refuses repeated replacemen
   store.register(source);
   store.register(replacement);
 
-  store.supersede("source-once", "replacement-once", "2026-03-01T00:00:00.000Z");
+  store.supersede("source-once", "replacement-once", { actor: "author", reason: "Author approved replacement.", now: "2026-03-01T00:00:00.000Z" });
   assert.equal(store.get("source-once").supersededBy, "replacement-once");
   assert.equal(store.get("replacement-once").supersedes, "source-once");
   const after = store.list();
 
-  assert.throws(() => store.supersede("source-once", "replacement-once", "2026-04-01T00:00:00.000Z"), /not active/);
+  assert.throws(() => store.supersede("source-once", "replacement-once", { actor: "author", reason: "Author approved replacement.", now: "2026-04-01T00:00:00.000Z" }), /not active/);
   assert.deepEqual(store.list(), after);
 });
 
@@ -237,6 +237,68 @@ test("supersession timestamp cannot predate either memory creation", () => {
   store.register(createMemoryRecord({ id: "chronology-new", projectId: "p1", class: "timeline-memory", authority: "verified", summary: "New chronology", content: "Correct ordering.", now: "2026-03-01T00:00:00.000Z" }));
   const before = store.list();
 
-  assert.throws(() => store.supersede("chronology-old", "chronology-new", "2026-02-15T00:00:00.000Z"), /cannot precede/);
+  assert.throws(() => store.supersede("chronology-old", "chronology-new", { actor: "author", reason: "Author approved replacement.", now: "2026-02-15T00:00:00.000Z" }), /cannot precede/);
   assert.deepEqual(store.list(), before);
+});
+
+
+test("promotion and supersession decisions remain attributable after snapshot recovery", () => {
+  const store = new ProjectMemoryStore();
+  store.register(createMemoryRecord({ id: "proposal-ledger", projectId: "p1", class: "story-canon", authority: "working", summary: "Proposed age", content: "Daniel is 38.", provenance: [{ kind: "author", reference: "revision-note", recordedAt: "2026-01-01T00:00:00.000Z" }], now: "2026-01-01T00:00:00.000Z" }));
+  store.promote("proposal-ledger", "author", "Approved after continuity review.", "2026-02-01T00:00:00.000Z");
+  store.register(createMemoryRecord({ id: "replacement-ledger", projectId: "p1", class: "story-canon", authority: "authoritative", summary: "Corrected age", content: "Daniel is 39.", provenance: [{ kind: "author", reference: "chapter-12-correction", recordedAt: "2026-03-01T00:00:00.000Z" }], now: "2026-03-01T00:00:00.000Z" }));
+  store.supersede("proposal-ledger", "replacement-ledger", { actor: "author", reason: "Author corrected the timeline.", now: "2026-04-01T00:00:00.000Z" });
+
+  const events = store.listLifecycleEvents("p1");
+  assert.equal(events.length, 2);
+  assert.deepEqual(events.map((event) => event.type), ["promotion", "supersession"]);
+  assert.equal(events[0].actor, "author");
+  assert.equal(events[0].reason, "Approved after continuity review.");
+  assert.equal(events[1].replacementId, "replacement-ledger");
+  assert.equal(events[1].reason, "Author corrected the timeline.");
+
+  const snapshot = store.createSnapshot("p1");
+  const restored = new ProjectMemoryStore();
+  restored.restoreSnapshot(snapshot);
+  assert.deepEqual(restored.listLifecycleEvents("p1"), events);
+  assert.deepEqual(restored.createSnapshot("p1"), snapshot);
+});
+
+test("lifecycle ledger is defensively cloned and isolated by project", () => {
+  const store = new ProjectMemoryStore();
+  store.register(createMemoryRecord({ id: "p1-note", projectId: "p1", class: "creative-note", authority: "working", summary: "P1", content: "P1 note.", provenance: [{ kind: "author", reference: "p1", recordedAt: "2026-01-01T00:00:00.000Z" }], now: "2026-01-01T00:00:00.000Z" }));
+  store.register(createMemoryRecord({ id: "p2-note", projectId: "p2", class: "creative-note", authority: "working", summary: "P2", content: "P2 note.", provenance: [{ kind: "author", reference: "p2", recordedAt: "2026-01-01T00:00:00.000Z" }], now: "2026-01-01T00:00:00.000Z" }));
+  store.promote("p1-note", "author", "P1 approval.", "2026-02-01T00:00:00.000Z");
+  store.promote("p2-note", "author", "P2 approval.", "2026-02-01T00:00:00.000Z");
+
+  const p1Events = store.listLifecycleEvents("p1");
+  p1Events[0].reason = "tampered";
+  assert.equal(store.listLifecycleEvents("p1")[0].reason, "P1 approval.");
+  assert.equal(store.createSnapshot("p1").lifecycleEvents.length, 1);
+  assert.equal(store.createSnapshot("p1").lifecycleEvents[0].projectId, "p1");
+});
+
+test("malformed lifecycle recovery fails atomically and preserves current memories and audit events", () => {
+  const store = new ProjectMemoryStore();
+  store.register(createMemoryRecord({ id: "safe-ledger", projectId: "p1", class: "project-memory", authority: "working", summary: "Safe", content: "Safe memory.", provenance: [{ kind: "author", reference: "safe", recordedAt: "2026-01-01T00:00:00.000Z" }], now: "2026-01-01T00:00:00.000Z" }));
+  store.promote("safe-ledger", "author", "Keep this decision.", "2026-02-01T00:00:00.000Z");
+  const before = store.createSnapshot("p1");
+  const malformed = {
+    ...before,
+    lifecycleEvents: [{ ...before.lifecycleEvents[0], id: "bad-event", memoryId: "missing-memory" }],
+  };
+
+  assert.throws(() => store.restoreSnapshot(malformed), /missing memory/);
+  assert.deepEqual(store.createSnapshot("p1"), before);
+});
+
+test("supersession requires explicit attribution before any canon mutation", () => {
+  const store = new ProjectMemoryStore();
+  store.register(createMemoryRecord({ id: "attributed-old", projectId: "p1", class: "story-canon", authority: "authoritative", summary: "Old", content: "Old fact.", provenance: [{ kind: "author", reference: "old", recordedAt: "2026-01-01T00:00:00.000Z" }], now: "2026-01-01T00:00:00.000Z" }));
+  store.register(createMemoryRecord({ id: "attributed-new", projectId: "p1", class: "story-canon", authority: "authoritative", summary: "New", content: "New fact.", provenance: [{ kind: "author", reference: "new", recordedAt: "2026-02-01T00:00:00.000Z" }], now: "2026-02-01T00:00:00.000Z" }));
+  const before = store.list();
+
+  assert.throws(() => store.supersede("attributed-old", "attributed-new", { actor: "author", reason: "  ", now: "2026-03-01T00:00:00.000Z" }), /reason is required/);
+  assert.deepEqual(store.list(), before);
+  assert.deepEqual(store.listLifecycleEvents("p1"), []);
 });
