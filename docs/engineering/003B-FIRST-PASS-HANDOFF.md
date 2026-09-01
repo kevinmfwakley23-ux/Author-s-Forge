@@ -3,7 +3,8 @@
 ## Parallel ownership
 
 - **Lane:** forward first pass, Delivery / Recovery / final-release integrity.
-- **Stacked on:** 003A Delivery Audit runtime integrity.
+- **Base:** merged `main` commit `829a9c3fac799df1d86ee0e4ce0ad891dbe7aa8c`, which contains fully verified 003A Delivery Audit runtime integrity.
+- **PR:** #93 is retargeted directly to `main` and is mergeable.
 - **Does not modify:** Chromebook-owned Specialized Creation files, Educational Workbook files, Publishing/Promotion files, Project Brain retrieval files, Studio backup/recovery files, or browser shell files.
 
 ## Inspection finding
@@ -37,6 +38,10 @@ That left callers to compose report creation and project history mutation themse
 
 Final-release evidence now has one application path that enforces the same runtime validator used by durable recovery. This reduces the chance that a future UI/API path persists an audit object that only looked correct at compile time.
 
+## Reconciliation state
+
+After 003A merged, #93 was retargeted to that merged `main`. Its implementation diff remains limited to the Delivery Audit application service, its regression coverage, and this handoff document; no Chromebook-owned files are part of the block.
+
 ## Verification rule
 
-003B is stacked on 003A and cannot be called complete until its own exact-head Forge CI passes after 003A is green/merged or the stack is otherwise reconciled onto current `main` without weakening tests.
+A fresh exact-head Forge CI run is required on this reconciled head before merge. The required gate remains TypeScript build, full regression/completion/syntax checks, desktop browser acceptance, and Android/mobile acceptance. Tests must not be weakened to manufacture a green result.
