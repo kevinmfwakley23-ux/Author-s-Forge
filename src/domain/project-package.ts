@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { assertJsonValue } from "./json-value";
 
 export const PROJECT_PACKAGE_FORMAT_VERSION = 2 as const;
 export const PROJECT_PACKAGE_NAME = "AUTHOR'S FORGE PROJECT" as const;
@@ -36,6 +37,7 @@ function canonicalJson(value: unknown): string {
 }
 
 function validateStateIdentity(projectId: string, projectState: unknown): void {
+  assertJsonValue(projectState, "Project package projectState");
   if (!projectState || typeof projectState !== "object" || Array.isArray(projectState)) throw new Error("Project package projectState must be an object.");
   const metadata = (projectState as Record<string, unknown>).metadata;
   if (metadata === undefined) return;

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { assertJsonValue } from "../domain/json-value";
 import { createProjectPackage, deserializeProjectPackage, serializeProjectPackage, validateProjectPackage } from "../domain/project-package";
 import type { ForgeProjectPackage, ProjectPackageFile } from "../domain/project-package";
 
@@ -8,6 +9,7 @@ export class ProjectPackageService {
   }
 
   exportSnapshot(input:{projectId:string;projectState:unknown;exportedAt?:string}):ForgeProjectPackage {
+    assertJsonValue(input.projectState, "Project package projectState");
     const content = JSON.stringify(input.projectState, null, 2);
     const sha256 = createHash("sha256").update(content, "utf8").digest("hex");
     return this.export({
