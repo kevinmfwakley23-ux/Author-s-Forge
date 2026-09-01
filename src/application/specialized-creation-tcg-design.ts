@@ -9,6 +9,14 @@ export function setTcgGameFramework(data:TcgData,framework:TcgGameFramework):Tcg
 export function upsertTcgCharacterEvolutionLine(data:TcgData,line:TcgCharacterEvolutionLine):TcgDataWithFramework {return setTcgGameFramework(data,withTcgCharacterLine(tcgGameFramework(data),line));}
 export function upsertTcgWorldMap(data:TcgData,map:TcgWorldMap):TcgDataWithFramework {return setTcgGameFramework(data,withTcgWorldMap(tcgGameFramework(data),map));}
 
+export function addTcgEvolutionArtworkCandidate(data:TcgData,input:{lineId:string;stageId:string;assetId:string}):TcgDataWithFramework {
+  const framework=tcgGameFramework(data),line=framework.characterLines.find(item=>item.id===input.lineId);if(!line)throw new Error(`TCG character line "${input.lineId}" not found.`);const stage=line.stages.find(item=>item.id===input.stageId);if(!stage)throw new Error(`TCG evolution stage "${input.stageId}" not found.`);const assetId=required(input.assetId,"TCG artwork asset id");const nextStage={...stage,artworkAssetIds:Object.freeze(stage.artworkAssetIds.includes(assetId)?[...stage.artworkAssetIds]:[...stage.artworkAssetIds,assetId])};const nextLine={...line,stages:Object.freeze(line.stages.map(item=>item.id===stage.id?nextStage:item))};return upsertTcgCharacterEvolutionLine(data,nextLine);
+}
+export function lockTcgEvolutionArtwork(data:TcgData,input:{lineId:string;stageId:string;assetId:string}):TcgDataWithFramework {
+  let next=addTcgEvolutionArtworkCandidate(data,input);const framework=tcgGameFramework(next),line=framework.characterLines.find(item=>item.id===input.lineId)!,stage=line.stages.find(item=>item.id===input.stageId)!;const locked={...stage,approvedArtworkAssetId:input.assetId};const nextLine={...line,stages:Object.freeze(line.stages.map(item=>item.id===stage.id?locked:item))};next=upsertTcgCharacterEvolutionLine(next,nextLine);return next;
+}
+export function setTcgWorldMapArtwork(data:TcgData,input:{mapId:string;assetId:string}):TcgDataWithFramework {const framework=tcgGameFramework(data),map=framework.worldMaps.find(item=>item.id===input.mapId);if(!map)throw new Error(`TCG world map "${input.mapId}" not found.`);return upsertTcgWorldMap(data,{...map,artworkAssetId:required(input.assetId,"TCG map artwork asset id")});}
+
 export function createTcgGameStarterData(input:{gameTitle:string;setId:string;setName:string}):TcgDataWithFramework {
   const fields:readonly TcgFieldDefinition[]=Object.freeze([
     {key:"name",label:"Name",type:"text",required:true},
