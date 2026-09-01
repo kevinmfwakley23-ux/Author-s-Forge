@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { discoverConfiguredAiModelResources } = require("../.forge-build/infrastructure/ai-model-resources.js");
 
-test("AI resource discovery registers only real configured providers", () => {
+test("AI resource discovery registers only real configured providers without inventing health evidence", () => {
   const resources = discoverConfiguredAiModelResources({
     OMNIROUTE_BASE_URL: "http://omni.test",
     OMNIROUTE_MODEL: "omni-model",
@@ -16,7 +16,7 @@ test("AI resource discovery registers only real configured providers", () => {
     "openai/gpt-test",
     "ollama/llama-test",
   ]);
-  assert.ok(resources.every((resource) => resource.configured && resource.healthy));
+  assert.ok(resources.every((resource) => resource.configured && resource.healthy === undefined));
   assert.equal(resources.find((resource) => resource.provider === "openai").capabilities.vision, true);
 });
 
