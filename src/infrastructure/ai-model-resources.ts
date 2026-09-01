@@ -2,13 +2,25 @@ import type { AiModelCapabilities, AiModelResource } from "../application/ai-mod
 
 type SupportedProvider = "omniroute" | "9router" | "kings" | "openai" | "ollama";
 
+/**
+ * Provider discovery must not invent model-specific context windows, output
+ * ceilings, vision/tool/reasoning support, or long-context status. Those vary
+ * by concrete model and belong in explicit resource metadata when known.
+ *
+ * These two baseline flags describe the minimum text-chat behavior required by
+ * Forge's currently supported provider adapters; advanced capabilities remain
+ * unknown until configured.
+ */
 const BASE_CAPABILITIES: Readonly<Record<SupportedProvider, AiModelCapabilities>> = {
-  omniroute: { contextWindow: 128000, maxOutputTokens: 16000, streaming: true, creativeWriting: true, instructionFollowing: true, longContext: true },
-  "9router": { contextWindow: 128000, maxOutputTokens: 16000, streaming: true, creativeWriting: true, instructionFollowing: true, longContext: true },
-  kings: { contextWindow: 128000, maxOutputTokens: 16000, reasoning: true, vision: true, streaming: true, toolCalls: true, creativeWriting: true, instructionFollowing: true, longContext: true },
-  openai: { contextWindow: 128000, maxOutputTokens: 16000, reasoning: true, vision: true, streaming: true, toolCalls: true, creativeWriting: true, instructionFollowing: true, longContext: true },
-  ollama: { contextWindow: 32768, maxOutputTokens: 8192, creativeWriting: true, instructionFollowing: true },
+  omniroute: { creativeWriting: true, instructionFollowing: true },
+  "9router": { creativeWriting: true, instructionFollowing: true },
+  kings: { creativeWriting: true, instructionFollowing: true },
+  openai: { creativeWriting: true, instructionFollowing: true },
+  ollama: { creativeWriting: true, instructionFollowing: true },
 };
+
+const BOOLEAN_CAPABILITIES = ["reasoning", "vision", "streaming", "toolCalls", "creativeWriting", "instructionFollowing", "longContext"] as const;
+const NUMERIC_CAPABILITIES = ["contextWindow", "maxOutputTokens"] as const;
 
 /** Build the canonical broker resource registry from real runtime configuration only. */
 export function discoverConfiguredAiModelResources(env: NodeJS.ProcessEnv = process.env): AiModelResource[] {
@@ -25,9 +37,9 @@ export function discoverConfiguredAiModelResources(env: NodeJS.ProcessEnv = proc
     }, env, prefix, uniqueModels.length === 1));
   };
 
-  // Preserve this canonical discovery order. It is the stable preference order
-  // when all resources are otherwise equally eligible; the broker may still
-  // rotate away for quota reserve, cooldown, health, capability, latency or cost.
+  // Preserve canonical discovery order as a stable soft preference. The broker
+  // may rotate away for quota, usage balance, cooldown, health, capability,
+  // latency or cost.
   addProvider("omniroute", Boolean(env.OMNIROUTE_BASE_URL?.trim()), models(env.OMNIROUTE_MODELS, env.OMNIROUTE_MODEL, "auto"), "OMNIROUTE");
   addProvider("9router", Boolean(env.ROUTER9_BASE_URL?.trim()), models(env.ROUTER9_MODELS, env.ROUTER9_MODEL, "auto"), "ROUTER9");
   addProvider("kings", Boolean(env.KINGS_AI_ENDPOINT?.trim()), models(env.KINGS_AI_MODELS, env.KINGS_AI_MODEL), "KINGS_AI");
@@ -53,7 +65,9 @@ function withProviderMetrics(resource: AiModelResource, env: NodeJS.ProcessEnv, 
   const remainingQuota = applySharedQuota ? nonnegative(env[`${prefix}_REMAINING_TOKENS`]) : undefined;
   const estimatedInputCostPerMillion = nonnegative(env[`${prefix}_INPUT_COST_PER_MILLION`]);
   const estimatedOutputCostPerMillion = nonnegative(env[`${prefix}_OUTPUT_COST_PER_MILLION`]);
-  const quotaResetAt = applySharedQuota && validTimestamp(env[`${prefix}_QUOTA_RESET_AT`]) ? env[`${prefix}_QUOTA_RESET_AT`]!.trim() : undefined;
+  const rawReset = applySharedQuota ? env[`${prefix}_QUOTA_RESET_AT`] : undefined;
+  if (rawReset?.trim() && !validTimestamp(rawReset)) throw new Error(`${prefix}_QUOTA_RESET_AT must be a valid timestamp.`);
+  const quotaResetAt = rawReset?.trim();
   return {
     ...resource,
     ...(quotaLimit !== undefined ? { quotaLimit } : {}),
@@ -77,15 +91,15 @@ function parseExplicitResources(raw: string | undefined, env: NodeJS.ProcessEnv)
     const provider = supportedProvider(value.provider, index);
     if (!providerConfigured(provider, env)) throw new Error(`AI model resource ${provider}/${String(value.model ?? "")} has no configured provider endpoint/credential.`);
     const model = requiredString(value.model, `AI model resource ${index + 1} model`);
-    const capabilities = value.capabilities && typeof value.capabilities === "object" && !Array.isArray(value.capabilities)
-      ? { ...BASE_CAPABILITIES[provider], ...(value.capabilities as AiModelCapabilities) }
-      : { ...BASE_CAPABILITIES[provider] };
+    if (value.healthy !== undefined && typeof value.healthy !== "boolean") throw new Error(`AI model resource ${provider}/${model} healthy must be boolean.`);
+    const quotaResetAt = optionalTimestamp(value.quotaResetAt, `AI model resource ${provider}/${model} quotaResetAt`);
+    const cooldownUntil = optionalTimestamp(value.cooldownUntil, `AI model resource ${provider}/${model} cooldownUntil`);
     const resource: AiModelResource = {
       provider,
       model,
       configured: true,
       healthy: value.healthy !== false,
-      capabilities,
+      capabilities: parseCapabilities(value.capabilities, provider, model),
       ...optionalNumberField(value, "estimatedInputCostPerMillion"),
       ...optionalNumberField(value, "estimatedOutputCostPerMillion"),
       ...optionalNumberField(value, "remainingQuota"),
@@ -93,11 +107,33 @@ function parseExplicitResources(raw: string | undefined, env: NodeJS.ProcessEnv)
       ...optionalNumberField(value, "quotaLimit"),
       ...optionalNumberField(value, "latencyMs"),
       ...optionalNumberField(value, "consecutiveFailures"),
-      ...(typeof value.quotaResetAt === "string" && validTimestamp(value.quotaResetAt) ? { quotaResetAt: value.quotaResetAt } : {}),
-      ...(typeof value.cooldownUntil === "string" && validTimestamp(value.cooldownUntil) ? { cooldownUntil: value.cooldownUntil } : {}),
+      ...(quotaResetAt ? { quotaResetAt } : {}),
+      ...(cooldownUntil ? { cooldownUntil } : {}),
     };
     return resource;
   });
+}
+
+function parseCapabilities(raw: unknown, provider: SupportedProvider, model: string): AiModelCapabilities {
+  if (raw === undefined) return { ...BASE_CAPABILITIES[provider] };
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error(`AI model resource ${provider}/${model} capabilities must be an object.`);
+  const value = raw as Record<string, unknown>;
+  const allowed = new Set<string>([...BOOLEAN_CAPABILITIES, ...NUMERIC_CAPABILITIES]);
+  for (const key of Object.keys(value)) if (!allowed.has(key)) throw new Error(`AI model resource ${provider}/${model} has unsupported capability "${key}".`);
+  const capabilities: Record<string, boolean | number> = { ...BASE_CAPABILITIES[provider] };
+  for (const key of BOOLEAN_CAPABILITIES) {
+    const candidate = value[key];
+    if (candidate === undefined) continue;
+    if (typeof candidate !== "boolean") throw new Error(`AI model resource ${provider}/${model} capability ${key} must be boolean.`);
+    capabilities[key] = candidate;
+  }
+  for (const key of NUMERIC_CAPABILITIES) {
+    const candidate = value[key];
+    if (candidate === undefined) continue;
+    if (typeof candidate !== "number" || !Number.isFinite(candidate) || candidate <= 0) throw new Error(`AI model resource ${provider}/${model} capability ${key} must be a positive finite number.`);
+    capabilities[key] = candidate;
+  }
+  return capabilities as AiModelCapabilities;
 }
 
 function providerConfigured(provider: SupportedProvider, env: NodeJS.ProcessEnv): boolean {
@@ -123,6 +159,11 @@ function optionalNumberField(value: Record<string, unknown>, key: keyof AiModelR
   return { [key]: raw } as Partial<AiModelResource>;
 }
 
+function optionalTimestamp(value: unknown, label: string): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string" || !validTimestamp(value)) throw new Error(`${label} must be a valid timestamp.`);
+  return value.trim();
+}
 function requiredString(value: unknown, label: string): string {
   if (typeof value !== "string" || !value.trim()) throw new Error(`${label} is required.`);
   return value.trim();
