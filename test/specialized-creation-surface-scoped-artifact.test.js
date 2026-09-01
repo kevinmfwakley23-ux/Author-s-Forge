@@ -22,6 +22,7 @@ test('multi-surface documents require explicit surface selection for PNG/SVG and
 
     await assert.rejects(()=>service.render({forgeProjectId:'forge',specializedProjectId:project.id,documentIds:[document.id],profileId:profile.id,kind:'png'}),/requires exactly one selected surface/i);
     await assert.rejects(()=>service.render({forgeProjectId:'forge',specializedProjectId:project.id,documentIds:[document.id],profileId:profile.id,kind:'svg'}),/requires exactly one selected surface/i);
+    await assert.rejects(()=>service.render({forgeProjectId:'forge',specializedProjectId:project.id,documentIds:[document.id],surfaceId:'missing-surface',profileId:profile.id,kind:'png'}),/was not found in the selected durable documents/i);
 
     const png=await service.render({forgeProjectId:'forge',specializedProjectId:project.id,documentIds:[document.id],surfaceId:'front',profileId:profile.id,kind:'png',now:'2026-09-01T12:46:00.000Z'});
     const svg=await service.render({forgeProjectId:'forge',specializedProjectId:project.id,documentIds:[document.id],surfaceId:'inside-right',profileId:profile.id,kind:'svg',now:'2026-09-01T12:47:00.000Z'});
