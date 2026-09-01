@@ -34,8 +34,8 @@ test("refuses promotion without provenance and from archived or superseded state
 
 test("preserves superseded history and explicit audit links", () => {
   const store = new ProjectMemoryStore();
-  store.register(createMemoryRecord({ id: "old", projectId: "p1", class: "story-canon", authority: "authoritative", summary: "Old age", content: "Daniel is 37.", provenance: [{ kind: "author", reference: "canon", recordedAt: "2026-01-01T00:00:00.000Z" }] }));
-  store.register(createMemoryRecord({ id: "new", projectId: "p1", class: "story-canon", authority: "authoritative", summary: "New age", content: "Daniel is 38.", provenance: [{ kind: "author", reference: "canon-update", recordedAt: "2026-02-01T00:00:00.000Z" }] }));
+  store.register(createMemoryRecord({ id: "old", projectId: "p1", class: "story-canon", authority: "authoritative", summary: "Old age", content: "Daniel is 37.", provenance: [{ kind: "author", reference: "canon", recordedAt: "2026-01-01T00:00:00.000Z" }], now: "2026-01-01T00:00:00.000Z" }));
+  store.register(createMemoryRecord({ id: "new", projectId: "p1", class: "story-canon", authority: "authoritative", summary: "New age", content: "Daniel is 38.", provenance: [{ kind: "author", reference: "canon-update", recordedAt: "2026-02-01T00:00:00.000Z" }], now: "2026-02-01T00:00:00.000Z" }));
   store.register(createMemoryRecord({ id: "other", projectId: "p2", class: "story-canon", authority: "authoritative", summary: "Other", content: "Unrelated.", provenance: [{ kind: "author", reference: "other", recordedAt: "2026-01-01T00:00:00.000Z" }] }));
   store.supersede("old", "new", "2026-03-01T00:00:00.000Z");
   assert.equal(store.get("old")?.authority, "superseded");
