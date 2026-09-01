@@ -87,7 +87,7 @@ function productionProfileChanges(value:unknown):MutableProductionProfileChanges
   if(input.label!==undefined){if(typeof input.label!=="string"||!input.label.trim())throw new Error("Production profile label must be non-empty.");out.label=input.label.trim();}
   if(input.colorIntent!==undefined){if(input.colorIntent!=="sRGB"&&input.colorIntent!=="CMYK")throw new Error("Production profile colorIntent must be sRGB or CMYK.");out.colorIntent=input.colorIntent;}
   if(input.duplex!==undefined){if(typeof input.duplex!=="boolean")throw new Error("Production profile duplex must be boolean.");out.duplex=input.duplex;}
-  if(input.artifactKinds!==undefined){if(!Array.isArray(input.artifactKinds)||!input.artifactKinds.every(item=>typeof item==="string"&&["pdf","svg","png","cbz","json","csv"].includes(item)))throw new Error("Production profile artifactKinds contains an unsupported value.");out.artifactKinds=Object.freeze(input.artifactKinds as SpecializedArtifactKind[]);}
+  if(input.artifactKinds!==undefined){if(!Array.isArray(input.artifactKinds)||!input.artifactKinds.every(item=>typeof item==="string"&&["pdf","svg","png","jpeg","cbz","json","csv"].includes(item)))throw new Error("Production profile artifactKinds contains an unsupported value.");out.artifactKinds=Object.freeze(input.artifactKinds as SpecializedArtifactKind[]);}
   if(input.notes!==undefined){if(!Array.isArray(input.notes)||!input.notes.every(item=>typeof item==="string"))throw new Error("Production profile notes must be strings.");out.notes=Object.freeze(input.notes.map(String));}
   return out;
 }
