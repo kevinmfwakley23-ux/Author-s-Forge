@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { createKdpMarketIntelligenceReport, calculateMarketSampleStatistics, validateKdpMarketIntelligenceReport } from "../domain/kdp-market-intelligence";
+import { calculateMarketSampleStatistics, validateKdpMarketIntelligenceReport } from "../domain/kdp-market-intelligence";
 import { createPromotionReadinessReport } from "../domain/promotion-readiness";
-import { createPublishingReadinessReport, type PublishingReadinessInput } from "../domain/publishing-readiness";
+import { createPublishingReadinessReport, type PublishingReadinessInput, type PublishingReleaseFormat } from "../domain/publishing-readiness";
 import { createReleaseGateReport } from "../domain/release-gate";
 import { withProjectPublishingReadinessReports } from "../domain/project";
 import { getBook, validateStudioWorkspace } from "../domain/studio-workspace";
@@ -16,6 +16,7 @@ import { StudioPromotionPlannerService } from "./studio-promotion-planner";
 import { StudioPublishingMetadataService } from "./studio-publishing-metadata";
 
 export type StudioPublishingPromotionRouteHandler = (req: IncomingMessage, res: ServerResponse, url: URL, projectId: string) => Promise<boolean>;
+const RELEASE_FORMATS: readonly PublishingReleaseFormat[] = ["ebook", "paperback", "hardcover"];
 
 export function createStudioPublishingPromotionRoutes(store: FileProjectStore): StudioPublishingPromotionRouteHandler {
   const publishing = new StudioPublishingMetadataService(store);
@@ -41,9 +42,12 @@ export function createStudioPublishingPromotionRoutes(store: FileProjectStore): 
 
     if (url.pathname === `${root}/publishing/readiness` && req.method === "GET") {
       const bookId = required(url.searchParams.get("bookId"), "Book id");
+      const format = optionalReleaseFormat(url.searchParams.get("format"));
       const project = await requireProject(store, projectId);
-      const reports = (project.publishingReadinessReports ?? []).filter((report) => report.bookId === bookId).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-      respond(res, 200, { projectId, bookId, reports });
+      const reports = (project.publishingReadinessReports ?? [])
+        .filter((report) => report.bookId === bookId && (!format || report.releaseFormat === format))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      respond(res, 200, { projectId, bookId, format, reports });
       return true;
     }
     if (url.pathname === `${root}/publishing/readiness` && req.method === "POST") {
@@ -57,11 +61,18 @@ export function createStudioPublishingPromotionRoutes(store: FileProjectStore): 
       const evidence = input.evidence === undefined ? {} : objectValue(input.evidence, "Publishing readiness evidence");
       const manuscriptEvidence = evidence.manuscript === undefined ? {} : objectValue(evidence.manuscript, "Manuscript readiness evidence");
       const coverEvidence = evidence.cover === undefined ? {} : objectValue(evidence.cover, "Cover readiness evidence");
+      const imageEvidence = evidence.images === undefined ? {} : objectValue(evidence.images, "Image readiness evidence");
       const latestCover = [...(project.bookCoverPlans ?? [])].filter((plan) => plan.bookId === bookId).sort((a, b) => b.version - a.version)[0];
+      const requestedFormat = releaseFormat(input.releaseFormat ?? coverEvidence.format ?? latestCover?.format ?? currentMetadata.metadata.formats[0], "Release format");
+      if (!currentMetadata.metadata.formats.includes(requestedFormat)) throw new Error(`Publishing metadata does not enable the ${requestedFormat} release format.`);
+      const bookAssets = (project.illustrationAssetLibrary?.assets ?? []).filter((asset) => asset.bookId === bookId);
+      const defaultImagesRequired = book.kind === "childrens-book" || book.kind === "comic-book" || bookAssets.length > 0;
+      const imagesRequired = imageEvidence.required === undefined ? defaultImagesRequired : imageEvidence.required === true;
       const report = createPublishingReadinessReport({
-        id: typeof input.id === "string" && input.id.trim() ? input.id.trim() : `publishing-readiness-${bookId}-${randomUUID()}`,
+        id: typeof input.id === "string" && input.id.trim() ? input.id.trim() : `publishing-readiness-${bookId}-${requestedFormat}-${randomUUID()}`,
         projectId,
         bookId,
+        releaseFormat: requestedFormat,
         now: typeof input.now === "string" ? input.now : undefined,
         manuscript: {
           title: book.title,
@@ -85,6 +96,7 @@ export function createStudioPublishingPromotionRoutes(store: FileProjectStore): 
             hasSpine: latestCover.format === "ebook" ? true : Boolean(latestCover.outputUri),
           } : {}),
           ...(coverEvidence as PublishingReadinessInput["cover"]),
+          format: requestedFormat,
         },
         metadata: {
           title: currentMetadata.metadata.title,
@@ -94,7 +106,13 @@ export function createStudioPublishingPromotionRoutes(store: FileProjectStore): 
           categories: currentMetadata.metadata.categories,
         },
         formatting: evidence.formatting as PublishingReadinessInput["formatting"],
-        images: evidence.images as PublishingReadinessInput["images"],
+        images: {
+          required: imagesRequired,
+          count: bookAssets.length,
+          allResolved: bookAssets.length > 0 && bookAssets.every((asset) => typeof asset.assetUri === "string" && asset.assetUri.trim().length > 0),
+          allApproved: bookAssets.length > 0 && bookAssets.every((asset) => asset.approvalStatus === "approved"),
+          resolutionValidated: imageEvidence.resolutionValidated === true,
+        },
         production: evidence.production as PublishingReadinessInput["production"],
       });
       await store.save(withProjectPublishingReadinessReports(project, [...(project.publishingReadinessReports ?? []), report], report.createdAt));
@@ -191,13 +209,16 @@ export function createStudioPublishingPromotionRoutes(store: FileProjectStore): 
 
     if (url.pathname === `${root}/release-gate` && req.method === "GET") {
       const bookId = required(url.searchParams.get("bookId"), "Book id");
+      const format = optionalReleaseFormat(url.searchParams.get("format"));
       const campaignId = optionalText(url.searchParams.get("campaignId"));
       const project = await requireProject(store, projectId);
-      const publishingReadiness = (project.publishingReadinessReports ?? []).filter((report) => report.bookId === bookId).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
-      if (!publishingReadiness) throw new Error("Run Publishing readiness for this book before checking the release gate.");
+      const publishingReadiness = (project.publishingReadinessReports ?? [])
+        .filter((report) => report.bookId === bookId && (!format || report.releaseFormat === format))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+      if (!publishingReadiness) throw new Error(`Run Publishing readiness for this book${format ? ` and ${format} format` : ""} before checking the release gate.`);
       const campaign = campaignId ? (await campaigns.get(projectId, bookId, campaignId)).campaign : undefined;
       const promotionReadiness = campaign ? createPromotionReadinessReport({ id: `promotion-readiness-${campaign.id}`, projectId, bookId, campaign }) : undefined;
-      respond(res, 200, createReleaseGateReport({ id: `release-${bookId}-${randomUUID()}`, projectId, bookId, publishingReadiness, promotionRequired: true, promotionReadiness, marketingCampaign: campaign }));
+      respond(res, 200, createReleaseGateReport({ id: `release-${bookId}-${format ?? "unscoped"}-${randomUUID()}`, projectId, bookId, publishingReadiness, promotionRequired: true, promotionReadiness, marketingCampaign: campaign }));
       return true;
     }
 
@@ -233,4 +254,6 @@ function objectValue(value: unknown, label: string): Record<string, unknown> { i
 function required(value: unknown, label: string): string { if (typeof value !== "string" || !value.trim()) throw new Error(`${label} is required.`); return value.trim(); }
 function optionalText(value: unknown): string | undefined { return typeof value === "string" && value.trim() ? value.trim() : undefined; }
 function textArray(value: unknown, label: string): string[] { if (!Array.isArray(value)) throw new Error(`${label} values must be an array.`); return [...new Set(value.map((item) => required(item, label)))]; }
+function releaseFormat(value: unknown, label: string): PublishingReleaseFormat { const format = required(value, label) as PublishingReleaseFormat; if (!RELEASE_FORMATS.includes(format)) throw new Error(`${label} must be ebook, paperback, or hardcover.`); return format; }
+function optionalReleaseFormat(value: unknown): PublishingReleaseFormat | undefined { return value === undefined || value === null || value === "" ? undefined : releaseFormat(value, "Release format"); }
 function escapeRegex(value: string): string { return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
