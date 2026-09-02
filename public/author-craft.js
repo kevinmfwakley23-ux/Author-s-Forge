@@ -26,7 +26,7 @@
     if ($("#ai-control-card")) return;
     $("#training-card")?.insertAdjacentHTML("beforebegin", `
       <section class="craft-card wide" id="ai-control-card">
-        <div class="section-title"><div><div class="eyebrow">PRIMARY AI CONTROL</div><h2>Switch providers and prevent paid-token fallback</h2><p><strong>No Paid Tokens</strong> blocks metered, unknown, and unmanaged paid routes. OmniRoute and 9Router stay available as subscription routing trunks; Ollama and K.I.N.G.S. stay local-first. You can pin a provider/model or leave Forge on automatic failover.</p></div><button id="ai-control-refresh" type="button">Refresh routes</button></div>
+        <div class="section-title"><div><div class="eyebrow">PRIMARY AI CONTROL</div><h2>Switch providers and prevent paid-token fallback</h2><p><strong>No Paid Tokens</strong> blocks metered, unknown, and gateway-managed routes unless you explicitly classify a specific configured route as local, subscription-covered, or free. OmniRoute and 9Router remain broad routing options, but Forge does not assume their automatic routes are no-spend. Ollama and K.I.N.G.S. remain local-first options. Pin one provider/model for an exact source switch, or leave Forge on automatic failover.</p></div><button id="ai-control-refresh" type="button">Refresh routes</button></div>
         <form id="ai-control-form" class="craft-form">
           <div class="craft-grid">
             <label>Spend policy<select id="ai-spend-policy"><option value="no-paid-tokens">No Paid Tokens</option><option value="budgeted">Budgeted paid fallback</option><option value="unrestricted">Unrestricted configured APIs</option></select></label>
