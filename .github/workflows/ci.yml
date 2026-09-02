@@ -33,6 +33,7 @@ jobs:
       - run: node --check public/forge-chapter-cards.js
       - run: node --check public/forge-chapter-card-workflow.js
       - run: node --check public/forge-chapter-card-approval.js
+      - run: node --check public/forge-scene-cards.js
       - run: node --check public/forge-manuscript-import.js
       - run: node --check public/forge-series.js
       - run: node --check public/forge-image-lab.js
