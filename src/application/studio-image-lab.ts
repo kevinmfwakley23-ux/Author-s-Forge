@@ -47,7 +47,8 @@ export class StudioImageLabService {
   }
 
   async generate(input: StudioImageLabGenerateInput): Promise<StudioImageLabGenerateResult> {
-    const project = await this.requireProject(requiredId(input.projectId, "Project id"));
+    const projectId = requiredId(input.projectId, "Project id");
+    const project = await this.requireProject(projectId);
     const prompt = requiredText(input.prompt, "Image direction", 6000);
     const style = optionalText(input.style, "Image style", 500) ?? "author-directed";
     const purpose = enumValue(input.purpose ?? "illustration", STUDIO_IMAGE_PURPOSES, "image purpose");
@@ -57,13 +58,14 @@ export class StudioImageLabService {
     if (input.referenceImage && input.sourceAssetId) throw new Error("Choose either an uploaded reference image or an existing source asset, not both.");
 
     const context = activeContext(project);
-    let library = this.library(project);
+    const startingLibrary = this.library(project);
     let sourceAsset: IllustrationAsset | undefined;
     let referenceImages: readonly ImageReferenceInput[] | undefined;
+    const sourceAssetId = input.sourceAssetId === undefined ? undefined : requiredId(input.sourceAssetId, "Source asset id");
 
-    if (input.sourceAssetId) {
-      sourceAsset = library.assets.find((asset) => asset.id === requiredId(input.sourceAssetId!, "Source asset id"));
-      if (!sourceAsset) throw new Error(`Source illustration asset "${input.sourceAssetId}" not found.`);
+    if (sourceAssetId) {
+      sourceAsset = startingLibrary.assets.find((asset) => asset.id === sourceAssetId);
+      if (!sourceAsset) throw new Error(`Source illustration asset "${sourceAssetId}" not found.`);
       if (sourceAsset.approvalStatus === "rejected") throw new Error("Rejected artwork cannot be used as an edit source.");
       requireInlineImage(sourceAsset.assetUri, "Stored source artwork");
       referenceImages = [{ dataUri: sourceAsset.assetUri, label: sourceAsset.prompt.slice(0, 120) }];
@@ -85,7 +87,6 @@ export class StudioImageLabService {
         assetUri: referenceData,
         now,
       });
-      library = validateIllustrationAssetLibraryState({ ...library, assets: [...library.assets, sourceAsset] });
       referenceImages = [{ dataUri: referenceData, label: sourceAsset.prompt }];
     }
 
@@ -112,27 +113,43 @@ export class StudioImageLabService {
       referenceImages,
     });
 
+    // Image providers can take long enough for the author or another office to save newer
+    // project state. Merge the completed image into the latest durable project instead of
+    // writing the pre-provider snapshot back over newer work.
+    const latestProject = await this.requireProject(projectId);
+    let library = this.library(latestProject);
+    let persistedSourceAsset = sourceAsset;
+    if (sourceAssetId) {
+      persistedSourceAsset = library.assets.find((candidate) => candidate.id === sourceAssetId);
+      if (!persistedSourceAsset) throw new Error(`Source illustration asset "${sourceAssetId}" was removed while image generation was running.`);
+      if (persistedSourceAsset.approvalStatus === "rejected") throw new Error("Source artwork was rejected while image generation was running; generated output was not persisted.");
+      if (persistedSourceAsset.assetUri !== sourceAsset?.assetUri) throw new Error("Source artwork changed while image generation was running; generated output was not persisted.");
+      requireInlineImage(persistedSourceAsset.assetUri, "Stored source artwork");
+    } else if (sourceAsset) {
+      library = validateIllustrationAssetLibraryState({ ...library, assets: [...library.assets, sourceAsset] });
+    }
+
     const asset = createIllustrationAsset({
       id: `image-${randomUUID()}`,
-      projectId: project.metadata.id,
+      projectId: latestProject.metadata.id,
       bookId: context.bookId,
       chapterId: context.chapterId,
       sceneId: context.sceneId,
-      characterId: optionalId(input.characterId) ?? sourceAsset?.characterId ?? context.characterId,
-      locationId: optionalId(input.locationId) ?? sourceAsset?.locationId ?? "unassigned-location",
+      characterId: optionalId(input.characterId) ?? persistedSourceAsset?.characterId ?? context.characterId,
+      locationId: optionalId(input.locationId) ?? persistedSourceAsset?.locationId ?? "unassigned-location",
       prompt,
-      references: sourceAsset ? [{ id: `ref-${randomUUID()}`, uri: sourceAsset.assetUri, label: sourceAsset.prompt, kind: "source", notes: "Preserved source for non-destructive image generation/edit lineage." }] : [],
+      references: persistedSourceAsset ? [{ id: `ref-${randomUUID()}`, uri: persistedSourceAsset.assetUri, label: persistedSourceAsset.prompt, kind: "source", notes: "Preserved source for non-destructive image generation/edit lineage." }] : [],
       style,
       generationSettings: { purpose, size, quality, provider: result.provider, model: result.model },
       approvalStatus: "pending",
       assetUri: result.dataUri,
-      reusedFromAssetId: sourceAsset?.id,
+      reusedFromAssetId: persistedSourceAsset?.id,
       now,
     });
     library = validateIllustrationAssetLibraryState({ ...library, assets: [...library.assets, asset] });
-    const saved = withProjectIllustrationAssetLibrary(project, library, now);
+    const saved = withProjectIllustrationAssetLibrary(latestProject, library, now);
     await this.store.save(saved);
-    return Object.freeze({ project: saved, asset, ...(sourceAsset ? { sourceAsset } : {}), provider: result.provider, model: result.model, ...(result.requestId ? { requestId: result.requestId } : {}), url: result.dataUri });
+    return Object.freeze({ project: saved, asset, ...(persistedSourceAsset ? { sourceAsset: persistedSourceAsset } : {}), provider: result.provider, model: result.model, ...(result.requestId ? { requestId: result.requestId } : {}), url: result.dataUri });
   }
 
   async review(input: { projectId: string; assetId: string; decision: "approved" | "rejected"; now?: string }): Promise<{ project: ProjectState; asset: IllustrationAsset }> {
