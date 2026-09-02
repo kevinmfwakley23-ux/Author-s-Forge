@@ -12,10 +12,22 @@ permissions:
 jobs:
   bundle:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
-      - name: Checkout
+      - name: Checkout release ref
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Require release ref to belong to main history
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --no-tags
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "Refusing to package Author's Forge: $GITHUB_SHA is not contained in origin/main history." >&2
+            exit 1
+          fi
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -26,29 +38,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build canonical Forge
-        run: npm run build
+      - name: Install Chromium acceptance runtime
+        run: npx playwright install --with-deps chromium
 
-      - name: Run regression suite
-        run: npm test
+      - name: Run strongest Forge verification gate
+        run: npm run verify
 
-      - name: Run completion meter
-        run: npm run completion
-
-      - name: Validate browser and launcher JavaScript
+      - name: Validate release launcher and packaging scripts
         run: |
-          node --check public/app.js
-          node --check public/forge-command-center.js
-          node --check public/forge-workbench.js
-          node --check public/forge-ai-proposals.js
-          node --check public/forge-series.js
-          node --check public/forge-image-lab.js
-          node --check public/forge-pwa.js
           node --check scripts/forge-network-security.js
           node --check scripts/start-forge.js
-          node --check scripts/forge-offices-browser-acceptance.js
-          node --check scripts/studio-series-browser-acceptance.js
-          node --check scripts/studio-image-lab-browser-acceptance.js
           bash -n scripts/termux-forge.sh
 
       - name: Assemble Android/Chromebook portable bundle
@@ -63,6 +62,8 @@ jobs:
           cp README.md AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md release-bundle/forge/
           cat > release-bundle/forge/RUN-FORGE.md <<'EOF'
           # Run Author's Forge
+
+          This bundle was assembled only after its exact Git commit passed Author's Forge's strongest repository verification gate: build, baseline, complete regression tests, completion checks, full desktop browser acceptance, and Android/mobile browser acceptance.
 
           ## Chromebook/Linux — complete workplace
           npm install
