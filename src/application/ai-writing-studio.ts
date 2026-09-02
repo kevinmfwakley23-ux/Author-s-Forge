@@ -5,6 +5,7 @@ import { assembleWritingContext, type AssembledWritingContext, type ContextAssem
 import { assessVoiceDrift, buildAuthorVoiceContext, type AuthorVoiceMemory, type VoiceDriftReport } from "../domain/author-voice-memory";
 import { createCharacterContinuityEvidence, verifyCharacterContinuityEvidence, type CharacterContinuityEvidence } from "../domain/character-continuity-evidence";
 import type { CharacterRecord } from "../domain/character-bible";
+import { assertAiCollaborationCapability, type AiCollaborationPolicy } from "../domain/ai-collaboration";
 import { validateStoryMapPlanningState, type StoryMapChapterCard, type StoryMapPlanningState } from "../domain/story-map-planning";
 import { saveSceneContent, validateStudioWorkspace, type StudioWorkspaceState } from "../domain/studio-workspace";
 import type { FileProjectStore } from "../infrastructure/file-project-store";
@@ -16,6 +17,7 @@ export interface StudioAiProjectState {
   readonly authorVoiceMemory?: AuthorVoiceMemory;
   readonly characters?: readonly CharacterRecord[];
   readonly storyMapPlanning?: StoryMapPlanningState;
+  readonly aiCollaborationPolicy?: AiCollaborationPolicy;
   readonly [key: string]: unknown;
 }
 
@@ -122,6 +124,7 @@ export class AiWritingStudioService {
 
   async generateWithProjectContext(request: StudioAiWritingRequest): Promise<StudioAiWritingResult> {
     const project = await this.requireProject(request.projectId);
+    assertAiCollaborationCapability(project.aiCollaborationPolicy, collaborationCapabilityForWritingTask(request.task), `AI ${request.task} writing`);
     const workspace = project.studioWorkspace ? validateStudioWorkspace(project.studioWorkspace) : validateStudioWorkspace({ formatVersion: 1, activeBookId: null, books: [] });
     const scene = findScene(workspace, request.bookId, request.chapterId, request.sceneId);
     const chapterCard = chapterCardFor(project, workspace, request.chapterId);
@@ -370,6 +373,9 @@ function selectedCharacterIdsFromAssembledContext(serialized: string): string[] 
   }
 }
 
+function collaborationCapabilityForWritingTask(task: StudioAiWritingRequest["task"]): "draft" | "revise" {
+  return task === "rewrite" || task === "expand" ? "revise" : "draft";
+}
 function uniqueStrings(values: readonly string[]): string[] {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }
