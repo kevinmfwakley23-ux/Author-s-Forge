@@ -13,6 +13,23 @@ export interface StoryMapSceneAttributes {
   readonly tags: readonly string[];
 }
 
+export interface StoryMapChapterCard {
+  readonly povCharacterIds: readonly string[];
+  readonly location: string;
+  readonly storyTime: string;
+  readonly emotionalObjective: string;
+  readonly plotObjective: string;
+  readonly characterIds: readonly string[];
+  readonly requiredEvents: readonly string[];
+  readonly clues: readonly string[];
+  readonly reveals: readonly string[];
+  readonly continuityDependencies: readonly string[];
+  readonly atmosphere: string;
+  readonly endingHook: string;
+  readonly approximateWordCount: number;
+  readonly forbiddenDeviations: readonly string[];
+}
+
 export interface StoryMapPlotline {
   readonly id: string;
   readonly bookId: string;
@@ -29,11 +46,12 @@ export interface StoryMapPlotline {
 export interface StoryMapPlanningState {
   readonly formatVersion: typeof STORY_MAP_PLANNING_FORMAT_VERSION;
   readonly sceneAttributes: Readonly<Record<string, StoryMapSceneAttributes>>;
+  readonly chapterCards: Readonly<Record<string, StoryMapChapterCard>>;
   readonly plotlines: readonly StoryMapPlotline[];
 }
 
 export function createStoryMapPlanningState(): StoryMapPlanningState {
-  return { formatVersion: STORY_MAP_PLANNING_FORMAT_VERSION, sceneAttributes: {}, plotlines: [] };
+  return { formatVersion: STORY_MAP_PLANNING_FORMAT_VERSION, sceneAttributes: {}, chapterCards: {}, plotlines: [] };
 }
 
 export function createStoryMapSceneAttributes(input: Partial<StoryMapSceneAttributes> = {}): StoryMapSceneAttributes {
@@ -46,6 +64,25 @@ export function createStoryMapSceneAttributes(input: Partial<StoryMapSceneAttrib
     outcome: input.outcome ?? "",
     emotionalBeat: input.emotionalBeat ?? "",
     tags: input.tags ?? [],
+  });
+}
+
+export function createStoryMapChapterCard(input: Partial<StoryMapChapterCard> = {}): StoryMapChapterCard {
+  return validateStoryMapChapterCard({
+    povCharacterIds: input.povCharacterIds ?? [],
+    location: input.location ?? "",
+    storyTime: input.storyTime ?? "",
+    emotionalObjective: input.emotionalObjective ?? "",
+    plotObjective: input.plotObjective ?? "",
+    characterIds: input.characterIds ?? [],
+    requiredEvents: input.requiredEvents ?? [],
+    clues: input.clues ?? [],
+    reveals: input.reveals ?? [],
+    continuityDependencies: input.continuityDependencies ?? [],
+    atmosphere: input.atmosphere ?? "",
+    endingHook: input.endingHook ?? "",
+    approximateWordCount: input.approximateWordCount ?? 0,
+    forbiddenDeviations: input.forbiddenDeviations ?? [],
   });
 }
 
@@ -65,6 +102,24 @@ export function removeStoryMapSceneAttributes(state: StoryMapPlanningState, scen
   const next = { ...validated.sceneAttributes };
   delete next[id];
   return validateStoryMapPlanningState({ ...validated, sceneAttributes: next });
+}
+
+export function setStoryMapChapterCard(state: StoryMapPlanningState, chapterId: string, card: StoryMapChapterCard): StoryMapPlanningState {
+  const validated = validateStoryMapPlanningState(state);
+  const id = identifier(chapterId, "Story Map chapter id");
+  const value = validateStoryMapChapterCard(card);
+  return validateStoryMapPlanningState({
+    ...validated,
+    chapterCards: { ...validated.chapterCards, [id]: value },
+  });
+}
+
+export function removeStoryMapChapterCard(state: StoryMapPlanningState, chapterId: string): StoryMapPlanningState {
+  const validated = validateStoryMapPlanningState(state);
+  const id = identifier(chapterId, "Story Map chapter id");
+  const next = { ...validated.chapterCards };
+  delete next[id];
+  return validateStoryMapPlanningState({ ...validated, chapterCards: next });
 }
 
 export function createStoryMapPlotline(input: {
@@ -142,6 +197,12 @@ export function validateStoryMapPlanningState(value: unknown): StoryMapPlanningS
   for (const [sceneId, attributes] of Object.entries(state.sceneAttributes as Record<string, unknown>)) {
     sceneAttributes[identifier(sceneId, "Story Map scene id")] = validateStoryMapSceneAttributes(attributes);
   }
+  const rawChapterCards = state.chapterCards ?? {};
+  if (!rawChapterCards || typeof rawChapterCards !== "object" || Array.isArray(rawChapterCards)) throw new Error("Invalid Story Map chapter card map.");
+  const chapterCards: Record<string, StoryMapChapterCard> = {};
+  for (const [chapterId, card] of Object.entries(rawChapterCards as Record<string, unknown>)) {
+    chapterCards[identifier(chapterId, "Story Map chapter id")] = validateStoryMapChapterCard(card);
+  }
   if (!Array.isArray(state.plotlines)) throw new Error("Invalid Story Map plotline collection.");
   const ids = new Set<string>();
   const plotlines = state.plotlines.map((item) => {
@@ -150,7 +211,7 @@ export function validateStoryMapPlanningState(value: unknown): StoryMapPlanningS
     ids.add(plotline.id);
     return plotline;
   }).sort((a, b) => a.bookId.localeCompare(b.bookId) || a.order - b.order || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
-  return { formatVersion: STORY_MAP_PLANNING_FORMAT_VERSION, sceneAttributes, plotlines };
+  return { formatVersion: STORY_MAP_PLANNING_FORMAT_VERSION, sceneAttributes, chapterCards, plotlines };
 }
 
 export function validateStoryMapSceneAttributes(value: unknown): StoryMapSceneAttributes {
@@ -165,6 +226,27 @@ export function validateStoryMapSceneAttributes(value: unknown): StoryMapSceneAt
     outcome: optionalText(input.outcome, "Story Map scene outcome", 3000),
     emotionalBeat: optionalText(input.emotionalBeat, "Story Map emotional beat", 2000),
     tags: uniqueText(input.tags ?? [], "Story Map scene tag", 120, 30),
+  };
+}
+
+export function validateStoryMapChapterCard(value: unknown): StoryMapChapterCard {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid Story Map chapter card.");
+  const input = value as Partial<StoryMapChapterCard>;
+  return {
+    povCharacterIds: uniqueIds(input.povCharacterIds ?? [], "Chapter Card POV character id"),
+    location: optionalText(input.location, "Chapter Card location", 500),
+    storyTime: optionalText(input.storyTime, "Chapter Card date/time", 500),
+    emotionalObjective: optionalText(input.emotionalObjective, "Chapter Card emotional objective", 3000),
+    plotObjective: optionalText(input.plotObjective, "Chapter Card plot objective", 3000),
+    characterIds: uniqueIds(input.characterIds ?? [], "Chapter Card character id"),
+    requiredEvents: uniqueText(input.requiredEvents ?? [], "Chapter Card required event", 1000, 40),
+    clues: uniqueText(input.clues ?? [], "Chapter Card clue", 1000, 40),
+    reveals: uniqueText(input.reveals ?? [], "Chapter Card reveal", 1000, 40),
+    continuityDependencies: uniqueText(input.continuityDependencies ?? [], "Chapter Card continuity dependency", 1000, 40),
+    atmosphere: optionalText(input.atmosphere, "Chapter Card atmosphere", 3000),
+    endingHook: optionalText(input.endingHook, "Chapter Card ending hook", 3000),
+    approximateWordCount: nonNegativeInteger(input.approximateWordCount ?? 0, "Chapter Card approximate word count"),
+    forbiddenDeviations: uniqueText(input.forbiddenDeviations ?? [], "Chapter Card forbidden deviation", 1000, 40),
   };
 }
 
@@ -229,6 +311,10 @@ function uniqueText(value: unknown, label: string, maxLength: number, maxItems: 
     if (!seen.has(key)) { seen.add(key); output.push(text); }
   }
   return output;
+}
+function nonNegativeInteger(value: unknown, label: string): number {
+  if (!Number.isInteger(value) || Number(value) < 0) throw new Error(`${label} must be a non-negative integer.`);
+  return Number(value);
 }
 function positiveInteger(value: unknown, label: string): number {
   if (!Number.isInteger(value) || Number(value) < 1) throw new Error(`${label} must be a positive integer.`);

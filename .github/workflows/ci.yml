@@ -29,6 +29,8 @@ jobs:
       - run: node --check public/forge-workbench.js
       - run: node --check public/forge-ai-proposals.js
       - run: node --check public/forge-editing-proposals.js
+      - run: node --check public/forge-story-map.js
+      - run: node --check public/forge-chapter-cards.js
       - run: node --check public/forge-series.js
       - run: node --check public/forge-image-lab.js
       - run: node --check public/forge-kdp-preflight.js

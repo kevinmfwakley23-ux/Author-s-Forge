@@ -103,6 +103,31 @@ test("invalid scope fails before planning mutation", async () => {
   });
 });
 
+test("scene planning fails closed instead of sharing metadata across duplicate scene ids", async () => {
+  const root = await mkdtemp(join(tmpdir(), "forge-story-map-scene-collision-"));
+  try {
+    const store = new FileProjectStore(root);
+    let state = createStudioWorkspace();
+    state = addWorkspaceBook(state, createWorkspaceBook({ id: "book-a", title: "Book A", kind: "novel", now: "2026-09-02T16:10:00Z" }));
+    state = addWorkspaceChapter(state, "book-a", { id: "chapter-a", number: 1, title: "A", now: "2026-09-02T16:11:00Z" });
+    state = addWorkspaceScene(state, "book-a", "chapter-a", { id: "shared-scene", number: 1, title: "A Scene", now: "2026-09-02T16:12:00Z" });
+    state = addWorkspaceBook(state, createWorkspaceBook({ id: "book-b", title: "Book B", kind: "novel", now: "2026-09-02T16:13:00Z" }));
+    state = addWorkspaceChapter(state, "book-b", { id: "chapter-b", number: 1, title: "B", now: "2026-09-02T16:14:00Z" });
+    state = addWorkspaceScene(state, "book-b", "chapter-b", { id: "shared-scene", number: 1, title: "B Scene", now: "2026-09-02T16:15:00Z" });
+    const project = withProjectStudioWorkspace(createProject({ id: "scene-collision", title: "Scene Collision", now: "2026-09-02T16:10:00Z" }), state, "2026-09-02T16:15:00Z");
+    await store.create(project);
+    const service = new StudioStoryMapPlanningService(store);
+    await assert.rejects(
+      () => service.setSceneAttributes("scene-collision", { bookId: "book-a", chapterId: "chapter-a", sceneId: "shared-scene", attributes: { location: "Only Book A" } }),
+      /ambiguous across the workspace/,
+    );
+    const after = await store.load("scene-collision");
+    assert.deepEqual(after.storyMapPlanning?.sceneAttributes ?? {}, {}, "Ambiguous scene planning must not mutate durable Story Map state.");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("plotline update and delete remain deterministic and durable", async () => {
   await fixture(async ({ service }) => {
     await service.createPlotline("map-project", { id: "sub", bookId: "book-1", name: "Mystery", kind: "subplot", sceneIds: ["scene-1"] });

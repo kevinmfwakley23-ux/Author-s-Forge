@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { FileProjectStore } from "../infrastructure/file-project-store";
-import { STORY_MAP_PLOTLINE_KINDS, type StoryMapPlotlineKind, type StoryMapSceneAttributes } from "../domain/story-map-planning";
+import { STORY_MAP_PLOTLINE_KINDS, type StoryMapChapterCard, type StoryMapPlotlineKind, type StoryMapSceneAttributes } from "../domain/story-map-planning";
 import { StudioStoryMapPlanningService } from "./studio-story-map-planning";
 
 export type StudioStoryMapRouteHandler = (req: IncomingMessage, res: ServerResponse, url: URL, projectId: string) => Promise<boolean>;
@@ -13,6 +13,22 @@ export function createStudioStoryMapRoutes(
     const root = `/api/projects/${projectId}/story-map`;
     if (url.pathname === `${root}/planning` && req.method === "GET") {
       json(res, 200, await planning.snapshot(projectId));
+      return true;
+    }
+
+    const chapterCardMatch = url.pathname.match(new RegExp(`^${escapeRegExp(root)}/chapters/([^/]+)/([^/]+)/card$`));
+    if (chapterCardMatch && req.method === "PUT") {
+      const input = await body(req);
+      json(res, 200, await planning.setChapterCard(projectId, {
+        bookId: decode(chapterCardMatch[1]),
+        chapterId: decode(chapterCardMatch[2]),
+        card: chapterCard(input.card),
+        now: optionalString(input.now, "now"),
+      }));
+      return true;
+    }
+    if (chapterCardMatch && req.method === "DELETE") {
+      json(res, 200, await planning.removeChapterCard(projectId, decode(chapterCardMatch[1]), decode(chapterCardMatch[2])));
       return true;
     }
 
@@ -95,6 +111,28 @@ function sceneAttributes(value: unknown): Partial<StoryMapSceneAttributes> {
     tags: optionalStringArray(input.tags, "tags") ?? [],
   };
 }
+
+function chapterCard(value: unknown): Partial<StoryMapChapterCard> {
+  if (value === undefined) return {};
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("card must be a JSON object.");
+  const input = value as Record<string, unknown>;
+  return {
+    povCharacterIds: optionalStringArray(input.povCharacterIds, "povCharacterIds") ?? [],
+    location: optionalString(input.location, "location") ?? "",
+    storyTime: optionalString(input.storyTime, "storyTime") ?? "",
+    emotionalObjective: optionalString(input.emotionalObjective, "emotionalObjective") ?? "",
+    plotObjective: optionalString(input.plotObjective, "plotObjective") ?? "",
+    characterIds: optionalStringArray(input.characterIds, "characterIds") ?? [],
+    requiredEvents: optionalStringArray(input.requiredEvents, "requiredEvents") ?? [],
+    clues: optionalStringArray(input.clues, "clues") ?? [],
+    reveals: optionalStringArray(input.reveals, "reveals") ?? [],
+    continuityDependencies: optionalStringArray(input.continuityDependencies, "continuityDependencies") ?? [],
+    atmosphere: optionalString(input.atmosphere, "atmosphere") ?? "",
+    endingHook: optionalString(input.endingHook, "endingHook") ?? "",
+    approximateWordCount: optionalNonNegativeInteger(input.approximateWordCount, "approximateWordCount") ?? 0,
+    forbiddenDeviations: optionalStringArray(input.forbiddenDeviations, "forbiddenDeviations") ?? [],
+  };
+}
 function optionalKind(value: unknown): StoryMapPlotlineKind | undefined {
   if (value === undefined || value === null || value === "") return undefined;
   if (typeof value !== "string" || !STORY_MAP_PLOTLINE_KINDS.includes(value as StoryMapPlotlineKind)) throw new Error("Invalid Story Map plotline kind.");
@@ -118,6 +156,12 @@ function optionalInteger(value: unknown, label: string): number | undefined {
   if (value === undefined || value === null || value === "") return undefined;
   const result = Number(value);
   if (!Number.isInteger(result) || result < 1) throw new Error(`${label} must be a positive integer.`);
+  return result;
+}
+function optionalNonNegativeInteger(value: unknown, label: string): number | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+  const result = Number(value);
+  if (!Number.isInteger(result) || result < 0) throw new Error(`${label} must be a non-negative integer.`);
   return result;
 }
 function decode(value: string): string { return decodeURIComponent(value); }

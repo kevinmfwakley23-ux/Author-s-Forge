@@ -35,6 +35,7 @@ async function openStoryMap(page, base) {
   await page.locator('[data-route="story-map"]').click();
   await page.waitForFunction(() => location.hash === "#story-map" && document.querySelector("#story-map")?.hidden === false);
   await page.waitForFunction(() => document.querySelector("#story-map-summary")?.textContent.includes("2") && document.querySelectorAll("#story-map-books .story-map-scene-wrap").length === 2);
+  await page.waitForSelector('[data-plan-chapter="book-1|chapter-1"]');
 }
 
 async function main() {
@@ -85,13 +86,39 @@ async function main() {
     assert.match(await page.locator('[data-scene-id="scene-1"]').innerText(), /POV: Mara/);
     assert.match(await page.locator('[data-scene-id="scene-1"]').innerText(), /Mara Learns Trust/);
 
+    await page.locator('[data-plan-chapter="book-1|chapter-1"]').click();
+    await page.locator("#chapter-card-location").fill("Union Station");
+    await page.locator("#chapter-card-time").fill("1895-11-03 21:00–23:00");
+    await page.locator("#chapter-card-emotional").fill("Move Mara from confidence to controlled dread.");
+    await page.locator("#chapter-card-plot").fill("Get Mara onto the platform while establishing the altered archive log.");
+    await page.locator("#chapter-card-atmosphere").fill("Cold iron, coal smoke, institutional scrutiny.");
+    await page.locator("#chapter-card-hook").fill("The missing key turns up in Mara's coat pocket.");
+    await page.locator("#chapter-card-words").fill("2800");
+    await page.locator("#chapter-card-events").fill("Mara reaches the station\nThe inspector confronts her");
+    await page.locator("#chapter-card-clues").fill("The archive log has fresh ink");
+    await page.locator("#chapter-card-reveals").fill("Someone expected Mara to arrive");
+    await page.locator("#chapter-card-continuity").fill("Mara still carries the folded letter from Scene 1");
+    await page.locator("#chapter-card-forbidden").fill("Do not identify who altered the log\nMara cannot know Elias is watching");
+    await page.locator('input[name="chapter-card-pov"][value="mara"]').check();
+    await page.locator('input[name="chapter-card-character"][value="mara"]').check();
+    const cardResponse = page.waitForResponse((response) => response.url().includes("/story-map/chapters/book-1/chapter-1/card") && response.request().method() === "PUT");
+    await page.locator("#chapter-card-form button[type=submit]").click();
+    assert.equal((await cardResponse).status(), 200);
+    await page.waitForFunction(() => document.querySelector('[data-plan-chapter="book-1|chapter-1"]')?.textContent.includes("Edit Chapter Card"));
+    assert.match(await page.locator(".chapter-card-summary").innerText(), /2800 words/);
+
     const saved = await request(base, `/api/projects/${projectId}/story-map/planning`);
     assert.equal(saved.planning.sceneAttributes["scene-1"].location, "Union Station");
     assert.equal(saved.planning.plotlines.length, 1);
     assert.deepEqual(saved.planning.plotlines[0].sceneIds, ["scene-1"]);
+    assert.equal(saved.planning.chapterCards["chapter-1"].plotObjective, "Get Mara onto the platform while establishing the altered archive log.");
+    assert.equal(saved.planning.chapterCards["chapter-1"].approximateWordCount, 2800);
+    assert.deepEqual(saved.planning.chapterCards["chapter-1"].forbiddenDeviations, ["Do not identify who altered the log", "Mara cannot know Elias is watching"]);
     const project = await request(base, `/api/projects/${projectId}`);
     assert.equal(project.storyMapPlanning.sceneAttributes["scene-1"].goal, "Reach the platform unseen.");
+    assert.equal(project.storyMapPlanning.chapterCards["chapter-1"].endingHook, "The missing key turns up in Mara's coat pocket.");
     const workspace = await request(base, `/api/projects/${projectId}/workspace`);
+    assert.equal(workspace.books[0].chapters[0].title, "Opening", "Chapter Card planning must not replace manuscript-owned chapter identity.");
     assert.deepEqual(workspace.books[0].chapters[0].scenes.map((scene) => scene.id), ["scene-1", "scene-2"], "Planning must not duplicate or reorder manuscript scenes.");
     assert.match(workspace.books[0].chapters[0].scenes[0].content, /station clock/, "Planning must not rewrite manuscript prose.");
 
@@ -99,6 +126,12 @@ async function main() {
     await page.waitForSelector('[data-route="story-map"]');
     await page.locator('[data-route="story-map"]').click();
     await page.waitForFunction(() => document.querySelector("#story-map")?.hidden === false && document.querySelector('[data-scene-id="scene-1"]')?.textContent.includes("Union Station"));
+    await page.waitForFunction(() => document.querySelector('[data-plan-chapter="book-1|chapter-1"]')?.textContent.includes("Edit Chapter Card"));
+    await page.locator('[data-plan-chapter="book-1|chapter-1"]').click();
+    assert.equal(await page.locator("#chapter-card-plot").inputValue(), "Get Mara onto the platform while establishing the altered archive log.");
+    assert.match(await page.locator("#chapter-card-forbidden").inputValue(), /Mara cannot know Elias is watching/);
+    await page.locator("#chapter-card-close").click();
+
     const plotlineValue = await page.locator("#story-map-filter-plotline option").filter({ hasText: "Mara Learns Trust" }).getAttribute("value");
     assert.ok(plotlineValue, "Story Map plotline filter option must expose a durable plotline id.");
     await page.locator("#story-map-filter-plotline").selectOption(plotlineValue);
@@ -119,10 +152,18 @@ async function main() {
     assert.ok(dims.doc <= dims.viewport + 1, `Story Map mobile document overflow: ${JSON.stringify(dims)}`);
     const planBox = await phone.locator('[data-plan-scene="book-1|chapter-1|scene-1"]').boundingBox();
     assert.ok(planBox && planBox.height >= 40, `Story Map Plan touch target too small: ${JSON.stringify(planBox)}`);
+    const chapterBox = await phone.locator('[data-plan-chapter="book-1|chapter-1"]').boundingBox();
+    assert.ok(chapterBox && chapterBox.height >= 44, `Chapter Card touch target too small: ${JSON.stringify(chapterBox)}`);
+    await phone.locator('[data-plan-chapter="book-1|chapter-1"]').tap();
+    await phone.waitForFunction(() => document.querySelector("#story-map-chapter-editor")?.hidden === false);
+    const mobileEditorDims = await phone.evaluate(() => ({ viewport: document.documentElement.clientWidth, body: document.body.scrollWidth, doc: document.documentElement.scrollWidth }));
+    assert.ok(mobileEditorDims.body <= mobileEditorDims.viewport + 1, `Chapter Card mobile body overflow: ${JSON.stringify(mobileEditorDims)}`);
+    assert.ok(mobileEditorDims.doc <= mobileEditorDims.viewport + 1, `Chapter Card mobile document overflow: ${JSON.stringify(mobileEditorDims)}`);
+    assert.equal(await phone.locator("#chapter-card-words").inputValue(), "2800");
     await mobile.close();
     await desktop.close();
 
-    console.log("STORY MAP PLANNING BROWSER ACCEPTANCE PASSED: visible Studio navigation + durable scene attributes + POV + plotlines/character arcs + cross-scene filters + no manuscript rewrite/reorder + reload + Android fit/touch.");
+    console.log("STORY MAP PLANNING BROWSER ACCEPTANCE PASSED: visible Studio navigation + durable scene attributes + first-class Chapter Cards + POV + plotlines/character arcs + forbidden deviations + cross-scene filters + no manuscript rewrite/reorder + reload + Android fit/touch.");
   } finally {
     if (browser) await browser.close().catch(() => {});
     app.kill("SIGTERM");

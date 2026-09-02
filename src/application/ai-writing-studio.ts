@@ -5,6 +5,7 @@ import { assembleWritingContext, type AssembledWritingContext, type ContextAssem
 import { assessVoiceDrift, buildAuthorVoiceContext, type AuthorVoiceMemory, type VoiceDriftReport } from "../domain/author-voice-memory";
 import { createCharacterContinuityEvidence, verifyCharacterContinuityEvidence, type CharacterContinuityEvidence } from "../domain/character-continuity-evidence";
 import type { CharacterRecord } from "../domain/character-bible";
+import { validateStoryMapPlanningState, type StoryMapChapterCard, type StoryMapPlanningState } from "../domain/story-map-planning";
 import { saveSceneContent, validateStudioWorkspace, type StudioWorkspaceState } from "../domain/studio-workspace";
 import type { FileProjectStore } from "../infrastructure/file-project-store";
 import { createHash } from "node:crypto";
@@ -14,6 +15,7 @@ export interface StudioAiProjectState {
   readonly studioWorkspace?: StudioWorkspaceState;
   readonly authorVoiceMemory?: AuthorVoiceMemory;
   readonly characters?: readonly CharacterRecord[];
+  readonly storyMapPlanning?: StoryMapPlanningState;
   readonly [key: string]: unknown;
 }
 
@@ -122,15 +124,19 @@ export class AiWritingStudioService {
     const project = await this.requireProject(request.projectId);
     const workspace = project.studioWorkspace ? validateStudioWorkspace(project.studioWorkspace) : validateStudioWorkspace({ formatVersion: 1, activeBookId: null, books: [] });
     const scene = findScene(workspace, request.bookId, request.chapterId, request.sceneId);
-    const assembled = this.assembleProjectContext(project, request.projectId, {
+    const chapterCard = chapterCardFor(project, workspace, request.chapterId);
+    const chapterCharacterIds = chapterCard ? [...chapterCard.povCharacterIds, ...chapterCard.characterIds] : [];
+    const characterIds = uniqueStrings([...(request.context?.characterIds ?? []), ...chapterCharacterIds]);
+    let assembled = this.assembleProjectContext(project, request.projectId, {
       query: request.context?.query ?? request.instruction,
-      characterIds: request.context?.characterIds,
+      characterIds: characterIds.length ? characterIds : undefined,
       characterAsOf: request.context?.characterAsOf,
       characterMemoryLimit: request.context?.characterMemoryLimit,
       memoryLimitPerSection: request.context?.memoryLimitPerSection,
       policies: request.context?.policies,
       contextTokenBudget: request.context?.contextTokenBudget,
     });
+    if (chapterCard) assembled = withChapterCardContext(assembled, request.chapterId, chapterCard);
     const voiceMemory = project.authorVoiceMemory;
     if (voiceMemory && voiceMemory.projectId !== request.projectId) throw new Error("Author voice memory belongs to another project.");
     const voiceContext = voiceMemory ? buildAuthorVoiceContext(voiceMemory) : undefined;
@@ -216,6 +222,7 @@ export class AiWritingStudioService {
 
 const CONTEXT_SECTION_PRIORITY: Readonly<Record<string, ContextPriority>> = {
   canon: "critical",
+  "chapter-card": "critical",
   characters: "high",
   voice: "high",
   relationships: "normal",
@@ -291,6 +298,55 @@ function findScene(workspace: StudioWorkspaceState, bookId: string, chapterId: s
   return scene;
 }
 
+function chapterCardFor(project: StudioAiProjectState, workspace: StudioWorkspaceState, chapterId: string): StoryMapChapterCard | undefined {
+  if (!project.storyMapPlanning) return undefined;
+  const planning = validateStoryMapPlanningState(project.storyMapPlanning);
+  const card = planning.chapterCards[chapterId];
+  if (!card) return undefined;
+  const matches = workspace.books.reduce((count, book) => count + book.chapters.filter((chapter) => chapter.id === chapterId).length, 0);
+  if (matches !== 1) throw new Error(`Chapter Card for chapter "${chapterId}" is ambiguous across books. Give the chapters globally unique ids before AI generation.`);
+  return card;
+}
+
+function withChapterCardContext(context: AssembledWritingContext, chapterId: string, card: StoryMapChapterCard): AssembledWritingContext {
+  const text = formatChapterCard(card);
+  const section = {
+    key: "chapter-card",
+    title: "Chapter Card — Author-Controlled Plan",
+    mode: "full" as const,
+    text,
+    sourceIds: [] as string[],
+    wordCount: wordCount(text),
+  };
+  const sections = [section, ...context.sections.filter((item) => item.key !== "chapter-card")];
+  return {
+    ...context,
+    sections,
+    totalWords: sections.reduce((total, item) => total + item.wordCount, 0),
+  };
+}
+
+function formatChapterCard(card: StoryMapChapterCard): string {
+  const list = (label: string, values: readonly string[]) => values.length ? `${label}:\n${values.map((value) => `- ${value}`).join("\n")}` : "";
+  return [
+    "This Chapter Card is author-controlled architecture for the chapter being drafted. Honor it before generating prose. Required events, continuity dependencies, and forbidden deviations are constraints, not suggestions. Do not invent around a forbidden deviation.",
+    card.povCharacterIds.length ? `POV character ids: ${card.povCharacterIds.join(", ")}` : "",
+    card.location ? `Location: ${card.location}` : "",
+    card.storyTime ? `Date / story time: ${card.storyTime}` : "",
+    card.emotionalObjective ? `Emotional objective: ${card.emotionalObjective}` : "",
+    card.plotObjective ? `Plot objective: ${card.plotObjective}` : "",
+    card.characterIds.length ? `Characters present ids: ${card.characterIds.join(", ")}` : "",
+    list("Required events", card.requiredEvents),
+    list("Clues", card.clues),
+    list("Reveals", card.reveals),
+    list("Continuity dependencies", card.continuityDependencies),
+    card.atmosphere ? `Atmosphere: ${card.atmosphere}` : "",
+    card.endingHook ? `Ending hook: ${card.endingHook}` : "",
+    card.approximateWordCount ? `Approximate chapter word target: ${card.approximateWordCount}` : "",
+    list("FORBIDDEN DEVIATIONS — NON-NEGOTIABLE", card.forbiddenDeviations),
+  ].filter(Boolean).join("\n\n");
+}
+
 function formatContext(context: AssembledWritingContext, voiceMemory?: AuthorVoiceMemory): string {
   const sections = context.sections.map((section) => `## ${section.title}\n${section.text}`);
   if (voiceMemory) sections.push(`## Author Voice Memory\n${buildAuthorVoiceContext(voiceMemory)}`);
@@ -312,6 +368,14 @@ function selectedCharacterIdsFromAssembledContext(serialized: string): string[] 
   } catch {
     return [];
   }
+}
+
+function uniqueStrings(values: readonly string[]): string[] {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+function wordCount(value: string): number {
+  const normalized = value.trim();
+  return normalized ? normalized.split(/\s+/u).length : 0;
 }
 
 export function sha256(value: string): string { return createHash("sha256").update(value, "utf8").digest("hex"); }
