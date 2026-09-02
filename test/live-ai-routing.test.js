@@ -3,8 +3,8 @@ const assert = require("node:assert/strict");
 const { generateText, aiRoutingTelemetry } = require("../dist/infrastructure/ai-provider.js");
 
 const PROVIDER_ENV = [
-  "OMNIROUTE_BASE_URL", "OMNIROUTE_API_KEY", "OMNIROUTE_MODEL", "OMNIROUTE_MODELS", "OMNIROUTE_TOKEN_QUOTA", "OMNIROUTE_USED_TOKENS", "OMNIROUTE_REMAINING_TOKENS",
-  "ROUTER9_BASE_URL", "ROUTER9_API_KEY", "ROUTER9_MODEL", "ROUTER9_MODELS", "ROUTER9_TOKEN_QUOTA", "ROUTER9_USED_TOKENS", "ROUTER9_REMAINING_TOKENS",
+  "OMNIROUTE_BASE_URL", "OMNIROUTE_API_KEY", "OMNIROUTE_MODEL", "OMNIROUTE_MODELS", "OMNIROUTE_TOKEN_QUOTA", "OMNIROUTE_USED_TOKENS", "OMNIROUTE_REMAINING_TOKENS", "OMNIROUTE_BILLING_CLASS",
+  "ROUTER9_BASE_URL", "ROUTER9_API_KEY", "ROUTER9_MODEL", "ROUTER9_MODELS", "ROUTER9_TOKEN_QUOTA", "ROUTER9_USED_TOKENS", "ROUTER9_REMAINING_TOKENS", "ROUTER9_BILLING_CLASS",
   "KINGS_AI_ENDPOINT", "KINGS_AI_MODEL", "KINGS_AI_MODELS",
   "OPENAI_API_KEY", "OPENAI_MODEL", "OPENAI_MODELS",
   "OLLAMA_BASE_URL", "OLLAMA_MODEL", "OLLAMA_MODELS",
@@ -27,6 +27,7 @@ test("live Forge AI broker fails over between configured models and accounts pro
   const restoreEnv = isolatedEnv({
     OMNIROUTE_BASE_URL: "http://omniroute.test",
     OMNIROUTE_MODELS: "a-fail,b-good",
+    OMNIROUTE_BILLING_CLASS: "subscription",
     AI_PROVIDER_ORDER: "omniroute",
     AI_ROUTING_MODE: "economy",
   });
@@ -70,6 +71,7 @@ test("live Forge AI broker rotates to a less-used eligible model before either m
   const restoreEnv = isolatedEnv({
     OMNIROUTE_BASE_URL: "http://omniroute-rotate.test",
     OMNIROUTE_MODELS: "rotate-a,rotate-b",
+    OMNIROUTE_BILLING_CLASS: "subscription",
     AI_PROVIDER_ORDER: "omniroute",
     AI_ROUTING_MODE: "balanced",
   });
@@ -106,10 +108,12 @@ test("live Forge AI broker protects quota reserve using prompt plus response bud
     OMNIROUTE_MODEL: "nearly-empty",
     OMNIROUTE_TOKEN_QUOTA: "1000",
     OMNIROUTE_USED_TOKENS: "850",
+    OMNIROUTE_BILLING_CLASS: "subscription",
     ROUTER9_BASE_URL: "http://router9-safe.test",
     ROUTER9_MODEL: "safe-model",
     ROUTER9_TOKEN_QUOTA: "10000",
     ROUTER9_USED_TOKENS: "0",
+    ROUTER9_BILLING_CLASS: "subscription",
     AI_PROVIDER_ORDER: "omniroute,9router",
     AI_QUOTA_SAFETY_FRACTION: "0.10",
   });

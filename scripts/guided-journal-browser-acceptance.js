@@ -31,7 +31,13 @@ function mockAi() {
     const payload = await readBody(req); const user = payload.messages?.find((m) => m.role === "user")?.content || "";
     if (String(user).includes("Return JSON shaped exactly as {\"frontPrompt\"")) return json(res, 200, { id: "journal-cover-test", choices: [{ message: { content: JSON.stringify({ frontPrompt: "Warm hand-drawn doorway opening toward a bright horizon, clean typography space, no text rendered in artwork", backText: "A guided place to remember, discover, challenge, create, become, and hope.", coverStatement: { text: "Ask a better question.", tags: ["reflection"] } }) } }] });
     const count = Number(String(user).match(/Create exactly (\d+)/)?.[1] || 2); const category = String(user).match(/original ([a-z-]+) prompts/)?.[1] || "discover";
-    return json(res, 200, { id: "journal-prompt-test", choices: [{ message: { content: JSON.stringify({ prompts: Array.from({ length: count }, (_, i) => ({ text: `AI ${category} acceptance question ${i + 1}?`, tags: ["acceptance", category] })) }) } }] });
+    const promptTemplates = [
+      `What recent ${category} experience changed how you understand your own choices, and which specific detail from that moment still matters to you?`,
+      `When did a ${category} moment make you respond differently than you expected, and what did that reaction reveal about what you value most?`,
+      `Which ${category} question have you been avoiding lately, and what might become clearer if you explored it with patience instead of judgment?`,
+      `Think of a ${category} decision that shaped your week; what influenced it, what did you learn, and what would you choose differently next time?`,
+    ];
+    return json(res, 200, { id: "journal-prompt-test", choices: [{ message: { content: JSON.stringify({ prompts: Array.from({ length: count }, (_, i) => ({ text: promptTemplates[i % promptTemplates.length], tags: ["acceptance", category] })) }) } }] });
   });
   return new Promise((resolve) => server.listen(AI_PORT, HOST, () => resolve(server)));
 }
@@ -39,7 +45,7 @@ function mockAi() {
 async function main() {
   const dataDir = await mkdtemp(join(tmpdir(), "forge-journal-browser-"));
   const aiServer = await mockAi();
-  const app = spawn(process.execPath, ["dist/guided-journal-server.js"], { env: { ...process.env, HOST, JOURNAL_PORT: String(PORT), FORGE_DATA_DIR: dataDir, AI_PROVIDER_ORDER: "omniroute", OMNIROUTE_BASE_URL: `http://${HOST}:${AI_PORT}`, OMNIROUTE_MODEL: "journal-test-model", OMNIROUTE_API_KEY: "", ROUTER9_BASE_URL: "", KINGS_AI_ENDPOINT: "", OPENAI_API_KEY: "", OLLAMA_BASE_URL: "" }, stdio: ["ignore", "pipe", "pipe"] });
+  const app = spawn(process.execPath, ["dist/guided-journal-server.js"], { env: { ...process.env, HOST, JOURNAL_PORT: String(PORT), FORGE_DATA_DIR: dataDir, AI_PROVIDER_ORDER: "omniroute", OMNIROUTE_BASE_URL: `http://${HOST}:${AI_PORT}`, OMNIROUTE_MODEL: "journal-test-model", OMNIROUTE_BILLING_CLASS: "subscription", OMNIROUTE_API_KEY: "", ROUTER9_BASE_URL: "", KINGS_AI_ENDPOINT: "", OPENAI_API_KEY: "", OLLAMA_BASE_URL: "" }, stdio: ["ignore", "pipe", "pipe"] });
   let browser;
   try {
     const base = `http://${HOST}:${PORT}`;

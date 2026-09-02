@@ -61,7 +61,7 @@ function mockAi(){
 }
 async function wait(url,timeout=12000){const start=Date.now();while(Date.now()-start<timeout){try{if((await fetch(url)).ok)return;}catch{}await new Promise(resolve=>setTimeout(resolve,100));}throw new Error(`Timed out waiting for ${url}`);}
 async function call(base,path,method='GET',payload){const response=await fetch(base+path,{method,headers:{'content-type':'application/json'},...(payload!==undefined?{body:JSON.stringify(payload)}:{})});const text=await response.text();assert.equal(response.ok,true,`${method} ${path}: ${text}`);return text?JSON.parse(text):{};}
-function startApp(dataDir){return spawn(process.execPath,['dist/specialized-creation-server.js'],{env:{...process.env,HOST,SPECIALIZED_PORT:String(PORT),FORGE_DATA_DIR:dataDir,AI_PROVIDER_ORDER:'omniroute',OMNIROUTE_BASE_URL:`http://${HOST}:${AI_PORT}`,OMNIROUTE_MODEL:'comic-059d-test',OMNIROUTE_API_KEY:'',ROUTER9_BASE_URL:'',KINGS_AI_ENDPOINT:'',OPENAI_API_KEY:'',OLLAMA_BASE_URL:''},stdio:['ignore','pipe','pipe']});}
+function startApp(dataDir){return spawn(process.execPath,['dist/specialized-creation-server.js'],{env:{...process.env,HOST,SPECIALIZED_PORT:String(PORT),FORGE_DATA_DIR:dataDir,AI_PROVIDER_ORDER:'omniroute',OMNIROUTE_BASE_URL:`http://${HOST}:${AI_PORT}`,OMNIROUTE_MODEL:'comic-059d-test',OMNIROUTE_BILLING_CLASS:'subscription',OMNIROUTE_API_KEY:'',ROUTER9_BASE_URL:'',KINGS_AI_ENDPOINT:'',OPENAI_API_KEY:'',OLLAMA_BASE_URL:''},stdio:['ignore','pipe','pipe']});}
 async function stopApp(app){if(!app)return;app.kill('SIGTERM');await new Promise(resolve=>setTimeout(resolve,150));}
 
 async function main(){

@@ -50,5 +50,5 @@ export class AiExecutionFallback {
  }
  private cooldownFor(attempt:number):number{return Math.min(120000,Math.max(5000,attempt*5000));}
  private message(error:unknown):string{return error instanceof Error?error.message:String(error);}
- private isRetryable(error:unknown):boolean{return /timeout|timed out|temporar|rate.?limit|429|503|502|504|overloaded|unavailable|network|connection|econn|reset|quota/i.test(this.message(error).toLowerCase());}
+ private isRetryable(error:unknown):boolean{return /timeout|timed out|temporar|rate.?limit|429|503|502|504|overloaded|unavailable|network|connection|econn|reset|quota|forge quality gate/i.test(this.message(error).toLowerCase());}
 }

@@ -69,6 +69,7 @@ async function main() {
       AI_PROVIDER_ORDER: "omniroute",
       OMNIROUTE_BASE_URL: `http://${HOST}:${AI_PORT}`,
       OMNIROUTE_MODEL: "workbook-test-model",
+      OMNIROUTE_BILLING_CLASS: "subscription",
       OMNIROUTE_API_KEY: "",
       ROUTER9_BASE_URL: "",
       KINGS_AI_ENDPOINT: "",

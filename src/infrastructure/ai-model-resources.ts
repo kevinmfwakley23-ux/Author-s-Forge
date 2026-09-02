@@ -1,15 +1,12 @@
-import type { AiModelCapabilities, AiModelResource } from "../application/ai-model-broker";
+import type { AiBillingClass, AiModelCapabilities, AiModelResource } from "../application/ai-model-broker";
+import { constrainResourcesForOwnerPin, refreshPersistedAiOwnerControl } from "./ai-owner-control-runtime";
 
-type SupportedProvider = "omniroute" | "9router" | "kings" | "openai" | "ollama";
+type SupportedProvider = "omniroute" | "9router" | "kings" | "openai" | "ollama" | "groq" | "mistral" | "gemini" | "anthropic" | "openrouter";
 
 /**
  * Provider discovery must not invent model-specific context windows, output
  * ceilings, vision/tool/reasoning support, or long-context status. Those vary
  * by concrete model and belong in explicit resource metadata when known.
- *
- * These two baseline flags describe the minimum text-chat behavior required by
- * Forge's currently supported provider adapters; advanced capabilities remain
- * unknown until configured.
  */
 const BASE_CAPABILITIES: Readonly<Record<SupportedProvider, AiModelCapabilities>> = {
   omniroute: { creativeWriting: true, instructionFollowing: true },
@@ -17,39 +14,72 @@ const BASE_CAPABILITIES: Readonly<Record<SupportedProvider, AiModelCapabilities>
   kings: { creativeWriting: true, instructionFollowing: true },
   openai: { creativeWriting: true, instructionFollowing: true },
   ollama: { creativeWriting: true, instructionFollowing: true },
+  groq: { creativeWriting: true, instructionFollowing: true },
+  mistral: { creativeWriting: true, instructionFollowing: true },
+  gemini: { creativeWriting: true, instructionFollowing: true },
+  anthropic: { creativeWriting: true, instructionFollowing: true },
+  openrouter: { creativeWriting: true, instructionFollowing: true },
+};
+
+/**
+ * Billing defaults fail closed. Routers can traverse subscription, free, and
+ * metered downstream providers, so a router endpoint is not assumed no-spend.
+ * Owners may explicitly set *_BILLING_CLASS or trust individual no-spend models.
+ */
+const DEFAULT_BILLING: Readonly<Record<SupportedProvider, AiBillingClass>> = {
+  ollama: "local",
+  kings: "local",
+  omniroute: "gateway-managed",
+  "9router": "gateway-managed",
+  openai: "metered",
+  groq: "unknown",
+  mistral: "unknown",
+  gemini: "unknown",
+  anthropic: "metered",
+  openrouter: "gateway-managed",
 };
 
 const BOOLEAN_CAPABILITIES = ["reasoning", "vision", "streaming", "toolCalls", "creativeWriting", "instructionFollowing", "longContext"] as const;
 const NUMERIC_CAPABILITIES = ["contextWindow", "maxOutputTokens"] as const;
+const BILLING_CLASSES: readonly AiBillingClass[] = ["local", "subscription", "free", "metered", "gateway-managed", "unknown"];
 
 /** Build the canonical broker resource registry from real runtime configuration only. */
 export function discoverConfiguredAiModelResources(env: NodeJS.ProcessEnv = process.env): AiModelResource[] {
+  const ownerControl = refreshPersistedAiOwnerControl(env);
   const resources: AiModelResource[] = [];
-  const addProvider = (provider: SupportedProvider, configured: boolean, models: readonly string[], prefix: string): void => {
+  const addProvider = (provider: SupportedProvider, configured: boolean, candidateModels: readonly string[], prefix: string): void => {
     if (!configured) return;
-    const uniqueModels = [...new Set(models.map((model) => model.trim()).filter(Boolean))];
+    const pinnedModel = env.AI_PINNED_PROVIDER === provider ? env.AI_PINNED_MODEL?.trim() : undefined;
+    const uniqueModels = [...new Set([...(pinnedModel ? [pinnedModel] : []), ...candidateModels].map((model) => model.trim()).filter(Boolean))];
+    const billingClass = billingClassFromEnv(env[`${prefix}_BILLING_CLASS`], DEFAULT_BILLING[provider], prefix);
     for (const model of uniqueModels) resources.push(withProviderMetrics({
       provider,
       model,
       configured: true,
       healthy: true,
+      billingClass,
       capabilities: { ...BASE_CAPABILITIES[provider] },
     }, env, prefix, uniqueModels.length === 1));
   };
 
-  // Preserve canonical discovery order as a stable soft preference. The broker
-  // may rotate away for quota, usage balance, cooldown, health, capability,
-  // latency or cost.
+  // Preserve the established provider registration order so existing routing
+  // remains stable. New providers extend the pool without silently reshuffling
+  // otherwise equal candidates; owner preference is handled by broker scoring.
   addProvider("omniroute", Boolean(env.OMNIROUTE_BASE_URL?.trim()), models(env.OMNIROUTE_MODELS, env.OMNIROUTE_MODEL, "auto"), "OMNIROUTE");
   addProvider("9router", Boolean(env.ROUTER9_BASE_URL?.trim()), models(env.ROUTER9_MODELS, env.ROUTER9_MODEL, "auto"), "ROUTER9");
-  addProvider("kings", Boolean(env.KINGS_AI_ENDPOINT?.trim()), models(env.KINGS_AI_MODELS, env.KINGS_AI_MODEL), "KINGS_AI");
   addProvider("openai", Boolean(env.OPENAI_API_KEY?.trim()), models(env.OPENAI_MODELS, env.OPENAI_MODEL), "OPENAI");
   addProvider("ollama", Boolean(env.OLLAMA_BASE_URL?.trim()), models(env.OLLAMA_MODELS, env.OLLAMA_MODEL), "OLLAMA");
+  addProvider("kings", Boolean(env.KINGS_AI_ENDPOINT?.trim()), models(env.KINGS_AI_MODELS, env.KINGS_AI_MODEL), "KINGS_AI");
+  addProvider("groq", Boolean(env.GROQ_API_KEY?.trim()), models(env.GROQ_MODELS, env.GROQ_MODEL), "GROQ");
+  addProvider("mistral", Boolean(env.MISTRAL_API_KEY?.trim()), models(env.MISTRAL_MODELS, env.MISTRAL_MODEL), "MISTRAL");
+  addProvider("gemini", Boolean(env.GEMINI_API_KEY?.trim()), models(env.GEMINI_MODELS, env.GEMINI_MODEL), "GEMINI");
+  addProvider("anthropic", Boolean(env.ANTHROPIC_API_KEY?.trim()), models(env.ANTHROPIC_MODELS, env.ANTHROPIC_MODEL), "ANTHROPIC");
+  addProvider("openrouter", Boolean(env.OPENROUTER_API_KEY?.trim()), models(env.OPENROUTER_MODELS, env.OPENROUTER_MODEL), "OPENROUTER");
 
   const overrides = parseExplicitResources(env.AI_MODEL_RESOURCES_JSON, env);
   const byKey = new Map(resources.map((resource) => [`${resource.provider}::${resource.model}`, resource]));
   for (const resource of overrides) byKey.set(`${resource.provider}::${resource.model}`, resource);
-  return [...byKey.values()];
+  return constrainResourcesForOwnerPin([...byKey.values()], ownerControl);
 }
 
 function models(list: string | undefined, single: string | undefined, fallback?: string): string[] {
@@ -99,6 +129,7 @@ function parseExplicitResources(raw: string | undefined, env: NodeJS.ProcessEnv)
       model,
       configured: true,
       healthy: value.healthy !== false,
+      billingClass: parseBillingClass(value.billingClass, DEFAULT_BILLING[provider], `AI model resource ${provider}/${model}`),
       capabilities: parseCapabilities(value.capabilities, provider, model),
       ...optionalNumberField(value, "estimatedInputCostPerMillion"),
       ...optionalNumberField(value, "estimatedOutputCostPerMillion"),
@@ -143,22 +174,36 @@ function providerConfigured(provider: SupportedProvider, env: NodeJS.ProcessEnv)
     case "kings": return Boolean(env.KINGS_AI_ENDPOINT?.trim());
     case "openai": return Boolean(env.OPENAI_API_KEY?.trim());
     case "ollama": return Boolean(env.OLLAMA_BASE_URL?.trim());
+    case "groq": return Boolean(env.GROQ_API_KEY?.trim());
+    case "mistral": return Boolean(env.MISTRAL_API_KEY?.trim());
+    case "gemini": return Boolean(env.GEMINI_API_KEY?.trim());
+    case "anthropic": return Boolean(env.ANTHROPIC_API_KEY?.trim());
+    case "openrouter": return Boolean(env.OPENROUTER_API_KEY?.trim());
   }
 }
 
 function supportedProvider(value: unknown, index: number): SupportedProvider {
   const provider = typeof value === "string" ? value.trim().toLowerCase() : "";
-  if (provider === "omniroute" || provider === "9router" || provider === "kings" || provider === "openai" || provider === "ollama") return provider;
+  const supported: readonly SupportedProvider[] = ["omniroute", "9router", "kings", "openai", "ollama", "groq", "mistral", "gemini", "anthropic", "openrouter"];
+  if (supported.includes(provider as SupportedProvider)) return provider as SupportedProvider;
   throw new Error(`AI model resource ${index + 1} has unsupported provider "${provider}".`);
 }
 
+function billingClassFromEnv(value: string | undefined, fallback: AiBillingClass, prefix: string): AiBillingClass {
+  return parseBillingClass(value, fallback, `${prefix}_BILLING_CLASS`);
+}
+function parseBillingClass(value: unknown, fallback: AiBillingClass, label: string): AiBillingClass {
+  if (value === undefined || value === null || value === "") return fallback;
+  const normalized = String(value).trim().toLowerCase() as AiBillingClass;
+  if (!BILLING_CLASSES.includes(normalized)) throw new Error(`${label} must be one of ${BILLING_CLASSES.join(", ")}.`);
+  return normalized;
+}
 function optionalNumberField(value: Record<string, unknown>, key: keyof AiModelResource): Partial<AiModelResource> {
   const raw = value[key as string];
   if (raw === undefined) return {};
   if (typeof raw !== "number" || !Number.isFinite(raw) || raw < 0) throw new Error(`AI model resource ${String(key)} must be a non-negative finite number.`);
   return { [key]: raw } as Partial<AiModelResource>;
 }
-
 function optionalTimestamp(value: unknown, label: string): string | undefined {
   if (value === undefined) return undefined;
   if (typeof value !== "string" || !validTimestamp(value)) throw new Error(`${label} must be a valid timestamp.`);

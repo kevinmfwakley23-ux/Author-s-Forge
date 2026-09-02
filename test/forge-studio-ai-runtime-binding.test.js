@@ -26,6 +26,7 @@ test("production Studio AI provider boundary writes usage into the exact ForgeCo
     OMNIROUTE_BASE_URL: "http://forge-core-runtime.test",
     OMNIROUTE_MODEL: "bound-model",
     OMNIROUTE_MODELS: undefined,
+    OMNIROUTE_BILLING_CLASS: "subscription",
     ROUTER9_BASE_URL: undefined,
     KINGS_AI_ENDPOINT: undefined,
     OPENAI_API_KEY: undefined,
