@@ -11,18 +11,20 @@ import { createStudioMarketPromotionRoutes } from "./studio-market-promotion-rou
 import { createStudioPublishingRoutes } from "./studio-publishing-routes";
 import { createStudioSceneCardWorkflowRoutes } from "./studio-scene-card-workflow-routes";
 import { createStudioSeriesRoutes } from "./studio-series-routes";
+import { createStudioStoryArchitectureRoutes } from "./studio-story-architecture-routes";
 import { createStudioStoryMapRoutes } from "./studio-story-map-routes";
 
 export type StudioPublishingPromotionRouteHandler = (req: IncomingMessage, res: ServerResponse, url: URL, projectId: string) => Promise<boolean>;
 
 /**
  * Modular Studio extension boundary. Historical name is retained to avoid
- * destabilizing the server entrypoint while architecture AI, author-craft,
+ * destabilizing the server entrypoint while architecture planning, author-craft,
  * Chapter Card, Scene Card, manuscript intake, Series, Story Map, research,
  * image, publishing, market and promotion routes remain independently
  * implemented and testable.
  */
 export function createStudioPublishingPromotionRoutes(store: FileProjectStore): StudioPublishingPromotionRouteHandler {
+  const storyArchitecture = createStudioStoryArchitectureRoutes(store);
   const architectureAi = createStudioArchitectureAiRoutes(store);
   const authorCraft = createStudioAuthorCraftRoutes(store);
   const chapterCards = createStudioChapterCardWorkflowRoutes(store);
@@ -37,6 +39,7 @@ export function createStudioPublishingPromotionRoutes(store: FileProjectStore): 
   const marketPromotion = createStudioMarketPromotionRoutes(store);
 
   return async (req, res, url, projectId) => {
+    if (await storyArchitecture(req, res, url, projectId)) return true;
     if (await architectureAi(req, res, url, projectId)) return true;
     if (await authorCraft(req, res, url, projectId)) return true;
     if (await chapterCards(req, res, url, projectId)) return true;
