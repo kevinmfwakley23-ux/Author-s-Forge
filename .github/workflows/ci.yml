@@ -46,6 +46,7 @@ jobs:
       - run: node --check scripts/forge-network-security.js
       - run: node --check scripts/start-forge.js
       - run: node --check scripts/forge-offices-browser-acceptance.js
+      - run: node --check scripts/studio-scene-card-browser-acceptance.js
       - run: node --check scripts/studio-series-browser-acceptance.js
       - run: node --check scripts/studio-manuscript-import-browser-acceptance.js
       - run: node --check scripts/studio-image-lab-browser-acceptance.js
