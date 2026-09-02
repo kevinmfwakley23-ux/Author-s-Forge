@@ -5,6 +5,7 @@ import {
   approveStoryArchitectureCandidate,
   createStoryArchitectureCandidate,
   createStoryArchitectureWorkflowState,
+  revokeStoryArchitectureApproval,
   storyArchitectureApprovalFor,
   storyArchitecturePlanSha256,
   updateStoryArchitectureCandidatePlan,
@@ -146,6 +147,13 @@ export class StudioStoryArchitectureWorkflowService {
     const project = await this.requireProject(projectId);
     const workflow = approveStoryArchitectureCandidate(workflowOf(project), candidateId, input.now);
     await this.save(project, workflow, input.now);
+    return this.snapshot(projectId);
+  }
+
+  async revokeApproval(projectId: string, candidateId: string, now?: string) {
+    const project = await this.requireProject(projectId);
+    const workflow = revokeStoryArchitectureApproval(workflowOf(project), candidateId);
+    await this.save(project, workflow, now);
     return this.snapshot(projectId);
   }
 
