@@ -47,9 +47,49 @@ The cumulative build is now a substantial usable application with durable local 
 - a separate **Specialized Creation Office** for exactly six modes: comic books, greeting cards, birthday cards, invitations, flyers, and trading-card-game cards, including durable structured documents and real production artifacts where supported;
 - a responsive **PWA / Chromebook / Android web surface** with service-worker shell caching that deliberately does not treat browser cache as durable project state.
 
-### Current known usability gap
+### Engineering resume checkpoint — Live Research PR #106
 
-The main Studio **Research** screen currently supports durable manual source entry with provenance. Forge also has a generic governed Research Engine and a real web-search implementation for KDP market research, but general author-facing live web research is not yet fully wired into the main Research office. That is a current completion target; Forge must not pretend manual entry is the same thing as live research.
+**Checkpoint date:** September 1, 2026 (America/Denver)  
+**Base:** `main` at `387e892` — PR #105 is merged and was green through unit/build/completion, desktop browser, and Android acceptance.  
+**Active branch:** `completion/live-research-office`  
+**Open PR:** #106 — `feat: add governed live source-backed Research office`  
+**Last implementation head tested before this documentation-only checkpoint:** `cbd3dac`
+
+PR #106 is the current unfinished engineering block. It contains the first author-facing general live Research path:
+
+- OpenAI Responses `web_search` with the consulted source set requested and validated;
+- source-backed claims only — a URL the model mentions but hosted search did not actually return is rejected before persistence;
+- durable project `research-memory` stored at `working` authority, never promoted automatically into canon;
+- reload-latest-before-save behavior so a long-running research call is designed not to overwrite author work saved while the search is in flight;
+- the same durable owner AI control used by the rest of Forge (`ai-runtime-control.json`), including provider/model pinning and spend policy;
+- hosted web search blocked under `no-paid-tokens` and `budgeted` because the current request estimator does not safely account for hosted search-tool fees; live hosted Research currently requires deliberate `unrestricted` mode;
+- a Live Research panel in the main Studio Research office with domain, question, rationale, source display, confidence, relevance, and persisted-history rendering;
+- a dedicated browser acceptance harness that covers successful source-backed persistence/reload, rejection/no-mutation for an unconsulted URL, and a `390×844` Android viewport/touch layout check;
+- Live Research added to the canonical desktop browser command and the Forge completion meter.
+
+**Exact verification state at this checkpoint:**
+
+- `npm run build` — ✅ passed;
+- `npm run baseline` — ✅ passed;
+- `npm test` — ❌ **650/651 passed; one test fixture failed**;
+- `npm run completion` — not reached because unit verification stopped first;
+- desktop browser acceptance — not reached on this exact head;
+- Android/mobile acceptance — not reached on this exact head.
+
+**Known blocker:** `test/studio-live-research.test.js`, test `live research reloads latest project before persistence so concurrent author work survives`, uses the invalid fixture memory class `session-memory`. Canonical memory validation correctly rejects that fixture with `Unsupported memory class "session-memory".` This is a **test-fixture repair**, not a reason to loosen production memory validation or the Research implementation.
+
+**Resume here — do these in order:**
+
+1. On `completion/live-research-office`, replace only the invalid concurrent-author-work fixture class with a valid canonical author-memory class; prefer `creative-note` if it remains semantically appropriate.
+2. Do **not** weaken the canonical memory allowlist, source-verification rule, spend policy, or quality gates to make the test pass.
+3. Push the repaired exact head and run the full verification chain.
+4. Require unit/completion plus the complete desktop browser suite — including `studio-live-research-browser-acceptance.js` — and Android/mobile acceptance to pass on that exact head.
+5. Merge PR #106 only after those gates are green.
+6. After merge, inspect fresh `main` and open PRs before claiming the next block. The next known unfinished capability is **Knowledge Gap Radar**: proactive research-gap hypotheses layered on the now-source-backed Research office. Radar suggestions must remain hypotheses/research prompts and must never turn AI prose directly into canon.
+
+**Do not regress these invariants when resuming:** No Paid Tokens remains the default fail-closed policy; hosted live Research cannot bypass spend control; Research remains working evidence until deliberate author promotion; only URLs actually returned by hosted search may persist; a long research request must preserve concurrent author changes; test failures must be repaired at their true boundary rather than hidden by weaker validation.
+
+`main` still lacks this general live Research capability until PR #106 is verified and merged. Manual research entry on `main` remains real and durable, but it is not a substitute for the unfinished live Research path above.
 
 ## Start Forge
 
