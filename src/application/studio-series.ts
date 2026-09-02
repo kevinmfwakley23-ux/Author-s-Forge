@@ -112,7 +112,7 @@ export class StudioSeriesService {
   }
 
   private async persist(project: ProjectState, series: readonly SeriesState[], now?: string): Promise<StudioSeriesSnapshot> {
-    const next = withProjectSeries(project, series, now);
+    const next = withProjectSeries(project, series, monotonicProjectTimestamp(project, now));
     await this.projects.save(next);
     const restored = await this.projects.load(project.metadata.id);
     if (!restored) throw new Error(`Project "${project.metadata.id}" disappeared after Series save.`);
@@ -160,6 +160,15 @@ function assertSeriesReferences(project: ProjectState, series: SeriesState): voi
 function assertBookExists(project: ProjectState, bookId: string): void {
   const id = required(bookId, "Book id");
   if (!(project.studioWorkspace?.books ?? []).some((book) => book.id === id)) throw new Error(`Book "${id}" not found in this project.`);
+}
+
+function monotonicProjectTimestamp(project: ProjectState, requested?: string): string {
+  const candidate = requested ?? new Date().toISOString();
+  const candidateMs = Date.parse(candidate);
+  if (!Number.isFinite(candidateMs)) throw new Error("Series mutation timestamp must be a valid timestamp.");
+  const currentMs = Date.parse(project.metadata.updatedAt);
+  if (!Number.isFinite(currentMs)) throw new Error("Project updatedAt must be a valid timestamp before Series mutation.");
+  return candidateMs < currentMs ? project.metadata.updatedAt : new Date(candidateMs).toISOString();
 }
 
 function required(value: unknown, label: string): string {
