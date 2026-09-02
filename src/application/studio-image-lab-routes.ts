@@ -1,7 +1,8 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { FileProjectStore } from "../infrastructure/file-project-store";
-import { StudioImageLabService, type StudioImagePurpose } from "./studio-image-lab";
+import { StudioImageLabService, type StudioImagePurpose, type StudioImageRightsDeclarationInput } from "./studio-image-lab";
 import type { ImageGenerationQuality, ImageGenerationSize } from "../infrastructure/image-provider";
+import type { AssetRightsBasis, ModelReleaseStatus } from "../domain/asset-rights-provenance";
 
 export type StudioImageLabRouteHandler = (req: IncomingMessage, res: ServerResponse, url: URL, projectId: string) => Promise<boolean>;
 
@@ -9,7 +10,8 @@ export function createStudioImageLabRoutes(store: FileProjectStore): StudioImage
   const service = new StudioImageLabService(store);
   return async (req, res, url, projectId) => {
     if (url.pathname === `/api/projects/${projectId}/ai/images` && req.method === "GET") {
-      json(res, 200, { assets: await service.list(projectId) });
+      const [assets, rightsRecords] = await Promise.all([service.list(projectId), service.rights(projectId)]);
+      json(res, 200, { assets, rightsRecords });
       return true;
     }
     if (url.pathname === `/api/projects/${projectId}/ai/image` && req.method === "POST") {
@@ -24,12 +26,17 @@ export function createStudioImageLabRoutes(store: FileProjectStore): StudioImage
         referenceImage: input.referenceImage === undefined ? undefined : String(input.referenceImage),
         referenceLabel: input.referenceLabel === undefined ? undefined : String(input.referenceLabel),
         sourceAssetId: input.sourceAssetId === undefined ? undefined : String(input.sourceAssetId),
+        referenceRights: input.referenceRights === undefined ? undefined : rightsDeclaration(input.referenceRights),
+        externalProcessingConsent: input.externalProcessingConsent === true,
         characterId: input.characterId === undefined ? undefined : String(input.characterId),
         locationId: input.locationId === undefined ? undefined : String(input.locationId),
       });
       json(res, 201, {
         asset: result.asset,
         ...(result.sourceAsset ? { sourceAsset: result.sourceAsset } : {}),
+        assetProvenance: result.assetProvenance,
+        ...(result.sourceDeclaration ? { sourceDeclaration: result.sourceDeclaration } : {}),
+        ...(result.processingConsent ? { processingConsent: result.processingConsent } : {}),
         provider: result.provider,
         model: result.model,
         ...(result.requestId ? { requestId: result.requestId } : {}),
@@ -46,7 +53,30 @@ export function createStudioImageLabRoutes(store: FileProjectStore): StudioImage
       json(res, 200, result.asset);
       return true;
     }
+    const rights = url.pathname.match(new RegExp(`^/api/projects/${projectId}/ai/images/([A-Za-z0-9_-]+)/rights$`));
+    if (rights && req.method === "POST") {
+      const input = await body(req);
+      const result = await service.declareRights({ projectId, assetId: rights[1], declaration: rightsDeclaration(input) });
+      json(res, 201, result.record);
+      return true;
+    }
     return false;
+  };
+}
+
+function rightsDeclaration(value: unknown): StudioImageRightsDeclarationInput {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Image rights declaration must be an object.");
+  const input = value as Record<string, unknown>;
+  return {
+    rightsBasis: String(input.rightsBasis ?? "unknown") as AssetRightsBasis,
+    authorDeclaresPublicationClearance: input.authorDeclaresPublicationClearance === true,
+    containsRealPerson: input.containsRealPerson === true,
+    modelReleaseStatus: input.modelReleaseStatus === undefined ? undefined : String(input.modelReleaseStatus) as ModelReleaseStatus,
+    containsTrademark: input.containsTrademark === true,
+    sourceReference: input.sourceReference === undefined ? undefined : String(input.sourceReference),
+    licenseUrl: input.licenseUrl === undefined ? undefined : String(input.licenseUrl),
+    rightsUsageTerms: input.rightsUsageTerms === undefined ? undefined : String(input.rightsUsageTerms),
+    notes: input.notes === undefined ? undefined : String(input.notes),
   };
 }
 
