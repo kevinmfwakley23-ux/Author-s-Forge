@@ -97,7 +97,11 @@ async function main() {
     await page.locator("#research-because").fill("Acceptance safety check.");
     const badResponse = page.waitForResponse((r) => r.url().endsWith("/research/live") && r.request().method() === "POST");
     await page.locator("#run-live-research").click();
-    assert.equal((await badResponse).status(), 500);
+    const rejected = await badResponse;
+    // Studio currently reports handled route/provider validation failures as HTTP 400.
+    // The important production contract is fail-closed behavior, a truthful visible error,
+    // and zero durable mutation—not an invented server-error status.
+    assert.equal(rejected.status(), 400, await rejected.text());
     await page.waitForFunction(() => document.querySelector("#research-error")?.textContent.includes("not returned by hosted web search"));
     assert.equal((await api(base, `/api/projects/${projectId}`)).memories.filter((memory) => memory.class === "research-memory").length, 1, "Rejected research must not mutate durable memory.");
 
