@@ -5,14 +5,16 @@ import { StudioKdpPreflightService } from "./studio-kdp-preflight";
 
 export interface KdpPreflightHttpDeps {
   readonly history: KdpPreflightHistoryService;
-  readonly project: ProjectState;
+  readonly project?: ProjectState;
+  readonly projectId?: string;
 }
 
 export async function runKdpPreflightFromHttp(deps: KdpPreflightHttpDeps, input: Record<string, unknown>): Promise<KdpPreflightReport> {
-  const projectId = requiredText(deps.project.metadata.id, "project id");
+  const projectId = authoritativeProjectId(deps);
   const requestProjectId = input.projectId === undefined ? projectId : requiredText(input.projectId, "project id");
   if (requestProjectId !== projectId) throw new Error("KDP preflight request cannot target another project.");
   if (input.publishing !== undefined) throw new Error("KDP preflight publishing geometry is server-authoritative. Select a durable Cover Studio plan instead of supplying publishing values.");
+  if (!deps.project) throw new Error("KDP preflight requires server-authoritative project state and a durable Cover Studio plan.");
 
   const service = new StudioKdpPreflightService(deps.history);
   const result = await service.audit({
@@ -29,9 +31,13 @@ export async function runKdpPreflightFromHttp(deps: KdpPreflightHttpDeps, input:
 }
 
 export async function listKdpPreflightHistoryFromHttp(deps: KdpPreflightHttpDeps): Promise<{ readonly reports: readonly KdpPreflightReport[]; readonly latest?: KdpPreflightReport }> {
-  const projectId = requiredText(deps.project.metadata.id, "project id");
-  const reports = await deps.history.list(projectId);
+  const reports = await deps.history.list(authoritativeProjectId(deps));
   return { reports, ...(reports[0] ? { latest: reports[0] } : {}) };
+}
+
+function authoritativeProjectId(deps: KdpPreflightHttpDeps): string {
+  if (deps.project) return requiredText(deps.project.metadata.id, "project id");
+  return requiredText(deps.projectId, "project id");
 }
 
 function interiorFacts(value: unknown): KdpInteriorFileFacts {
