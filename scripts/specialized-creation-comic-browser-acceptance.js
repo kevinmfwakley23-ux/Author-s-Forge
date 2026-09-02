@@ -8,8 +8,8 @@ const {join}=require('node:path');
 const {chromium}=require('@playwright/test');
 
 const HOST='127.0.0.1';
-const PORT=6500+Math.floor(Math.random()*200);
-const AI_PORT=PORT+250;
+let PORT=0;
+let AI_PORT=0;
 const forgeProjectId=`comic-browser-${Date.now()}`;
 const comicId='comic-059d';
 const tinyRgbPng='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC';
@@ -51,26 +51,71 @@ function approvedComic(){return {
 
 function json(res,status,value){res.writeHead(status,{'content-type':'application/json'});res.end(JSON.stringify(value));}
 async function readBody(req){let raw='';for await(const chunk of req)raw+=String(chunk);return raw?JSON.parse(raw):{};}
+async function freePort(){
+  const server=createServer();
+  return new Promise((resolve,reject)=>{
+    server.once('error',reject);
+    server.listen(0,HOST,()=>{
+      const address=server.address();
+      const port=typeof address==='object'&&address?address.port:0;
+      server.close(error=>error?reject(error):resolve(port));
+    });
+  });
+}
 function mockAi(){
   const server=createServer(async(req,res)=>{
     if(req.method!=='POST'||req.url!=='/v1/chat/completions')return json(res,404,{error:{message:'not found'}});
     await readBody(req);
     return json(res,200,{id:'comic-059d-ai',choices:[{message:{content:JSON.stringify({summary:'Approve one scoped dialogue revision and preserve the existing comic structure.',payload:{modeData:approvedComic()}})}}]});
   });
-  return new Promise(resolve=>server.listen(AI_PORT,HOST,()=>resolve(server)));
+  return new Promise((resolve,reject)=>{
+    server.once('error',reject);
+    server.listen(0,HOST,()=>{
+      const address=server.address();
+      AI_PORT=typeof address==='object'&&address?address.port:0;
+      resolve(server);
+    });
+  });
 }
-async function wait(url,timeout=12000){const start=Date.now();while(Date.now()-start<timeout){try{if((await fetch(url)).ok)return;}catch{}await new Promise(resolve=>setTimeout(resolve,100));}throw new Error(`Timed out waiting for ${url}`);}
+async function waitForApp(app,url,timeout=12000){
+  const start=Date.now();
+  while(Date.now()-start<timeout){
+    if(app.exitCode!==null){
+      const detail=(app.__forgeStderr||'').trim();
+      throw new Error(`Specialized Creation server exited with code ${app.exitCode} before ${url} became healthy.${detail?`\n${detail}`:''}`);
+    }
+    try{if((await fetch(url)).ok)return;}catch{}
+    await new Promise(resolve=>setTimeout(resolve,100));
+  }
+  const detail=(app.__forgeStderr||'').trim();
+  throw new Error(`Timed out waiting for ${url}.${detail?`\nServer stderr:\n${detail}`:''}`);
+}
 async function call(base,path,method='GET',payload){const response=await fetch(base+path,{method,headers:{'content-type':'application/json'},...(payload!==undefined?{body:JSON.stringify(payload)}:{})});const text=await response.text();assert.equal(response.ok,true,`${method} ${path}: ${text}`);return text?JSON.parse(text):{};}
-function startApp(dataDir){return spawn(process.execPath,['dist/specialized-creation-server.js'],{env:{...process.env,HOST,SPECIALIZED_PORT:String(PORT),FORGE_DATA_DIR:dataDir,AI_PROVIDER_ORDER:'omniroute',OMNIROUTE_BASE_URL:`http://${HOST}:${AI_PORT}`,OMNIROUTE_MODEL:'comic-059d-test',OMNIROUTE_BILLING_CLASS:'subscription',OMNIROUTE_API_KEY:'',ROUTER9_BASE_URL:'',KINGS_AI_ENDPOINT:'',OPENAI_API_KEY:'',OLLAMA_BASE_URL:''},stdio:['ignore','pipe','pipe']});}
-async function stopApp(app){if(!app)return;app.kill('SIGTERM');await new Promise(resolve=>setTimeout(resolve,150));}
+function startApp(dataDir){
+  const app=spawn(process.execPath,['dist/specialized-creation-server.js'],{env:{...process.env,HOST,SPECIALIZED_PORT:String(PORT),FORGE_DATA_DIR:dataDir,AI_PROVIDER_ORDER:'omniroute',OMNIROUTE_BASE_URL:`http://${HOST}:${AI_PORT}`,OMNIROUTE_MODEL:'comic-059d-test',OMNIROUTE_BILLING_CLASS:'subscription',OMNIROUTE_API_KEY:'',ROUTER9_BASE_URL:'',KINGS_AI_ENDPOINT:'',OPENAI_API_KEY:'',OLLAMA_BASE_URL:''},stdio:['ignore','pipe','pipe']});
+  app.__forgeStderr='';
+  app.stderr.on('data',chunk=>{app.__forgeStderr+=String(chunk);});
+  return app;
+}
+async function stopApp(app){
+  if(!app||app.exitCode!==null)return;
+  const exited=new Promise(resolve=>app.once('exit',resolve));
+  app.kill('SIGTERM');
+  await Promise.race([exited,new Promise(resolve=>setTimeout(resolve,2000))]);
+  if(app.exitCode===null){
+    app.kill('SIGKILL');
+    await Promise.race([exited,new Promise(resolve=>setTimeout(resolve,1000))]);
+  }
+}
 
 async function main(){
   const dataDir=await mkdtemp(join(tmpdir(),'forge-comic-059d-'));
+  PORT=await freePort();
   const ai=await mockAi();
   let app=startApp(dataDir),browser;
   try{
     const base=`http://${HOST}:${PORT}`;
-    await wait(`${base}/api/health`);
+    await waitForApp(app,`${base}/api/health`);
     await call(base,'/api/projects','POST',{id:forgeProjectId,title:'Comic Mission 059D Acceptance'});
     await call(base,`/api/projects/${forgeProjectId}/specialized`,'POST',{id:comicId,mode:'comic-book',title:'Forge Knights #7',brief:'Prove the complete durable comic workflow.',audience:'Comic readers'});
     await call(base,`/api/projects/${forgeProjectId}/specialized/${comicId}/mode-data`,'PUT',{modeData:initialComic,reason:'Author created issue, pages, panels and structured script'});
@@ -132,7 +177,9 @@ async function main(){
     await page.waitForFunction(()=>document.querySelector('#history')?.textContent.includes('production artifacts'));
     await desktop.close();
 
-    await stopApp(app);app=startApp(dataDir);await wait(`${base}/api/health`);
+    await stopApp(app);
+    app=startApp(dataDir);
+    await waitForApp(app,`${base}/api/health`);
     const restored=await call(base,`/api/projects/${forgeProjectId}/specialized/${comicId}`);
     assert.equal(restored.modeData.readingDirection,'rtl');
     assert.equal(restored.modeData.pages.length,3);
