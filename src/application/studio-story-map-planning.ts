@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { ProjectState } from "../domain/project";
-import { getBook, getChapter, getScene, validateStudioWorkspace } from "../domain/studio-workspace";
+import { getBook, getChapter, getScene, validateStudioWorkspace, type StudioWorkspaceState } from "../domain/studio-workspace";
 import {
   assignSceneToStoryMapPlotlines,
   createStoryMapChapterCard,
@@ -93,6 +93,7 @@ export class StudioStoryMapPlanningService {
     const workspace = requireWorkspace(project);
     const book = getBook(workspace, identifier(input.bookId, "Book id"));
     const chapter = getChapter(book, identifier(input.chapterId, "Chapter id"));
+    requireUnambiguousChapterId(workspace, chapter.id);
     const card = createStoryMapChapterCard(input.card);
     for (const characterId of [...card.povCharacterIds, ...card.characterIds]) requireCharacter(project, characterId);
     await this.save(project, setStoryMapChapterCard(planningOf(project), chapter.id, card), input.now);
@@ -104,6 +105,7 @@ export class StudioStoryMapPlanningService {
     const workspace = requireWorkspace(project);
     const book = getBook(workspace, identifier(bookId, "Book id"));
     const chapter = getChapter(book, identifier(chapterId, "Chapter id"));
+    requireUnambiguousChapterId(workspace, chapter.id);
     const planning = planningOf(project);
     if (!planning.chapterCards[chapter.id]) throw new Error(`Chapter Card for chapter "${chapter.id}" not found.`);
     await this.save(project, removeStoryMapChapterCard(planning, chapter.id), now);
@@ -218,9 +220,9 @@ function requireWorkspace(project: ProjectState) {
 function validatePlanningReferences(project: ProjectWithStoryMapPlanning, planning: StoryMapPlanningState): void {
   const workspace = project.studioWorkspace ? validateStudioWorkspace(project.studioWorkspace) : undefined;
   const allScenes = new Map<string, string>();
-  const allChapters = new Set<string>();
+  const chapterCounts = new Map<string, number>();
   if (workspace) for (const book of workspace.books) for (const chapter of book.chapters) {
-    allChapters.add(chapter.id);
+    chapterCounts.set(chapter.id, (chapterCounts.get(chapter.id) ?? 0) + 1);
     for (const scene of chapter.scenes) allScenes.set(scene.id, book.id);
   }
   for (const [sceneId, attributes] of Object.entries(planning.sceneAttributes)) {
@@ -228,7 +230,9 @@ function validatePlanningReferences(project: ProjectWithStoryMapPlanning, planni
     for (const characterId of attributes.povCharacterIds) requireCharacter(project, characterId);
   }
   for (const [chapterId, card] of Object.entries(planning.chapterCards)) {
-    if (!allChapters.has(chapterId)) throw new Error(`Story Map Chapter Card references missing chapter "${chapterId}".`);
+    const matches = chapterCounts.get(chapterId) ?? 0;
+    if (matches === 0) throw new Error(`Story Map Chapter Card references missing chapter "${chapterId}".`);
+    if (matches > 1) throw new Error(`Story Map Chapter Card chapter id "${chapterId}" is ambiguous across books. Give the chapters globally unique ids before using Chapter Cards.`);
     for (const characterId of [...card.povCharacterIds, ...card.characterIds]) requireCharacter(project, characterId);
   }
   for (const plotline of planning.plotlines) {
@@ -240,6 +244,11 @@ function validatePlanningReferences(project: ProjectWithStoryMapPlanning, planni
       if (bookId !== plotline.bookId) throw new Error(`Story Map plotline "${plotline.id}" contains a scene from another book.`);
     }
   }
+}
+
+function requireUnambiguousChapterId(workspace: StudioWorkspaceState, chapterId: string): void {
+  const matches = workspace.books.reduce((count, book) => count + book.chapters.filter((chapter) => chapter.id === chapterId).length, 0);
+  if (matches > 1) throw new Error(`Chapter id "${chapterId}" is ambiguous across books. Give the chapters globally unique ids before using Chapter Cards.`);
 }
 
 function requireCharacter(project: ProjectState, characterId: string): void {
