@@ -2,6 +2,19 @@ import { randomUUID } from "node:crypto";
 import { ProjectMemoryStore } from "./project-memory-store";
 import { generateProjectImage, type ImageGenerationQuality, type ImageGenerationResult, type ImageGenerationSize, type ImageReferenceInput, type ProjectImageGenerationRequest } from "../infrastructure/image-provider";
 import { createIllustrationAsset, updateIllustrationAsset, validateIllustrationAssetLibraryState, type IllustrationAsset, type IllustrationAssetLibraryState } from "../domain/illustration-asset-library";
+import {
+  appendAssetRightsRecord,
+  createAssetRightsRecord,
+  createAssetRightsRegistry,
+  latestRightsDeclaration,
+  validateAssetRightsRegistry,
+  type AssetPublicationClearance,
+  type AssetRightsBasis,
+  type AssetRightsRecord,
+  type AssetRightsRegistry,
+  type ModelReleaseStatus,
+} from "../domain/asset-rights-provenance";
+import { projectAssetRightsRegistry, withProjectAssetRightsRegistry } from "../domain/project-rights";
 import { validateStudioWorkspace } from "../domain/studio-workspace";
 import { withProjectIllustrationAssetLibrary, type ProjectState } from "../domain/project";
 import type { FileProjectStore } from "../infrastructure/file-project-store";
@@ -13,6 +26,18 @@ export const STUDIO_IMAGE_SIZES: readonly ImageGenerationSize[] = ["1024x1024", 
 export const STUDIO_IMAGE_QUALITIES: readonly ImageGenerationQuality[] = ["low", "medium", "high", "auto"];
 const MAX_INLINE_REFERENCE_BYTES = 5 * 1024 * 1024;
 
+export interface StudioImageRightsDeclarationInput {
+  readonly rightsBasis: AssetRightsBasis;
+  readonly authorDeclaresPublicationClearance?: boolean;
+  readonly containsRealPerson?: boolean;
+  readonly modelReleaseStatus?: ModelReleaseStatus;
+  readonly containsTrademark?: boolean;
+  readonly sourceReference?: string;
+  readonly licenseUrl?: string;
+  readonly rightsUsageTerms?: string;
+  readonly notes?: string;
+}
+
 export interface StudioImageLabGenerateInput {
   readonly projectId: string;
   readonly prompt: string;
@@ -23,6 +48,8 @@ export interface StudioImageLabGenerateInput {
   readonly referenceImage?: string;
   readonly referenceLabel?: string;
   readonly sourceAssetId?: string;
+  readonly referenceRights?: StudioImageRightsDeclarationInput;
+  readonly externalProcessingConsent?: boolean;
   readonly characterId?: string;
   readonly locationId?: string;
   readonly now?: string;
@@ -32,6 +59,9 @@ export interface StudioImageLabGenerateResult {
   readonly project: ProjectState;
   readonly asset: IllustrationAsset;
   readonly sourceAsset?: IllustrationAsset;
+  readonly assetProvenance: AssetRightsRecord;
+  readonly sourceDeclaration?: AssetRightsRecord;
+  readonly processingConsent?: AssetRightsRecord;
   readonly provider: ImageGenerationResult["provider"];
   readonly model: string;
   readonly requestId?: string;
@@ -46,9 +76,14 @@ export class StudioImageLabService {
     return [...this.library(project).assets].sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
   }
 
+  async rights(projectId: string): Promise<readonly AssetRightsRecord[]> {
+    const project = await this.requireProject(projectId);
+    return [...this.rightsRegistry(project).records].sort((a, b) => b.recordedAt.localeCompare(a.recordedAt) || b.id.localeCompare(a.id));
+  }
+
   async generate(input: StudioImageLabGenerateInput): Promise<StudioImageLabGenerateResult> {
     const projectId = requiredId(input.projectId, "Project id");
-    const project = await this.requireProject(projectId);
+    let project = await this.requireProject(projectId);
     const prompt = requiredText(input.prompt, "Image direction", 6000);
     const style = optionalText(input.style, "Image style", 500) ?? "author-directed";
     const purpose = enumValue(input.purpose ?? "illustration", STUDIO_IMAGE_PURPOSES, "image purpose");
@@ -56,20 +91,34 @@ export class StudioImageLabService {
     const quality = enumValue(input.quality ?? "medium", STUDIO_IMAGE_QUALITIES, "image quality");
     const now = timestamp(input.now ?? new Date().toISOString(), "Image generation timestamp");
     if (input.referenceImage && input.sourceAssetId) throw new Error("Choose either an uploaded reference image or an existing source asset, not both.");
+    const hasReference = Boolean(input.referenceImage || input.sourceAssetId);
+    if (hasReference && input.externalProcessingConsent !== true) {
+      throw new Error("Explicit author consent is required before Forge sends reference image bytes to the configured external image provider.");
+    }
 
     const context = activeContext(project);
-    const startingLibrary = this.library(project);
+    let library = this.library(project);
+    let rights = this.rightsRegistry(project);
     let sourceAsset: IllustrationAsset | undefined;
     let referenceImages: readonly ImageReferenceInput[] | undefined;
+    let sourceDeclaration: AssetRightsRecord | undefined;
+    let processingConsent: AssetRightsRecord | undefined;
     const sourceAssetId = input.sourceAssetId === undefined ? undefined : requiredId(input.sourceAssetId, "Source asset id");
 
     if (sourceAssetId) {
-      sourceAsset = startingLibrary.assets.find((asset) => asset.id === sourceAssetId);
+      sourceAsset = library.assets.find((asset) => asset.id === sourceAssetId);
       if (!sourceAsset) throw new Error(`Source illustration asset "${sourceAssetId}" not found.`);
       if (sourceAsset.approvalStatus === "rejected") throw new Error("Rejected artwork cannot be used as an edit source.");
       requireInlineImage(sourceAsset.assetUri, "Stored source artwork");
       referenceImages = [{ dataUri: sourceAsset.assetUri, label: sourceAsset.prompt.slice(0, 120) }];
+      if (input.referenceRights) {
+        sourceDeclaration = rightsDeclaration(projectId, sourceAsset.id, input.referenceRights, now, sourceAsset.prompt, sourceProvenanceKind(input.referenceRights.rightsBasis));
+        rights = appendAssetRightsRecord(rights, sourceDeclaration);
+      } else if (!latestRightsDeclaration(rights, sourceAsset.id) && !hasGenerationRecord(rights, sourceAsset.id)) {
+        throw new Error("Declare the stored source artwork's rights/provenance before sending it to the external image provider.");
+      }
     } else if (input.referenceImage) {
+      if (!input.referenceRights) throw new Error("Uploaded reference images require an explicit rights/provenance declaration before external processing.");
       const referenceData = requireInlineImage(input.referenceImage, "Uploaded reference image");
       sourceAsset = createIllustrationAsset({
         id: `image-source-${randomUUID()}`,
@@ -87,7 +136,42 @@ export class StudioImageLabService {
         assetUri: referenceData,
         now,
       });
+      library = validateIllustrationAssetLibraryState({ ...library, assets: [...library.assets, sourceAsset] });
+      sourceDeclaration = rightsDeclaration(projectId, sourceAsset.id, input.referenceRights, now, sourceAsset.prompt, sourceProvenanceKind(input.referenceRights.rightsBasis));
+      rights = appendAssetRightsRecord(rights, sourceDeclaration);
       referenceImages = [{ dataUri: referenceData, label: sourceAsset.prompt }];
+    }
+
+    if (sourceAsset) {
+      const declaration = latestRightsDeclaration(rights, sourceAsset.id);
+      processingConsent = createAssetRightsRecord({
+        id: `rights-consent-${randomUUID()}`,
+        projectId,
+        artifactId: sourceAsset.id,
+        eventType: "external-processing-consent",
+        provenanceKind: declaration?.provenance.kind ?? (hasGenerationRecord(rights, sourceAsset.id) ? "ai-generated" : "unknown"),
+        source: `Explicit author consent to send reference image bytes to OpenAI for Image Lab ${purpose}.`,
+        consentStatus: "granted",
+        rightsBasis: declaration?.rightsBasis ?? (hasGenerationRecord(rights, sourceAsset.id) ? "not-applicable" : "unknown"),
+        publicationClearance: declaration?.publicationClearance ?? "review-required",
+        containsRealPerson: declaration?.containsRealPerson ?? false,
+        modelReleaseStatus: declaration?.modelReleaseStatus ?? "not-applicable",
+        containsTrademark: declaration?.containsTrademark ?? false,
+        sourceReference: declaration?.sourceReference ?? sourceAsset.prompt,
+        licenseUrl: declaration?.licenseUrl,
+        rightsUsageTerms: declaration?.rightsUsageTerms ?? "",
+        provider: "openai",
+        digitalSourceType: declaration?.digitalSourceType ?? (hasGenerationRecord(rights, sourceAsset.id) ? "trained-algorithmic-media" : "unknown"),
+        notes: "Per-request external image-processing consent. This records permission to transmit/process the image; it is not a legal determination of copyright ownership or publication rights.",
+        recordedAt: now,
+      });
+      rights = appendAssetRightsRecord(rights, processingConsent);
+
+      // Persist the source and consent before any external network call. If the provider
+      // later fails, Forge still retains the original source and an honest transmission audit.
+      project = withProjectIllustrationAssetLibrary(project, library, now);
+      project = withProjectAssetRightsRegistry(project, rights, now);
+      await this.store.save(project);
     }
 
     const memory = new ProjectMemoryStore();
@@ -117,16 +201,15 @@ export class StudioImageLabService {
     // project state. Merge the completed image into the latest durable project instead of
     // writing the pre-provider snapshot back over newer work.
     const latestProject = await this.requireProject(projectId);
-    let library = this.library(latestProject);
+    library = this.library(latestProject);
+    rights = this.rightsRegistry(latestProject);
     let persistedSourceAsset = sourceAsset;
-    if (sourceAssetId) {
-      persistedSourceAsset = library.assets.find((candidate) => candidate.id === sourceAssetId);
-      if (!persistedSourceAsset) throw new Error(`Source illustration asset "${sourceAssetId}" was removed while image generation was running.`);
+    if (sourceAsset) {
+      persistedSourceAsset = library.assets.find((candidate) => candidate.id === sourceAsset!.id);
+      if (!persistedSourceAsset) throw new Error(`Source illustration asset "${sourceAsset.id}" was removed while image generation was running.`);
       if (persistedSourceAsset.approvalStatus === "rejected") throw new Error("Source artwork was rejected while image generation was running; generated output was not persisted.");
-      if (persistedSourceAsset.assetUri !== sourceAsset?.assetUri) throw new Error("Source artwork changed while image generation was running; generated output was not persisted.");
+      if (persistedSourceAsset.assetUri !== sourceAsset.assetUri) throw new Error("Source artwork changed while image generation was running; generated output was not persisted.");
       requireInlineImage(persistedSourceAsset.assetUri, "Stored source artwork");
-    } else if (sourceAsset) {
-      library = validateIllustrationAssetLibraryState({ ...library, assets: [...library.assets, sourceAsset] });
     }
 
     const asset = createIllustrationAsset({
@@ -147,9 +230,46 @@ export class StudioImageLabService {
       now,
     });
     library = validateIllustrationAssetLibraryState({ ...library, assets: [...library.assets, asset] });
-    const saved = withProjectIllustrationAssetLibrary(latestProject, library, now);
+    const assetProvenance = createAssetRightsRecord({
+      id: `rights-generation-${randomUUID()}`,
+      projectId,
+      artifactId: asset.id,
+      eventType: "generation",
+      provenanceKind: "ai-generated",
+      source: `Generated by ${result.provider}/${result.model} from the author-directed Image Lab request.`,
+      consentStatus: "not-required",
+      rightsBasis: "not-applicable",
+      publicationClearance: "review-required",
+      containsRealPerson: false,
+      modelReleaseStatus: "not-applicable",
+      containsTrademark: false,
+      provider: result.provider,
+      model: result.model,
+      aiPromptInformation: prompt,
+      digitalSourceType: persistedSourceAsset ? "composite-synthetic" : "trained-algorithmic-media",
+      notes: "AI provenance is recorded for transparency. Forge does not infer copyright ownership, trademark clearance, likeness rights, or publication permission from generation alone.",
+      recordedAt: now,
+    });
+    rights = appendAssetRightsRecord(rights, assetProvenance);
+    let saved = withProjectIllustrationAssetLibrary(latestProject, library, now);
+    saved = withProjectAssetRightsRegistry(saved, rights, now);
     await this.store.save(saved);
-    return Object.freeze({ project: saved, asset, ...(persistedSourceAsset ? { sourceAsset: persistedSourceAsset } : {}), provider: result.provider, model: result.model, ...(result.requestId ? { requestId: result.requestId } : {}), url: result.dataUri });
+    return Object.freeze({ project: saved, asset, ...(persistedSourceAsset ? { sourceAsset: persistedSourceAsset } : {}), assetProvenance, ...(sourceDeclaration ? { sourceDeclaration } : {}), ...(processingConsent ? { processingConsent } : {}), provider: result.provider, model: result.model, ...(result.requestId ? { requestId: result.requestId } : {}), url: result.dataUri });
+  }
+
+  async declareRights(input: { projectId: string; assetId: string; declaration: StudioImageRightsDeclarationInput; now?: string }): Promise<{ project: ProjectState; record: AssetRightsRecord }> {
+    const projectId = requiredId(input.projectId, "Project id");
+    const assetId = requiredId(input.assetId, "Image asset id");
+    const project = await this.requireProject(projectId);
+    const asset = this.library(project).assets.find((candidate) => candidate.id === assetId);
+    if (!asset) throw new Error(`Illustration asset "${assetId}" not found.`);
+    const now = timestamp(input.now ?? new Date().toISOString(), "Image rights declaration timestamp");
+    const existingGeneration = hasGenerationRecord(this.rightsRegistry(project), assetId);
+    const record = rightsDeclaration(projectId, assetId, input.declaration, now, asset.prompt, existingGeneration ? "ai-generated" : sourceProvenanceKind(input.declaration.rightsBasis));
+    const rights = appendAssetRightsRecord(this.rightsRegistry(project), record);
+    const saved = withProjectAssetRightsRegistry(project, rights, now);
+    await this.store.save(saved);
+    return Object.freeze({ project: saved, record });
   }
 
   async review(input: { projectId: string; assetId: string; decision: "approved" | "rejected"; now?: string }): Promise<{ project: ProjectState; asset: IllustrationAsset }> {
@@ -170,14 +290,53 @@ export class StudioImageLabService {
   private async requireProject(projectId: string): Promise<ProjectState> {
     const project = await this.store.load(projectId);
     if (!project) throw new Error(`Project "${projectId}" not found.`);
+    // Validate the rights extension whenever the project crosses the Image Lab boundary.
+    if (project.assetRightsRegistry !== undefined) validateAssetRightsRegistry(project.assetRightsRegistry);
     return project;
   }
 
   private library(project: ProjectState): IllustrationAssetLibraryState {
     return project.illustrationAssetLibrary ?? { formatVersion: 1, projectId: project.metadata.id, assets: [], characterDesignLocks: [] };
   }
+
+  private rightsRegistry(project: ProjectState): AssetRightsRegistry {
+    return projectAssetRightsRegistry(project) ?? createAssetRightsRegistry(project.metadata.id);
+  }
 }
 
+function rightsDeclaration(projectId: string, assetId: string, input: StudioImageRightsDeclarationInput, now: string, label: string, provenanceKind: "author-owned" | "licensed" | "public-domain" | "user-uploaded" | "ai-generated" | "unknown"): AssetRightsRecord {
+  const rightsBasis = enumValue(input.rightsBasis, ["author-owned", "licensed", "public-domain", "external-reference", "unknown", "not-applicable"] as const, "source rights basis");
+  const clearance: AssetPublicationClearance = input.authorDeclaresPublicationClearance === true ? "author-declared-cleared" : "review-required";
+  return createAssetRightsRecord({
+    id: `rights-declaration-${randomUUID()}`,
+    projectId,
+    artifactId: assetId,
+    eventType: "source-declaration",
+    provenanceKind,
+    source: optionalText(input.sourceReference, "Source reference", 2000) ?? label,
+    consentStatus: provenanceKind === "user-uploaded" ? "granted" : "not-required",
+    rightsBasis,
+    publicationClearance: clearance,
+    containsRealPerson: input.containsRealPerson === true,
+    modelReleaseStatus: input.modelReleaseStatus,
+    containsTrademark: input.containsTrademark === true,
+    sourceReference: input.sourceReference,
+    licenseUrl: input.licenseUrl,
+    rightsUsageTerms: input.rightsUsageTerms,
+    digitalSourceType: provenanceKind === "ai-generated" ? "trained-algorithmic-media" : "human-created",
+    notes: input.notes,
+    recordedAt: now,
+  });
+}
+
+function sourceProvenanceKind(rightsBasis: AssetRightsBasis): "author-owned" | "licensed" | "public-domain" | "user-uploaded" | "unknown" {
+  if (rightsBasis === "author-owned" || rightsBasis === "licensed" || rightsBasis === "public-domain") return rightsBasis;
+  if (rightsBasis === "external-reference") return "user-uploaded";
+  return "unknown";
+}
+function hasGenerationRecord(registry: AssetRightsRegistry, artifactId: string): boolean {
+  return registry.records.some((record) => record.artifactId === artifactId && record.eventType === "generation");
+}
 function activeContext(project: ProjectState): { bookId: string; chapterId: string; sceneId: string; characterId: string } {
   if (!project.studioWorkspace) throw new Error("Create a book, chapter, and scene before generating project artwork.");
   const workspace = validateStudioWorkspace(project.studioWorkspace);

@@ -45,15 +45,13 @@ async function main() {
         start() { this.onstart?.(); setTimeout(() => { const result = [{ transcript: "open writing" }]; result.isFinal = true; const results = [result]; this.onresult?.({ resultIndex: 0, results }); this.onend?.(); }, 10); }
         stop() { this.onend?.(); }
       }
-      // New Chromium builds may expose native Web Speech globals as accessor-backed
-      // properties. Define deterministic test doubles explicitly instead of relying on
-      // assignment winning over a browser-provided implementation.
       Object.defineProperty(window, "SpeechRecognition", { configurable: true, writable: true, value: TestSpeechRecognition });
       Object.defineProperty(window, "webkitSpeechRecognition", { configurable: true, writable: true, value: TestSpeechRecognition });
     });
     await page.goto(`${base}/?project=${encodeURIComponent(projectId)}#art`, { waitUntil: "networkidle" });
     await page.waitForSelector("#forge-image-lab #forge-image-history [data-image-asset='pending-art']");
     assert.match(await page.locator("#forge-image-history").innerText(), /Seeded pending forest artwork/);
+    assert.match(await page.locator("#forge-image-history").innerText(), /Rights\/provenance: not yet declared/);
 
     const overflow = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, body: document.body.scrollWidth, doc: document.documentElement.scrollWidth }));
     assert.ok(overflow.body <= overflow.viewport + 1 && overflow.doc <= overflow.viewport + 1, `Image Lab mobile shell overflows: ${JSON.stringify(overflow)}`);
@@ -66,16 +64,33 @@ async function main() {
     await page.waitForFunction(() => document.querySelector("#forge-image-history")?.textContent.includes("approved"));
     let history = await (await fetch(`${base}/api/projects/${projectId}/ai/images`)).json();
     assert.equal(history.assets.find((asset) => asset.id === "pending-art").approvalStatus, "approved");
+    assert.equal(history.rightsRecords.length, 0, "creative approval must not fabricate rights clearance");
 
     await page.locator("[data-image-source='pending-art']").tap();
     await page.locator("#forge-image-prompt").fill("Preserve the composition and character; change only the sky to sunrise.");
+    await page.locator("#forge-image-generate").tap();
+    await page.waitForFunction(() => /Explicit per-request consent is required/i.test(document.querySelector("#forge-image-status")?.textContent || ""));
+    history = await (await fetch(`${base}/api/projects/${projectId}/ai/images`)).json();
+    assert.equal(history.rightsRecords.length, 0, "blocked transmission must not invent a consent event");
+
+    await page.locator("#forge-image-rights-basis").selectOption("author-owned");
+    await page.locator("#forge-image-publication-cleared").check();
+    await page.locator("#forge-image-source-reference").fill("Author original forest artwork");
+    await page.locator("#forge-image-rights-terms").fill("Author controls this source for the intended book use.");
+    await page.locator("#forge-image-processing-consent").check();
     const generationResponse = page.waitForResponse((response) => response.url().endsWith("/ai/image") && response.request().method() === "POST");
     await page.locator("#forge-image-generate").tap();
     const failed = await generationResponse;
-    assert.equal(failed.ok(), false, "Image generation without configured credentials must fail honestly.");
+    assert.equal(failed.ok(), false, "Image generation without configured credentials must fail honestly after consent is recorded.");
     await page.waitForFunction(() => /No real image provider is configured/i.test(document.querySelector("#forge-image-status")?.textContent || ""));
+    await page.waitForFunction(() => /Rights: author-owned/i.test(document.querySelector("#forge-image-history")?.textContent || ""));
     history = await (await fetch(`${base}/api/projects/${projectId}/ai/images`)).json();
-    assert.equal(history.assets.length, 1, "Provider failure must not fabricate or persist a derivative asset.");
+    assert.equal(history.assets.length, 1, "failed provider must not fabricate a derivative asset");
+    const sourceRecords = history.rightsRecords.filter((record) => record.artifactId === "pending-art");
+    assert.equal(sourceRecords.some((record) => record.eventType === "source-declaration" && record.publicationClearance === "author-declared-cleared"), true);
+    assert.equal(sourceRecords.some((record) => record.eventType === "external-processing-consent" && record.provenance.consentStatus === "granted" && record.provider === "openai"), true);
+    assert.equal(sourceRecords.some((record) => record.eventType === "generation"), false, "provider failure must not fabricate AI generation provenance");
+    assert.match(await page.locator("#forge-image-history").innerText(), /explicit external-processing consent event/i);
 
     await page.locator("#open-command-center").tap();
     await page.locator("#fcc-mic").tap();
@@ -83,7 +98,7 @@ async function main() {
     assert.match(await page.locator("#fcc-command").inputValue(), /open writing/);
 
     await context.close();
-    console.log("STUDIO IMAGE LAB BROWSER ACCEPTANCE PASSED: durable history/review + source selection + honest real-provider failure + Android fit + live voice transcript capture.");
+    console.log("STUDIO IMAGE LAB BROWSER ACCEPTANCE PASSED: separate creative approval + rights declaration + explicit external-processing consent + durable failed-provider audit + Android fit + live voice transcript capture.");
   } finally {
     if (browser) await browser.close().catch(() => {});
     await stop(server).catch(() => {});
