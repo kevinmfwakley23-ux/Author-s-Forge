@@ -1,12 +1,14 @@
 import type { AiProposal } from "./ai-proposal-store";
 import { AiWritingCoordinator } from "./ai-writing-coordinator";
 import { selectContextBudget, type ContextPriority } from "./context-budget-manager";
+import { assertApprovedSceneCardGeneration } from "./scene-card-generation-guard";
 import { assembleWritingContext, type AssembledWritingContext, type ContextAssemblyRequest } from "../domain/context-assembly";
 import { assessVoiceDrift, buildAuthorVoiceContext, type AuthorVoiceMemory, type VoiceDriftReport } from "../domain/author-voice-memory";
 import { createCharacterContinuityEvidence, verifyCharacterContinuityEvidence, type CharacterContinuityEvidence } from "../domain/character-continuity-evidence";
 import type { CharacterRecord } from "../domain/character-bible";
 import { assertAiCollaborationCapability, type AiCollaborationPolicy } from "../domain/ai-collaboration";
 import { chapterCardApprovalFor, type ChapterCardWorkflowState } from "../domain/chapter-card-workflow";
+import type { SceneCardWorkflowState } from "../domain/scene-card-workflow";
 import { validateStoryMapPlanningState, type StoryMapChapterCard, type StoryMapPlanningState } from "../domain/story-map-planning";
 import { saveSceneContent, validateStudioWorkspace, type StudioWorkspaceState } from "../domain/studio-workspace";
 import type { FileProjectStore } from "../infrastructure/file-project-store";
@@ -19,6 +21,7 @@ export interface StudioAiProjectState {
   readonly characters?: readonly CharacterRecord[];
   readonly storyMapPlanning?: StoryMapPlanningState;
   readonly chapterCardWorkflow?: ChapterCardWorkflowState;
+  readonly sceneCardWorkflow?: SceneCardWorkflowState;
   readonly aiCollaborationPolicy?: AiCollaborationPolicy;
   readonly [key: string]: unknown;
 }
@@ -43,6 +46,7 @@ export interface StudioAiContextBudget {
 
 export type StudioAiWritingRequest = Omit<Parameters<AiWritingCoordinator["generate"]>[0], "assembledContext" | "sourceMemoryIds" | "characterContinuity"> & {
   readonly context?: StudioAiContextOptions;
+  readonly sceneCardSha256?: string;
 };
 
 export type StudioAiWritingResult = Awaited<ReturnType<AiWritingCoordinator["generate"]>> & {
@@ -125,10 +129,19 @@ export class AiWritingStudioService {
   }
 
   async generateWithProjectContext(request: StudioAiWritingRequest): Promise<StudioAiWritingResult> {
+    const { sceneCardSha256, ...writingRequest } = request;
     const project = await this.requireProject(request.projectId);
     assertAiCollaborationCapability(project.aiCollaborationPolicy, collaborationCapabilityForWritingTask(request.task), `AI ${request.task} writing`, "author-requested");
     const workspace = project.studioWorkspace ? validateStudioWorkspace(project.studioWorkspace) : validateStudioWorkspace({ formatVersion: 1, activeBookId: null, books: [] });
     const scene = findScene(workspace, request.bookId, request.chapterId, request.sceneId);
+    if (sceneCardSha256) {
+      assertApprovedSceneCardGeneration(project, workspace, {
+        bookId: request.bookId,
+        chapterId: request.chapterId,
+        sceneId: request.sceneId,
+        expectedCardSha256: sceneCardSha256,
+      });
+    }
     const chapterCard = chapterCardFor(project, workspace, request.chapterId);
     const chapterCharacterIds = chapterCard ? [...chapterCard.povCharacterIds, ...chapterCard.characterIds] : [];
     const characterIds = uniqueStrings([...(request.context?.characterIds ?? []), ...chapterCharacterIds]);
@@ -158,7 +171,7 @@ export class AiWritingStudioService {
       checkedAt: request.now,
     });
     const generated = await this.coordinator.generate({
-      ...request,
+      ...writingRequest,
       existingContent,
       assembledContext: formatContext(context, voiceMemory),
       sourceMemoryIds: context.sourceIds,
