@@ -104,6 +104,7 @@ test("forge:android launcher denies anonymous LAN access and gates all offices b
       assert.equal(response.status, 401);
       return response;
     });
+    assert.equal(anonymous.headers.get("cache-control"), "no-store");
     assert.equal(anonymous.headers.get("x-frame-options"), "DENY");
     assert.equal(anonymous.headers.get("referrer-policy"), "no-referrer");
     assert.doesNotMatch(await anonymous.text(), new RegExp(accessToken));
@@ -113,6 +114,7 @@ test("forge:android launcher denies anonymous LAN access and gates all offices b
 
     const bootstrap = await fetch(`${studioBase}/?project=forge-studio&access=${encodeURIComponent(accessToken)}`, { redirect: "manual" });
     assert.equal(bootstrap.status, 303);
+    assert.equal(bootstrap.headers.get("cache-control"), "no-store");
     assert.equal(bootstrap.headers.get("location"), "/?project=forge-studio");
     const setCookie = bootstrap.headers.get("set-cookie") || "";
     assert.ok(setCookie.includes("forge_access="));
@@ -128,6 +130,11 @@ test("forge:android launcher denies anonymous LAN access and gates all offices b
     });
     assert.equal(studioHealth.ok, true);
     assert.equal(studioHealth.service, "authors-forge-studio");
+
+    const studioShell = await fetch(`${studioBase}/`, { headers: { cookie } });
+    assert.equal(studioShell.status, 200);
+    assert.equal(studioShell.headers.get("cache-control"), "no-cache");
+    assert.equal(studioShell.headers.get("x-frame-options"), "DENY");
 
     const journalHealth = await eventually(async () => {
       const response = await fetch(`${journalBase}/api/health`, { headers: { cookie } });
