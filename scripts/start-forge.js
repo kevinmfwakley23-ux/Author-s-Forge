@@ -75,7 +75,6 @@ function stopAll(signal = "SIGTERM") {
 function reserveLoopbackPort() {
   return new Promise((resolve, reject) => {
     const server = net.createServer();
-    server.unref();
     server.once("error", reject);
     server.listen(0, "127.0.0.1", () => {
       const address = server.address();
@@ -92,6 +91,7 @@ function reserveLoopbackPort() {
 
 function launch(service, bindHost, bindPort) {
   const env = { ...process.env, HOST: bindHost, [service.portKey]: String(bindPort) };
+  delete env.FORGE_ACCESS_TOKEN;
   const child = spawn(process.execPath, [service.entry], { env, stdio: "inherit" });
   children.push(child);
   child.on("error", (error) => {
@@ -113,6 +113,7 @@ function launch(service, bindHost, bindPort) {
 function unauthorized(res) {
   const headers = {
     ...securityHeaders(),
+    "cache-control": "no-store",
     "content-type": "text/html; charset=utf-8",
   };
   res.writeHead(401, headers);
@@ -128,6 +129,7 @@ function proxyRequest(req, res, service, internalPort) {
   if (auth.bootstrap) {
     res.writeHead(303, {
       ...securityHeaders(),
+      "cache-control": "no-store",
       location: auth.redirectPath || "/",
       "set-cookie": auth.setCookie,
     });
@@ -159,7 +161,11 @@ function proxyRequest(req, res, service, internalPort) {
   });
   upstream.on("error", (error) => {
     if (res.headersSent) return res.end();
-    res.writeHead(502, { ...securityHeaders(), "content-type": "application/json; charset=utf-8" });
+    res.writeHead(502, {
+      ...securityHeaders(),
+      "cache-control": "no-store",
+      "content-type": "application/json; charset=utf-8",
+    });
     res.end(JSON.stringify({ error: `${service.name} is not ready: ${error.message}` }));
   });
   req.on("aborted", () => upstream.destroy());
