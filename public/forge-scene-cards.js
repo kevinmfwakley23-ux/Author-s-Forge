@@ -209,7 +209,8 @@
           instruction: brief.instruction,
           contextQuery: brief.instruction,
           characterIds: brief.characterIds || [],
-          proposalId: `scene-card-proposal-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          sceneCardSha256: brief.cardSha256,
+          proposalId: `scene-card-${brief.cardSha256.slice(0, 12)}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         }),
       });
       if ($("#ai-result")) $("#ai-result").value = result.proposal?.proposedContent || "";
