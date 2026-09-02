@@ -1,18 +1,20 @@
+import { chapterCardApprovalFor, chapterCardSha256, type ChapterCardWorkflowState } from "../domain/chapter-card-workflow";
 import { createSceneCardWorkflowState, sceneCardApprovalFor, validateSceneCardWorkflowState, type SceneCardSnapshot, type SceneCardWorkflowState } from "../domain/scene-card-workflow";
 import { createStoryMapPlanningState, validateStoryMapPlanningState, type StoryMapPlanningState } from "../domain/story-map-planning";
 import type { StudioWorkspaceState } from "../domain/studio-workspace";
 
 export interface SceneCardGenerationProjectState {
   readonly storyMapPlanning?: StoryMapPlanningState;
+  readonly chapterCardWorkflow?: ChapterCardWorkflowState;
   readonly sceneCardWorkflow?: SceneCardWorkflowState;
 }
 
 /**
  * Revalidates the exact author-approved Scene Card immediately before provider
- * execution. A draft brief is therefore not a bearer token: if any live scene
- * metadata, Story Map planning, plotline membership, or Scene Card detail has
- * changed since the brief was issued, generation fails before the provider is
- * called.
+ * execution. A draft brief is therefore not a bearer token: if the approved
+ * Chapter Card above it, live scene metadata, Story Map planning, plotline
+ * membership, or Scene Card details changed since the brief was issued,
+ * generation fails before the provider is called.
  */
 export function assertApprovedSceneCardGeneration(
   project: SceneCardGenerationProjectState,
@@ -55,9 +57,12 @@ export function assertApprovedSceneCardGeneration(
     .filter((item) => item.bookId === book.id && item.sceneIds.includes(scene.id))
     .map((item) => item.id)
     .sort();
+  const chapterCard = planning.chapterCards[chapter.id];
+  const approvedChapterCard = chapterCard ? chapterCardApprovalFor(project.chapterCardWorkflow, chapter.id, chapterCard) : undefined;
   const snapshot: SceneCardSnapshot = {
     bookId: book.id,
     chapterId: chapter.id,
+    ...(chapterCard && approvedChapterCard ? { chapterCardSha256: chapterCardSha256(chapterCard) } : {}),
     sceneId: scene.id,
     sceneNumber: scene.number,
     sceneTitle: scene.title,
@@ -67,7 +72,7 @@ export function assertApprovedSceneCardGeneration(
     details,
   };
   const approval = sceneCardApprovalFor(workflow, snapshot);
-  if (!approval) throw new Error("Scene Card is no longer author-approved. Review and approve the current card before AI generation.");
+  if (!approval) throw new Error("Scene Card is no longer author-approved. Review the current Chapter Card and Scene Card, then approve the current Scene Card before AI generation.");
   if (approval.cardSha256 !== input.expectedCardSha256) throw new Error("Scene Card changed after its draft brief was issued. Request a fresh brief from the current approved card.");
   return snapshot;
 }
