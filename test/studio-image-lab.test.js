@@ -83,6 +83,32 @@ test("editing an existing stored image never mutates the source and review is ex
   await assert.rejects(() => service.generate({ projectId: "project-1", prompt: "Try rejected image", sourceAssetId: edited.asset.id }), /Rejected artwork cannot be used/);
 });
 
+test("completed image generation merges into the latest project instead of overwriting concurrent author work", async (t) => {
+  const calls = [];
+  const { root, store } = await fixture(successfulGenerator([]));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const provider = successfulGenerator(calls);
+  const service = new StudioImageLabService(store, async (request) => {
+    const concurrent = await store.load("project-1");
+    await store.save({
+      ...concurrent,
+      metadata: {
+        ...concurrent.metadata,
+        title: "Concurrent author title edit",
+        updatedAt: "2026-09-01T18:03:30.000Z",
+      },
+    });
+    return provider(request);
+  });
+
+  const result = await service.generate({ projectId: "project-1", prompt: "Preserve concurrent work", now: "2026-09-01T18:04:00.000Z" });
+  const persisted = await store.load("project-1");
+  assert.equal(calls.length, 1);
+  assert.equal(persisted.metadata.title, "Concurrent author title edit");
+  assert.equal(persisted.illustrationAssetLibrary.assets.length, 1);
+  assert.equal(persisted.illustrationAssetLibrary.assets[0].id, result.asset.id);
+});
+
 test("provider failure does not fabricate or persist source/derivative assets", async (t) => {
   const { root, store, service } = await fixture(async () => { throw new Error("No real image provider is configured."); });
   t.after(() => rm(root, { recursive: true, force: true }));
