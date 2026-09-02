@@ -88,13 +88,25 @@ npm run studio:specialized
 
 ### Chromebook / Android access
 
-To bind the complete Forge launcher to the device/network interface:
+To expose the complete Forge workplace from the Chromebook/Linux container or Android/Termux device to another browser on the same trusted network:
 
 ```bash
 npm run forge:android
 ```
 
-Then open the Chromebook/Linux-container host IP from Android using the same ports (`4173`, `4273`, `4373`, `4473`). Only expose `0.0.0.0` on a network you trust.
+Non-loopback mode is access-gated. The four real Forge office processes stay bound to loopback; the launcher exposes only protected proxy ports. On startup it prints a one-time bootstrap URL in this form:
+
+```text
+http://<device-ip>:4173/?access=<generated-token>
+```
+
+Open that exact URL first. Forge immediately removes the access token from the browser address bar and stores an `HttpOnly`, `SameSite=Strict` host cookie. That same cookie authorizes the other Forge office ports (`4273`, `4373`, `4473`) on the same host. Anonymous or incorrect-token requests receive `401` and do not reach project APIs.
+
+You may supply your own launcher token with `FORGE_ACCESS_TOKEN`; it must contain at least 24 characters. If it is omitted, Forge generates a strong random token for the current launcher run. The supported individual Android commands (`studio:android`, `studio:journal:android`, `studio:workbooks:android`, and `studio:specialized:android`) use the same protected boundary.
+
+For Termux, `scripts/termux-forge.sh` generates or reuses the access token and prints the correct bootstrap URL for the phone. For another trusted LAN device, replace `127.0.0.1` in that printed URL with the host device's LAN IP.
+
+The access gate protects Forge from casual/anonymous LAN access; it does **not** turn plain local HTTP into encrypted transport. Use LAN exposure only on a network you trust. For untrusted or remote networks, use a properly authenticated encrypted tunnel or HTTPS reverse proxy rather than exposing these ports directly.
 
 Forge's Android target is currently the responsive installable web/PWA application. This repository does **not** claim to ship a native Android APK.
 
