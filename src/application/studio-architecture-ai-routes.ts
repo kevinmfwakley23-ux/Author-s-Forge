@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { FileProjectStore } from "../infrastructure/file-project-store";
 import { generateProjectText, type AiGenerationResult, type ProjectAiGenerationRequest } from "../infrastructure/ai-provider";
+import { assertAiCollaborationCapability } from "../domain/ai-collaboration";
 import { ProjectMemoryStore } from "./project-memory-store";
 
 export type StudioArchitectureGenerator = (request: ProjectAiGenerationRequest) => Promise<AiGenerationResult>;
@@ -33,6 +34,7 @@ export class StudioArchitectureAiService {
     const targetChapters = optionalPositiveInteger(input.targetChapters, "Target chapters");
     const project = await this.store.load(projectId);
     if (!project) throw new Error(`Project "${projectId}" not found.`);
+    assertAiCollaborationCapability(project.aiCollaborationPolicy, "draft", "AI architecture generation", "author-requested");
 
     const memory = new ProjectMemoryStore();
     for (const record of project.memories) memory.register(record);
@@ -56,11 +58,6 @@ export class StudioArchitectureAiService {
           "working-draft",
           "open-thread",
         ],
-        // Story architecture is a whole-project planning boundary. Supplying
-        // explicit saliency tags/terms here would make Project Brain require a
-        // lexical match and could exclude binding canon whose wording does not
-        // overlap the new idea. Keep the requested classes eligible, then let
-        // authority ranking and the context budget decide what fits.
         includeWorkingState: true,
         limit: 256,
       },
@@ -79,10 +76,6 @@ export class StudioArchitectureAiService {
         "Return: premise, themes, audience, genre expectations, canon candidates, character candidates, locations, timeline considerations, chapter plan, scene plan, unresolved questions, and production risks.",
       ].join("\n"),
       task: "writing",
-      // Architecture benefits from reasoning, but requiring a model to advertise
-      // the optional reasoning capability would exclude otherwise valid writing
-      // models whose concrete capability metadata is unknown. Creative writing
-      // and instruction following are the hard requirements for this boundary.
       requiresCreativeWriting: true,
       requiresInstructionFollowing: true,
       temperature: 0.4,

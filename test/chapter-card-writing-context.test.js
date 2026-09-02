@@ -4,6 +4,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createProject, createCharacter } from "../dist/index.js";
+import { createChapterCardWorkflowState, approveChapterCard } from "../dist/domain/chapter-card-workflow.js";
 import { FileProjectStore } from "../dist/infrastructure/file-project-store.js";
 import { FileAiProposalStore } from "../dist/infrastructure/file-ai-proposal-store.js";
 import { AiWritingCoordinator } from "../dist/application/ai-writing-coordinator.js";
@@ -42,7 +43,8 @@ async function fixture(root) {
     forbiddenDeviations: ["Do not identify who altered the log.", "Mara cannot know Elias is watching."],
   });
   const storyMapPlanning = setStoryMapChapterCard(createStoryMapPlanningState(), "chapter-1", card);
-  await projects.create({ ...base, characters: [mara()], studioWorkspace: workspace, storyMapPlanning });
+  const chapterCardWorkflow = approveChapterCard(createChapterCardWorkflowState(), "chapter-1", card, { now: "2026-09-02T16:01:30Z" });
+  await projects.create({ ...base, characters: [mara()], studioWorkspace: workspace, storyMapPlanning, chapterCardWorkflow });
   return projects;
 }
 
@@ -50,7 +52,7 @@ function request() {
   return { projectId: "project-1", bookId: "book-1", chapterId: "chapter-1", sceneId: "scene-1", task: "continue", instruction: "Continue Chapter 8.", existingContent: "Mara reached the archive door.", proposalId: "proposal-card", now: "2026-09-02T16:02:00Z" };
 }
 
-test("AI writing receives the selected chapter's author-controlled Chapter Card and forbidden deviations", async () => {
+test("AI writing receives the selected chapter's approved author-controlled Chapter Card and forbidden deviations", async () => {
   const root = await mkdtemp(join(tmpdir(), "forge-card-writing-"));
   try {
     let providerUser = "";
@@ -62,7 +64,7 @@ test("AI writing receives the selected chapter's author-controlled Chapter Card 
     const service = new AiWritingStudioService(projects, coordinator);
     const result = await service.generateWithProjectContext(request());
 
-    assert.match(providerUser, /Chapter Card — Author-Controlled Plan/);
+    assert.match(providerUser, /Approved Chapter Card — Author-Controlled Plan/);
     assert.match(providerUser, /Get Mara into the restricted records room/);
     assert.match(providerUser, /The night clerk notices Mara/);
     assert.match(providerUser, /Continuity dependencies/);
@@ -77,7 +79,7 @@ test("AI writing receives the selected chapter's author-controlled Chapter Card 
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
-test("Chapter Card character references are automatically pulled into generation context", async () => {
+test("approved Chapter Card character references are automatically pulled into generation context", async () => {
   const root = await mkdtemp(join(tmpdir(), "forge-card-character-context-"));
   try {
     let providerUser = "";
@@ -95,7 +97,7 @@ test("Chapter Card character references are automatically pulled into generation
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
-test("Chapter Card is critical governed context and is not silently dropped by a tight token budget", async () => {
+test("approved Chapter Card is critical governed context and is not silently dropped by a tight token budget", async () => {
   const root = await mkdtemp(join(tmpdir(), "forge-card-budget-"));
   try {
     const projects = await fixture(root);
@@ -103,6 +105,6 @@ test("Chapter Card is critical governed context and is not silently dropped by a
     const service = new AiWritingStudioService(projects, coordinator);
     const result = await service.generateWithProjectContext({ ...request(), proposalId: "proposal-budget", context: { query: "door", contextTokenBudget: 20 } });
     assert.ok(result.contextBudget.includedSectionKeys.includes("chapter-card"));
-    assert.equal(result.contextBudget.overBudget, true, "Critical author-controlled planning should report budget pressure instead of disappearing.");
+    assert.equal(result.contextBudget.overBudget, true, "Critical author-approved planning should report budget pressure instead of disappearing.");
   } finally { await rm(root, { recursive: true, force: true }); }
 });
