@@ -57,6 +57,19 @@ async function stopChild(child) {
   }
 }
 
+async function openSeriesFromStudio(page, base) {
+  await page.goto(`${base}/?project=${projectId}`, { waitUntil: "networkidle" });
+  const link = page.locator("#open-series-engine");
+  await link.waitFor();
+  const href = await link.getAttribute("href");
+  assert.ok(href && href.includes("/series.html") && href.includes(encodeURIComponent(projectId)), `Main Studio Series link must preserve current project: ${href}`);
+  await Promise.all([
+    page.waitForURL((url) => url.pathname === "/series.html" && url.searchParams.get("project") === projectId),
+    link.click(),
+  ]);
+  await page.waitForFunction(() => document.querySelector("#series-project-meta")?.textContent.includes("2 project books"));
+}
+
 async function main() {
   const dataDir = await mkdtemp(join(tmpdir(), "forge-series-browser-"));
   const port = await freePort();
@@ -80,8 +93,7 @@ async function main() {
     browser = await chromium.launch({ executablePath: process.env.FORGE_BROWSER_EXECUTABLE || chromium.executablePath(), headless: true, args: ["--no-sandbox", "--disable-gpu"] });
     const desktop = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     const page = await desktop.newPage();
-    await page.goto(`${base}/series.html?project=${projectId}`, { waitUntil: "networkidle" });
-    await page.waitForFunction(() => document.querySelector("#series-project-meta")?.textContent.includes("2 project books"));
+    await openSeriesFromStudio(page, base);
 
     await page.locator('#series-create-form input[name="name"]').fill("Heartwood Jungle");
     await page.locator("#series-create-book").selectOption("book-1");
@@ -136,22 +148,38 @@ async function main() {
     await page.waitForFunction(() => document.querySelector("#series-timeline-list")?.textContent.includes("No timeline events"));
     await page.locator('[data-series-book-remove="book-2"]').click();
     await page.waitForFunction(() => !document.querySelector("#series-book-list")?.textContent.includes("Heartwood Two"));
-    const workspace = await request(base, `/api/projects/${projectId}/workspace`);
+    let workspace = await request(base, `/api/projects/${projectId}/workspace`);
     assert.deepEqual(workspace.books.map((book) => book.id), ["book-1", "book-2"], "Removing series membership must not delete manuscript books.");
 
     const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
     const phone = await mobile.newPage();
-    await phone.goto(`${base}/series.html?project=${projectId}`, { waitUntil: "networkidle" });
-    await phone.waitForFunction(() => document.querySelector("#series-project-meta")?.textContent.includes("Series Browser Acceptance"));
+    await phone.goto(`${base}/?project=${projectId}`, { waitUntil: "networkidle" });
+    const mobileSeriesLink = phone.locator("#open-series-engine");
+    await mobileSeriesLink.waitFor();
+    const mainLinkBox = await mobileSeriesLink.boundingBox();
+    assert.ok(mainLinkBox && mainLinkBox.height >= 40, `Main Studio Series touch target too small: ${JSON.stringify(mainLinkBox)}`);
+    await Promise.all([
+      phone.waitForURL((url) => url.pathname === "/series.html" && url.searchParams.get("project") === projectId),
+      mobileSeriesLink.click(),
+    ]);
+    await phone.waitForFunction(() => document.querySelector("#series-project-meta")?.textContent.includes("2 project books"));
     const dimensions = await phone.evaluate(() => ({ viewport: document.documentElement.clientWidth, body: document.body.scrollWidth, doc: document.documentElement.scrollWidth }));
     assert.ok(dimensions.body <= dimensions.viewport + 1, `Series mobile body overflow: ${JSON.stringify(dimensions)}`);
     assert.ok(dimensions.doc <= dimensions.viewport + 1, `Series mobile document overflow: ${JSON.stringify(dimensions)}`);
     const saveBox = await phone.locator("#series-save-details").boundingBox();
     assert.ok(saveBox && saveBox.height >= 40, `Series save touch target too small: ${JSON.stringify(saveBox)}`);
     await mobile.close();
+
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.locator("#series-delete").click();
+    await page.waitForFunction(() => document.querySelector("#series-summary")?.textContent.includes("Create a series to begin"));
+    const projectAfterDelete = await request(base, `/api/projects/${projectId}`);
+    assert.deepEqual(projectAfterDelete.series, [], "Explicit Series deletion must remove only the Series record.");
+    workspace = await request(base, `/api/projects/${projectId}/workspace`);
+    assert.deepEqual(workspace.books.map((book) => book.id), ["book-1", "book-2"], "Deleting a Series must preserve manuscript books.");
     await desktop.close();
 
-    console.log("SERIES ENGINE BROWSER ACCEPTANCE PASSED: durable create/edit + shared character/canon + book membership/order + cross-book timeline + destructive-removal guard + reload + manuscript preservation + Android fit/touch.");
+    console.log("SERIES ENGINE BROWSER ACCEPTANCE PASSED: Main Studio discoverability + durable create/edit + shared character/canon + book membership/order + cross-book timeline + destructive-removal guard + reload + explicit Series delete + manuscript preservation + Android fit/touch.");
   } finally {
     if (browser) await browser.close().catch(() => {});
     await stopChild(app);
