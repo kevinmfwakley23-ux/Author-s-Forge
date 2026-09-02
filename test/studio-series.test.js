@@ -118,3 +118,18 @@ test("Deleting a series is explicit and does not delete manuscript books", async
     assert.deepEqual(project.studioWorkspace.books.map((book) => book.id), ["book-1", "book-2"]);
   });
 });
+
+test("Series mutations never regress durable project updatedAt when caller or wall clock is older", async () => {
+  await fixture(async ({ store, service }) => {
+    await service.create("series-project", { id: "s", name: "Series", bookIds: ["book-1"], now: "2020-01-01T00:00:00Z" });
+    let project = await store.load("series-project");
+    assert.equal(project.metadata.updatedAt, "2026-09-02T12:01:00.000Z");
+    await service.update("series-project", "s", { worldRules: ["No timestamp regression"] }, "2026-09-02T12:05:00Z");
+    project = await store.load("series-project");
+    assert.equal(project.metadata.updatedAt, "2026-09-02T12:05:00.000Z");
+    await service.update("series-project", "s", { terminology: ["Monotonic"] }, "2026-09-02T12:03:00Z");
+    project = await store.load("series-project");
+    assert.equal(project.metadata.updatedAt, "2026-09-02T12:05:00.000Z");
+    await assert.rejects(() => service.update("series-project", "s", { history: ["invalid time rejected"] }, "not-a-time"), /valid timestamp/);
+  });
+});
