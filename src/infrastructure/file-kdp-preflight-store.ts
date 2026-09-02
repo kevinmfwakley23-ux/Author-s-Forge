@@ -13,6 +13,7 @@ interface PersistedKdpPreflightState {
 export class FileKdpPreflightStore {
   private reports: KdpPreflightReport[] = [];
   private loaded = false;
+  private mutationQueue: Promise<void> = Promise.resolve();
 
   constructor(private readonly filePath: string) {
     if (!filePath.trim()) throw new Error("KDP preflight store path is required.");
@@ -35,7 +36,7 @@ export class FileKdpPreflightStore {
     if (!normalized) throw new Error("Project id is required.");
     return this.reports
       .filter((report) => report.projectId === normalized)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id))
       .map(cloneReport);
   }
 
@@ -44,25 +45,34 @@ export class FileKdpPreflightStore {
   }
 
   async append(report: KdpPreflightReport): Promise<KdpPreflightReport> {
-    await this.load();
-    const validated = validateReport(report);
-    if (this.reports.some((item) => item.id === validated.id)) {
-      throw new Error(`Duplicate KDP preflight report id \"${validated.id}\".`);
-    }
-    this.reports.push(cloneReport(validated));
-    await this.save();
-    return cloneReport(validated);
+    return this.exclusive(async () => {
+      await this.load();
+      const validated = validateReport(report);
+      if (this.reports.some((item) => item.id === validated.id)) {
+        throw new Error(`Duplicate KDP preflight report id \"${validated.id}\".`);
+      }
+      const nextReports = [...this.reports, cloneReport(validated)];
+      await this.persist(nextReports);
+      this.reports = nextReports;
+      return cloneReport(validated);
+    });
   }
 
-  private async save(): Promise<void> {
+  private async persist(reports: readonly KdpPreflightReport[]): Promise<void> {
     const state: PersistedKdpPreflightState = {
       formatVersion: KDP_PREFLIGHT_STORE_FORMAT_VERSION,
-      reports: this.reports.map(cloneReport),
+      reports: reports.map(cloneReport),
     };
     await mkdir(dirname(this.filePath), { recursive: true });
-    const temporaryPath = `${this.filePath}.${process.pid}.${Date.now()}.tmp`;
+    const temporaryPath = `${this.filePath}.${process.pid}.${Date.now()}.${Math.random().toString(16).slice(2)}.tmp`;
     await writeFile(temporaryPath, `${JSON.stringify(state, null, 2)}\n`, "utf8");
     await rename(temporaryPath, this.filePath);
+  }
+
+  private async exclusive<T>(operation: () => Promise<T>): Promise<T> {
+    const run = this.mutationQueue.then(operation, operation);
+    this.mutationQueue = run.then(() => undefined, () => undefined);
+    return run;
   }
 }
 
