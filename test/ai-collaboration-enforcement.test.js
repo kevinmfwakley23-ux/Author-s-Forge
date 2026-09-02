@@ -43,31 +43,36 @@ function writingRequest(task, proposalId) {
   };
 }
 
-test("collaboration capability helpers fail closed for disallowed Editor drafting", () => {
+test("collaboration modes constrain autonomous initiative without taking commands away from the author", () => {
   const editor = createAiCollaborationPolicy("editor");
-  assert.equal(collaborationCapabilityAllowed(editor, "draft"), false);
-  assert.equal(collaborationCapabilityAllowed(editor, "revise"), true);
-  assert.equal(collaborationCapabilityAllowed(editor, "bulk-work"), false);
-  assert.throws(() => assertAiCollaborationCapability(editor, "draft", "AI drafting"), /does not allow AI drafting/i);
+  assert.equal(collaborationCapabilityAllowed(editor, "draft", "autonomous"), false);
+  assert.equal(collaborationCapabilityAllowed(editor, "revise", "autonomous"), true);
+  assert.equal(collaborationCapabilityAllowed(editor, "bulk-work", "autonomous"), false);
+  assert.equal(collaborationCapabilityAllowed(editor, "draft", "author-requested"), true);
+  assert.equal(collaborationCapabilityAllowed(editor, "bulk-work", "author-requested"), true);
+  assert.throws(() => assertAiCollaborationCapability(editor, "draft", "AI drafting", "autonomous"), /does not allow autonomous AI drafting/i);
+  assert.doesNotThrow(() => assertAiCollaborationCapability(editor, "draft", "AI drafting", "author-requested"));
 });
 
-test("Editor mode blocks real draft-like manuscript generation before provider execution", async () => {
+test("an explicit author draft request works in Editor mode and remains proposal-only", async () => {
   const root = await mkdtemp(join(tmpdir(), "forge-collaboration-editor-draft-"));
   try {
     const projects = await projectStore(root, "editor");
     let providerCalls = 0;
     const coordinator = new AiWritingCoordinator(new FileAiProposalStore(join(root, "proposals.json")), async () => {
       providerCalls += 1;
-      return { provider: "test", model: "fixture", text: "This must never be generated in Editor draft mode." };
+      return { provider: "test", model: "fixture", text: "Mara heard footsteps beyond the locked gate." };
     });
     const service = new AiWritingStudioService(projects, coordinator);
-    await assert.rejects(() => service.generateWithProjectContext(writingRequest("continue", "proposal-editor-draft")), /Collaboration mode "editor" does not allow AI continue writing/);
-    assert.equal(providerCalls, 0, "Disallowed collaboration work must fail before any model/provider call.");
-    assert.deepEqual(await coordinator.list("project-1"), [], "A blocked generation must not leave a fake proposal behind.");
+    const result = await service.generateWithProjectContext(writingRequest("continue", "proposal-editor-draft"));
+    assert.equal(providerCalls, 1, "A direct author command must reach the real provider boundary regardless of collaboration mode.");
+    assert.equal(result.proposal.status, "pending");
+    const persisted = await projects.load("project-1");
+    assert.equal(persisted.studioWorkspace.books[0].chapters[0].scenes[0].content, "Mara waited beside the locked gate.", "Author-requested AI work must still remain proposal-only until author review/apply.");
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
-test("Editor mode still permits real revision proposals and keeps author review boundary", async () => {
+test("Editor mode still permits revision proposals and preserves the same author review boundary", async () => {
   const root = await mkdtemp(join(tmpdir(), "forge-collaboration-editor-revise-"));
   try {
     const projects = await projectStore(root, "editor");
@@ -81,35 +86,24 @@ test("Editor mode still permits real revision proposals and keeps author review 
     assert.equal(providerCalls, 1);
     assert.equal(result.proposal.status, "pending");
     const persisted = await projects.load("project-1");
-    assert.equal(persisted.studioWorkspace.books[0].chapters[0].scenes[0].content, "Mara waited beside the locked gate.", "Allowed revision generation must remain proposal-only until author approval and apply.");
+    assert.equal(persisted.studioWorkspace.books[0].chapters[0].scenes[0].content, "Mara waited beside the locked gate.");
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
-test("Editor mode blocks architecture generation while Co-pilot mode permits it", async () => {
-  const editorRoot = await mkdtemp(join(tmpdir(), "forge-collaboration-editor-architecture-"));
-  const copilotRoot = await mkdtemp(join(tmpdir(), "forge-collaboration-copilot-architecture-"));
-  try {
-    const editorStore = await projectStore(editorRoot, "editor");
-    let editorCalls = 0;
-    const editorService = new StudioArchitectureAiService(editorStore, async () => {
-      editorCalls += 1;
-      return { provider: "test", model: "fixture", text: "Should not run." };
-    });
-    await assert.rejects(() => editorService.generate({ projectId: "project-1", idea: "A detective follows a vanished archivist through a flooded city." }), /does not allow AI architecture generation/);
-    assert.equal(editorCalls, 0);
-
-    const copilotStore = await projectStore(copilotRoot, "co-pilot");
-    let copilotCalls = 0;
-    const copilotService = new StudioArchitectureAiService(copilotStore, async () => {
-      copilotCalls += 1;
-      return { provider: "test", model: "fixture", text: "A practical candidate architecture." };
-    });
-    const result = await copilotService.generate({ projectId: "project-1", idea: "A detective follows a vanished archivist through a flooded city." });
-    assert.equal(copilotCalls, 1);
-    assert.equal(result.candidate, true);
-    assert.equal(result.authorApprovalRequired, true);
-  } finally {
-    await rm(editorRoot, { recursive: true, force: true });
-    await rm(copilotRoot, { recursive: true, force: true });
+test("an explicit author architecture request is allowed in every collaboration mode", async () => {
+  for (const mode of ["co-pilot", "partner", "director", "autonomous", "editor"]) {
+    const root = await mkdtemp(join(tmpdir(), `forge-collaboration-${mode}-architecture-`));
+    try {
+      const store = await projectStore(root, mode);
+      let calls = 0;
+      const service = new StudioArchitectureAiService(store, async () => {
+        calls += 1;
+        return { provider: "test", model: "fixture", text: "A practical candidate architecture." };
+      });
+      const result = await service.generate({ projectId: "project-1", idea: "A detective follows a vanished archivist through a flooded city." });
+      assert.equal(calls, 1, `Direct architecture command should run in ${mode} mode.`);
+      assert.equal(result.candidate, true);
+      assert.equal(result.authorApprovalRequired, true);
+    } finally { await rm(root, { recursive: true, force: true }); }
   }
 });
