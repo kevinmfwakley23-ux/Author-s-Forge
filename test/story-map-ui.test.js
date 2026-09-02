@@ -22,6 +22,9 @@ test("Story Map UI is a live durable-workspace surface", async () => {
   assert.match(chapterCards, /approximateWordCount/);
   assert.match(chapterCards, /\/story-map\/chapters\/\$\{encodeURIComponent\(selected\.bookId\)\}\/\$\{encodeURIComponent\(selected\.chapterId\)\}\/card/);
   assert.match(chapterCards, /Manuscript prose, chapter title, and scene order were not changed/);
+  assert.match(chapterCards, /observer\.observe\(host, \{ childList: true \}\)/, "Chapter Card decoration must not observe its own nested mutations.");
+  assert.doesNotMatch(chapterCards, /observer\.observe\(host, \{ childList: true, subtree: true \}\)/, "Nested Story Map observation can self-trigger decoration/fetch loops.");
+  assert.match(chapterCards, /rootObserver\.disconnect\(\)/, "Dynamic-surface discovery observer must disconnect once Story Map exists.");
   assert.match(pwa, /loadExtension\("chapter-cards","\/forge-chapter-cards\.js"\)/);
 
   assert.match(sw, /\/forge-story-map\.js/);
