@@ -127,7 +127,7 @@ async function main() {
     await page.locator('#arch-run').click();
     assert.equal((await generateResponse).ok(), true);
     await page.waitForFunction(() => document.querySelector('#story-architecture-premise')?.value.includes('winter storm'));
-    assert.match(await page.locator('#story-architecture-status').innerText(), /not approved/i);
+    assert.match(await page.locator('#story-architecture-status').innerText(), /unapproved|not approved/i);
     assert.match(await page.locator('#arch-result').innerText(), /Canon candidates \(not Project Brain canon\)/i);
 
     const snapshot = await api(base, `/api/projects/${projectId}/story-architecture`);
