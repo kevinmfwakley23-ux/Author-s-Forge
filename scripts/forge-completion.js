@@ -32,6 +32,7 @@ const hasTest = (...patterns) => patterns.some((pattern) => testFiles.some((file
 const browserHarnesses = [
   "scripts/studio-browser-acceptance.js",
   "scripts/studio-context-browser-acceptance.js",
+  "scripts/studio-architecture-browser-acceptance.js",
   "scripts/studio-image-lab-browser-acceptance.js",
   "scripts/studio-kdp-preflight-browser-acceptance.js",
   "scripts/studio-recovery-browser-acceptance.js",
