@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createProject } from "../dist/domain/project.js";
 import { createCharacter } from "../dist/domain/character-bible.js";
+import { createChapterCardWorkflowState, approveChapterCard } from "../dist/domain/chapter-card-workflow.js";
 import { createStudioWorkspace, addWorkspaceBook, addWorkspaceChapter, addWorkspaceScene, saveSceneContent } from "../dist/domain/studio-workspace.js";
 import { createStoryMapPlanningState, createStoryMapChapterCard, setStoryMapChapterCard } from "../dist/domain/story-map-planning.js";
 import { FileProjectStore } from "../dist/infrastructure/file-project-store.js";
@@ -40,17 +41,19 @@ async function projectFixture(root) {
     forbiddenDeviations: ["Do not reveal who altered the archive log."],
   });
   const storyMapPlanning = setStoryMapChapterCard(createStoryMapPlanningState(), "chapter-1", card);
+  const chapterCardWorkflow = approveChapterCard(createChapterCardWorkflowState(), "chapter-1", card, { now: "2026-09-02T16:01:30.000Z" });
 
   await projects.create({
     ...createProject({ id: "project-1", title: "Chapter Card AI", now: "2026-09-02T16:00:00.000Z" }),
     characters: [mara()],
     studioWorkspace: workspace,
     storyMapPlanning,
+    chapterCardWorkflow,
   });
   return projects;
 }
 
-test("governed AI writing honors the Chapter Card and anchors its characters automatically", async () => {
+test("governed AI writing honors the author-approved Chapter Card and anchors its characters automatically", async () => {
   const root = await mkdtemp(join(tmpdir(), "forge-chapter-card-ai-"));
   try {
     const projects = await projectFixture(root);
@@ -75,13 +78,13 @@ test("governed AI writing honors the Chapter Card and anchors its characters aut
     });
 
     const chapterSection = generated.context.sections.find((section) => section.key === "chapter-card");
-    assert.ok(chapterSection, "Chapter Card must be present in governed generation context.");
+    assert.ok(chapterSection, "Approved Chapter Card must be present in governed generation context.");
     assert.match(chapterSection.text, /Get Mara inside the restricted archive/);
     assert.match(chapterSection.text, /FORBIDDEN DEVIATIONS — NON-NEGOTIABLE/);
     assert.match(chapterSection.text, /Do not reveal who altered the archive log/);
     assert.ok(generated.contextBudget.includedSectionKeys.includes("chapter-card"));
     assert.deepEqual(generated.characterContinuity.characters.map((item) => item.characterId), ["mara-1"]);
-    assert.match(providerRequest.user, /Chapter Card — Author-Controlled Plan/);
+    assert.match(providerRequest.user, /Approved Chapter Card — Author-Controlled Plan/);
     assert.match(providerRequest.user, /Required events:\n- Mara tests the service entrance/);
   } finally {
     await rm(root, { recursive: true, force: true });
