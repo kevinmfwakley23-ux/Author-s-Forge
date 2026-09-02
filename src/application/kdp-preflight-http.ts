@@ -1,51 +1,37 @@
-import type { PublishingConfiguration } from "../domain/book-cover-studio";
 import type { KdpCoverFileFacts, KdpInteriorFileFacts, KdpPreflightReport } from "../domain/kdp-preflight";
+import type { ProjectState } from "../domain/project";
 import { KdpPreflightHistoryService } from "./kdp-preflight-history";
+import { StudioKdpPreflightService } from "./studio-kdp-preflight";
 
 export interface KdpPreflightHttpDeps {
   readonly history: KdpPreflightHistoryService;
-  readonly projectId: string;
+  readonly project: ProjectState;
 }
 
 export async function runKdpPreflightFromHttp(deps: KdpPreflightHttpDeps, input: Record<string, unknown>): Promise<KdpPreflightReport> {
-  const projectId = requiredText(deps.projectId, "project id");
+  const projectId = requiredText(deps.project.metadata.id, "project id");
   const requestProjectId = input.projectId === undefined ? projectId : requiredText(input.projectId, "project id");
   if (requestProjectId !== projectId) throw new Error("KDP preflight request cannot target another project.");
+  if (input.publishing !== undefined) throw new Error("KDP preflight publishing geometry is server-authoritative. Select a durable Cover Studio plan instead of supplying publishing values.");
 
-  return deps.history.audit({
-    id: optionalText(input.id) ?? `kdp-preflight-${crypto.randomUUID()}`,
-    projectId,
-    publishing: publishingConfiguration(input.publishing),
+  const service = new StudioKdpPreflightService(deps.history);
+  const result = await service.audit({
+    project: deps.project,
+    coverPlanId: optionalText(input.coverPlanId),
+    bookId: optionalText(input.bookId),
     interiorHasBleed: booleanValue(input.interiorHasBleed, "interiorHasBleed"),
     interior: interiorFacts(input.interior),
     cover: coverFacts(input.cover),
+    reportId: optionalText(input.id),
     ...(input.now === undefined ? {} : { now: requiredText(input.now, "now") }),
   });
+  return result.report;
 }
 
 export async function listKdpPreflightHistoryFromHttp(deps: KdpPreflightHttpDeps): Promise<{ readonly reports: readonly KdpPreflightReport[]; readonly latest?: KdpPreflightReport }> {
-  const projectId = requiredText(deps.projectId, "project id");
+  const projectId = requiredText(deps.project.metadata.id, "project id");
   const reports = await deps.history.list(projectId);
   return { reports, ...(reports[0] ? { latest: reports[0] } : {}) };
-}
-
-function publishingConfiguration(value: unknown): PublishingConfiguration {
-  const input = objectValue(value, "publishing");
-  const binding = enumText(input.binding, ["paperback", "hardcover"] as const, "binding");
-  const interiorType = enumText(input.interiorType, ["black-white", "premium-color", "standard-color"] as const, "interior type");
-  const paperType = enumText(input.paperType, ["white", "cream"] as const, "paper type");
-  const readingDirection = enumText(input.readingDirection, ["ltr", "rtl"] as const, "reading direction");
-  return {
-    platform: "kdp",
-    binding,
-    interiorType,
-    paperType,
-    trimWidthInches: positiveNumber(input.trimWidthInches, "trim width"),
-    trimHeightInches: positiveNumber(input.trimHeightInches, "trim height"),
-    pageCount: integerNumber(input.pageCount, "page count"),
-    bleedInches: nonNegativeNumber(input.bleedInches, "bleed"),
-    readingDirection,
-  };
 }
 
 function interiorFacts(value: unknown): KdpInteriorFileFacts {
@@ -127,15 +113,4 @@ function nonNegativeNumber(value: unknown, label: string): number {
   const number = numberValue(value, label);
   if (number < 0) throw new Error(`${label} cannot be negative.`);
   return number;
-}
-
-function integerNumber(value: unknown, label: string): number {
-  const number = numberValue(value, label);
-  if (!Number.isInteger(number)) throw new Error(`${label} must be an integer.`);
-  return number;
-}
-
-function enumText<T extends string>(value: unknown, allowed: readonly T[], label: string): T {
-  if (typeof value !== "string" || !allowed.includes(value as T)) throw new Error(`Invalid ${label}.`);
-  return value as T;
 }
