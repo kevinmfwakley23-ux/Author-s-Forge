@@ -13,12 +13,16 @@ const hostArg = process.argv.find((arg) => arg.startsWith("--host="));
 const host = hostArg ? hostArg.slice("--host=".length).trim() : (process.env.HOST || "127.0.0.1");
 if (!host) throw new Error("Forge launcher host cannot be blank.");
 
-const services = [
-  { name: "Studio", entry: "dist/studio-server.js", portKey: "PORT", port: process.env.PORT || "4173" },
-  { name: "Guided Journal", entry: "dist/guided-journal-server.js", portKey: "JOURNAL_PORT", port: process.env.JOURNAL_PORT || "4273" },
-  { name: "Educational Workbooks", entry: "dist/educational-workbook-server.js", portKey: "WORKBOOK_PORT", port: process.env.WORKBOOK_PORT || "4373" },
-  { name: "Specialized Creation", entry: "dist/specialized-creation-server.js", portKey: "SPECIALIZED_PORT", port: process.env.SPECIALIZED_PORT || "4473" },
+const onlyArg = process.argv.find((arg) => arg.startsWith("--only="));
+const only = onlyArg ? onlyArg.slice("--only=".length).trim().toLowerCase() : "";
+const allServices = [
+  { id: "studio", name: "Studio", entry: "dist/studio-server.js", portKey: "PORT", port: process.env.PORT || "4173" },
+  { id: "journal", name: "Guided Journal", entry: "dist/guided-journal-server.js", portKey: "JOURNAL_PORT", port: process.env.JOURNAL_PORT || "4273" },
+  { id: "workbooks", name: "Educational Workbooks", entry: "dist/educational-workbook-server.js", portKey: "WORKBOOK_PORT", port: process.env.WORKBOOK_PORT || "4373" },
+  { id: "specialized", name: "Specialized Creation", entry: "dist/specialized-creation-server.js", portKey: "SPECIALIZED_PORT", port: process.env.SPECIALIZED_PORT || "4473" },
 ];
+const services = only ? allServices.filter((service) => service.id === only) : allServices;
+if (only && services.length !== 1) throw new Error(`Unknown Forge office "${only}". Use studio, journal, workbooks, or specialized.`);
 
 const seen = new Set();
 for (const service of services) {
@@ -190,7 +194,7 @@ async function main() {
     }
     console.log("[Forge] Protected LAN mode is active. Office processes are bound to loopback and exposed only through the access-gated launcher proxy.");
     console.log(`[Forge] Open this URL first on your device: http://${displayHost()}:${services[0].port}/?access=${encodeURIComponent(accessToken)}`);
-    console.log("[Forge] The access cookie is HttpOnly/SameSite=Strict and applies to the same host across all four Forge office ports. Use only on a network you trust.");
+    console.log("[Forge] The access cookie is HttpOnly/SameSite=Strict and applies to the same host across Forge office ports. Use only on a network you trust.");
   } else {
     for (const service of services) {
       launch(service, host, Number(service.port));
