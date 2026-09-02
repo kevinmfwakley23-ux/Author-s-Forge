@@ -53,7 +53,7 @@ test("live research reloads latest project before persistence so concurrent auth
         providerCalled = true;
         const latest = await store.load("research-project");
         const authorMemory = createMemoryRecord({
-          id: "author-during-research", projectId: "research-project", class: "session-memory", authority: "working",
+          id: "author-during-research", projectId: "research-project", class: "creative-note", authority: "working",
           summary: "Author wrote while research was running.", content: "Do not overwrite this work.", now: "2026-09-01T18:05:00Z",
         });
         await store.save(withProjectMemories(latest, [...latest.memories, authorMemory], "2026-09-01T18:05:00Z"));
