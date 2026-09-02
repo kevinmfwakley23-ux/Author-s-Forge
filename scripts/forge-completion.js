@@ -34,6 +34,7 @@ const browserHarnesses = [
   "scripts/studio-context-browser-acceptance.js",
   "scripts/studio-architecture-browser-acceptance.js",
   "scripts/studio-story-map-browser-acceptance.js",
+  "scripts/studio-series-browser-acceptance.js",
   "scripts/studio-image-lab-browser-acceptance.js",
   "scripts/studio-kdp-preflight-browser-acceptance.js",
   "scripts/studio-recovery-browser-acceptance.js",
@@ -64,7 +65,12 @@ const capabilities = [
   ["Project foundation & durable memory", ["src/domain/project.ts", "src/infrastructure/file-project-store.ts"], () => hasTest(/project-foundation/)],
   ["Manuscript / chapter / scene workspace", ["src/domain/manuscript.ts"], () => hasTest(/manuscript(?!-production|-planning)/)],
   ["AI writing & model broker", ["src/application/ai-writing.ts", "src/application/ai-model-broker.ts"], () => hasTest(/^test\/ai-(writing|model-broker)/)],
-  ["Canon / character / series / voice", ["src/domain/character-bible.ts", "src/domain/series.ts", "src/domain/voice-preservation.ts"], () => hasTest(/version-control-author-control-series-voice|character/)],
+  ["Canon / character / voice", ["src/domain/character-bible.ts", "src/domain/voice-preservation.ts"], () => hasTest(/version-control-author-control-series-voice|character/)],
+  [
+    "Series Engine author workflow",
+    ["src/domain/series.ts", "src/application/series.ts", "src/application/studio-series.ts", "src/application/studio-series-routes.ts", "public/series.html", "public/forge-series.js", "scripts/studio-series-browser-acceptance.js"],
+    () => hasTest(/studio-series|version-control-author-control-series-voice/) && exists("scripts/studio-series-browser-acceptance.js"),
+  ],
   ["Research & provenance-aware memory", ["src/domain/research.ts", "src/domain/relationship-memory.ts"], () => hasTest(/research|relationship-memory/)],
   [
     "Live source-backed Research Office",
@@ -126,6 +132,6 @@ for (const row of rows) {
   console.log(`- ${String(row.score).padStart(3)}%  ${row.name} (implementation ${Math.round(row.implementation * 100)}%, automated evidence ${row.verified ? 100 : 0}%)`);
 }
 console.log("\nInterpretation: 100% is reserved for a complete, verified product journey.");
-console.log("The meter requires live source-backed Research, Knowledge Gap Radar, Author Craft and owner-level AI spend/model control, Guided Journal, Educational Workbooks including differentiation/teacher support and rubrics/performance assessment, Specialized Creation, the unified workplace launcher, voice command path, durable provider-backed image generation/editing, and every canonical browser/mobile harness.");
+console.log("The meter requires the Series Engine author workflow, live source-backed Research, Knowledge Gap Radar, Author Craft and owner-level AI spend/model control, Guided Journal, Educational Workbooks including differentiation/teacher support and rubrics/performance assessment, Specialized Creation, the unified workplace launcher, voice command path, durable provider-backed image generation/editing, and every canonical browser/mobile harness.");
 console.log("This meter never substitutes source presence for real browser/device proof; CI must execute the harnesses successfully.");
 console.log("Run after a clean checkout/build: npm run completion");
