@@ -22,7 +22,32 @@
   function selectCanvasElement(event){if(event.target.closest?.("[data-resize-handle]"))return;const node=event.target.closest?.("[data-element]");if(!node)return;const id=node.dataset.element;if(id&&state()?.selectedElementId!==id)selectThroughLayer(id);}
   function nudgeElement(event,id){const s=state(),element=s?.surface?.elements?.find(item=>item.id===id);if(!element||element.locked)return;const step=event.shiftKey?0.01:0.05,form=$("#element-form");if(!form)return;let x=Number(form.elements.x.value),y=Number(form.elements.y.value);if(event.key==="ArrowLeft")x=Math.max(0,x-step);if(event.key==="ArrowRight")x+=step;if(event.key==="ArrowUp")y=Math.max(0,y-step);if(event.key==="ArrowDown")y+=step;form.elements.x.value=x.toFixed(2);form.elements.y.value=y.toFixed(2);form.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));queueRefresh();}
 
-  function drawResizeHandle(){const svg=$("#composition-svg"),element=selectedElement();svg?.querySelectorAll("[data-resize-handle]").forEach(node=>node.remove());if(!svg||!element||element.locked)return;const scale=96,size=16,handle=document.createElementNS("http://www.w3.org/2000/svg","rect");handle.setAttribute("data-resize-handle",element.id);handle.setAttribute("x",String((element.box.x+element.box.width)*scale-size/2));handle.setAttribute("y",String((element.box.y+element.box.height)*scale-size/2));handle.setAttribute("width",String(size));handle.setAttribute("height",String(size));handle.setAttribute("rx","3");handle.setAttribute("fill","#2463d4");handle.setAttribute("stroke","#ffffff");handle.setAttribute("stroke-width","2");handle.setAttribute("role","slider");handle.setAttribute("tabindex","0");handle.setAttribute("aria-label",`Resize ${element.role||element.kind}`);handle.style.cursor="nwse-resize";handle.style.touchAction="none";svg.append(handle);
+  function drawResizeHandle(){
+    const svg=$("#composition-svg"),element=selectedElement();
+    if(!svg)return;
+    const handles=[...svg.querySelectorAll("[data-resize-handle]")];
+    if(!element||element.locked){handles.forEach(node=>node.remove());return;}
+    let handle=handles.find(node=>node.getAttribute("data-resize-handle")===element.id)||null;
+    handles.forEach(node=>{if(node!==handle)node.remove();});
+    if(!handle){
+      handle=document.createElementNS("http://www.w3.org/2000/svg","rect");
+      handle.setAttribute("data-resize-handle",element.id);
+      handle.setAttribute("rx","3");
+      handle.setAttribute("fill","#2463d4");
+      handle.setAttribute("stroke","#ffffff");
+      handle.setAttribute("stroke-width","2");
+      handle.setAttribute("role","slider");
+      handle.setAttribute("tabindex","0");
+      handle.style.cursor="nwse-resize";
+      handle.style.touchAction="none";
+      svg.append(handle);
+    }
+    const scale=96,size=16;
+    handle.setAttribute("x",String((element.box.x+element.box.width)*scale-size/2));
+    handle.setAttribute("y",String((element.box.y+element.box.height)*scale-size/2));
+    handle.setAttribute("width",String(size));
+    handle.setAttribute("height",String(size));
+    handle.setAttribute("aria-label",`Resize ${element.role||element.kind}`);
   }
 
   function clientToSvg(clientX,clientY){const svg=$("#composition-svg"),point=svg.createSVGPoint();point.x=clientX;point.y=clientY;return point.matrixTransform(svg.getScreenCTM().inverse());}
