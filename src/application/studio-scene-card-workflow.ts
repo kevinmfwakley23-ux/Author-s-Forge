@@ -1,5 +1,5 @@
 import type { ProjectState } from "../domain/project";
-import { chapterCardApprovalFor, type ChapterCardWorkflowState } from "../domain/chapter-card-workflow";
+import { chapterCardApprovalFor, chapterCardSha256, type ChapterCardWorkflowState } from "../domain/chapter-card-workflow";
 import {
   createSceneCardDetails,
   createSceneCardWorkflowState,
@@ -114,7 +114,7 @@ export class StudioSceneCardWorkflowService {
       throw new Error("Scene Card needs a purpose, scene goal, or required event before approval.");
     }
     requireApprovedChapterCardWhenPresent(project, planning, chapter.id);
-    const snapshot = cardSnapshot(planning, details, book, chapter, scene);
+    const snapshot = cardSnapshot(project, planning, details, book, chapter, scene);
     await this.save(project, approveSceneCard(workflow, snapshot, input.now), input.now);
     return this.snapshot(projectId);
   }
@@ -141,7 +141,7 @@ export class StudioSceneCardWorkflowService {
     if (!details) throw new Error(`Scene "${scene.id}" has no Scene Card.`);
     validateCharacterIds(project, details.characterIds);
     requireApprovedChapterCardWhenPresent(project, planning, chapter.id);
-    const snapshot = cardSnapshot(planning, details, book, chapter, scene);
+    const snapshot = cardSnapshot(project, planning, details, book, chapter, scene);
     const approval = sceneCardApprovalFor(workflow, snapshot);
     if (!approval) throw new Error("Scene Card is not currently author-approved. Save the latest planning and approve this exact version before AI drafting.");
     if (scene.content.trim()) {
@@ -188,7 +188,7 @@ function viewFor(
 ): SceneCardView {
   const details = workflow.cards[scene.id] ?? createSceneCardDetails();
   validateCharacterIds(project, details.characterIds);
-  const snapshot = cardSnapshot(planning, details, book, chapter, scene);
+  const snapshot = cardSnapshot(project, planning, details, book, chapter, scene);
   const approval = sceneCardApprovalFor(workflow, snapshot);
   const historicalApproval = workflow.approvals.find((item) => item.sceneId === scene.id);
   const plotlines = planning.plotlines.filter((item) => item.bookId === book.id && item.sceneIds.includes(scene.id));
@@ -212,6 +212,7 @@ function viewFor(
 }
 
 function cardSnapshot(
+  project: SceneCardProject,
   planning: StoryMapPlanningState,
   details: SceneCardDetails,
   book: WorkspaceBook,
@@ -222,9 +223,12 @@ function cardSnapshot(
     povCharacterIds: [], location: "", storyTime: "", goal: "", conflict: "", outcome: "", emotionalBeat: "", tags: [],
   };
   const plotlineIds = planning.plotlines.filter((item) => item.bookId === book.id && item.sceneIds.includes(scene.id)).map((item) => item.id).sort();
+  const chapterCard = planning.chapterCards[chapter.id];
+  const approvedChapterCard = chapterCard ? chapterCardApprovalFor(project.chapterCardWorkflow, chapter.id, chapterCard) : undefined;
   return {
     bookId: book.id,
     chapterId: chapter.id,
+    ...(chapterCard && approvedChapterCard ? { chapterCardSha256: chapterCardSha256(chapterCard) } : {}),
     sceneId: scene.id,
     sceneNumber: scene.number,
     sceneTitle: scene.title,
