@@ -99,7 +99,9 @@ async function main() {
     await page.waitForSelector('[data-route="story-map"]');
     await page.locator('[data-route="story-map"]').click();
     await page.waitForFunction(() => document.querySelector("#story-map")?.hidden === false && document.querySelector('[data-scene-id="scene-1"]')?.textContent.includes("Union Station"));
-    await page.locator("#story-map-filter-plotline").selectOption({ label: /Mara Learns Trust/ });
+    const plotlineValue = await page.locator("#story-map-filter-plotline option").filter({ hasText: "Mara Learns Trust" }).getAttribute("value");
+    assert.ok(plotlineValue, "Story Map plotline filter option must expose a durable plotline id.");
+    await page.locator("#story-map-filter-plotline").selectOption(plotlineValue);
     await page.waitForFunction(() => document.querySelector('[data-scene-id="scene-1"]')?.hidden === false && document.querySelector('[data-scene-id="scene-2"]')?.hidden === true);
     await page.locator("#story-map-clear-filters").click();
     await page.waitForFunction(() => document.querySelector('[data-scene-id="scene-2"]')?.hidden === false);
