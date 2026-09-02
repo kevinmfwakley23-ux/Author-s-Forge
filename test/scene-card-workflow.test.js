@@ -7,6 +7,8 @@ const { FileProjectStore } = require("../.forge-build/infrastructure/file-projec
 const { StudioSceneCardWorkflowService } = require("../.forge-build/application/studio-scene-card-workflow.js");
 const { StudioStoryMapPlanningService } = require("../.forge-build/application/studio-story-map-planning.js");
 const { createProject, withProjectStudioWorkspace } = require("../.forge-build/domain/project.js");
+const { createChapterCardWorkflowState, approveChapterCard } = require("../.forge-build/domain/chapter-card-workflow.js");
+const { createStoryMapPlanningState, createStoryMapChapterCard, setStoryMapChapterCard } = require("../.forge-build/domain/story-map-planning.js");
 const { createStudioWorkspace, createWorkspaceBook, addWorkspaceBook, addWorkspaceChapter, addWorkspaceScene, saveSceneContent } = require("../.forge-build/domain/studio-workspace.js");
 
 function workspace({ content = "" } = {}) {
@@ -136,6 +138,51 @@ test("editing live Story Map planning automatically makes the prior Scene Card a
     const snapshot = await sceneCards.snapshot("scene-card-project");
     assert.equal(snapshot.cards[0].approved, false);
     assert.equal(snapshot.cards[0].approvalStale, true);
+    await assert.rejects(
+      () => sceneCards.draftBrief("scene-card-project", { bookId: "book-1", chapterId: "chapter-1", sceneId: "scene-1" }),
+      /not currently author-approved/,
+    );
+  });
+});
+
+test("changing an approved Chapter Card automatically stales downstream Scene Card approval", async () => {
+  await fixture(async ({ store, sceneCards }) => {
+    const firstChapterCard = createStoryMapChapterCard({
+      plotObjective: "Get Mara inside the restricted archive.",
+      requiredEvents: ["Mara reaches the service entrance."],
+      endingHook: "A lock turns on the other side.",
+    });
+    let planning = setStoryMapChapterCard(createStoryMapPlanningState(), "chapter-1", firstChapterCard);
+    let chapterWorkflow = approveChapterCard(createChapterCardWorkflowState(), "chapter-1", firstChapterCard, { now: "2026-09-02T18:30:00Z" });
+    let project = await store.load("scene-card-project");
+    await store.save({ ...project, storyMapPlanning: planning, chapterCardWorkflow: chapterWorkflow });
+
+    await sceneCards.saveCard("scene-card-project", {
+      bookId: "book-1", chapterId: "chapter-1", sceneId: "scene-1",
+      details: { purpose: "Get Mara through the service entrance without revealing who altered the archive log." },
+      now: "2026-09-02T18:31:00Z",
+    });
+    let snapshot = await sceneCards.approveCard("scene-card-project", {
+      bookId: "book-1", chapterId: "chapter-1", sceneId: "scene-1", authorApproved: true,
+      now: "2026-09-02T18:32:00Z",
+    });
+    assert.equal(snapshot.cards[0].approved, true);
+    const approvedSceneHash = snapshot.cards[0].cardSha256;
+
+    const changedChapterCard = createStoryMapChapterCard({
+      plotObjective: "Get Mara inside, but make the new alarm the chapter's primary obstacle.",
+      requiredEvents: ["Mara reaches the service entrance.", "The silent alarm arms before she crosses the threshold."],
+      endingHook: "A lock turns on the other side.",
+    });
+    planning = setStoryMapChapterCard(planning, "chapter-1", changedChapterCard);
+    chapterWorkflow = approveChapterCard(chapterWorkflow, "chapter-1", changedChapterCard, { now: "2026-09-02T18:33:00Z" });
+    project = await store.load("scene-card-project");
+    await store.save({ ...project, storyMapPlanning: planning, chapterCardWorkflow: chapterWorkflow });
+
+    snapshot = await sceneCards.snapshot("scene-card-project");
+    assert.equal(snapshot.cards[0].approved, false, "A changed upstream Chapter Card must invalidate the old Scene Card approval.");
+    assert.equal(snapshot.cards[0].approvalStale, true);
+    assert.notEqual(snapshot.cards[0].cardSha256, approvedSceneHash, "The Scene Card fingerprint must include the exact approved Chapter Card version.");
     await assert.rejects(
       () => sceneCards.draftBrief("scene-card-project", { bookId: "book-1", chapterId: "chapter-1", sceneId: "scene-1" }),
       /not currently author-approved/,
