@@ -9,13 +9,22 @@ Author's Forge is being built as a standards-based web application first so the 
 - Installable application target: Progressive Web App (PWA).
 - Responsive layout must remain usable from touch-sized screens through desktop displays.
 - No dependency on Windows/macOS-only APIs or native desktop installation.
-- Local development must work with Node.js 20+ and the existing Studio server.
+- Local development and production launch are validated on Node.js 24 LTS; `.nvmrc` is the repository runtime authority for nvm-based environments.
 
 ### Android phone
 - Primary experience: current Chromium-based mobile browser.
 - Installable application target: PWA / standalone browser application.
+- The local Termux host runtime is Node.js 24 LTS via the `nodejs-lts` package; Forge intentionally rejects the current-release `nodejs` package when it resolves to an unvalidated major version.
 - Touch controls, responsive forms, readable editor surfaces, and viewport-safe layouts are required.
 - Camera, microphone, file, and other device capabilities must be accessed only through browser-standard APIs with explicit permission and graceful fallback.
+
+## Runtime contract
+
+- Supported Node major: **24 LTS**.
+- `package.json`, `package-lock.json`, `.nvmrc`, CI, release packaging, and the Termux launcher must agree on that runtime.
+- Unsupported or end-of-life Node majors fail explicitly before Forge presents them as supported.
+- Dependency installation in CI and release instructions uses `npm ci` so `package-lock.json` is authoritative.
+- Runtime-major changes are engineering migrations: they require regression, desktop browser, and Android/mobile acceptance before merge.
 
 ## Future environments
 
