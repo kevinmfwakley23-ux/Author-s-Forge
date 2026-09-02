@@ -7,7 +7,7 @@ const { FileProjectStore } = require("../.forge-build/infrastructure/file-projec
 const { StudioStoryMapPlanningService } = require("../.forge-build/application/studio-story-map-planning.js");
 const { validateStoryMapPlanningState } = require("../.forge-build/domain/story-map-planning.js");
 const { createProject, withProjectStudioWorkspace, withProjectCharacters } = require("../.forge-build/domain/project.js");
-const { createStudioWorkspace, createWorkspaceBook, addWorkspaceBook, addWorkspaceChapter, addWorkspaceScene } = require("../.forge-build/domain/studio-workspace.js");
+const { createStudioWorkspace, createWorkspaceBook, addWorkspaceBook, addWorkspaceChapter, addWorkspaceScene, saveSceneContent } = require("../.forge-build/domain/studio-workspace.js");
 const { createCharacter } = require("../.forge-build/domain/character-bible.js");
 
 function characterProfile(name) {
@@ -19,7 +19,8 @@ function workspace() {
   let state = createStudioWorkspace();
   state = addWorkspaceBook(state, createWorkspaceBook({ id: "book-1", title: "Card Story", kind: "novel", now: "2026-09-02T15:00:00Z" }));
   state = addWorkspaceChapter(state, "book-1", { id: "chapter-1", number: 1, title: "The Locked Door", synopsis: "Mara reaches the archive.", now: "2026-09-02T15:01:00Z" });
-  state = addWorkspaceScene(state, "book-1", "chapter-1", { id: "scene-1", number: 1, title: "Arrival", content: "The archive door stayed shut.", now: "2026-09-02T15:02:00Z" });
+  state = addWorkspaceScene(state, "book-1", "chapter-1", { id: "scene-1", number: 1, title: "Arrival", now: "2026-09-02T15:02:00Z" });
+  state = saveSceneContent(state, "book-1", "chapter-1", "scene-1", "The archive door stayed shut.", "2026-09-02T15:02:30Z");
   return state;
 }
 async function fixture(run) {
@@ -41,6 +42,7 @@ test("Chapter Card persists every directive field in project.json and survives r
   await fixture(async ({ root, store, service }) => {
     const before = await store.load("card-project");
     const beforeScene = before.studioWorkspace.books[0].chapters[0].scenes[0];
+    assert.equal(beforeScene.content, "The archive door stayed shut.", "Fixture must seed real manuscript prose through the production scene-content path.");
     const result = await service.setChapterCard("card-project", {
       bookId: "book-1",
       chapterId: "chapter-1",
