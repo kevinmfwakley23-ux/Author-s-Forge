@@ -32,7 +32,8 @@ The cumulative build is now a substantial usable application with durable local 
 
 - hardened **Project Brain** memory, provenance, point-in-time retrieval, lifecycle attribution, state-conflict detection, context budgeting, retrieval diagnostics, and evaluation;
 - durable **project / book / chapter / scene** manuscript structure;
-- **Story Architecture**, durable **Story Map** scene planning/plotlines, **Writing Desk**, and governed AI writing proposals;
+- **Story Architecture**, durable **Story Map** scene planning/plotlines, first-class **Chapter Cards**, **Writing Desk**, and governed AI writing proposals;
+- durable **Series Engine** state for multi-book shared canon, membership/order, and cross-book timeline planning;
 - structured **Character Bible** with temporal state and continuity evidence;
 - **World, canon, timeline, relationship, voice, research, decision, and production memory**;
 - **Author Voice Memory** and provider-facing voice preservation / drift evidence;
@@ -48,40 +49,7 @@ The cumulative build is now a substantial usable application with durable local 
 - a separate **Specialized Creation Office** for exactly six modes: comic books, greeting cards, birthday cards, invitations, flyers, and trading-card-game cards, including durable structured documents and real production artifacts where supported;
 - a responsive **PWA / Chromebook / Android web surface** with service-worker shell caching that deliberately does not treat browser cache as durable project state.
 
-### Engineering resume checkpoint — Series Engine final hardening
-
-**Checkpoint date:** September 2, 2026 (America/Denver)  
-**Current `main`:** `a2afeb0` — Story Architecture AI hardening PR #111 merged only after build, baseline, unit/completion, desktop Chromium and Android/mobile gates passed on its exact head.  
-**Active PR:** #112 — `Complete durable Series Engine author workflow`  
-**Active branch:** `completion/series-author-workflow`  
-**PR state:** draft; do not merge or call Series complete before exact-head full Forge CI passes.  
-**Implementation head immediately before this documentation update:** `f024cfe`
-
-The active Series hardening block now does all of the following in code:
-
-- reuses the canonical `ProjectState.series` field and file-backed `project.json` source of truth rather than creating a Series sidecar;
-- validates duplicate Series/timeline identifiers and rejects timeline events that reference books outside Series membership;
-- validates Series book, shared-character and visual-identity references against the actual durable project;
-- supports explicit Series create/update/delete, existing-book membership, deterministic book ordering, and cross-book timeline mutation through Studio HTTP routes;
-- blocks removal of a Series book while cross-book timeline evidence still depends on it;
-- preserves manuscript books when Series membership or a Series record is removed;
-- keeps project `updatedAt` monotonic even when a deterministic caller timestamp or CI wall clock is older than existing durable project state, while still rejecting malformed timestamps;
-- provides a real `series.html` author workspace for shared characters, world rules, visual identities, locations, terminology, history, unresolved threads, book order and cross-book timeline;
-- makes the Main Studio actually load the PWA lifecycle it already shipped, exposes Series from that live Main Studio navigation/dashboard boundary, and includes the Series shell in service-worker caching while continuing to exclude `/api/` project state from browser cache;
-- adds unit/restart evidence plus a dedicated browser harness that must enter Series from the real Main Studio link and prove durable create/edit, membership/order, timeline, destructive-removal protection, reload, explicit Series deletion, manuscript preservation, Android fit and touch targets;
-- makes the completion meter treat Series Engine as its own capability and require the Series browser harness in the canonical desktop evidence inventory.
-
-The first Series CI runs correctly caught two hardening defects before browser execution: Series mutation timestamps could regress project chronology in deterministic fixtures, and the completion-evidence inventory did not yet account for the newly added Series browser harness. Both were fixed at their source and locked with stronger regression evidence. The newer Main Studio/PWA integration also repaired a pre-existing truth gap where `forge-pwa.js` existed and was syntax-checked/cached but was not actually loaded by `public/index.html`.
-
-**Resume here — do these in order:**
-
-1. Require a fresh full Forge CI run on the exact current PR #112 head after this README commit.
-2. If build, baseline, unit, completion, syntax, desktop browser, Series browser, or Android/mobile exposes a real defect, fix the source without weakening the assertion.
-3. Keep Series changes author-controlled and project-scoped: no automatic manuscript rewriting, no silent canon promotion, no Series deletion cascading into manuscript deletion, and no browser cache becoming project state.
-4. Verify the final PR head SHA is exactly the SHA that passed the entire Forge CI workflow.
-5. Only then mark PR #112 ready and merge that exact verified head; afterward inspect fresh `main` for the next real author-journey gap.
-
-**Do not regress these invariants:** Story Map cannot silently rewrite/reorder manuscript prose; Story Architecture AI remains candidate-only; architecture generation itself cannot create manuscript structure or canon; Research/Radar cannot become canon automatically; Series cannot silently alter manuscript books; No Paid Tokens remains fail-closed; provider failure must remain visible; browser cache is not durable project state; Chromebook and Android acceptance remain first-class verification targets.
+Do not use a hard-coded PR number or branch name in this README as an engineering resume checkpoint. **Current `main`, current open pull requests, and exact-head verification status are the resume authority.** Historical lane details belong in build history, engineering handoffs, and GitHub PR history.
 
 ## Start Forge
 
@@ -174,7 +142,7 @@ The current Main Studio exposes the real application surfaces for:
 3. Series Engine for multi-book shared canon, membership/order and cross-book timeline;
 4. Writing Desk and durable AI proposals;
 5. Story Architecture;
-6. Story Map;
+6. Story Map and first-class Chapter Cards;
 7. Character Bible;
 8. World & Canon;
 9. Research;
