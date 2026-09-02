@@ -45,7 +45,11 @@ async function main() {
         start() { this.onstart?.(); setTimeout(() => { const result = [{ transcript: "open writing" }]; result.isFinal = true; const results = [result]; this.onresult?.({ resultIndex: 0, results }); this.onend?.(); }, 10); }
         stop() { this.onend?.(); }
       }
-      window.webkitSpeechRecognition = TestSpeechRecognition;
+      // New Chromium builds may expose native Web Speech globals as accessor-backed
+      // properties. Define deterministic test doubles explicitly instead of relying on
+      // assignment winning over a browser-provided implementation.
+      Object.defineProperty(window, "SpeechRecognition", { configurable: true, writable: true, value: TestSpeechRecognition });
+      Object.defineProperty(window, "webkitSpeechRecognition", { configurable: true, writable: true, value: TestSpeechRecognition });
     });
     await page.goto(`${base}/?project=${encodeURIComponent(projectId)}#art`, { waitUntil: "networkidle" });
     await page.waitForSelector("#forge-image-lab #forge-image-history [data-image-asset='pending-art']");
