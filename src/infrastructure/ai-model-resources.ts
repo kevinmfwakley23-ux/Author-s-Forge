@@ -20,11 +20,16 @@ const BASE_CAPABILITIES: Readonly<Record<SupportedProvider, AiModelCapabilities>
   openrouter: { creativeWriting: true, instructionFollowing: true },
 };
 
+/**
+ * Billing defaults fail closed. Routers can traverse subscription, free, and
+ * metered downstream providers, so a router endpoint is not assumed no-spend.
+ * Owners may explicitly set *_BILLING_CLASS or trust individual no-spend models.
+ */
 const DEFAULT_BILLING: Readonly<Record<SupportedProvider, AiBillingClass>> = {
   ollama: "local",
   kings: "local",
-  omniroute: "subscription",
-  "9router": "subscription",
+  omniroute: "gateway-managed",
+  "9router": "gateway-managed",
   openai: "metered",
   groq: "unknown",
   mistral: "unknown",
