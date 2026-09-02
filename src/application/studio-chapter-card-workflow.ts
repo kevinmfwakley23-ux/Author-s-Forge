@@ -20,17 +20,10 @@ import {
   type StoryMapChapterCard,
   type StoryMapPlanningState,
 } from "../domain/story-map-planning";
-import {
-  addWorkspaceChapter,
-  addWorkspaceScene,
-  getBook,
-  validateStudioWorkspace,
-  type StudioWorkspaceState,
-} from "../domain/studio-workspace";
+import { addWorkspaceChapter, getBook, validateStudioWorkspace, type StudioWorkspaceState } from "../domain/studio-workspace";
 import type { FileProjectStore } from "../infrastructure/file-project-store";
 import { generateProjectText, type AiGenerationResult, type ProjectAiGenerationRequest } from "../infrastructure/ai-provider";
 import { ProjectMemoryStore } from "./project-memory-store";
-import type { AiWritingStudioService } from "./ai-writing-studio";
 
 export type ChapterCardPlanGenerator = (request: ProjectAiGenerationRequest) => Promise<AiGenerationResult>;
 
@@ -49,17 +42,9 @@ export interface GenerateChapterCardsInput {
   readonly now?: string;
 }
 
-export interface DraftApprovedChapterCardsInput {
-  readonly bookId: string;
-  readonly chapterIds?: readonly string[];
-  readonly authorApproved: boolean;
-  readonly now?: string;
-}
-
 export class StudioChapterCardWorkflowService {
   constructor(
     private readonly projects: Pick<FileProjectStore, "load" | "save">,
-    private readonly writing: Pick<AiWritingStudioService, "generateWithProjectContext">,
     private readonly generator: ChapterCardPlanGenerator = generateProjectText,
   ) {}
 
@@ -145,8 +130,8 @@ export class StudioChapterCardWorkflowService {
       throw new Error(`AI returned ${rawChapters.length} chapters but the author requested ${targetChapters}. No planning changes were saved.`);
     }
 
-    const chapterIds = new Set((project.characters ?? []).map((character) => character.id));
-    const candidateChapters = rawChapters.map((raw, index) => parseCandidateChapter(raw, index + 1, chapterIds));
+    const characterIds = new Set((project.characters ?? []).map((character) => character.id));
+    const candidateChapters = rawChapters.map((raw, index) => parseCandidateChapter(raw, index + 1, characterIds));
     const numbers = new Set<number>();
     for (const chapter of candidateChapters) {
       if (numbers.has(chapter.number)) throw new Error(`AI Chapter Card plan contains duplicate chapter number ${chapter.number}.`);
@@ -243,94 +228,6 @@ export class StudioChapterCardWorkflowService {
     const workflow = approveChapterCard(workflowOf(project), chapterId, card, { now: input.now });
     await this.save(project, { workspace, planning, workflow, now: input.now });
     return this.snapshot(projectId);
-  }
-
-  async draftApprovedBook(projectId: string, input: DraftApprovedChapterCardsInput) {
-    if (input.authorApproved !== true) throw new Error("Explicit author approval is required before AI drafts from approved Chapter Cards.");
-    const project = await this.requireProject(projectId);
-    assertAiCollaborationCapability(project.aiCollaborationPolicy, "bulk-work", "book drafting from approved Chapter Cards", "author-requested");
-    let workspace = requireWorkspace(project);
-    let book = getBook(workspace, identifier(input.bookId, "Book id"));
-    const planning = planningOf(project);
-    const workflow = workflowOf(project);
-    const requestedIds = input.chapterIds === undefined ? undefined : new Set(input.chapterIds.map((id) => identifier(id, "Chapter id")));
-    const chapters = book.chapters.filter((chapter) => requestedIds === undefined || requestedIds.has(chapter.id));
-    if (!chapters.length) throw new Error("No chapters were selected for AI drafting.");
-    if (requestedIds && chapters.length !== requestedIds.size) throw new Error("One or more selected chapters do not belong to this book.");
-
-    const unapproved: string[] = [];
-    for (const chapter of chapters) {
-      const card = planning.chapterCards[chapter.id];
-      if (!card || !chapterCardApprovalFor(workflow, chapter.id, card)) unapproved.push(`Chapter ${chapter.number}: ${chapter.title}`);
-    }
-    if (unapproved.length) throw new Error(`AI drafting requires approved current Chapter Cards. Approval is missing or stale for: ${unapproved.join("; ")}`);
-
-    const skippedExisting: Array<{ chapterId: string; reason: string }> = [];
-    const targets: Array<{ chapterId: string; sceneId: string }> = [];
-    for (const chapter of chapters) {
-      if (chapter.scenes.some((scene) => scene.content.trim())) {
-        skippedExisting.push({ chapterId: chapter.id, reason: "Existing manuscript prose was preserved." });
-        continue;
-      }
-      let scene = chapter.scenes[0];
-      if (!scene) {
-        const sceneId = `scene-${randomUUID()}`;
-        const card = planning.chapterCards[chapter.id];
-        workspace = addWorkspaceScene(workspace, book.id, chapter.id, { id: sceneId, number: 1, title: "Chapter Draft", synopsis: card?.plotObjective ?? "", now: input.now });
-        book = getBook(workspace, book.id);
-        scene = book.chapters.find((item) => item.id === chapter.id)?.scenes.find((item) => item.id === sceneId);
-      }
-      if (!scene) throw new Error(`Unable to prepare a draft scene for Chapter ${chapter.number}.`);
-      targets.push({ chapterId: chapter.id, sceneId: scene.id });
-    }
-
-    if (targets.length) await this.save(project, { workspace, planning, workflow, now: input.now });
-
-    const generated: Array<{ chapterId: string; sceneId: string; proposalId: string }> = [];
-    const failures: Array<{ chapterId: string; error: string }> = [];
-    const refreshedBook = getBook(workspace, book.id);
-    for (const target of targets) {
-      const chapter = refreshedBook.chapters.find((item) => item.id === target.chapterId);
-      const scene = chapter?.scenes.find((item) => item.id === target.sceneId);
-      const card = planning.chapterCards[target.chapterId];
-      if (!chapter || !scene || !card) continue;
-      try {
-        const proposalId = `chapter-draft-${randomUUID()}`;
-        await this.writing.generateWithProjectContext({
-          projectId,
-          bookId: book.id,
-          chapterId: chapter.id,
-          sceneId: scene.id,
-          task: "draft",
-          instruction: [
-            `Draft the complete prose for Chapter ${chapter.number}, "${chapter.title}", from the explicitly approved Chapter Card.`,
-            card.approximateWordCount ? `Aim for approximately ${card.approximateWordCount} words unless natural pacing requires a modest variation.` : "Use an appropriate chapter length for the book and the card.",
-            "Honor every required event, continuity dependency, timeline constraint, POV assignment, reveal boundary, and forbidden deviation.",
-            "Return manuscript prose only as an author-reviewable draft proposal; do not claim the draft is canon.",
-          ].join(" "),
-          existingContent: scene.content,
-          proposalId,
-          now: input.now,
-          context: { query: `${chapter.title} ${card.plotObjective} ${card.emotionalObjective}`.trim() },
-        });
-        generated.push({ chapterId: chapter.id, sceneId: scene.id, proposalId });
-      } catch (error) {
-        failures.push({ chapterId: chapter.id, error: error instanceof Error ? error.message : String(error) });
-      }
-    }
-
-    return Object.freeze({
-      projectId,
-      bookId: book.id,
-      generated,
-      skippedExisting,
-      failures,
-      authorReviewRequired: true as const,
-      manuscriptProseChanged: false as const,
-      message: generated.length
-        ? `${generated.length} chapter draft proposal(s) are ready for author review. Existing prose was never overwritten.`
-        : "No new chapter draft proposals were created.",
-    });
   }
 
   private async requireProject(projectId: string): Promise<ChapterCardProject> {
