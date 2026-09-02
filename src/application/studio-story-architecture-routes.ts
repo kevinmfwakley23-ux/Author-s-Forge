@@ -27,7 +27,7 @@ export function createStudioStoryArchitectureRoutes(
       return true;
     }
 
-    const match = url.pathname.match(new RegExp(`^${escapeRegExp(root)}/candidates/([^/]+)(?:/(approve|chapter-card-seed))?$`, "u"));
+    const match = url.pathname.match(new RegExp(`^${escapeRegExp(root)}/candidates/([^/]+)(?:/(approve|revoke|chapter-card-seed))?$`, "u"));
     if (!match) return false;
     const candidateId = decodeURIComponent(match[1]);
     const action = match[2] ?? "";
@@ -39,6 +39,10 @@ export function createStudioStoryArchitectureRoutes(
     if (action === "approve" && req.method === "POST") {
       const input = await body(req);
       json(res, 200, await service.approve(projectId, candidateId, { authorApproved: input.authorApproved === true }));
+      return true;
+    }
+    if (action === "revoke" && req.method === "POST") {
+      json(res, 200, await service.revokeApproval(projectId, candidateId));
       return true;
     }
     if (action === "chapter-card-seed" && req.method === "POST") {
