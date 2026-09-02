@@ -53,6 +53,7 @@ async function main() {
     await page.waitForSelector('[data-route="story-map"]');
     await page.waitForFunction(() => document.querySelector("#story-map-summary")?.textContent.includes("2") && document.querySelectorAll("#story-map-books .story-map-scene-wrap").length === 2);
 
+    await page.locator("details.story-map-plotline-panel summary").click();
     await page.locator("#story-map-plotline-name").fill("Mara Learns Trust");
     await page.locator("#story-map-plotline-kind").selectOption("character-arc");
     await page.locator("#story-map-plotline-character").selectOption("mara");
