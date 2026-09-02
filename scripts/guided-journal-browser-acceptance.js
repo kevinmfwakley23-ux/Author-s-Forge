@@ -39,7 +39,7 @@ function mockAi() {
 async function main() {
   const dataDir = await mkdtemp(join(tmpdir(), "forge-journal-browser-"));
   const aiServer = await mockAi();
-  const app = spawn(process.execPath, ["dist/guided-journal-server.js"], { env: { ...process.env, HOST, JOURNAL_PORT: String(PORT), FORGE_DATA_DIR: dataDir, AI_PROVIDER_ORDER: "omniroute", OMNIROUTE_BASE_URL: `http://${HOST}:${AI_PORT}`, OMNIROUTE_MODEL: "journal-test-model", OMNIROUTE_API_KEY: "", ROUTER9_BASE_URL: "", KINGS_AI_ENDPOINT: "", OPENAI_API_KEY: "", OLLAMA_BASE_URL: "" }, stdio: ["ignore", "pipe", "pipe"] });
+  const app = spawn(process.execPath, ["dist/guided-journal-server.js"], { env: { ...process.env, HOST, JOURNAL_PORT: String(PORT), FORGE_DATA_DIR: dataDir, AI_PROVIDER_ORDER: "omniroute", OMNIROUTE_BASE_URL: `http://${HOST}:${AI_PORT}`, OMNIROUTE_MODEL: "journal-test-model", OMNIROUTE_BILLING_CLASS: "subscription", OMNIROUTE_API_KEY: "", ROUTER9_BASE_URL: "", KINGS_AI_ENDPOINT: "", OPENAI_API_KEY: "", OLLAMA_BASE_URL: "" }, stdio: ["ignore", "pipe", "pipe"] });
   let browser;
   try {
     const base = `http://${HOST}:${PORT}`;
