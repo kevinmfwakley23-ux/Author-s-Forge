@@ -7,6 +7,7 @@ import { createStudioKnowledgeGapRoutes } from "./studio-knowledge-gap-routes";
 import { createStudioLiveResearchRoutes } from "./studio-live-research-routes";
 import { createStudioMarketPromotionRoutes } from "./studio-market-promotion-routes";
 import { createStudioPublishingRoutes } from "./studio-publishing-routes";
+import { createStudioSeriesRoutes } from "./studio-series-routes";
 import { createStudioStoryMapRoutes } from "./studio-story-map-routes";
 
 export type StudioPublishingPromotionRouteHandler = (req: IncomingMessage, res: ServerResponse, url: URL, projectId: string) => Promise<boolean>;
@@ -14,12 +15,13 @@ export type StudioPublishingPromotionRouteHandler = (req: IncomingMessage, res: 
 /**
  * Modular Studio extension boundary. Historical name is retained to avoid
  * destabilizing the server entrypoint while architecture AI, author-craft,
- * Story Map, research, image, publishing, market and promotion routes remain
- * independently implemented and testable.
+ * Series, Story Map, research, image, publishing, market and promotion routes
+ * remain independently implemented and testable.
  */
 export function createStudioPublishingPromotionRoutes(store: FileProjectStore): StudioPublishingPromotionRouteHandler {
   const architectureAi = createStudioArchitectureAiRoutes(store);
   const authorCraft = createStudioAuthorCraftRoutes(store);
+  const series = createStudioSeriesRoutes(store);
   const storyMap = createStudioStoryMapRoutes(store);
   const knowledgeGaps = createStudioKnowledgeGapRoutes(store);
   const liveResearch = createStudioLiveResearchRoutes(store);
@@ -30,6 +32,7 @@ export function createStudioPublishingPromotionRoutes(store: FileProjectStore): 
   return async (req, res, url, projectId) => {
     if (await architectureAi(req, res, url, projectId)) return true;
     if (await authorCraft(req, res, url, projectId)) return true;
+    if (await series(req, res, url, projectId)) return true;
     if (await storyMap(req, res, url, projectId)) return true;
     if (await knowledgeGaps(req, res, url, projectId)) return true;
     if (await liveResearch(req, res, url, projectId)) return true;
