@@ -30,6 +30,7 @@ test('Series Engine is discoverable from the live Studio PWA and travels in the 
   assert.match(pwa, /series\.html/);
   assert.match(serviceWorker, /"\/series\.html"/);
   assert.match(serviceWorker, /"\/forge-series\.js"/);
+  assert.match(serviceWorker, /caches\.match\(url\.pathname\)/, 'offline project-query navigation must resolve the cached Series shell by pathname');
   assert.match(series, /manifest\.webmanifest/);
   assert.match(series, /forge-pwa\.js/);
 });
