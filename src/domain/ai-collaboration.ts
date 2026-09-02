@@ -1,6 +1,7 @@
 export const AI_COLLABORATION_FORMAT_VERSION = 1 as const;
 export const AI_COLLABORATION_MODES = ["co-pilot","partner","director","autonomous","editor"] as const;
 export type AiCollaborationMode = typeof AI_COLLABORATION_MODES[number];
+export type AiCollaborationCapability = "draft" | "revise" | "bulk-work";
 export interface AiCollaborationPolicy { readonly mode: AiCollaborationMode; readonly authorApprovalRequiredForMajorDecisions: boolean; readonly aiMayDraft: boolean; readonly aiMayRevise: boolean; readonly aiMayExecuteBulkWork: boolean; readonly description: string; }
 const policies: Record<AiCollaborationMode,Omit<AiCollaborationPolicy,"mode">>={
  "co-pilot":{authorApprovalRequiredForMajorDecisions:true,aiMayDraft:true,aiMayRevise:true,aiMayExecuteBulkWork:false,description:"Author does most of the writing; Forge assists."},
@@ -11,3 +12,6 @@ const policies: Record<AiCollaborationMode,Omit<AiCollaborationPolicy,"mode">>={
 };
 export function createAiCollaborationPolicy(mode:AiCollaborationMode):AiCollaborationPolicy { if(!AI_COLLABORATION_MODES.includes(mode)) throw new Error(`Unsupported AI collaboration mode "${mode}".`); return Object.freeze({mode,...policies[mode]}); }
 export function validateAiCollaborationPolicy(p:AiCollaborationPolicy):AiCollaborationPolicy { return createAiCollaborationPolicy(p.mode); }
+export function resolveAiCollaborationPolicy(policy:AiCollaborationPolicy|undefined):AiCollaborationPolicy{return policy===undefined?createAiCollaborationPolicy("co-pilot"):validateAiCollaborationPolicy(policy);}
+export function collaborationCapabilityAllowed(policy:AiCollaborationPolicy|undefined,capability:AiCollaborationCapability):boolean{const resolved=resolveAiCollaborationPolicy(policy);if(capability==="draft")return resolved.aiMayDraft;if(capability==="revise")return resolved.aiMayRevise;return resolved.aiMayExecuteBulkWork;}
+export function assertAiCollaborationCapability(policy:AiCollaborationPolicy|undefined,capability:AiCollaborationCapability,operation:string):AiCollaborationPolicy{const resolved=resolveAiCollaborationPolicy(policy);if(collaborationCapabilityAllowed(resolved,capability))return resolved;const label=typeof operation==="string"&&operation.trim()?operation.trim():"this AI operation";throw new Error(`Collaboration mode "${resolved.mode}" does not allow ${label}. Change the project collaboration mode before continuing.`);}
