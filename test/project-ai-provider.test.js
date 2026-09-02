@@ -43,11 +43,15 @@ test("project-aware AI generation retrieves and budgets project context before p
       provenance: [{ kind: "author", reference: "author-note-2", recordedAt: "2026-08-28T00:00:00.000Z" }],
     }));
 
+    // This test exercises Project Brain context assembly rather than owner billing
+    // policy, so the mocked provider is explicitly allowed. Production calls
+    // that omit this field still default to no-paid-tokens.
     const result = await generateProjectText({
       memory: store,
       context: { projectId: "project-1", relevanceTags: ["hero"] },
       contextBudget: 1000,
       user: "Draft the next scene with Mara.",
+      spendPolicy: "unrestricted",
     });
 
     assert.equal(result.text, "generated");
