@@ -2,9 +2,9 @@
 set -euo pipefail
 
 # Author's Forge complete local Android launcher.
-# All first-class Forge workplaces bind to all interfaces so the same phone
-# can use localhost while another authorized device can connect over the LAN
-# when the phone firewall/network permits it. Project data remains on-device.
+# The public office ports may bind to the LAN, but the real office processes
+# remain loopback-only behind the launcher's protected access proxy.
+# Project data remains on-device and anonymous LAN requests are rejected.
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -26,6 +26,16 @@ if ! command -v npm >/dev/null 2>&1; then
   exit 1
 fi
 
+if [ -z "${FORGE_ACCESS_TOKEN:-}" ]; then
+  FORGE_ACCESS_TOKEN="$(node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("base64url"))')"
+  export FORGE_ACCESS_TOKEN
+fi
+
+if [ "${#FORGE_ACCESS_TOKEN}" -lt 24 ]; then
+  echo "FORGE_ACCESS_TOKEN must contain at least 24 characters."
+  exit 1
+fi
+
 if [ ! -d node_modules ]; then
   echo "Installing Forge dependencies..."
   npm ci
@@ -39,12 +49,15 @@ echo "Main Studio:          http://127.0.0.1:${PORT}"
 echo "Guided Journal:       http://127.0.0.1:${JOURNAL_PORT}"
 echo "Educational Workbook: http://127.0.0.1:${WORKBOOK_PORT}"
 echo "Specialized Creation: http://127.0.0.1:${SPECIALIZED_PORT}"
-echo "LAN bind:             ${HOST}"
+echo "Protected LAN bind:   ${HOST}"
 echo "Data:                 ${FORGE_DATA_DIR}"
 echo ""
 echo "Keep this terminal running while using Forge."
-echo "Open Chrome on this phone and visit http://127.0.0.1:${PORT}"
-echo "The Studio dashboard carries the active project into the other offices."
+echo "Open Chrome on this phone with the protected bootstrap URL:"
+echo "http://127.0.0.1:${PORT}/?access=${FORGE_ACCESS_TOKEN}"
+echo "After the first redirect, Forge stores an HttpOnly access cookie for this host."
+echo "The same cookie carries the active session across the other Forge office ports."
+echo "For another trusted LAN device, replace 127.0.0.1 with this phone's LAN IP."
 echo ""
 
 npm run forge:android
