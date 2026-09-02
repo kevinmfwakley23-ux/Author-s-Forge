@@ -51,30 +51,37 @@ The cumulative build is now a substantial usable application with durable local 
 ### Engineering resume checkpoint — Story Architecture AI hardening
 
 **Checkpoint date:** September 2, 2026 (America/Denver)  
-**Current `main`:** `bec780c` — Story Map PR #109 merged only after exact-head Forge CI passed.  
-**Active clean branch:** `hardening/story-architecture-clean-main`  
-**Superseded stacked PR:** #110 — retargeting exposed history conflicts after Story Map was squash-merged, so its architecture-only work is being rebuilt cleanly from fresh `main` instead of forcing stale commits through.  
-**Last implementation head before this documentation commit:** `4b4fd02`
+**Current `main`:** `bec780c` — Story Map PR #109 merged only after its verification gate passed.  
+**Active PR:** #111 — `Harden Story Architecture AI with Project Brain context`  
+**Active branch:** `hardening/story-architecture-clean-main`  
+**Superseded stacked PR:** #110 — closed after Story Map's squash merge exposed stale branch-history conflicts.  
+**Implementation head immediately before this documentation update:** `df0147f`
 
-The current unfinished engineering block hardens the live Story Architecture AI path:
+The current Story Architecture block now does all of the following:
 
-- the architecture request loads the real durable project before provider execution;
-- durable Project Brain memory is rehydrated into the request boundary, including author, project, story canon, character, relationship, timeline, location, style, research, decision, creative-note, working-draft, and open-thread context;
-- generation routes through `generateProjectText`, preserving the shared provider broker, owner spend/model controls, capability routing, context optimization, failover, quota/cost safety, and provider-independent quality contract;
-- architecture output remains an explicit **candidate** with `authorApprovalRequired: true` rather than silently becoming manuscript or canon;
-- project id, idea, book kind, and target-chapter inputs are validated before provider execution;
-- missing projects and unavailable providers fail honestly rather than returning fake success;
-- regression coverage proves Project Brain binding and proves invalid or missing-project requests cannot spend provider work.
+- loads the real durable project before provider execution;
+- rehydrates durable Project Brain memory into the request boundary, including author, project, story canon, character, relationship, timeline, location, style, research, decision, creative-note, working-draft, and open-thread context;
+- routes generation through `generateProjectText`, preserving the shared provider broker, owner spend/model controls, capability routing, context optimization, failover, quota/cost safety, and provider-independent quality contract;
+- requires creative-writing and instruction-following capability without rejecting otherwise usable configured writing models merely because optional reasoning metadata is unknown;
+- returns architecture as an explicit **candidate** with `authorApprovalRequired: true` rather than silently becoming manuscript or canon;
+- validates project id, idea, book kind, and target-chapter inputs before provider execution;
+- fails honestly for missing projects and unavailable providers;
+- wires the actual Studio **Build architecture with real AI** button to the dedicated `/ai/architecture` Project-Brain-aware route;
+- removes the old browser-path side effect where requesting an architecture could create a `Working Draft` book and `Story Architecture` chapter before the author had approved anything;
+- adds regression coverage for Project Brain binding and pre-provider validation;
+- adds real Story Architecture browser acceptance proving provider reachability, durable canon injection, candidate-only behavior, no manuscript mutation, no silent canon promotion, and Android-sized touch/fit.
+
+Verification also exposed and repaired an unrelated weakness in the comic acceptance harness. The old `specialized-creation-comic-browser-acceptance.js` sent `SIGTERM`, slept only 150 ms, then restarted the server on the same randomly chosen port. CI could therefore race the old process and time out on `/api/health`. The harness now waits for actual child-process exit, force-cleans only if necessary, obtains a free application port from the operating system, and surfaces child stderr on startup failure. No comic production behavior or assertion was removed.
 
 **Resume here — do these in order:**
 
-1. Keep the clean Story Architecture branch limited to architecture AI boundary, Studio route integration, regression coverage, and this checkpoint documentation.
-2. Open the clean PR directly against current `main`; close the stale stacked PR once the clean replacement exists.
-3. Require full exact-head Forge CI before merge. Do not weaken memory, provider, spend-control, author-approval, Story Map, Research, or mobile/browser gates to obtain green status.
-4. Merge only the exact SHA that passed.
-5. After merge, inspect fresh `main` and open PRs before selecting the next real author-journey gap.
+1. Keep PR #111 limited to the Story Architecture production boundary/UI/browser proof plus the CI-harness hardening discovered while verifying it.
+2. Require a fresh full Forge CI run on the exact current PR head after this README commit. Build, baseline, unit, completion, desktop browser, Story Architecture browser, comic browser, and Android/mobile gates all remain mandatory.
+3. Fix any real failure at its source; do not weaken provider, memory, author-approval, Story Map, Research/Radar, Specialized Creation, browser, or mobile assertions to obtain green status.
+4. Merge only the exact verified head of PR #111.
+5. After merge, inspect fresh `main`, open PRs, the master directive, and the real UI before selecting the next author-journey gap. Basic Series domain/application primitives exist, but Series must not be claimed complete unless durable routes/UI and real author workflow are actually connected and verified.
 
-**Do not regress these invariants:** Story Map cannot rewrite/reorder manuscript prose in this increment; Story Architecture AI remains candidate-only; Research/Radar cannot become canon automatically; No Paid Tokens remains fail-closed; provider failure must remain visible; browser cache is not durable project state; Chromebook and Android acceptance remain first-class verification targets.
+**Do not regress these invariants:** Story Map cannot rewrite/reorder manuscript prose in this increment; Story Architecture AI remains candidate-only; architecture generation itself cannot create manuscript structure or canon; Research/Radar cannot become canon automatically; No Paid Tokens remains fail-closed; provider failure must remain visible; browser cache is not durable project state; Chromebook and Android acceptance remain first-class verification targets.
 
 ## Start Forge
 
