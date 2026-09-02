@@ -9,6 +9,7 @@ import { createStudioLiveResearchRoutes } from "./studio-live-research-routes";
 import { createStudioManuscriptImportRoutes } from "./studio-manuscript-import-routes";
 import { createStudioMarketPromotionRoutes } from "./studio-market-promotion-routes";
 import { createStudioPublishingRoutes } from "./studio-publishing-routes";
+import { createStudioSceneCardWorkflowRoutes } from "./studio-scene-card-workflow-routes";
 import { createStudioSeriesRoutes } from "./studio-series-routes";
 import { createStudioStoryMapRoutes } from "./studio-story-map-routes";
 
@@ -17,14 +18,15 @@ export type StudioPublishingPromotionRouteHandler = (req: IncomingMessage, res: 
 /**
  * Modular Studio extension boundary. Historical name is retained to avoid
  * destabilizing the server entrypoint while architecture AI, author-craft,
- * Chapter Card, manuscript intake, Series, Story Map, research, image,
- * publishing, market and promotion routes remain independently implemented
- * and testable.
+ * Chapter Card, Scene Card, manuscript intake, Series, Story Map, research,
+ * image, publishing, market and promotion routes remain independently
+ * implemented and testable.
  */
 export function createStudioPublishingPromotionRoutes(store: FileProjectStore): StudioPublishingPromotionRouteHandler {
   const architectureAi = createStudioArchitectureAiRoutes(store);
   const authorCraft = createStudioAuthorCraftRoutes(store);
   const chapterCards = createStudioChapterCardWorkflowRoutes(store);
+  const sceneCards = createStudioSceneCardWorkflowRoutes(store);
   const manuscriptImport = createStudioManuscriptImportRoutes(store);
   const series = createStudioSeriesRoutes(store);
   const storyMap = createStudioStoryMapRoutes(store);
@@ -38,6 +40,7 @@ export function createStudioPublishingPromotionRoutes(store: FileProjectStore): 
     if (await architectureAi(req, res, url, projectId)) return true;
     if (await authorCraft(req, res, url, projectId)) return true;
     if (await chapterCards(req, res, url, projectId)) return true;
+    if (await sceneCards(req, res, url, projectId)) return true;
     if (await manuscriptImport(req, res, url, projectId)) return true;
     if (await series(req, res, url, projectId)) return true;
     if (await storyMap(req, res, url, projectId)) return true;

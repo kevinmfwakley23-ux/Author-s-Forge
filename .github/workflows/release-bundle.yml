@@ -48,11 +48,13 @@ jobs:
         run: |
           node --check public/forge-chapter-card-workflow.js
           node --check public/forge-chapter-card-approval.js
+          node --check public/forge-scene-cards.js
           node --check public/forge-manuscript-import.js
           node --check public/forge-pwa.js
           node --check public/sw.js
           node --check scripts/forge-network-security.js
           node --check scripts/start-forge.js
+          node --check scripts/studio-scene-card-browser-acceptance.js
           node --check scripts/studio-manuscript-import-browser-acceptance.js
           bash -n scripts/termux-forge.sh
 
@@ -77,6 +79,8 @@ jobs:
           Open http://127.0.0.1:4173/
 
           The Main Studio includes the durable Series Engine and the author-directed Chapter Card workflow. An author can give Forge a book description plus known events and timeline details, have real AI create structured Chapter Cards, edit/review them, explicitly approve the exact current cards, then either write manually from those cards or request AI chapter drafts. AI chapter drafts remain durable proposals for author review and do not overwrite existing manuscript prose.
+
+          Scene Cards extend that plan down to each real manuscript scene without creating a duplicate scene structure. The author can save scene purpose, opening/closing state, events, clues, reveals, continuity dependencies, atmosphere, target length, characters, notes, and forbidden deviations alongside the live Story Map goal/conflict/outcome/POV/plotline data. Approval is cryptographically bound to the exact current Scene Card and live scene-planning version; later planning changes make the old approval stale. Card-driven AI drafting is limited to empty scenes and creates a normal durable AI proposal that still requires separate author review and apply.
 
           The Main Studio can also bring an existing DOCX, UTF-8 TXT, or Markdown manuscript into Forge through a preview-first intake workflow. Forge detects chapter and scene structure, records source filename/hash provenance in the imported book, and creates a new durable book only after explicit author action; existing Forge books are not overwritten by manuscript intake.
 

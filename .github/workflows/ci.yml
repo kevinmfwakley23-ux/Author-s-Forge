@@ -33,6 +33,7 @@ jobs:
       - run: node --check public/forge-chapter-cards.js
       - run: node --check public/forge-chapter-card-workflow.js
       - run: node --check public/forge-chapter-card-approval.js
+      - run: node --check public/forge-scene-cards.js
       - run: node --check public/forge-manuscript-import.js
       - run: node --check public/forge-series.js
       - run: node --check public/forge-image-lab.js
@@ -45,6 +46,7 @@ jobs:
       - run: node --check scripts/forge-network-security.js
       - run: node --check scripts/start-forge.js
       - run: node --check scripts/forge-offices-browser-acceptance.js
+      - run: node --check scripts/studio-scene-card-browser-acceptance.js
       - run: node --check scripts/studio-series-browser-acceptance.js
       - run: node --check scripts/studio-manuscript-import-browser-acceptance.js
       - run: node --check scripts/studio-image-lab-browser-acceptance.js
