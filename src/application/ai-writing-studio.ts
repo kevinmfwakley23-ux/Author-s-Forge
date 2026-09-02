@@ -124,7 +124,7 @@ export class AiWritingStudioService {
     const project = await this.requireProject(request.projectId);
     const workspace = project.studioWorkspace ? validateStudioWorkspace(project.studioWorkspace) : validateStudioWorkspace({ formatVersion: 1, activeBookId: null, books: [] });
     const scene = findScene(workspace, request.bookId, request.chapterId, request.sceneId);
-    const chapterCard = chapterCardFor(project, request.chapterId);
+    const chapterCard = chapterCardFor(project, workspace, request.chapterId);
     const chapterCharacterIds = chapterCard ? [...chapterCard.povCharacterIds, ...chapterCard.characterIds] : [];
     const characterIds = uniqueStrings([...(request.context?.characterIds ?? []), ...chapterCharacterIds]);
     let assembled = this.assembleProjectContext(project, request.projectId, {
@@ -298,10 +298,14 @@ function findScene(workspace: StudioWorkspaceState, bookId: string, chapterId: s
   return scene;
 }
 
-function chapterCardFor(project: StudioAiProjectState, chapterId: string): StoryMapChapterCard | undefined {
+function chapterCardFor(project: StudioAiProjectState, workspace: StudioWorkspaceState, chapterId: string): StoryMapChapterCard | undefined {
   if (!project.storyMapPlanning) return undefined;
   const planning = validateStoryMapPlanningState(project.storyMapPlanning);
-  return planning.chapterCards[chapterId];
+  const card = planning.chapterCards[chapterId];
+  if (!card) return undefined;
+  const matches = workspace.books.reduce((count, book) => count + book.chapters.filter((chapter) => chapter.id === chapterId).length, 0);
+  if (matches !== 1) throw new Error(`Chapter Card for chapter "${chapterId}" is ambiguous across books. Give the chapters globally unique ids before AI generation.`);
+  return card;
 }
 
 function withChapterCardContext(context: AssembledWritingContext, chapterId: string, card: StoryMapChapterCard): AssembledWritingContext {
