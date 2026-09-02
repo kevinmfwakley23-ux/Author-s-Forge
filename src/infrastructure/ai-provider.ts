@@ -7,6 +7,7 @@ import { AiExecutionFallback } from "../application/ai-execution-fallback";
 import { AiModelBroker, type AiSpendPolicy, type AiTask } from "../application/ai-model-broker";
 import { AiRoutingState } from "../application/ai-routing-state";
 import type { AiCostRoutingMode } from "../application/ai-cost-routing-policy";
+import { assertForgeOutputQuality, buildForgeQualityContract, type ForgeOutputQualityReport } from "../application/forge-quality-contract";
 import { discoverConfiguredAiModelResources } from "./ai-model-resources";
 import { generateWithKingsAi } from "./kings-ai-bridge";
 
@@ -44,6 +45,7 @@ export interface AiGenerationResult {
   readonly requestId?: string;
   readonly cacheHit?: boolean;
   readonly usage?: AiTokenUsage;
+  readonly quality?: ForgeOutputQualityReport;
   readonly routing?: {
     readonly accountedTokens: number;
     readonly usageSource: "provider" | "estimated" | "cache";
@@ -88,11 +90,13 @@ export function bindForgeAiRuntime(broker: AiModelBroker, routingState: AiRoutin
 
 /**
  * Authoritative live AI boundary for every Forge office.
- * Uses the shared model broker, quota reserve, cooldown/failure telemetry,
- * capability routing, cost/spend policy, provider/model failover and real calls.
+ * Uses one shared quality contract, model broker, quota reserve, spend policy,
+ * cooldown/failure telemetry, capability routing and real provider failover.
  */
 export async function generateText(request: AiGenerationRequest): Promise<AiGenerationResult> {
-  const optimized = optimizeContext({ system: request.system, user: request.user, maxInputTokens: readPositiveInteger(process.env.AI_CONTEXT_MAX_INPUT_TOKENS) });
+  const task = request.task ?? "writing";
+  const governedSystem = [buildForgeQualityContract(task), request.system].filter(Boolean).join("\n\n");
+  const optimized = optimizeContext({ system: governedSystem, user: request.user, maxInputTokens: readPositiveInteger(process.env.AI_CONTEXT_MAX_INPUT_TOKENS) });
   const optimizedRequest = { ...request, system: optimized.system, user: optimized.user };
   const optimization = {
     originalEstimatedTokens: optimized.originalEstimatedTokens,
@@ -104,7 +108,6 @@ export async function generateText(request: AiGenerationRequest): Promise<AiGene
   const resources = refreshLiveBroker();
   if (!resources.length) throw new Error("No AI provider is configured. Configure OmniRoute, 9Router, K.I.N.G.S., Ollama, Groq, Mistral, Gemini, Anthropic, OpenRouter, or OpenAI. Forge never fabricates AI output.");
 
-  const task = request.task ?? "writing";
   const routingMode = request.routingMode ?? routingModeFromEnv(process.env.AI_ROUTING_MODE);
   const spendPolicy = request.spendPolicy ?? spendPolicyFromEnv(process.env.AI_SPEND_POLICY);
   const maxOutputTokens = request.maxOutputTokens ?? 4000;
@@ -114,7 +117,7 @@ export async function generateText(request: AiGenerationRequest): Promise<AiGene
   const cacheEnabled = process.env.AI_CACHE_ENABLED?.trim().toLowerCase() === "true";
   const cacheable = cacheEnabled && (request.temperature ?? 0.7) === 0;
   const resourceSignature = resources.map((resource) => `${resource.provider}/${resource.model}/${resource.billingClass ?? "unknown"}`).join("|");
-  const cacheKey = cacheable ? stableCacheKey(["forge-ai-v5", optimizedRequest.system, optimizedRequest.user, request.temperature ?? 0.7, maxOutputTokens, task, routingMode, spendPolicy, request.preferProvider ?? "", request.preferModel ?? "", resourceSignature]) : undefined;
+  const cacheKey = cacheable ? stableCacheKey(["forge-ai-v6", optimizedRequest.system, optimizedRequest.user, request.temperature ?? 0.7, maxOutputTokens, task, routingMode, spendPolicy, request.preferProvider ?? "", request.preferModel ?? "", resourceSignature]) : undefined;
   if (cacheKey) {
     const cached = responseCache.get(cacheKey);
     if (cached) {
@@ -146,7 +149,11 @@ export async function generateText(request: AiGenerationRequest): Promise<AiGene
       requiresStreaming: request.requiresStreaming,
       requiresCreativeWriting: request.requiresCreativeWriting ?? (task === "writing" || task === "voice-preservation"),
       requiresInstructionFollowing: request.requiresInstructionFollowing ?? true,
-    }, async (_input, context) => generateFromProvider(context.resource.provider as ProviderName, context.resource.model, optimizedRequest), (value) => value.usage?.totalTokens);
+    }, async (_input, context) => {
+      const generated = await generateFromProvider(context.resource.provider as ProviderName, context.resource.model, optimizedRequest);
+      const quality = assertForgeOutputQuality({ text: generated.text, task, userPrompt: optimizedRequest.user });
+      return { ...generated, quality };
+    }, (value) => value.usage?.totalTokens);
 
     const attempts: AiProviderAttempt[] = [
       ...execution.failures.map((failure) => ({ provider: failure.provider as ProviderName, model: failure.model, success: false, latencyMs: failure.latencyMs, error: failure.error })),
@@ -163,7 +170,7 @@ export async function generateText(request: AiGenerationRequest): Promise<AiGene
     return finalResult;
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    throw new Error(`Forge AI broker could not complete the ${task} request under spend policy "${spendPolicy}" without violating real provider/capability/quota safety. ${detail}`);
+    throw new Error(`Forge AI broker could not complete the ${task} request under spend policy "${spendPolicy}" without violating real provider/capability/quota/quality safety. ${detail}`);
   }
 }
 
