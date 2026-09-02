@@ -64,7 +64,6 @@ function authorizeLanRequest({ requestUrl, cookieHeader, token }) {
 
 function securityHeaders() {
   return {
-    "cache-control": "no-store",
     "x-content-type-options": "nosniff",
     "x-frame-options": "DENY",
     "referrer-policy": "no-referrer",
