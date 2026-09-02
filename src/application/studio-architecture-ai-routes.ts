@@ -56,10 +56,13 @@ export class StudioArchitectureAiService {
           "working-draft",
           "open-thread",
         ],
-        relevanceTags: ["architecture", "outline", kind],
-        queryTerms: [project.metadata.title, kind, idea],
+        // Story architecture is a whole-project planning boundary. Supplying
+        // explicit saliency tags/terms here would make Project Brain require a
+        // lexical match and could exclude binding canon whose wording does not
+        // overlap the new idea. Keep the requested classes eligible, then let
+        // authority ranking and the context budget decide what fits.
         includeWorkingState: true,
-        limit: 80,
+        limit: 256,
       },
       system: [
         "You are Author's Forge story architect.",
