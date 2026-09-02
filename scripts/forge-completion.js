@@ -35,6 +35,7 @@ const browserHarnesses = [
   "scripts/studio-architecture-browser-acceptance.js",
   "scripts/studio-story-map-browser-acceptance.js",
   "scripts/studio-series-browser-acceptance.js",
+  "scripts/studio-manuscript-import-browser-acceptance.js",
   "scripts/studio-image-lab-browser-acceptance.js",
   "scripts/studio-kdp-preflight-browser-acceptance.js",
   "scripts/studio-recovery-browser-acceptance.js",
@@ -64,6 +65,7 @@ const allExist = (paths) => paths.every(exists);
 const capabilities = [
   ["Project foundation & durable memory", ["src/domain/project.ts", "src/infrastructure/file-project-store.ts"], () => hasTest(/project-foundation/)],
   ["Manuscript / chapter / scene workspace", ["src/domain/manuscript.ts"], () => hasTest(/manuscript(?!-production|-planning)/)],
+  ["Existing manuscript intake / provenance", ["src/application/studio-manuscript-import.ts", "src/application/studio-manuscript-import-routes.ts", "public/forge-manuscript-import.js", "scripts/studio-manuscript-import-browser-acceptance.js"], () => hasTest(/studio-manuscript-import/) && exists("scripts/studio-manuscript-import-browser-acceptance.js")],
   ["AI writing & model broker", ["src/application/ai-writing.ts", "src/application/ai-model-broker.ts"], () => hasTest(/^test\/ai-(writing|model-broker)/)],
   ["Canon / character / voice", ["src/domain/character-bible.ts", "src/domain/voice-preservation.ts"], () => hasTest(/version-control-author-control-series-voice|character/)],
   [
@@ -132,6 +134,6 @@ for (const row of rows) {
   console.log(`- ${String(row.score).padStart(3)}%  ${row.name} (implementation ${Math.round(row.implementation * 100)}%, automated evidence ${row.verified ? 100 : 0}%)`);
 }
 console.log("\nInterpretation: 100% is reserved for a complete, verified product journey.");
-console.log("The meter requires the Series Engine author workflow, live source-backed Research, Knowledge Gap Radar, Author Craft and owner-level AI spend/model control, Guided Journal, Educational Workbooks including differentiation/teacher support and rubrics/performance assessment, Specialized Creation, the unified workplace launcher, voice command path, durable provider-backed image generation/editing, and every canonical browser/mobile harness.");
+console.log("The meter requires the Series Engine author workflow, preview-first existing-manuscript intake, live source-backed Research, Knowledge Gap Radar, Author Craft and owner-level AI spend/model control, Guided Journal, Educational Workbooks including differentiation/teacher support and rubrics/performance assessment, Specialized Creation, the unified workplace launcher, voice command path, durable provider-backed image generation/editing, and every canonical browser/mobile harness.");
 console.log("This meter never substitutes source presence for real browser/device proof; CI must execute the harnesses successfully.");
 console.log("Run after a clean checkout/build: npm run completion");
