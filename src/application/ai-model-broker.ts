@@ -9,6 +9,9 @@ export type AiTask =
   | "voice-preservation"
   | "continuity";
 
+export type AiBillingClass = "local" | "subscription" | "free" | "metered" | "gateway-managed" | "unknown";
+export type AiSpendPolicy = "no-paid-tokens" | "budgeted" | "unrestricted";
+
 export interface AiModelCapabilities {
   readonly contextWindow?: number;
   readonly maxOutputTokens?: number;
@@ -27,6 +30,7 @@ export interface AiModelResource {
   readonly capabilities: AiModelCapabilities;
   readonly configured: boolean;
   readonly healthy?: boolean;
+  readonly billingClass?: AiBillingClass;
   readonly estimatedInputCostPerMillion?: number;
   readonly estimatedOutputCostPerMillion?: number;
   readonly remainingQuota?: number;
@@ -53,9 +57,12 @@ export interface AiModelSelectionRequest {
   readonly preferredProviders?: readonly string[];
   readonly maxInputCostPerMillion?: number;
   readonly maxOutputCostPerMillion?: number;
+  readonly maxEstimatedRequestCostUsd?: number;
   readonly estimatedInputTokens?: number;
   readonly estimatedOutputTokens?: number;
   readonly quotaSafetyFraction?: number;
+  readonly spendPolicy?: AiSpendPolicy;
+  readonly trustedNoSpendModels?: readonly string[];
   readonly now?: string;
 }
 
@@ -79,8 +86,9 @@ export interface AiRoutingTelemetry {
  *
  * Unknown model limits remain unknown. A configured provider is rejected for a
  * capacity requirement only when Forge has real metadata proving that the
- * resource is too small. When a limit is unknown, the provider remains eligible
- * and the real provider adapter is allowed to accept/reject the request.
+ * resource is too small. Spend policy is deliberately stricter: unknown or
+ * gateway-managed billing is NOT assumed free when the author forbids new
+ * token purchases.
  */
 export class AiModelBroker {
   private resources: AiModelResource[] = [];
@@ -110,7 +118,7 @@ export class AiModelBroker {
 
   select(request: AiModelSelectionRequest): AiModelSelection {
     const selected = this.rank(request)[0];
-    if (!selected) throw new Error(`No healthy configured AI model satisfies the ${request.task} requirements.`);
+    if (!selected) throw new Error(`No healthy configured AI model satisfies the ${request.task} requirements and current spend policy.`);
     return selected;
   }
 
@@ -126,7 +134,7 @@ export class AiModelBroker {
 
     const candidates = this.resources
       .map((resource, registrationIndex) => ({ resource, registrationIndex }))
-      .filter(({ resource }) => this.isEligible(resource, request, estimatedRequestTokens, safetyFraction, now));
+      .filter(({ resource }) => this.isEligible(resource, request, estimatedInputTokens, estimatedOutputTokens, estimatedRequestTokens, safetyFraction, now));
 
     const usedTokens = candidates.map(({ resource }) => Math.max(0, resource.usedTokens ?? 0));
     const minUsed = usedTokens.length ? Math.min(...usedTokens) : 0;
@@ -144,6 +152,8 @@ export class AiModelBroker {
   private isEligible(
     resource: AiModelResource,
     request: AiModelSelectionRequest,
+    estimatedInputTokens: number,
+    estimatedOutputTokens: number,
     estimatedRequestTokens: number,
     safetyFraction: number,
     now: number,
@@ -151,6 +161,7 @@ export class AiModelBroker {
     const capabilities = resource.capabilities;
     if (resource.healthy === false) return false;
     if (resource.cooldownUntil && Number.isFinite(now) && Date.parse(resource.cooldownUntil) > now) return false;
+    if (!this.spendEligible(resource, request, estimatedInputTokens, estimatedOutputTokens)) return false;
 
     // Capacity metadata is optional. Unknown is not the same as insufficient.
     if (
@@ -193,6 +204,23 @@ export class AiModelBroker {
     return true;
   }
 
+  private spendEligible(resource: AiModelResource, request: AiModelSelectionRequest, inputTokens: number, outputTokens: number): boolean {
+    const policy = request.spendPolicy ?? "no-paid-tokens";
+    const trusted = new Set((request.trustedNoSpendModels ?? []).map((value) => value.trim().toLowerCase()).filter(Boolean));
+    const key = `${resource.provider}/${resource.model}`.toLowerCase();
+    const billing = resource.billingClass ?? "unknown";
+    if (policy === "no-paid-tokens") {
+      return billing === "local" || billing === "subscription" || billing === "free" || trusted.has(key);
+    }
+    if (policy === "budgeted") {
+      if (billing === "local" || billing === "subscription" || billing === "free" || trusted.has(key)) return true;
+      const estimated = estimateResourceRequestCost(resource, inputTokens, outputTokens);
+      if (estimated === undefined) return false;
+      return request.maxEstimatedRequestCostUsd !== undefined && estimated <= request.maxEstimatedRequestCostUsd;
+    }
+    return true;
+  }
+
   private score(
     resource: AiModelResource,
     request: AiModelSelectionRequest,
@@ -214,6 +242,12 @@ export class AiModelBroker {
       score += 75;
       reasons.push("preferred model");
     }
+
+    const billing = resource.billingClass ?? "unknown";
+    if (billing === "local" || billing === "free") { score += 36; reasons.push(`${billing} inference`); }
+    else if (billing === "subscription") { score += 30; reasons.push("subscription-covered inference"); }
+    else if (billing === "metered") reasons.push("metered inference");
+    else reasons.push(`${billing} billing`);
 
     const orderIndex = preferredOrder.indexOf(resource.provider.toLowerCase());
     if (orderIndex >= 0) {
@@ -309,6 +343,13 @@ export class AiModelBroker {
     if (resource.remainingQuota !== undefined) return Math.max(0, resource.remainingQuota);
     return undefined;
   }
+}
+
+export function estimateResourceRequestCost(resource: AiModelResource, inputTokens: number, outputTokens: number): number | undefined {
+  const inputRate = resource.estimatedInputCostPerMillion;
+  const outputRate = resource.estimatedOutputCostPerMillion;
+  if (inputRate === undefined && outputRate === undefined) return undefined;
+  return (Math.max(0, inputTokens) / 1_000_000) * (inputRate ?? 0) + (Math.max(0, outputTokens) / 1_000_000) * (outputRate ?? 0);
 }
 
 function cloneResource(resource: AiModelResource): AiModelResource {
