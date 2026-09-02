@@ -147,6 +147,19 @@ async function main() {
     assert.equal(await page.locator('#chapter-card-workflow-target').inputValue(), '2');
     assert.match(await page.locator('#chapter-card-workflow-events').inputValue(), /last road closes/i);
 
+    const revokeResponse = page.waitForResponse((response) => response.url().endsWith(`/story-architecture/candidates/${candidateId}/revoke`) && response.request().method() === 'POST');
+    await page.locator('#story-architecture-revoke').click();
+    assert.equal((await revokeResponse).ok(), true);
+    await page.waitForFunction(() => /approval revoked/i.test(document.querySelector('#story-architecture-status')?.textContent || ''));
+    assert.equal(await page.locator('#story-architecture-seed').isDisabled(), true, 'revoking architecture authority must immediately disable downstream handoff');
+    const revokedSeed = await fetch(`${base}/api/projects/${projectId}/story-architecture/candidates/${candidateId}/chapter-card-seed`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+    assert.equal(revokedSeed.ok, false, 'server must reject downstream handoff after approval is revoked');
+
+    const reapproveResponse = page.waitForResponse((response) => response.url().endsWith(`/story-architecture/candidates/${candidateId}/approve`) && response.request().method() === 'POST');
+    await page.locator('#story-architecture-approve').click();
+    assert.equal((await reapproveResponse).ok(), true);
+    await page.waitForFunction(() => /Approved exact architecture/i.test(document.querySelector('#story-architecture-status')?.textContent || ''));
+
     assert.ok(providerPayload);
     const system = String(providerPayload.messages?.find((message) => message.role === 'system')?.content || '');
     const user = String(providerPayload.messages?.find((message) => message.role === 'user')?.content || '');
@@ -155,7 +168,7 @@ async function main() {
     assert.match(user, /psychological-thriller/);
 
     const after = await api(base, `/api/projects/${projectId}/workspace`);
-    assert.equal(after.books.length, 0, 'architecture approval/seed must not create manuscript structure');
+    assert.equal(after.books.length, 0, 'architecture approval/seed/revoke must not create manuscript structure');
     const project = await api(base, `/api/projects/${projectId}`);
     assert.equal(project.memories.filter((memory) => memory.class === 'story-canon').length, 1, 'architecture approval must not promote canon candidates');
 
@@ -168,11 +181,13 @@ async function main() {
     await mobilePage.goto(`${base}/?project=${projectId}#architecture`, { waitUntil: 'networkidle' });
     const box = await mobilePage.locator('#story-architecture-seed').boundingBox();
     assert.ok(box && box.width > 0 && box.height >= 40, 'architecture downstream action must remain touch-usable on Android-sized viewport');
+    const revokeBox = await mobilePage.locator('#story-architecture-revoke').boundingBox();
+    assert.ok(revokeBox && revokeBox.width > 0 && revokeBox.height >= 40, 'architecture revoke action must remain touch-usable on Android-sized viewport');
     const overflow = await mobilePage.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     assert.ok(overflow <= 2, `architecture view must not horizontally overflow Android viewport (overflow=${overflow})`);
     await mobile.close();
 
-    console.log('STORY ARCHITECTURE BROWSER ACCEPTANCE PASSED: real provider + durable structured candidate + exact approval + restart persistence + approved Chapter Card seed + no manuscript/canon mutation + Android touch/fit.');
+    console.log('STORY ARCHITECTURE BROWSER ACCEPTANCE PASSED: real provider + durable structured candidate + exact approval/revocation + restart persistence + approved Chapter Card seed + no manuscript/canon mutation + Android touch/fit.');
   } finally {
     if (browser) await browser.close().catch(() => {});
     await stopApp(app);
