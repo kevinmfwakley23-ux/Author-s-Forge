@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { FileProjectStore } from "../infrastructure/file-project-store";
+import { createStudioArchitectureAiRoutes } from "./studio-architecture-ai-routes";
 import { createStudioAuthorCraftRoutes } from "./studio-author-craft-routes";
 import { createStudioImageLabRoutes } from "./studio-image-lab-routes";
 import { createStudioKnowledgeGapRoutes } from "./studio-knowledge-gap-routes";
@@ -12,10 +13,12 @@ export type StudioPublishingPromotionRouteHandler = (req: IncomingMessage, res: 
 
 /**
  * Modular Studio extension boundary. Historical name is retained to avoid
- * destabilizing the server entrypoint while author-craft, Story Map, research,
- * image, publishing, market and promotion routes remain independently implemented/testable.
+ * destabilizing the server entrypoint while architecture AI, author-craft,
+ * Story Map, research, image, publishing, market and promotion routes remain
+ * independently implemented and testable.
  */
 export function createStudioPublishingPromotionRoutes(store: FileProjectStore): StudioPublishingPromotionRouteHandler {
+  const architectureAi = createStudioArchitectureAiRoutes(store);
   const authorCraft = createStudioAuthorCraftRoutes(store);
   const storyMap = createStudioStoryMapRoutes(store);
   const knowledgeGaps = createStudioKnowledgeGapRoutes(store);
@@ -25,6 +28,7 @@ export function createStudioPublishingPromotionRoutes(store: FileProjectStore): 
   const marketPromotion = createStudioMarketPromotionRoutes(store);
 
   return async (req, res, url, projectId) => {
+    if (await architectureAi(req, res, url, projectId)) return true;
     if (await authorCraft(req, res, url, projectId)) return true;
     if (await storyMap(req, res, url, projectId)) return true;
     if (await knowledgeGaps(req, res, url, projectId)) return true;
