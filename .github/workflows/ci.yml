@@ -22,6 +22,16 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm run baseline
+      - name: Diagnose manuscript Markdown parsing
+        run: node --test --test-name-pattern="Markdown manuscript preview" test/studio-manuscript-import.test.js
+      - name: Diagnose manuscript DOCX parsing
+        run: node --test --test-name-pattern="DOCX manuscript preview" test/studio-manuscript-import.test.js
+      - name: Diagnose manuscript durable application
+        run: node --test --test-name-pattern="applying a preview" test/studio-manuscript-import.test.js
+      - name: Diagnose manuscript prefix preservation
+        run: node --test --test-name-pattern="content before the first detected chapter" test/studio-manuscript-import.test.js
+      - name: Diagnose manuscript failure handling
+        run: node --test --test-name-pattern="unsupported, malformed, and oversized" test/studio-manuscript-import.test.js
       - run: npm test
       - run: npm run completion
       - run: node --check public/app.js
