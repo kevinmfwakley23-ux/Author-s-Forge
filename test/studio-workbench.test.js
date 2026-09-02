@@ -7,6 +7,8 @@ const app = fs.readFileSync('public/app.js', 'utf8');
 const command = fs.readFileSync('public/forge-command-center.js', 'utf8');
 const workbench = fs.readFileSync('public/forge-workbench.js', 'utf8');
 const server = fs.readFileSync('src/studio-server.ts', 'utf8');
+const imageLabRoutes = fs.readFileSync('src/application/studio-image-lab-routes.ts', 'utf8');
+const publishingPromotionRoutes = fs.readFileSync('src/application/studio-publishing-promotion-routes.ts', 'utf8');
 
 test('Studio loads the command center and integrated workbench', () => {
   assert.match(index, /forge-command-center\.js/);
@@ -22,7 +24,11 @@ test('Studio loads the command center and integrated workbench', () => {
 
 test('Studio retains real application controls and provider boundaries', () => {
   assert.match(server, /\/api\/projects\/\$\{projectId\}\/ai\/draft/);
-  assert.match(server, /\/api\/projects\/\$\{projectId\}\/ai\/image/);
+  assert.match(imageLabRoutes, /\/api\/projects\/\$\{projectId\}\/ai\/image/);
+  assert.match(imageLabRoutes, /\/api\/projects\/\$\{projectId\}\/ai\/images/);
+  assert.match(publishingPromotionRoutes, /createStudioImageLabRoutes/);
+  assert.match(publishingPromotionRoutes, /await imageLab\(req, res, url, projectId\)/);
+  assert.doesNotMatch(server, /if\(url\.pathname===`\/api\/projects\/\$\{projectId\}\/ai\/image`/);
   assert.match(server, /\/api\/projects\/\$\{projectId\}\/export/);
   assert.match(command, /\/api\/projects\/\$\{encodeURIComponent\(projectId\)\}\/ai\/draft/);
   assert.match(command, /SpeechRecognition/);
