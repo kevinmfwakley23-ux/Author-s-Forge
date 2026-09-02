@@ -41,9 +41,11 @@ jobs:
           node --check public/forge-command-center.js
           node --check public/forge-workbench.js
           node --check public/forge-ai-proposals.js
+          node --check public/forge-image-lab.js
           node --check public/forge-pwa.js
           node --check scripts/start-forge.js
           node --check scripts/forge-offices-browser-acceptance.js
+          node --check scripts/studio-image-lab-browser-acceptance.js
           bash -n scripts/termux-forge.sh
 
       - name: Assemble Android/Chromebook portable bundle
@@ -65,6 +67,8 @@ jobs:
           Open http://127.0.0.1:4173/
 
           The unified launcher also starts the project-aware Guided Journal, Educational Workbook, and Specialized Creation offices on ports 4273, 4373, and 4473. Open those offices from the main Studio dashboard so the current project id is carried forward automatically.
+
+          The main Studio Illustration surface includes the durable Image Lab. Real image generation/editing requires an explicitly configured supported image provider credential; when unavailable Forge reports that condition and does not fabricate artwork.
 
           ## Android / Termux or LAN/device access
           npm install

@@ -95,13 +95,13 @@ async function main() {
     await page.locator("#chapter-form [name=title]").fill("Opening");
     await page.locator("#chapter-form [name=synopsis]").fill("Acceptance opening");
     await page.locator("#chapter-form").evaluate((form) => form.requestSubmit());
-    await page.waitForFunction(() => document.querySelector("#scene-chapter option"));
+    await page.waitForFunction(() => document.querySelector("#scene-chapter")?.textContent.includes("Opening"));
 
     await page.locator("#scene-form [name=number]").fill("1");
     await page.locator("#scene-form [name=title]").fill("First Scene");
     await page.locator("#scene-form [name=synopsis]").fill("Acceptance scene");
     await page.locator("#scene-form").evaluate((form) => form.requestSubmit());
-    await page.waitForFunction(() => document.querySelector("#editor-scene option"));
+    await page.waitForFunction(() => document.querySelector("#editor-scene")?.textContent.includes("First Scene"));
 
     const workspaceResponse = await fetch(`${baseUrl}/api/projects/${projectId}/workspace`);
     assert.equal(workspaceResponse.ok, true);
