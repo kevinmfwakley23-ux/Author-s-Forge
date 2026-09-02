@@ -1,4 +1,4 @@
-const CACHE = "authors-forge-shell-v8";
+const CACHE = "authors-forge-shell-v9";
 const SHELL = [
   "/",
   "/index.html",
@@ -46,6 +46,12 @@ self.addEventListener("fetch", (event) => {
         }
         return response;
       })
-      .catch(() => caches.match(request).then((cached) => cached || caches.match("/index.html")))
+      .catch(async () => {
+        const exact = await caches.match(request);
+        if (exact) return exact;
+        const shellPath = await caches.match(url.pathname);
+        if (shellPath) return shellPath;
+        return caches.match("/index.html");
+      })
   );
 });
