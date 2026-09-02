@@ -6,6 +6,7 @@ import { assessVoiceDrift, buildAuthorVoiceContext, type AuthorVoiceMemory, type
 import { createCharacterContinuityEvidence, verifyCharacterContinuityEvidence, type CharacterContinuityEvidence } from "../domain/character-continuity-evidence";
 import type { CharacterRecord } from "../domain/character-bible";
 import { assertAiCollaborationCapability, type AiCollaborationPolicy } from "../domain/ai-collaboration";
+import { chapterCardApprovalFor, type ChapterCardWorkflowState } from "../domain/chapter-card-workflow";
 import { validateStoryMapPlanningState, type StoryMapChapterCard, type StoryMapPlanningState } from "../domain/story-map-planning";
 import { saveSceneContent, validateStudioWorkspace, type StudioWorkspaceState } from "../domain/studio-workspace";
 import type { FileProjectStore } from "../infrastructure/file-project-store";
@@ -17,6 +18,7 @@ export interface StudioAiProjectState {
   readonly authorVoiceMemory?: AuthorVoiceMemory;
   readonly characters?: readonly CharacterRecord[];
   readonly storyMapPlanning?: StoryMapPlanningState;
+  readonly chapterCardWorkflow?: ChapterCardWorkflowState;
   readonly aiCollaborationPolicy?: AiCollaborationPolicy;
   readonly [key: string]: unknown;
 }
@@ -124,7 +126,7 @@ export class AiWritingStudioService {
 
   async generateWithProjectContext(request: StudioAiWritingRequest): Promise<StudioAiWritingResult> {
     const project = await this.requireProject(request.projectId);
-    assertAiCollaborationCapability(project.aiCollaborationPolicy, collaborationCapabilityForWritingTask(request.task), `AI ${request.task} writing`);
+    assertAiCollaborationCapability(project.aiCollaborationPolicy, collaborationCapabilityForWritingTask(request.task), `AI ${request.task} writing`, "author-requested");
     const workspace = project.studioWorkspace ? validateStudioWorkspace(project.studioWorkspace) : validateStudioWorkspace({ formatVersion: 1, activeBookId: null, books: [] });
     const scene = findScene(workspace, request.bookId, request.chapterId, request.sceneId);
     const chapterCard = chapterCardFor(project, workspace, request.chapterId);
@@ -308,6 +310,7 @@ function chapterCardFor(project: StudioAiProjectState, workspace: StudioWorkspac
   if (!card) return undefined;
   const matches = workspace.books.reduce((count, book) => count + book.chapters.filter((chapter) => chapter.id === chapterId).length, 0);
   if (matches !== 1) throw new Error(`Chapter Card for chapter "${chapterId}" is ambiguous across books. Give the chapters globally unique ids before AI generation.`);
+  if (!chapterCardApprovalFor(project.chapterCardWorkflow, chapterId, card)) return undefined;
   return card;
 }
 
@@ -315,7 +318,7 @@ function withChapterCardContext(context: AssembledWritingContext, chapterId: str
   const text = formatChapterCard(card);
   const section = {
     key: "chapter-card",
-    title: "Chapter Card — Author-Controlled Plan",
+    title: "Approved Chapter Card — Author-Controlled Plan",
     mode: "full" as const,
     text,
     sourceIds: [] as string[],
@@ -332,7 +335,7 @@ function withChapterCardContext(context: AssembledWritingContext, chapterId: str
 function formatChapterCard(card: StoryMapChapterCard): string {
   const list = (label: string, values: readonly string[]) => values.length ? `${label}:\n${values.map((value) => `- ${value}`).join("\n")}` : "";
   return [
-    "This Chapter Card is author-controlled architecture for the chapter being drafted. Honor it before generating prose. Required events, continuity dependencies, and forbidden deviations are constraints, not suggestions. Do not invent around a forbidden deviation.",
+    "This Chapter Card was explicitly approved by the author for AI drafting. Honor it before generating prose. Required events, continuity dependencies, and forbidden deviations are constraints, not suggestions. Do not invent around a forbidden deviation.",
     card.povCharacterIds.length ? `POV character ids: ${card.povCharacterIds.join(", ")}` : "",
     card.location ? `Location: ${card.location}` : "",
     card.storyTime ? `Date / story time: ${card.storyTime}` : "",
