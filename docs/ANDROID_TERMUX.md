@@ -1,6 +1,6 @@
 # Author's Forge on Android via Termux
 
-Author's Forge is a platform-neutral web application. Android does not need a separate rewrite of the Forge domain/application layer. When a local Android development/runtime path is useful, Termux can host the same Studio process directly on the phone and Chrome can install/use the PWA shell.
+Author's Forge is a platform-neutral web application. Android does not need a separate rewrite of the Forge domain/application layer. When a local Android development/runtime path is useful, Termux can host the same Forge workplace directly on the phone and Chrome can install/use the PWA shell.
 
 ## Why the Chromebook + phone connection is useful
 
@@ -28,21 +28,27 @@ git clone https://github.com/kevinmfwakley23-ux/Author-s-Forge.git
 cd Author-s-Forge
 ```
 
-Then launch the local Studio:
+Then launch the complete local workplace:
 
 ```bash
 bash scripts/termux-forge.sh
 ```
 
-The launcher installs dependencies when needed, creates a device-local Forge data directory, binds the Studio to `0.0.0.0:4173`, and starts the normal production build/server path.
+The Termux launcher installs dependencies when needed, creates a device-local Forge data directory, generates or reuses a strong `FORGE_ACCESS_TOKEN`, and starts the normal production launcher in protected non-loopback mode. The real Main Studio, Guided Journal, Educational Workbook, and Specialized Creation processes remain bound to loopback; only access-gated proxy ports are exposed to the phone/LAN interface.
 
-Open Chrome **on the Android phone** and visit:
+The launcher prints a protected bootstrap URL similar to:
 
 ```text
-http://127.0.0.1:4173
+http://127.0.0.1:4173/?access=<generated-token>
 ```
 
+Open **that exact printed URL first** in Chrome on the Android phone. Forge immediately redirects to the clean URL without the token and stores an `HttpOnly`, `SameSite=Strict` host cookie. The same cookie authorizes the companion office ports on `127.0.0.1`.
+
+If another trusted device on the same LAN needs to use the phone-hosted Forge, replace `127.0.0.1` in the printed bootstrap URL with the phone's LAN IP. Anonymous or incorrect-token requests receive `401` and do not reach the Forge project APIs.
+
 The Studio's install control can then be used when Chrome exposes the PWA installation prompt. If the in-page install prompt is unavailable, use Chrome's **Install app / Add to Home screen** browser control when offered.
+
+The access token protects the local HTTP surface from anonymous LAN access, but it does not provide transport encryption. Use this LAN mode only on a network you trust; use an authenticated encrypted tunnel or HTTPS reverse proxy for untrusted or remote networks.
 
 ## Durable data
 
@@ -64,7 +70,7 @@ A useful development loop is:
 2. Commit the verified change to `main`.
 3. On the phone, run `git pull --ff-only`.
 4. Run `bash scripts/termux-forge.sh`.
-5. Open the phone's local Studio in Chrome.
+5. Open the protected bootstrap URL printed by the launcher in Chrome.
 6. Install/open the PWA.
 7. Exercise the affected workflow with real touch interaction.
 8. If a device defect is found, reproduce and fix it in the repository rather than weakening the acceptance test.
