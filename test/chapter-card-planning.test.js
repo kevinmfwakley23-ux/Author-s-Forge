@@ -91,6 +91,29 @@ test("Chapter Card rejects nonexistent chapter and character references before m
   });
 });
 
+test("Chapter Card fails closed when the same chapter id exists in multiple books", async () => {
+  const root = await mkdtemp(join(tmpdir(), "forge-chapter-card-collision-"));
+  try {
+    const store = new FileProjectStore(root);
+    let state = createStudioWorkspace();
+    state = addWorkspaceBook(state, createWorkspaceBook({ id: "book-a", title: "Book A", kind: "novel", now: "2026-09-02T16:00:00Z" }));
+    state = addWorkspaceChapter(state, "book-a", { id: "shared-chapter", number: 1, title: "A One", now: "2026-09-02T16:01:00Z" });
+    state = addWorkspaceBook(state, createWorkspaceBook({ id: "book-b", title: "Book B", kind: "novel", now: "2026-09-02T16:02:00Z" }));
+    state = addWorkspaceChapter(state, "book-b", { id: "shared-chapter", number: 1, title: "B One", now: "2026-09-02T16:03:00Z" });
+    const project = withProjectStudioWorkspace(createProject({ id: "collision-project", title: "Collision", now: "2026-09-02T16:00:00Z" }), state, "2026-09-02T16:03:00Z");
+    await store.create(project);
+    const service = new StudioStoryMapPlanningService(store);
+    await assert.rejects(
+      () => service.setChapterCard("collision-project", { bookId: "book-a", chapterId: "shared-chapter", card: { plotObjective: "Must belong only to Book A." } }),
+      /ambiguous across books/,
+    );
+    const after = await store.load("collision-project");
+    assert.deepEqual(after.storyMapPlanning?.chapterCards ?? {}, {}, "Ambiguous Chapter Card save must not mutate durable planning.");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("removing a Chapter Card preserves the real chapter and scenes", async () => {
   await fixture(async ({ store, service }) => {
     await service.setChapterCard("card-project", { bookId: "book-1", chapterId: "chapter-1", card: { plotObjective: "Reach the archive." } });
