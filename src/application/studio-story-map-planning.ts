@@ -3,13 +3,17 @@ import type { ProjectState } from "../domain/project";
 import { getBook, getChapter, getScene, validateStudioWorkspace } from "../domain/studio-workspace";
 import {
   assignSceneToStoryMapPlotlines,
+  createStoryMapChapterCard,
   createStoryMapPlanningState,
   createStoryMapPlotline,
   createStoryMapSceneAttributes,
+  removeStoryMapChapterCard,
   removeStoryMapPlotline,
+  setStoryMapChapterCard,
   setStoryMapSceneAttributes,
   upsertStoryMapPlotline,
   validateStoryMapPlanningState,
+  type StoryMapChapterCard,
   type StoryMapPlanningState,
   type StoryMapPlotlineKind,
   type StoryMapSceneAttributes,
@@ -40,7 +44,10 @@ export class StudioStoryMapPlanningService {
       planning,
       options: {
         characters: (project.characters ?? []).map((character) => ({ id: character.id, name: character.profile.name })),
-        locations: [...new Set(Object.values(planning.sceneAttributes).map((attributes) => attributes.location).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+        locations: [...new Set([
+          ...Object.values(planning.sceneAttributes).map((attributes) => attributes.location),
+          ...Object.values(planning.chapterCards).map((card) => card.location),
+        ].filter(Boolean))].sort((a, b) => a.localeCompare(b)),
         tags: [...new Set(Object.values(planning.sceneAttributes).flatMap((attributes) => attributes.tags))].sort((a, b) => a.localeCompare(b)),
       },
     };
@@ -73,6 +80,33 @@ export class StudioStoryMapPlanningService {
       planning = assignSceneToStoryMapPlotlines(planning, input.sceneId, plotlineIds, input.now);
     }
     await this.save(project, planning, input.now);
+    return this.snapshot(project.metadata.id);
+  }
+
+  async setChapterCard(projectId: string, input: {
+    bookId: string;
+    chapterId: string;
+    card: Partial<StoryMapChapterCard>;
+    now?: string;
+  }): Promise<StudioStoryMapPlanningSnapshot> {
+    const project = await this.requireProject(projectId);
+    const workspace = requireWorkspace(project);
+    const book = getBook(workspace, identifier(input.bookId, "Book id"));
+    const chapter = getChapter(book, identifier(input.chapterId, "Chapter id"));
+    const card = createStoryMapChapterCard(input.card);
+    for (const characterId of [...card.povCharacterIds, ...card.characterIds]) requireCharacter(project, characterId);
+    await this.save(project, setStoryMapChapterCard(planningOf(project), chapter.id, card), input.now);
+    return this.snapshot(project.metadata.id);
+  }
+
+  async removeChapterCard(projectId: string, bookId: string, chapterId: string, now?: string): Promise<StudioStoryMapPlanningSnapshot> {
+    const project = await this.requireProject(projectId);
+    const workspace = requireWorkspace(project);
+    const book = getBook(workspace, identifier(bookId, "Book id"));
+    const chapter = getChapter(book, identifier(chapterId, "Chapter id"));
+    const planning = planningOf(project);
+    if (!planning.chapterCards[chapter.id]) throw new Error(`Chapter Card for chapter "${chapter.id}" not found.`);
+    await this.save(project, removeStoryMapChapterCard(planning, chapter.id), now);
     return this.snapshot(project.metadata.id);
   }
 
@@ -184,10 +218,18 @@ function requireWorkspace(project: ProjectState) {
 function validatePlanningReferences(project: ProjectWithStoryMapPlanning, planning: StoryMapPlanningState): void {
   const workspace = project.studioWorkspace ? validateStudioWorkspace(project.studioWorkspace) : undefined;
   const allScenes = new Map<string, string>();
-  if (workspace) for (const book of workspace.books) for (const chapter of book.chapters) for (const scene of chapter.scenes) allScenes.set(scene.id, book.id);
+  const allChapters = new Set<string>();
+  if (workspace) for (const book of workspace.books) for (const chapter of book.chapters) {
+    allChapters.add(chapter.id);
+    for (const scene of chapter.scenes) allScenes.set(scene.id, book.id);
+  }
   for (const [sceneId, attributes] of Object.entries(planning.sceneAttributes)) {
     if (!allScenes.has(sceneId)) throw new Error(`Story Map planning references missing scene "${sceneId}".`);
     for (const characterId of attributes.povCharacterIds) requireCharacter(project, characterId);
+  }
+  for (const [chapterId, card] of Object.entries(planning.chapterCards)) {
+    if (!allChapters.has(chapterId)) throw new Error(`Story Map Chapter Card references missing chapter "${chapterId}".`);
+    for (const characterId of [...card.povCharacterIds, ...card.characterIds]) requireCharacter(project, characterId);
   }
   for (const plotline of planning.plotlines) {
     if (!workspace?.books.some((book) => book.id === plotline.bookId)) throw new Error(`Story Map plotline "${plotline.id}" references missing book "${plotline.bookId}".`);
