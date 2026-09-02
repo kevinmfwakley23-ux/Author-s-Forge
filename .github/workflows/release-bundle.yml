@@ -44,6 +44,7 @@ jobs:
           node --check public/forge-series.js
           node --check public/forge-image-lab.js
           node --check public/forge-pwa.js
+          node --check scripts/forge-network-security.js
           node --check scripts/start-forge.js
           node --check scripts/forge-offices-browser-acceptance.js
           node --check scripts/studio-series-browser-acceptance.js
@@ -68,16 +69,27 @@ jobs:
           npm run forge
           Open http://127.0.0.1:4173/
 
-          The Main Studio includes the durable Series Engine for shared multi-book canon, book membership/order, and cross-book timeline work. The unified launcher also starts the project-aware Guided Journal, Educational Workbook, and Specialized Creation offices on ports 4273, 4373, and 4473. Open those offices from the main Studio dashboard so the current project id is carried forward automatically.
+          The Main Studio includes the durable Series Engine and Chapter Cards. The unified launcher also starts the project-aware Guided Journal, Educational Workbook, and Specialized Creation offices on ports 4273, 4373, and 4473. Open those offices from the Main Studio dashboard so the current project id is carried forward automatically.
 
           The main Studio Illustration surface includes the durable Image Lab. Real image generation/editing requires an explicitly configured supported image provider credential; when unavailable Forge reports that condition and does not fabricate artwork.
 
-          ## Android / Termux or LAN/device access
+          ## Android / Termux or trusted LAN/device access
           npm install
           npm run forge:android
-          Open http://<device-ip>:4173/ from the device/browser that will use Forge. The Main Studio Series link stays on the same project and the dashboard companion-office links reuse the same host and open the companion office ports automatically.
 
-          The individual `studio`, `studio:journal`, `studio:workbooks`, and `studio:specialized` commands remain available for engineering and isolated-office use.
+          Non-loopback mode is protected. Do not open a plain device URL first. The launcher prints a bootstrap URL in this form:
+
+          http://<device-ip>:4173/?access=<generated-token>
+
+          Open that exact printed URL first. Forge strips the token from the address bar and sets an HttpOnly SameSite=Strict host cookie that also authorizes the companion office ports. Anonymous or wrong-token requests receive 401 before reaching project APIs.
+
+          You can set FORGE_ACCESS_TOKEN yourself before launch; it must be at least 24 characters. Otherwise Forge generates a strong random token for the launcher run.
+
+          Termux users can run `bash scripts/termux-forge.sh`; it generates/reuses the token and prints the correct phone bootstrap URL. The supported `studio:android`, `studio:journal:android`, `studio:workbooks:android`, and `studio:specialized:android` commands use the same protected boundary.
+
+          The access token prevents anonymous LAN access but does not encrypt plain HTTP. Use this mode only on a trusted local network. Use an authenticated encrypted tunnel or HTTPS reverse proxy for untrusted/remote networks.
+
+          The individual loopback `studio`, `studio:journal`, `studio:workbooks`, and `studio:specialized` commands remain available for engineering and isolated-office use.
 
           Forge project data is persisted by the Forge servers under the shared Forge data root. The PWA shell may be installed by the browser, but service-worker caching never replaces server-side project persistence and `/api/` project data is not cached as durable state.
           EOF
