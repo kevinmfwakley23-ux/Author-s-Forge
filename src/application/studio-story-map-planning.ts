@@ -65,11 +65,13 @@ export class StudioStoryMapPlanningService {
     const workspace = requireWorkspace(project);
     const book = getBook(workspace, identifier(input.bookId, "Book id"));
     const chapter = getChapter(book, identifier(input.chapterId, "Chapter id"));
-    getScene(book, chapter.id, identifier(input.sceneId, "Scene id"));
+    const sceneId = identifier(input.sceneId, "Scene id");
+    getScene(book, chapter.id, sceneId);
+    requireUnambiguousSceneId(workspace, sceneId);
 
     const attributes = createStoryMapSceneAttributes(input.attributes);
     for (const characterId of attributes.povCharacterIds) requireCharacter(project, characterId);
-    let planning = setStoryMapSceneAttributes(planningOf(project), input.sceneId, attributes);
+    let planning = setStoryMapSceneAttributes(planningOf(project), sceneId, attributes);
     if (input.plotlineIds !== undefined) {
       const plotlineIds = uniqueIds(input.plotlineIds, "Story Map plotline id");
       for (const plotlineId of plotlineIds) {
@@ -77,7 +79,7 @@ export class StudioStoryMapPlanningService {
         if (!plotline) throw new Error(`Story Map plotline "${plotlineId}" not found.`);
         if (plotline.bookId !== book.id) throw new Error(`Story Map plotline "${plotlineId}" belongs to another book.`);
       }
-      planning = assignSceneToStoryMapPlotlines(planning, input.sceneId, plotlineIds, input.now);
+      planning = assignSceneToStoryMapPlotlines(planning, sceneId, plotlineIds, input.now);
     }
     await this.save(project, planning, input.now);
     return this.snapshot(project.metadata.id);
@@ -219,14 +221,21 @@ function requireWorkspace(project: ProjectState) {
 
 function validatePlanningReferences(project: ProjectWithStoryMapPlanning, planning: StoryMapPlanningState): void {
   const workspace = project.studioWorkspace ? validateStudioWorkspace(project.studioWorkspace) : undefined;
-  const allScenes = new Map<string, string>();
+  const sceneBookCounts = new Map<string, Map<string, number>>();
   const chapterCounts = new Map<string, number>();
   if (workspace) for (const book of workspace.books) for (const chapter of book.chapters) {
     chapterCounts.set(chapter.id, (chapterCounts.get(chapter.id) ?? 0) + 1);
-    for (const scene of chapter.scenes) allScenes.set(scene.id, book.id);
+    for (const scene of chapter.scenes) {
+      const bookCounts = sceneBookCounts.get(scene.id) ?? new Map<string, number>();
+      bookCounts.set(book.id, (bookCounts.get(book.id) ?? 0) + 1);
+      sceneBookCounts.set(scene.id, bookCounts);
+    }
   }
   for (const [sceneId, attributes] of Object.entries(planning.sceneAttributes)) {
-    if (!allScenes.has(sceneId)) throw new Error(`Story Map planning references missing scene "${sceneId}".`);
+    const bookCounts = sceneBookCounts.get(sceneId);
+    if (!bookCounts) throw new Error(`Story Map planning references missing scene "${sceneId}".`);
+    const matches = [...bookCounts.values()].reduce((total, count) => total + count, 0);
+    if (matches > 1) throw new Error(`Story Map scene id "${sceneId}" is ambiguous across the workspace. Give the scenes globally unique ids before using scene planning.`);
     for (const characterId of attributes.povCharacterIds) requireCharacter(project, characterId);
   }
   for (const [chapterId, card] of Object.entries(planning.chapterCards)) {
@@ -239,9 +248,11 @@ function validatePlanningReferences(project: ProjectWithStoryMapPlanning, planni
     if (!workspace?.books.some((book) => book.id === plotline.bookId)) throw new Error(`Story Map plotline "${plotline.id}" references missing book "${plotline.bookId}".`);
     if (plotline.characterId) requireCharacter(project, plotline.characterId);
     for (const sceneId of plotline.sceneIds) {
-      const bookId = allScenes.get(sceneId);
-      if (!bookId) throw new Error(`Story Map plotline "${plotline.id}" references missing scene "${sceneId}".`);
-      if (bookId !== plotline.bookId) throw new Error(`Story Map plotline "${plotline.id}" contains a scene from another book.`);
+      const bookCounts = sceneBookCounts.get(sceneId);
+      if (!bookCounts) throw new Error(`Story Map plotline "${plotline.id}" references missing scene "${sceneId}".`);
+      const matchesInBook = bookCounts.get(plotline.bookId) ?? 0;
+      if (matchesInBook === 0) throw new Error(`Story Map plotline "${plotline.id}" contains a scene from another book.`);
+      if (matchesInBook > 1) throw new Error(`Story Map plotline "${plotline.id}" references ambiguous scene id "${sceneId}" within book "${plotline.bookId}".`);
     }
   }
 }
@@ -251,6 +262,11 @@ function requireUnambiguousChapterId(workspace: StudioWorkspaceState, chapterId:
   if (matches > 1) throw new Error(`Chapter id "${chapterId}" is ambiguous across books. Give the chapters globally unique ids before using Chapter Cards.`);
 }
 
+function requireUnambiguousSceneId(workspace: StudioWorkspaceState, sceneId: string): void {
+  const matches = workspace.books.reduce((total, book) => total + book.chapters.reduce((count, chapter) => count + chapter.scenes.filter((scene) => scene.id === sceneId).length, 0), 0);
+  if (matches > 1) throw new Error(`Scene id "${sceneId}" is ambiguous across the workspace. Give the scenes globally unique ids before using scene planning.`);
+}
+
 function requireCharacter(project: ProjectState, characterId: string): void {
   const id = identifier(characterId, "Character id");
   if (!(project.characters ?? []).some((character) => character.id === id)) throw new Error(`Character "${id}" not found.`);
@@ -258,7 +274,9 @@ function requireCharacter(project: ProjectState, characterId: string): void {
 
 function requireSceneInBook(book: ReturnType<typeof getBook>, sceneId: string): void {
   const id = identifier(sceneId, "Scene id");
-  if (!book.chapters.some((chapter) => chapter.scenes.some((scene) => scene.id === id))) throw new Error(`Scene "${id}" not found in book "${book.id}".`);
+  const matches = book.chapters.reduce((count, chapter) => count + chapter.scenes.filter((scene) => scene.id === id).length, 0);
+  if (matches === 0) throw new Error(`Scene "${id}" not found in book "${book.id}".`);
+  if (matches > 1) throw new Error(`Scene id "${id}" is ambiguous within book "${book.id}".`);
 }
 
 function uniqueIds(value: readonly string[], label: string): readonly string[] {
