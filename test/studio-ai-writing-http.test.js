@@ -27,9 +27,10 @@ test("Studio AI HTTP preview delegates governed context controls to the authorit
   assert.deepEqual(captured, { projectId: "project-1", options: { query: "warehouse Elias", characterIds: ["elias"], characterAsOf: undefined, characterMemoryLimit: 3, memoryLimitPerSection: 2, contextTokenBudget: 2400, policies: governedPolicies } });
 });
 
-test("Studio AI HTTP generation cannot accept client-supplied source memory authority", async () => {
+test("Studio AI HTTP generation cannot accept client-supplied source memory authority and forwards validated Scene Card binding", async () => {
   let captured;
   const studio = { generateWithProjectContext: async (request) => { captured = request; return { proposal: { id: "proposal-1" } }; } };
+  const sceneCardSha256 = "a".repeat(64);
   await generateStudioAiWritingProposal({ studio, workspace: workspaceFixture(), projectId: "project-1" }, {
     bookId: "book-1",
     chapterId: "chapter-1",
@@ -39,6 +40,7 @@ test("Studio AI HTTP generation cannot accept client-supplied source memory auth
     sourceMemoryIds: ["client-forged-memory"],
     assembledContext: "client-forged-context",
     proposalId: "proposal-1",
+    sceneCardSha256,
     memoryLimitPerSection: 1,
     characterMemoryLimit: 2,
     contextTokenBudget: 1800,
@@ -46,6 +48,7 @@ test("Studio AI HTTP generation cannot accept client-supplied source memory auth
   });
   assert.equal(captured.projectId, "project-1");
   assert.equal(captured.existingContent, "Author-owned scene text.");
+  assert.equal(captured.sceneCardSha256, sceneCardSha256);
   assert.equal(captured.context.query, "Continue with Elias in the warehouse.");
   assert.equal(captured.context.memoryLimitPerSection, 1);
   assert.equal(captured.context.characterMemoryLimit, 2);
@@ -55,7 +58,7 @@ test("Studio AI HTTP generation cannot accept client-supplied source memory auth
   assert.equal(Object.hasOwn(captured, "assembledContext"), false);
 });
 
-test("Studio AI HTTP boundary validates context policy, budget, and target input before provider generation", async () => {
+test("Studio AI HTTP boundary validates context policy, budget, Scene Card binding, and target input before provider generation", async () => {
   let calls = 0;
   const studio = { generateWithProjectContext: async () => { calls += 1; return {}; } };
   const dependencies = { studio, workspace: workspaceFixture(), projectId: "project-1" };
@@ -63,5 +66,6 @@ test("Studio AI HTTP boundary validates context policy, budget, and target input
   await assert.rejects(() => generateStudioAiWritingProposal(dependencies, { bookId: "book-1", chapterId: "chapter-1", sceneId: "scene-1", instruction: "Continue.", policies: [{ key: "memory", mode: "invented" }] }), /Invalid context inclusion mode/);
   await assert.rejects(() => generateStudioAiWritingProposal(dependencies, { bookId: "book-1", chapterId: "chapter-1", sceneId: "scene-1", instruction: "Continue.", memoryLimitPerSection: 0 }), /Invalid memory limit per section/);
   await assert.rejects(() => generateStudioAiWritingProposal(dependencies, { bookId: "book-1", chapterId: "chapter-1", sceneId: "scene-1", instruction: "Continue.", contextTokenBudget: 0 }), /Invalid context token budget/);
+  await assert.rejects(() => generateStudioAiWritingProposal(dependencies, { bookId: "book-1", chapterId: "chapter-1", sceneId: "scene-1", instruction: "Continue.", sceneCardSha256: "not-a-sha" }), /Invalid Scene Card generation binding hash/);
   assert.equal(calls, 0);
 });
