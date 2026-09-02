@@ -89,6 +89,27 @@ test("Story Architecture is durable, candidate-only, and exact approval survives
   });
 });
 
+test("author can explicitly revoke Story Architecture approval without changing or deleting the saved plan", async () => {
+  await fixture(async ({ service }) => {
+    const generated = await service.generate("project-1", {
+      idea: "A parent searches for the truth behind a disappearance during a winter lockdown.",
+      targetChapters: 2,
+      now: "2026-09-02T20:05:00Z",
+    });
+    await service.approve("project-1", generated.candidate.id, { authorApproved: true, now: "2026-09-02T20:06:00Z" });
+    let snapshot = await service.revokeApproval("project-1", generated.candidate.id, "2026-09-02T20:07:00Z");
+    assert.equal(snapshot.candidates[0].approved, false);
+    assert.equal(snapshot.candidates[0].approvalStale, false);
+    assert.equal(snapshot.candidates[0].plan.premise, providerPlan().premise);
+    assert.equal(snapshot.workflow.approvals.length, 0);
+    await assert.rejects(() => service.chapterCardSeed("project-1", generated.candidate.id), /not currently author-approved/);
+    await assert.rejects(() => service.revokeApproval("project-1", generated.candidate.id), /no approval to revoke/);
+
+    snapshot = await service.approve("project-1", generated.candidate.id, { authorApproved: true, now: "2026-09-02T20:08:00Z" });
+    assert.equal(snapshot.candidates[0].approved, true, "A deliberately revoked plan remains available for later author reapproval.");
+  });
+});
+
 test("editing approved Story Architecture makes approval stale and blocks Chapter Card handoff", async () => {
   await fixture(async ({ service }) => {
     const generated = await service.generate("project-1", {
