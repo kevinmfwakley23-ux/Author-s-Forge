@@ -107,12 +107,18 @@
       }
       button.dataset.planChapter = `${item.book.id}|${item.chapter.id}`;
       const card = planning.chapterCards?.[item.chapter.id];
-      button.textContent = card ? "Edit Chapter Card" : "Chapter Card";
+      const buttonLabel = card ? "Edit Chapter Card" : "Chapter Card";
+      if (button.textContent !== buttonLabel) button.textContent = buttonLabel;
       let summary = node.querySelector(".chapter-card-summary");
-      if (!summary) { summary = document.createElement("div"); summary.className = "chapter-card-summary"; node.querySelector("header")?.insertAdjacentElement("afterend", summary); }
-      if (!card) { summary.textContent = "No chapter-level plan yet."; return; }
-      const parts = [card.location, card.storyTime, card.plotObjective, card.endingHook, card.approximateWordCount ? `${card.approximateWordCount} words` : ""].filter(Boolean);
-      summary.textContent = parts.join(" • ") || "Chapter Card saved.";
+      if (!summary) {
+        summary = document.createElement("div");
+        summary.className = "chapter-card-summary";
+        node.querySelector("header")?.insertAdjacentElement("afterend", summary);
+      }
+      const summaryText = card
+        ? ([card.location, card.storyTime, card.plotObjective, card.endingHook, card.approximateWordCount ? `${card.approximateWordCount} words` : ""].filter(Boolean).join(" • ") || "Chapter Card saved.")
+        : "No chapter-level plan yet.";
+      if (summary.textContent !== summaryText) summary.textContent = summaryText;
     });
   }
   async function loadPlanning() {
@@ -188,7 +194,10 @@
         approximateWordCount: wordCount,
         forbiddenDeviations: splitLines("chapter-card-forbidden"),
       } }) });
-      planning = result.planning; options = result.options; decorateChapters(); openCard(selected.bookId, selected.chapterId, false);
+      planning = result.planning;
+      options = result.options;
+      decorateChapters();
+      openCard(selected.bookId, selected.chapterId, false);
       notify("Chapter Card saved as durable planning. Manuscript prose, chapter title, and scene order were not changed.");
     } catch (error) { notify(error instanceof Error ? error.message : String(error), "error"); }
   }
@@ -197,7 +206,10 @@
     try {
       const suffix = `/story-map/chapters/${encodeURIComponent(selected.bookId)}/${encodeURIComponent(selected.chapterId)}/card`;
       const result = await api(projectUrl(suffix), { method: "DELETE" });
-      planning = result.planning; options = result.options; decorateChapters(); closeEditor();
+      planning = result.planning;
+      options = result.options;
+      decorateChapters();
+      closeEditor();
       notify("Chapter Card removed. The manuscript chapter and its scenes remain intact.");
     } catch (error) { notify(error instanceof Error ? error.message : String(error), "error"); }
   }
@@ -205,7 +217,10 @@
     const host = document.getElementById("story-map-books");
     if (!host || observer) return;
     observer = new MutationObserver(() => { if (!syncing) decorateChapters(); });
-    observer.observe(host, { childList: true, subtree: true });
+    // Story Map replaces the chapter collection at the host boundary. Watching
+    // only direct children lets us redecorate real rerenders without observing
+    // the buttons/summaries that this extension itself inserts.
+    observer.observe(host, { childList: true });
   }
   document.addEventListener("click", (event) => {
     const target = event.target instanceof Element ? event.target.closest("[data-plan-chapter]") : null;
@@ -216,12 +231,22 @@
   });
   async function boot() {
     if (!document.getElementById("story-map")) return;
-    ensureEditor(); observeStoryMap(); await sync();
+    ensureEditor();
+    observeStoryMap();
+    await sync();
   }
   window.addEventListener("forge:workspace-ready", () => { void boot(); });
   window.addEventListener("hashchange", () => { if (location.hash === "#story-map") void boot(); });
   window.addEventListener("load", () => { setTimeout(() => { void boot(); }, 0); });
-  const rootObserver = new MutationObserver(() => { if (document.getElementById("story-map")) { observeStoryMap(); void boot(); } });
-  rootObserver.observe(document.documentElement, { childList: true, subtree: true });
-  if (document.readyState !== "loading") setTimeout(() => { void boot(); }, 0);
+
+  // Story Map is injected dynamically. Observe only until that surface exists,
+  // then disconnect so unrelated Studio DOM activity can never trigger network
+  // planning reloads or keep browser navigation from reaching network-idle.
+  const rootObserver = new MutationObserver(() => {
+    if (!document.getElementById("story-map")) return;
+    rootObserver.disconnect();
+    void boot();
+  });
+  if (document.getElementById("story-map")) setTimeout(() => { void boot(); }, 0);
+  else rootObserver.observe(document.documentElement, { childList: true, subtree: true });
 })();
