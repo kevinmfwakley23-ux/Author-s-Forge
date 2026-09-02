@@ -1,4 +1,5 @@
 import type { AiBillingClass, AiModelCapabilities, AiModelResource } from "../application/ai-model-broker";
+import { constrainResourcesForOwnerPin, refreshPersistedAiOwnerControl } from "./ai-owner-control-runtime";
 
 type SupportedProvider = "omniroute" | "9router" | "kings" | "openai" | "ollama" | "groq" | "mistral" | "gemini" | "anthropic" | "openrouter";
 
@@ -44,10 +45,12 @@ const BILLING_CLASSES: readonly AiBillingClass[] = ["local", "subscription", "fr
 
 /** Build the canonical broker resource registry from real runtime configuration only. */
 export function discoverConfiguredAiModelResources(env: NodeJS.ProcessEnv = process.env): AiModelResource[] {
+  const ownerControl = refreshPersistedAiOwnerControl(env);
   const resources: AiModelResource[] = [];
-  const addProvider = (provider: SupportedProvider, configured: boolean, models: readonly string[], prefix: string): void => {
+  const addProvider = (provider: SupportedProvider, configured: boolean, candidateModels: readonly string[], prefix: string): void => {
     if (!configured) return;
-    const uniqueModels = [...new Set(models.map((model) => model.trim()).filter(Boolean))];
+    const pinnedModel = env.AI_PINNED_PROVIDER === provider ? env.AI_PINNED_MODEL?.trim() : undefined;
+    const uniqueModels = [...new Set([...(pinnedModel ? [pinnedModel] : []), ...candidateModels].map((model) => model.trim()).filter(Boolean))];
     const billingClass = billingClassFromEnv(env[`${prefix}_BILLING_CLASS`], DEFAULT_BILLING[provider], prefix);
     for (const model of uniqueModels) resources.push(withProviderMetrics({
       provider,
@@ -76,7 +79,7 @@ export function discoverConfiguredAiModelResources(env: NodeJS.ProcessEnv = proc
   const overrides = parseExplicitResources(env.AI_MODEL_RESOURCES_JSON, env);
   const byKey = new Map(resources.map((resource) => [`${resource.provider}::${resource.model}`, resource]));
   for (const resource of overrides) byKey.set(`${resource.provider}::${resource.model}`, resource);
-  return [...byKey.values()];
+  return constrainResourcesForOwnerPin([...byKey.values()], ownerControl);
 }
 
 function models(list: string | undefined, single: string | undefined, fallback?: string): string[] {
