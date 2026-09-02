@@ -20,11 +20,14 @@ const BASE_CAPABILITIES: Readonly<Record<SupportedProvider, AiModelCapabilities>
   openrouter: { creativeWriting: true, instructionFollowing: true },
 };
 
+// OmniRoute/9Router are treated as subscription-covered routing trunks unless
+// the owner explicitly overrides *_BILLING_CLASS. K.I.N.G.S./Ollama are local
+// by default. Direct credit/token APIs are never assumed free.
 const DEFAULT_BILLING: Readonly<Record<SupportedProvider, AiBillingClass>> = {
   ollama: "local",
-  kings: "unknown",
-  omniroute: "gateway-managed",
-  "9router": "gateway-managed",
+  kings: "local",
+  omniroute: "subscription",
+  "9router": "subscription",
   openai: "metered",
   groq: "unknown",
   mistral: "unknown",
