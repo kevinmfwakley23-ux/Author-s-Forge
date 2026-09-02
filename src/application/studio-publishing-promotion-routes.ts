@@ -5,16 +5,18 @@ import { createStudioImageLabRoutes } from "./studio-image-lab-routes";
 import { createStudioLiveResearchRoutes } from "./studio-live-research-routes";
 import { createStudioMarketPromotionRoutes } from "./studio-market-promotion-routes";
 import { createStudioPublishingRoutes } from "./studio-publishing-routes";
+import { createStudioStoryMapRoutes } from "./studio-story-map-routes";
 
 export type StudioPublishingPromotionRouteHandler = (req: IncomingMessage, res: ServerResponse, url: URL, projectId: string) => Promise<boolean>;
 
 /**
  * Modular Studio extension boundary. Historical name is retained to avoid
- * destabilizing the server entrypoint while author-craft, live research, image,
- * publishing, market and promotion routes remain independently implemented/testable.
+ * destabilizing the server entrypoint while author-craft, Story Map, research,
+ * image, publishing, market and promotion routes remain independently implemented/testable.
  */
 export function createStudioPublishingPromotionRoutes(store: FileProjectStore): StudioPublishingPromotionRouteHandler {
   const authorCraft = createStudioAuthorCraftRoutes(store);
+  const storyMap = createStudioStoryMapRoutes(store);
   const liveResearch = createStudioLiveResearchRoutes(store);
   const imageLab = createStudioImageLabRoutes(store);
   const publishing = createStudioPublishingRoutes(store);
@@ -22,6 +24,7 @@ export function createStudioPublishingPromotionRoutes(store: FileProjectStore): 
 
   return async (req, res, url, projectId) => {
     if (await authorCraft(req, res, url, projectId)) return true;
+    if (await storyMap(req, res, url, projectId)) return true;
     if (await liveResearch(req, res, url, projectId)) return true;
     if (await imageLab(req, res, url, projectId)) return true;
     if (await publishing(req, res, url, projectId)) return true;
