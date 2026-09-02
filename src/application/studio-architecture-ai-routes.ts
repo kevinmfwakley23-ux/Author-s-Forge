@@ -76,7 +76,10 @@ export class StudioArchitectureAiService {
         "Return: premise, themes, audience, genre expectations, canon candidates, character candidates, locations, timeline considerations, chapter plan, scene plan, unresolved questions, and production risks.",
       ].join("\n"),
       task: "writing",
-      requiresReasoning: true,
+      // Architecture benefits from reasoning, but requiring a model to advertise
+      // the optional reasoning capability would exclude otherwise valid writing
+      // models whose concrete capability metadata is unknown. Creative writing
+      // and instruction following are the hard requirements for this boundary.
       requiresCreativeWriting: true,
       requiresInstructionFollowing: true,
       temperature: 0.4,
