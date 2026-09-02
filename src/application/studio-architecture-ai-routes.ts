@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { FileProjectStore } from "../infrastructure/file-project-store";
 import { generateProjectText, type AiGenerationResult, type ProjectAiGenerationRequest } from "../infrastructure/ai-provider";
+import { assertAiCollaborationCapability } from "../domain/ai-collaboration";
 import { ProjectMemoryStore } from "./project-memory-store";
 
 export type StudioArchitectureGenerator = (request: ProjectAiGenerationRequest) => Promise<AiGenerationResult>;
@@ -33,6 +34,7 @@ export class StudioArchitectureAiService {
     const targetChapters = optionalPositiveInteger(input.targetChapters, "Target chapters");
     const project = await this.store.load(projectId);
     if (!project) throw new Error(`Project "${projectId}" not found.`);
+    assertAiCollaborationCapability(project.aiCollaborationPolicy, "draft", "AI architecture generation");
 
     const memory = new ProjectMemoryStore();
     for (const record of project.memories) memory.register(record);
