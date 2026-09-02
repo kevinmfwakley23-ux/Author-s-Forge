@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Author's Forge Author Craft Studio — AI training, rhyme storytelling, dictionary and thesaurus word choice">
+<title>Author's Forge — Author Craft Studio</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+.craft-shell{max-width:1500px;margin:auto;padding:1rem}.craft-head{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap}.craft-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.craft-card{background:var(--panel,#fff);border:1px solid #d6d6d6;border-radius:14px;padding:1rem;min-width:0}.craft-card.wide{grid-column:1/-1}.craft-form{display:grid;gap:.75rem}.craft-form label{display:grid;gap:.3rem;font-weight:600}.craft-form textarea{min-height:110px}.craft-form button,.craft-form input,.craft-form select,.craft-row button{min-height:44px}.craft-row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}.craft-output{white-space:pre-wrap;overflow:auto;max-height:560px}.craft-question{border:1px solid #ddd;border-radius:10px;padding:.8rem;margin:.65rem 0}.craft-question textarea{width:100%;min-height:100px}.craft-candidates{display:grid;gap:.5rem}.craft-choice{border:1px solid #ddd;border-radius:9px;padding:.65rem}.craft-choice label{display:flex;gap:.5rem;align-items:flex-start}.craft-source{font-size:.85rem;opacity:.75}.craft-metric{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.5rem}.craft-metric div{border:1px solid #ddd;border-radius:8px;padding:.55rem}.craft-table{width:100%;border-collapse:collapse}.craft-table th,.craft-table td{padding:.4rem;border-bottom:1px solid #ddd;text-align:left;vertical-align:top}.craft-status{position:sticky;top:.5rem;z-index:5;background:#111;color:#fff;padding:.65rem .9rem;border-radius:10px;margin-bottom:.8rem}.craft-status:empty{display:none}@media(max-width:800px){.craft-grid{grid-template-columns:1fr}.craft-card.wide{grid-column:auto}.craft-metric{grid-template-columns:repeat(2,minmax(0,1fr))}.craft-shell{padding:.6rem}}
+</style>
+</head>
+<body>
+<main class="craft-shell">
+<header class="craft-head"><div><div class="eyebrow">AUTHOR CRAFT STUDIO</div><h1>Train the AI on you. Strengthen the craft without losing your voice.</h1><p>Direct author answers remain authoritative. AI interpretations remain proposals until you approve them. Rhyme revisions and word alternatives never silently replace manuscript text.</p></div><div class="craft-row"><a id="main-studio" href="/">Main Studio</a><button id="refresh-project" type="button">Refresh project</button></div></header>
+<div id="craft-status" class="craft-status" role="status" aria-live="polite"></div>
+<div class="craft-grid">
+<section class="craft-card wide" id="training-card">
+<div class="section-title"><div><div class="eyebrow">AI TRAINING</div><h2>Teach Forge how you think, feel, speak and tell stories</h2><p>Answer in your natural words. Forge stores your direct answers as author-controlled memory, then a real AI provider can build a reviewable collaboration profile.</p></div></div>
+<div class="craft-row"><span id="training-progress">Loading questions…</span><button id="training-assess" class="primary" type="button">Assess my author voice</button></div>
+<div id="training-questions"></div>
+<h3>AI assessment candidate</h3><pre id="training-assessment" class="craft-output">No assessment yet.</pre>
+<div class="craft-row"><button id="training-approve" type="button" disabled>Approve profile into Author Voice Memory</button><span id="training-provider" class="craft-source"></span></div>
+</section>
+
+<section class="craft-card" id="rhyme-card">
+<div class="eyebrow">RHYME & VERSE STORYTELLING</div><h2>Read-aloud rhyme craft</h2><p>Analyze cadence and rhyme deterministically, then optionally ask real AI for a candidate revision.</p>
+<form id="rhyme-form" class="craft-form">
+<label>Craft mode<select id="rhyme-mode"><option value="gentle-musical">Gentle musical picture-book</option><option value="playful-bouncy">Playful, bouncy wordplay</option><option value="whimsical-conversational">Whimsical conversational verse</option><option value="narrative-ballad">Narrative ballad</option><option value="custom">Custom</option></select></label>
+<label>Verse / story<textarea id="rhyme-text" required placeholder="Paste or write rhyming story text here…"></textarea></label>
+<label>Revision direction<textarea id="rhyme-instruction" placeholder="Example: keep AABB couplets, ages 5–9, warm emotional tone, natural rhymes, and preserve every story beat."></textarea></label>
+<div class="craft-row"><button id="rhyme-analyze" class="primary" type="submit">Analyze rhyme & cadence</button><button id="rhyme-revise" type="button">Create AI revision candidate</button></div>
+</form>
+<div id="rhyme-metrics" class="craft-metric"></div><div id="rhyme-findings" class="craft-output"></div>
+<h3>AI revision candidate</h3><textarea id="rhyme-candidate" class="editor candidate" readonly placeholder="AI candidate appears here. Copy only if you choose it."></textarea>
+</section>
+
+<section class="craft-card" id="lexicon-card">
+<div class="eyebrow">DICTIONARY & THESAURUS</div><h2>Word choice with real lexical evidence</h2><p>Definitions come from dictionary data; synonyms and semantic alternatives come from real thesaurus/lexical services. Context comparison can use your configured AI provider.</p>
+<form id="lexicon-form" class="craft-form">
+<label>Word<input id="lexicon-word" required placeholder="Example: gentle"></label>
+<label>Sentence<textarea id="lexicon-sentence" placeholder="Paste the sentence containing the word so Forge can preview alternatives in place."></textarea></label>
+<div class="craft-row"><button class="primary" type="submit">Look up alternatives</button><button id="lexicon-compare" type="button">Compare selected with AI</button></div>
+</form>
+<div id="lexicon-definitions" class="craft-output"></div>
+<div id="lexicon-candidates" class="craft-candidates"></div>
+<h3>AI nuance comparison</h3><pre id="lexicon-comparison" class="craft-output">Select alternatives, then compare them if you want AI guidance.</pre>
+<p class="craft-source">Lexical sources: Free Dictionary API and Datamuse API. Forge reports source failures rather than fabricating results.</p>
+</section>
+</div>
+</main>
+<script src="/author-craft.js" defer></script>
+</body>
+</html>
