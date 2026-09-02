@@ -42,10 +42,19 @@ async function main() {
     const page = await context.newPage();
     await page.addInitScript(() => {
       class TestSpeechRecognition {
-        start() { this.onstart?.(); setTimeout(() => { const result = [{ transcript: "open writing" }]; result.isFinal = true; const results = [result]; this.onresult?.({ resultIndex: 0, results }); this.onend?.(); }, 10); }
+        start() {
+          this.onstart?.();
+          setTimeout(() => {
+            const finalResult = [{ transcript: "open writing" }];
+            finalResult.isFinal = true;
+            this.onresult?.({ resultIndex: 0, results: [finalResult] });
+            this.onend?.();
+          }, 25);
+        }
         stop() { this.onend?.(); }
       }
-      window.webkitSpeechRecognition = TestSpeechRecognition;
+      Object.defineProperty(window, "SpeechRecognition", { configurable: true, writable: true, value: TestSpeechRecognition });
+      Object.defineProperty(window, "webkitSpeechRecognition", { configurable: true, writable: true, value: TestSpeechRecognition });
     });
     await page.goto(`${base}/?project=${encodeURIComponent(projectId)}#art`, { waitUntil: "networkidle" });
     await page.waitForSelector("#forge-image-lab #forge-image-history [data-image-asset='pending-art']");
