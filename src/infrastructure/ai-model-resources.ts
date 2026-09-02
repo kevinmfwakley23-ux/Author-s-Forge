@@ -20,9 +20,6 @@ const BASE_CAPABILITIES: Readonly<Record<SupportedProvider, AiModelCapabilities>
   openrouter: { creativeWriting: true, instructionFollowing: true },
 };
 
-// OmniRoute/9Router are treated as subscription-covered routing trunks unless
-// the owner explicitly overrides *_BILLING_CLASS. K.I.N.G.S./Ollama are local
-// by default. Direct credit/token APIs are never assumed free.
 const DEFAULT_BILLING: Readonly<Record<SupportedProvider, AiBillingClass>> = {
   ollama: "local",
   kings: "local",
@@ -57,18 +54,19 @@ export function discoverConfiguredAiModelResources(env: NodeJS.ProcessEnv = proc
     }, env, prefix, uniqueModels.length === 1));
   };
 
-  // Routers first because they can expose broad multi-model catalogs. Direct
-  // providers remain independent fallbacks; local Ollama remains fully offline.
+  // Preserve the established provider registration order so existing routing
+  // remains stable. New providers extend the pool without silently reshuffling
+  // otherwise equal candidates; owner preference is handled by broker scoring.
   addProvider("omniroute", Boolean(env.OMNIROUTE_BASE_URL?.trim()), models(env.OMNIROUTE_MODELS, env.OMNIROUTE_MODEL, "auto"), "OMNIROUTE");
   addProvider("9router", Boolean(env.ROUTER9_BASE_URL?.trim()), models(env.ROUTER9_MODELS, env.ROUTER9_MODEL, "auto"), "ROUTER9");
-  addProvider("openrouter", Boolean(env.OPENROUTER_API_KEY?.trim()), models(env.OPENROUTER_MODELS, env.OPENROUTER_MODEL), "OPENROUTER");
-  addProvider("kings", Boolean(env.KINGS_AI_ENDPOINT?.trim()), models(env.KINGS_AI_MODELS, env.KINGS_AI_MODEL), "KINGS_AI");
+  addProvider("openai", Boolean(env.OPENAI_API_KEY?.trim()), models(env.OPENAI_MODELS, env.OPENAI_MODEL), "OPENAI");
   addProvider("ollama", Boolean(env.OLLAMA_BASE_URL?.trim()), models(env.OLLAMA_MODELS, env.OLLAMA_MODEL), "OLLAMA");
+  addProvider("kings", Boolean(env.KINGS_AI_ENDPOINT?.trim()), models(env.KINGS_AI_MODELS, env.KINGS_AI_MODEL), "KINGS_AI");
   addProvider("groq", Boolean(env.GROQ_API_KEY?.trim()), models(env.GROQ_MODELS, env.GROQ_MODEL), "GROQ");
   addProvider("mistral", Boolean(env.MISTRAL_API_KEY?.trim()), models(env.MISTRAL_MODELS, env.MISTRAL_MODEL), "MISTRAL");
   addProvider("gemini", Boolean(env.GEMINI_API_KEY?.trim()), models(env.GEMINI_MODELS, env.GEMINI_MODEL), "GEMINI");
   addProvider("anthropic", Boolean(env.ANTHROPIC_API_KEY?.trim()), models(env.ANTHROPIC_MODELS, env.ANTHROPIC_MODEL), "ANTHROPIC");
-  addProvider("openai", Boolean(env.OPENAI_API_KEY?.trim()), models(env.OPENAI_MODELS, env.OPENAI_MODEL), "OPENAI");
+  addProvider("openrouter", Boolean(env.OPENROUTER_API_KEY?.trim()), models(env.OPENROUTER_MODELS, env.OPENROUTER_MODEL), "OPENROUTER");
 
   const overrides = parseExplicitResources(env.AI_MODEL_RESOURCES_JSON, env);
   const byKey = new Map(resources.map((resource) => [`${resource.provider}::${resource.model}`, resource]));
