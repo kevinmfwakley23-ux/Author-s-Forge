@@ -4,6 +4,7 @@
   const projectId = new URLSearchParams(location.search).get("project") || localStorage.getItem("forge-project") || "forge-studio";
   const projectUrl = (suffix = "") => `/api/projects/${encodeURIComponent(projectId)}${suffix}`;
   const $ = (selector) => document.querySelector(selector);
+  const esc = (value) => String(value ?? "").replace(/[&<>\"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[char]));
   const lines = (value) => [...new Set(String(value || "").split(/\r?\n/u).map((item) => item.trim()).filter(Boolean))];
   let snapshot = { candidates: [], approvedArchitectureId: null };
   let selectedId = null;
@@ -47,7 +48,7 @@
     article.id = "story-architecture-workflow";
     article.className = "card story-architecture-workflow";
     article.innerHTML = `
-      <div class="section-title"><div><div class="eyebrow">DURABLE STORY ARCHITECTURE</div><h3>Review the plan before it governs the book</h3><p class="muted">Forge stores the architecture as structured planning. Editing changes its fingerprint. Only the exact version you explicitly approve can feed Chapter Card generation. Approval does not promote proposed canon into Project Brain and never writes manuscript prose.</p></div></div>
+      <div class="section-title"><div><div class="eyebrow">DURABLE STORY ARCHITECTURE</div><h3>Review the plan before it governs the book</h3><p class="muted">Forge stores the architecture as structured planning. Editing changes its fingerprint. Only the exact version you explicitly approve can feed Chapter Card generation. Approval can be revoked at any time, does not promote proposed canon into Project Brain, and never writes manuscript prose.</p></div></div>
       <div id="story-architecture-status" class="story-architecture-status" role="status">No durable architecture candidate selected.</div>
       <div id="story-architecture-candidates" class="story-architecture-candidates"></div>
       <form id="story-architecture-form">
@@ -66,11 +67,12 @@
           <label class="story-architecture-wide">Chapter plan JSON<textarea id="story-architecture-chapters" class="story-architecture-json" spellcheck="false"></textarea></label>
           <label class="story-architecture-wide">Scene plan JSON<textarea id="story-architecture-scenes" class="story-architecture-json" spellcheck="false"></textarea></label>
         </div>
-        <div class="story-architecture-actions"><button class="primary" type="submit">Save architecture edits</button><button id="story-architecture-approve" type="button">Approve exact architecture</button><button id="story-architecture-seed" class="primary" type="button">Use approved architecture for Chapter Cards</button><button id="story-architecture-refresh" type="button">Refresh</button></div>
+        <div class="story-architecture-actions"><button class="primary" type="submit">Save architecture edits</button><button id="story-architecture-approve" type="button">Approve exact architecture</button><button id="story-architecture-revoke" type="button">Revoke approval</button><button id="story-architecture-seed" class="primary" type="button">Use approved architecture for Chapter Cards</button><button id="story-architecture-refresh" type="button">Refresh</button></div>
       </form>`;
     architecture.appendChild(article);
     $("#story-architecture-form")?.addEventListener("submit", saveEdits);
     $("#story-architecture-approve")?.addEventListener("click", () => void approveSelected());
+    $("#story-architecture-revoke")?.addEventListener("click", () => void revokeSelected());
     $("#story-architecture-seed")?.addEventListener("click", () => void seedChapterCards());
     $("#story-architecture-refresh")?.addEventListener("click", () => void refresh());
     return true;
@@ -99,13 +101,17 @@
     if (host) {
       host.innerHTML = (snapshot.candidates || []).slice(0, 8).map((item) => {
         const state = item.approved ? "APPROVED" : item.approvalStale ? "STALE APPROVAL" : "UNAPPROVED";
-        return `<button type="button" data-architecture-candidate="${item.id}"><strong>${state}</strong> · ${item.kind} · ${(item.plan?.chapterPlan || []).length} chapters<br><small>${item.provider} · ${item.model} · ${new Date(item.updatedAt).toLocaleString()}</small></button>`;
+        const updated = Number.isNaN(Date.parse(item.updatedAt)) ? "unknown time" : new Date(item.updatedAt).toLocaleString();
+        return `<button type="button" data-architecture-candidate="${esc(item.id)}"><strong>${esc(state)}</strong> · ${esc(item.kind)} · ${(item.plan?.chapterPlan || []).length} chapters<br><small>${esc(item.provider)} · ${esc(item.model)} · ${esc(updated)}</small></button>`;
       }).join("") || '<p class="muted">Generate architecture from the idea box above.</p>';
     }
     const item = candidate();
     if (!item) {
       $("#story-architecture-form")?.reset();
       $("#story-architecture-status").textContent = "No durable architecture candidate selected.";
+      if ($("#story-architecture-approve")) $("#story-architecture-approve").disabled = true;
+      if ($("#story-architecture-revoke")) $("#story-architecture-revoke").disabled = true;
+      if ($("#story-architecture-seed")) $("#story-architecture-seed").disabled = true;
       return;
     }
     selectedId = item.id;
@@ -127,10 +133,11 @@
     const status = item.approved
       ? `Approved exact architecture ${String(item.planSha256 || "").slice(0, 12)}…${item.approvedAt ? ` · ${new Date(item.approvedAt).toLocaleString()}` : ""}. It may seed Chapter Cards.`
       : item.approvalStale
-        ? "Approval is stale because this architecture was edited after approval. Review and approve the current version before downstream use."
+        ? "Approval is stale because this architecture was edited after approval. Review and approve the current version before downstream use, or revoke the old approval explicitly."
         : "Durable candidate saved but not approved. Review/edit it before downstream use.";
     $("#story-architecture-status").textContent = status;
     $("#story-architecture-approve").disabled = Boolean(item.approved);
+    $("#story-architecture-revoke").disabled = !(item.approved || item.approvalStale);
     $("#story-architecture-seed").disabled = !item.approved;
   }
   async function refresh(preferredId) {
@@ -202,6 +209,17 @@
       selectedId = item.id;
       render();
       notify("Exact Story Architecture approved by the author. It can now seed Chapter Cards.", true);
+    } catch (error) { notify(error instanceof Error ? error.message : String(error)); }
+  }
+  async function revokeSelected() {
+    const item = candidate();
+    if (!item || !(item.approved || item.approvalStale)) return notify("This Story Architecture has no approval to revoke.");
+    if (!window.confirm("Revoke this Story Architecture approval? The plan will remain saved, but it will no longer be allowed to seed Chapter Cards until you approve it again.")) return;
+    try {
+      snapshot = await api(projectUrl(`/story-architecture/candidates/${encodeURIComponent(item.id)}/revoke`), { method: "POST", body: "{}" });
+      selectedId = item.id;
+      render();
+      notify("Story Architecture approval revoked. The saved plan remains available for editing and later review.", true);
     } catch (error) { notify(error instanceof Error ? error.message : String(error)); }
   }
   async function seedChapterCards() {
