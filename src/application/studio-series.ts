@@ -168,7 +168,7 @@ function monotonicProjectTimestamp(project: ProjectState, requested?: string): s
   if (!Number.isFinite(candidateMs)) throw new Error("Series mutation timestamp must be a valid timestamp.");
   const currentMs = Date.parse(project.metadata.updatedAt);
   if (!Number.isFinite(currentMs)) throw new Error("Project updatedAt must be a valid timestamp before Series mutation.");
-  return candidateMs < currentMs ? project.metadata.updatedAt : new Date(candidateMs).toISOString();
+  return new Date(Math.max(candidateMs, currentMs)).toISOString();
 }
 
 function required(value: unknown, label: string): string {
