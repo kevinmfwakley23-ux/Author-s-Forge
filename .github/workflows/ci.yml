@@ -33,11 +33,13 @@ jobs:
       - run: node --check public/forge-kdp-preflight.js
       - run: node --check public/forge-publishing-promotion.js
       - run: node --check public/forge-promotion-performance.js
+      - run: node --check public/author-craft.js
       - run: node --check public/forge-pwa.js
       - run: node --check public/sw.js
       - run: node --check scripts/start-forge.js
       - run: node --check scripts/forge-offices-browser-acceptance.js
       - run: node --check scripts/studio-image-lab-browser-acceptance.js
+      - run: node --check scripts/studio-author-craft-browser-acceptance.js
       - run: bash -n scripts/termux-forge.sh
 
   browser-acceptance:
