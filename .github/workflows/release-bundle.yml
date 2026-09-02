@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 35
     steps:
       - name: Checkout release ref
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -29,14 +29,17 @@ jobs:
             exit 1
           fi
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - name: Setup validated Node LTS
+        uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version-file: .nvmrc
           cache: npm
 
-      - name: Install dependencies
+      - name: Install exact locked dependencies
         run: npm ci
+
+      - name: Verify runtime contract
+        run: npm run runtime:check
 
       - name: Install Chromium acceptance runtime
         run: npx playwright install --with-deps chromium
@@ -53,6 +56,7 @@ jobs:
           node --check public/forge-manuscript-import.js
           node --check public/forge-pwa.js
           node --check public/sw.js
+          node --check scripts/require-node24.js
           node --check scripts/forge-network-security.js
           node --check scripts/start-forge.js
           node --check scripts/studio-architecture-browser-acceptance.js
@@ -67,7 +71,7 @@ jobs:
           mkdir -p release-bundle/forge
           cp -R dist release-bundle/forge/dist
           cp -R public release-bundle/forge/public
-          cp package.json package-lock.json release-bundle/forge/
+          cp package.json package-lock.json .nvmrc release-bundle/forge/
           cp -R scripts release-bundle/forge/scripts
           cp README.md AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md release-bundle/forge/
           cat > release-bundle/forge/RUN-FORGE.md <<'EOF'
@@ -75,12 +79,16 @@ jobs:
 
           This bundle was assembled only after its exact Git commit passed Author's Forge's strongest repository verification gate: build, baseline, complete regression tests, completion checks, full desktop browser acceptance, and Android/mobile browser acceptance.
 
+          Author's Forge is validated on Node.js 24 LTS. Unsupported or end-of-life Node major versions are rejected before build/install work is allowed to present itself as a supported runtime.
+
           ## Chromebook/Linux — complete workplace
-          npm install
+          With nvm: `nvm install 24 && nvm use 24`
+          Then run:
+          npm ci
           npm run forge
           Open http://127.0.0.1:4173/
 
-          Story Architecture is a durable author-controlled planning stage. Real AI can turn the author's idea plus Project Brain context into a structured premise, themes, audience, genre expectations, canon/character/location candidates, timeline considerations, assumptions, chapter plan, scene plan, unresolved questions, and production risks. The exact current architecture must be explicitly author-approved before Forge can hand it into Chapter Card planning. Editing an approved architecture makes that approval stale. Architecture approval does not promote canon candidates into Project Brain and does not write manuscript prose.
+          Story Architecture is a durable author-controlled planning stage. Real AI can turn the author's idea plus Project Brain context into a structured premise, themes, audience, genre expectations, canon/character/location candidates, timeline considerations, assumptions, chapter plan, scene plan, unresolved questions, and production risks. The exact current architecture must be explicitly author-approved before Forge can hand it into Chapter Card planning. Editing an approved architecture makes that approval stale, and the author can explicitly revoke approval without altering the saved plan. Architecture approval does not promote canon candidates into Project Brain and does not write manuscript prose.
 
           The Main Studio includes the durable Series Engine and the author-directed Chapter Card workflow. An author can give Forge a book description plus known events and timeline details—or seed that brief from approved Story Architecture—have real AI create structured Chapter Cards, edit/review them, explicitly approve the exact current cards, then either write manually from those cards or request AI chapter drafts. AI chapter drafts remain durable proposals for author review and do not overwrite existing manuscript prose.
 
@@ -93,7 +101,11 @@ jobs:
           The main Studio Illustration surface includes the durable Image Lab. Real image generation/editing requires an explicitly configured supported image provider credential; when unavailable Forge reports that condition and does not fabricate artwork.
 
           ## Android / Termux or trusted LAN/device access
-          npm install
+          Install the Termux LTS runtime, not the current-release Node package:
+          pkg install nodejs-lts npm
+
+          Then run:
+          npm ci
           npm run forge:android
 
           Non-loopback mode is protected. Do not open a plain device URL first. The launcher prints a bootstrap URL in this form:
@@ -104,7 +116,7 @@ jobs:
 
           You can set FORGE_ACCESS_TOKEN yourself before launch; it must be at least 24 characters. Otherwise Forge generates a strong random token for the launcher run.
 
-          Termux users can run `bash scripts/termux-forge.sh`; it generates/reuses the token and prints the correct phone bootstrap URL. The supported `studio:android`, `studio:journal:android`, `studio:workbooks:android`, and `studio:specialized:android` commands use the same protected boundary.
+          Termux users can run `bash scripts/termux-forge.sh`; it verifies the Node 24 LTS runtime, generates/reuses the access token, and prints the correct phone bootstrap URL. The supported `studio:android`, `studio:journal:android`, `studio:workbooks:android`, and `studio:specialized:android` commands use the same protected boundary.
 
           The access token prevents anonymous LAN access but does not encrypt plain HTTP. Use this mode only on a trusted local network. Use an authenticated encrypted tunnel or HTTPS reverse proxy for untrusted/remote networks.
 
