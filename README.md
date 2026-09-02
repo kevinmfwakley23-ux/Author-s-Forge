@@ -1,401 +1,269 @@
 # Author's Forge
 
-**Author's Forge** is a local-first author workplace for taking books from idea to finished, edited, illustrated, produced, and publication-ready material.
+**Author's Forge** is a local-first AI authoring and publishing workplace for taking a project from idea → structured book → canon and characters → writing and editing → illustration and cover → production → market research and promotion → delivery and recovery.
 
-## Canonical Product Directive
-
-**`AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md` is the canonical product contract and engineering source of truth.** It defines the target author journey: concept → architecture → canon → characters → timeline → research → manuscript → editing → illustrations → cover → formatting → metadata → positioning → marketing → publishing preparation → portable archive/recovery.
+This repository is the working product, not a mission gallery. The canonical product contract remains [`AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md`](AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md).
 
 ## Chief Engineering Standard
 
-Forge must be a **real working author workplace**, not a mission gallery or collection of promises.
-
-Non-negotiable:
-
-- real implementation only;
-- real provider calls only;
-- real persistence only;
-- no fake AI responses;
-- no fake image generation;
-- no fake, stub, canned, demo-only, placeholder, or simulated production behavior presented as complete;
-- no placeholder controls presented as complete;
-- no dead navigation;
-- no silent canon mutation;
-- no weakening/deleting tests to make builds green;
-- major autonomous actions observable, reversible, attributable, and author-controlled.
+Author's Forge is built under one permanent rule: **real working code only**.
 
 ### No fake-ass code rule
 
-**No fake-ass code.** If Forge says a feature is built, that feature must be **real, workable, usable, connected to the actual application/state boundary, and verifiable through the real product path.**
+**No fake-ass code.** If Forge says a feature is built, it must be real, workable, usable, connected to the actual application/state boundary, and verifiable through the real product path.
 
-The following are forbidden when presented as finished production behavior:
+Production behavior must not use or present any of the following as finished capability:
 
-- stubs, mocks, canned responses, hard-coded provider answers, fabricated artifacts, or fake success states;
-- demo-only or placeholder buttons, routes, editors, exports, persistence, AI calls, image generation, publishing actions, statistics, or production outputs masquerading as working features;
-- swallowing a real error and returning a success-looking result;
-- claiming an artifact is KDP-ready, publish-ready, provider-generated, persisted, downloaded, uploaded, measured, researched, or verified unless that operation actually happened and the evidence exists.
+- fake AI responses, canned provider answers, fabricated research, or simulated success states;
+- placeholder buttons, dead navigation, demo-only routes, fake persistence, or fake downloads;
+- fake image generation or fabricated art assets;
+- fake publishing readiness, market statistics, sales claims, campaign performance, or KDP compliance claims;
+- swallowed provider/storage errors that look like success;
+- silent canon changes, silent manuscript rewrites, or AI self-approval;
+- test weakening or test deletion merely to make CI green.
 
-Mocks/fakes are allowed **only inside clearly identified automated-test fixtures**. They must never become a production fallback or be used as proof that an unavailable real provider/capability is working. When a required real provider, service, credential, dependency, or capability is missing, Forge must fail honestly, preserve the user's work, and report exactly what is unavailable.
+Mocks and test doubles are permitted only inside clearly identified automated tests. They are never a production fallback and never count as proof that an unavailable provider works.
 
-A green unit-test suite is evidence, not proof. Major capabilities must be reachable from Studio, use durable project state, survive reload/restart, participate downstream, report real errors, and have end-to-end evidence.
+When a real credential, provider, dependency, browser capability, or external service is missing, Forge must fail honestly, preserve the author's work, and explain what is unavailable.
 
-## Permanent Platform Targets
+## Current Product State — September 1, 2026
 
-**Chromebook and Android are first-class product targets.** Forge uses one platform-neutral web architecture with reusable domain/application/API boundaries, responsive desktop/tablet/phone layouts, touch interaction, PWA installability, conservative offline shell behavior, durable persistence independent of browser process state, and portable recovery.
+The cumulative build is now a substantial usable application with durable local project state and separate first-class author workplaces. Recent integration work has brought the following onto the current production line:
 
-The service worker may cache the application shell but must not cache `/api/` project data as durable state.
+- hardened **Project Brain** memory, provenance, point-in-time retrieval, lifecycle attribution, state-conflict detection, context budgeting, retrieval diagnostics, and evaluation;
+- durable **project / book / chapter / scene** manuscript structure;
+- **Story Architecture**, **Story Map**, **Writing Desk**, and governed AI writing proposals;
+- structured **Character Bible** with temporal state and continuity evidence;
+- **World, canon, timeline, relationship, voice, research, decision, and production memory**;
+- **Author Voice Memory** and provider-facing voice preservation / drift evidence;
+- **Intelligent Editing**, Craft Lens findings, durable rewrite proposals, deterministic review diffs, and explicit author approval/apply boundaries;
+- durable **book version capture, compare, branch, merge, rollback, project packages, backup vault, and recovery**;
+- **Publishing metadata**, edition-scoped readiness, current KDP-oriented validation, KDP preflight history, real DOCX/PDF/EPUB production paths, and cover planning;
+- live **KDP market research / keyword / niche evidence** using a real hosted web-search provider when configured;
+- durable **Promotion campaigns**, author-gated publication state, and observed promotion-performance records without inventing attribution;
+- a durable **Studio Image Lab** with real provider execution, generation/editing, source preservation, derivative lineage, persistent pending assets, and explicit approve/reject review;
+- a separate **Guided Journal Office** with durable prompt libraries, generated editions, real PDF interiors, and production-derived cover geometry;
+- a separate **Educational Workbook Office** with durable activity banks, AI proposals, reproducible editions, real PDF output, three-tier differentiation packs, teacher guides, weighted rubrics, and performance-assessment evidence;
+- a separate **Specialized Creation Office** for exactly six modes: comic books, greeting cards, birthday cards, invitations, flyers, and trading-card-game cards, including durable structured documents and real production artifacts where supported;
+- a responsive **PWA / Chromebook / Android web surface** with service-worker shell caching that deliberately does not treat browser cache as durable project state.
 
-## Functional-Truth Rule
+### Current known usability gap
 
-Every major capability is verified at three levels:
+The main Studio **Research** screen currently supports durable manual source entry with provenance. Forge also has a generic governed Research Engine and a real web-search implementation for KDP market research, but general author-facing live web research is not yet fully wired into the main Research office. That is a current completion target; Forge must not pretend manual entry is the same thing as live research.
 
-1. **Domain/contract** — deterministic services, persistence, validation, provider boundaries.
-2. **Application** — real server, routes, state transitions, artifacts, errors, recovery.
-3. **Human/device** — rendered Studio UI on supported Chromebook and Android environments.
+## Start Forge
 
-Source-pattern tests alone are never end-to-end proof.
+Requirements:
 
-## Competitive-Benchmark Engineering Workflow
+- Node.js **20 or newer**;
+- npm;
+- Chromium only if you want to run the browser-acceptance suite locally;
+- real provider credentials only for the AI/research/image capabilities you intend to use.
 
-Forge continuously learns from real working applications, current research, and open-source projects that share its capabilities. For each major capability:
+Install and launch the complete local workplace:
 
-**research → architecture → implementation → regression coverage → build/acceptance verification → README/build-history update → next capability.**
-
-Recent benchmarking reinforces several principles: leading author tools emphasize persistent story context and character memory; FireQuill emphasizes scene-versioned character state, voice/arc continuity and author-approved extractor updates; Story Editor emphasizes reviewing newly written material and curating proposed memory before it becomes canon; Novel Studio AI combines structured story state, retrieval memory and continuity checks; and current research emphasizes time-aware story memory rather than relying on a static bible or embeddings alone.
-
-Research is an engineering input, not permission to copy disconnected feature lists. Proven strengths are rebuilt natively around Forge's durable state, provenance, Project Brain, Book Genome, author control, proposal review, workflow gates, production, and recovery.
-
-## Integrated Studio Direction
-
-```text
-AUTHOR
-  ↓
-TYPED / VOICE COMMAND
-  ↓
-PROJECT + BOOK BINDER
-  ↓
-ARCHITECTURE
-  ↓
-CANON / CHARACTERS / WORLD / TIMELINE / RESEARCH / VOICE MEMORY
-  ↓
-STORY MAP + WRITING DESK + PROJECT BRAIN
-  ↓
-SALIENT CONTEXT + CAPABILITY-ROUTED MODEL
-  ↓
-AI DRAFT / EDIT → VOICE + CHARACTER + CONTINUITY GATES
-  ↓
-EDITORIAL ANALYSIS + CRAFT LENS + KNOWLEDGE GAP RADAR
-  ↓
-VISUAL / ILLUSTRATION / COVER
-  ↓
-BOOK GENOME + DOWNSTREAM IMPACT
-  ↓
-KDP PREFLIGHT + PRODUCTION
-  ↓
-MARKETING + PROMOTION ANALYTICS
-  ↓
-DELIVERY AUDIT
-  ↓
-PORTABLE PROJECT PACKAGE
+```bash
+git pull origin main
+npm ci
+npm run forge
 ```
 
-## Build Progress Tracker — Current Source of Truth
-
-This section is the **living engineering checkpoint** for what is finished, what exists as a foundation, and what is next. Update it whenever a major capability is verified or the active build target changes.
-
-### Permanent Codex → Android → Codex three-pass completion workflow
-
-This README is the shared coordination board for the two engineering lanes and three passes. Both lanes must read current `main`, open pull requests and this README before beginning a coherent write phase and after the other lane reports a completed block. GitHub `main` is shared truth; neither lane assumes the other lane's state without checking the repository first.
-
-The project is worked from the beginning of the author journey forward, office by office, using a **Codex first pass + Android second pass + Codex final pass**:
-
-1. **Codex first pass** — Codex opens the next office/capability in product order, inspects the existing implementation first, researches current best practices, useful open-source repositories and authoritative sources, implements improvements inside Forge's existing architecture, strengthens tests, verifies the work and records an exact branch/PR/commit handoff here.
-2. **Lead-distance rule** — Codex keeps a queue of several coherent completed blocks ahead of Android. Codex continues forward while Android has verified handoffs available and does not wait on Android after every block.
-3. **Android second pass** — Android follows completed Codex handoffs in product order, inspects the actual diff and current `main`, independently checks the same capability, reconciles rather than rebuilds, and records either **SECOND PASS CLEAR** or the remaining blocker. Android never duplicates Codex's active forward block.
-4. **Codex final pass** — only after the several-block first-pass lead exists, Codex returns to **001A** and traverses every block, branch and office again. This pass reconciles Android's findings against current `main`, performs the strongest applicable release verification and records either **FINAL PASS — MOVE FORWARD** or an exact blocker.
-5. **Research rule** — every pass actively inspects authoritative documentation, current web research and useful open-source implementations. Adopt ideas and proven patterns, not disconnected feature lists or copied proprietary code. Improvements must preserve Forge's Project Brain, durable state, author authority, provider boundaries, production truth and platform-neutral architecture.
-6. **Overlap rule** — only one lane owns a coherent implementation block at a time. A shared-contract change needed by the first-pass lane must be written here before crossing into Android's active files. Android may modify a handed-off block during its assigned reconciliation pass; Codex may modify it again during the final pass.
-7. **Verification rule** — no block is cleared by source inspection alone. Required evidence is the strongest applicable combination of domain/application tests, build/completion checks, real browser acceptance, restart persistence, artifact inspection, Chromebook fit and Android/mobile acceptance. Tests are never weakened to manufacture green status.
-8. **README handoff rule** — every completed verified block updates this section with: active office/capability; pass owner; next-pass owner; branch/PR/commit; research/improvements made; verification status; unresolved blockers; and whether the next block is cleared to begin.
-
-**Traversal starts at the Forge Brain / Project Brain and proceeds through the product journey until the whole application has received all three passes.** The intended progression is Brain/project memory and governance → project/binder architecture and canon → characters/world/timeline/research/voice memory → Story Map/Writing Desk/AI drafting → editing/craft/continuity → visual/illustration/cover → Specialized Creation, Guided Journal, and Educational Workbook offices → production/KDP/metadata/export → marketing/promotion → delivery/recovery → cross-office navigation/UI polish → final Chromebook + Android release acceptance. Existing completed areas are inspected rather than blindly rebuilt.
-
-**Current handoff state:** merged `main` contains blocks **001D** and **001E**. First-pass block **001F** is fully verified on PR #52 and is cleared for merge and Android second pass. Codex advances immediately to **001G** after the 001F merge so Android retains a clean completed block behind the forward lane. Mission 059 remains open with its known shared TCG finishing-browser and raster-production defects recorded; it will be handled when the forward traversal reaches Specialized Creation.
-
-### ✅ First pass 001A — Project Brain context authority — READY FOR ANDROID SECOND PASS
-
-- **Active office/capability:** Forge Brain / Project Brain retrieval authority.
-- **Lead owner:** Codex co-chief engineer.
-- **Second-pass owner:** Android after this handoff.
-- **Branch / PR / commits:** `first-pass/001-forge-brain`; PR #42; code `96422ce43f77f97c23a9142e6b8a1dda4ce6b45c`; regression coverage `caf7e123c0b6864e48afa1a28d158726662358d9`.
-- **Inspection finding:** archived and superseded records could re-enter live AI prompts through the `changed` projection, including requests with no `changedSince` intent. This could revive obsolete canon during drafting.
-- **Improvement:** historical records remain durable and auditable, but Project Brain now excludes archived/superseded authority from live context and emits changed-state context only for explicit `changedSince` queries.
-- **Regression coverage:** verifies normal retrieval and changed-since retrieval exclude obsolete history while preserving current authoritative canon.
-- **Verification:** Forge CI #638 / run `33471875890` passed TypeScript build, full unit suite, completion checks, client/shell syntax checks, desktop browser acceptance, and Android/mobile acceptance on code head `caf7e123c0b6864e48afa1a28d158726662358d9`.
-- **Unresolved blockers:** none in this coherent block.
-- **Handoff:** ready for Android independent review. Codex advances to the next Forge Brain block after the documentation head is green and PR #42 is merged.
-
-### ✅ First pass 001B — Brain memory integrity and atomic recovery — READY FOR ANDROID SECOND PASS
-
-- **Active office/capability:** Forge Brain durable memory validation and recovery.
-- **Lead owner:** Codex co-chief engineer.
-- **Second-pass owner:** Android after this handoff.
-- **Branch / PR / commits:** `first-pass/001b-brain-memory-integrity`; PR #45; runtime validation `6b8383279187a6adf32b2c1c37aaa2f00dff57c5`; atomic store `be60f92f58caa4160196921b818e20d2e8d5a3df`; tests/fix head `8e3f738d77f8bb7aab4114f6b2a19f0a6e6f6acf`.
-- **Inspection finding:** recovery cleared valid memory before validating the complete imported payload, so a malformed or duplicate record could leave a partially restored Brain.
-- **Improvements:** runtime validation now covers memory class, authority, required content, lifecycle/provenance timestamps, relationship/tag shape and self-supersession; registration and lifecycle mutations validate records; restore stages and validates every record before atomically replacing current state.
-- **Regression coverage:** proves duplicate IDs, malformed records, invalid authority and invalid timestamps fail without changing the valid store; snapshot project isolation remains enforced.
-- **Verification:** Forge CI #646 / run `33475774626` passed TypeScript build, all 383 unit tests, completion and syntax checks, desktop browser acceptance, and Android/mobile acceptance on code head `8e3f738d77f8bb7aab4114f6b2a19f0a6e6f6acf`.
-- **Unresolved blockers:** none in this coherent block.
-- **Handoff:** ready for Android independent review. Codex advances to Brain lifecycle-transition integrity after the documentation head is green and PR #45 is merged.
-
-### ✅ First pass 001C — Brain canon lifecycle-transition integrity — READY FOR ANDROID SECOND PASS
-
-- **Active office/capability:** Forge Brain promotion/supersession integrity.
-- **Lead owner:** Codex co-chief engineer.
-- **Second-pass owner:** Android after completing 001A and 001B reviews.
-- **Branch / PR / commits:** `first-pass/001c-brain-lifecycle-integrity`; PR #48; transition guard `786b09b6967805d594af2c0bfb631b8c21cd8eb9`; regression head `357af6618a30f441ea1573b40baefcaedc2235f7`.
-- **Inspection finding:** supersession allowed cross-class replacement, inactive source/replacement reuse, repeated replacement and ambiguous reuse of a replacement already linked to another source. Those paths could create non-reciprocal canon history.
-- **Improvements:** replacements must share project and memory class; both records must be active; existing replacement links cannot be silently reused; transition time cannot predate either record; both reciprocal records validate before either mutation commits.
-- **Regression coverage:** proves cross-class, archived, ambiguous, repeated and nonchronological transitions fail atomically, while a valid transition creates exactly one reciprocal `supersededBy` / `supersedes` relationship.
-- **Verification:** Forge CI #649 / run `33476955533` passed TypeScript build, all 387 unit tests, completion and syntax checks, desktop browser acceptance, and Android/mobile acceptance on code head `357af6618a30f441ea1573b40baefcaedc2235f7`.
-- **Unresolved blockers:** none in this coherent block.
-- **Handoff:** ready for Android independent review after 001A and 001B. Codex advances to the next Forge Brain block after the documentation head is green and PR #48 is merged.
-
-### ✅ First pass 001D — Brain lifecycle attribution ledger — READY FOR ANDROID SECOND PASS
-
-- **Active office/capability:** Forge Brain durable promotion/supersession attribution and recovery.
-- **Lead owner:** Codex co-chief engineer.
-- **Second-pass owner:** Android after 001A–001C reviews.
-- **Branch / PR / commits:** `first-pass/001d-brain-lifecycle-ledger`; PR #50; ledger `39c2061bd696bda78dedf113dc2b2667f559b624`; regression coverage `c8a652cd1f94148f9c96e702e3262bbec705db49`; public contracts `67fe49031b1b73541e72a0c12e9183903e8f60b2`.
-- **Inspection finding:** promotion and supersession changed durable canon, but actor, reason, transition time and replacement evidence existed only as transient call results and disappeared across snapshot/export/restart.
-- **Improvements:** project-scoped lifecycle events persist promotion/supersession actor, reason, time, prior/new authority and replacement link; supersession requires explicit attribution; events commit only after transition validation; snapshots preserve and restore the ledger while older snapshots without events remain compatible.
-- **Recovery safety:** event IDs, projects, referenced memories, replacements, actors, reasons and timestamps validate before any restore mutation; duplicate/malformed/cross-project events fail atomically.
-- **Regression coverage:** proves restart persistence, snapshot round-trip, defensive cloning, project isolation, malformed-event rollback and required attribution.
-- **Verification:** Forge CI #653 / run `33477853720` passed TypeScript build, all 391 unit tests, completion and syntax checks, desktop browser acceptance, and Android/mobile acceptance on code head `67fe49031b1b73541e72a0c12e9183903e8f60b2`.
-- **Unresolved blockers:** none in this coherent block.
-- **Handoff:** ready for Android independent review after 001A–001C.
-
-### ✅ First pass 001E — Brain context provenance and budget integrity — READY FOR ANDROID SECOND PASS
-
-- **Active office/capability:** Forge Brain context assembly, provenance and context-budget reporting.
-- **Lead owner:** Codex co-chief engineer.
-- **Second-pass owner:** Android after the 001D review.
-- **Branch / PR / commits:** `first-pass/001e-brain-context-integrity`; PR #51; pipeline fix `413506accc07ae3983e9f2b4e8f34ad866584604`; regression head `79fd330d9c73448c4f6547798644ad1191235e63`.
-- **Inspection finding:** the pipeline calculated `originalEstimatedTokens` after budget trimming while adding pre-budget savings separately, making token metrics internally inconsistent; provider-facing context also omitted memory provenance.
-- **Improvements:** every assembled memory section now carries explicit provenance; savings and compression ratio use one complete pre-budget baseline; selected/omitted IDs remain visible; provenance is reported as a strategy signal.
-- **Regression coverage:** proves provenance reaches context, budget omissions remain honest, and `tokensSaved === originalEstimatedTokens - optimizedEstimatedTokens`.
-- **Verification:** Forge CI #656 / run `33478534682` passed TypeScript build, all 392 unit tests, completion and syntax checks, desktop browser acceptance, and Android/mobile acceptance on code head `79fd330d9c73448c4f6547798644ad1191235e63`.
-- **Unresolved blockers:** none in this coherent block.
-- **Handoff:** ready for Android independent review after 001D.
-
-### ✅ First pass 001F — Brain saliency and runtime query integrity — READY FOR ANDROID SECOND PASS
-
-- **Active office/capability:** Forge Brain task-context selection, retrieval evidence and strict runtime query contracts.
-- **First-pass owner:** Codex co-chief engineer.
-- **Second-pass owner:** Android after completing its active preceding block.
-- **Branch / PR / verified head:** `first-pass/001f-brain-query-saliency-integrity`; PR #52; `ae7a72bc433c472e5c01c086216e476eef59a91b`.
-- **Inspection findings:** raw substring matching could select irrelevant canon (`art` matched `party`), malformed runtime query values could bypass TypeScript assumptions, and the stricter Brain contract exposed a real Guided Journal caller bug where whitespace-only optional fields were forwarded as blank query terms.
-- **Improvements:** task queries now receive bounded runtime validation, selector normalization and deduplication; saliency uses Unicode-aware whole-word and adjacent-phrase matching; evidence is emitted only for exact selected terms; canonical memory class/authority guards are exported; Guided Journal prompt/cover callers trim optional values and substitute meaningful non-empty context defaults without weakening Brain validation.
-- **Regression coverage:** proves false-positive substrings are rejected, multilingual and Unicode-normalized terms remain deterministic, malformed query shapes fail closed, normalized selectors retain stable evidence, and Guided Journal prompt/cover paths never forward blank Brain query terms.
-- **Acceptance hardening:** Guided Journal browser acceptance now reports real failing HTTP status/body instead of crashing on downstream undefined values, which made the cross-office contract defect observable and repairable.
-- **Research applied:** Unicode-aware segmentation and bounded runtime input validation were checked against current platform/security guidance while preserving Forge's provider-neutral and author-authoritative architecture.
-- **Verification:** Forge CI #667 / run `33480952798` passed TypeScript build, all **396** unit tests, 100% completion checks, client/shell syntax checks, the complete desktop browser suite including Guided Journal integration, and Android/mobile acceptance on the verified PR head.
-- **Unresolved blockers:** none in this coherent block.
-- **Handoff:** 001F is ready for Android independent review after merge. Codex advances immediately to 001G and does not wait on the second pass.
-
-### Mission 059 parallel engineering coordination
-
-- **Chromebook lane currently owns 059B shared Specialized Creation reconciliation/verification**: shared durable project/workspace/revision/proposal storage, project-scoped application facade, Project Brain/provider/asset bridges, renderer-independent composition contract, shared production-profile/preflight foundation, and shared integration/CI fixes required by those contracts.
-- **Phone lane currently owns 059D comic-specific implementation and hardening**, inheriting PR #38's comic implementation and reconciling/hardening it instead of creating a parallel comic stack.
-- **Boundary rule:** Chromebook must not take over comic-specific scripting, page/panel, reading-order, lettering, comic export, or comic-editor behavior while the phone's 059D block is active. Phone must not duplicate shared Brain/provider/storage/composition/production infrastructure.
-- **PR #38 (`office/specialized/mission-059-complete`) is the current Mission 059 integration branch.** Both lanes inspect its current head and CI state before writing overlapping files.
-- **Current shared verification focus:** get PR #38 fully green across build, unit, completion, browser and Android/mobile gates while preserving the ownership boundary above. Only then should a Mission 059 phase-completion claim be recorded.
-
-### ✅ Completed / verified major capability areas
-
-- **Core local-first Studio foundation** — durable projects, browser application, Chromebook/Android targets, PWA shell boundary, project package/recovery foundations and CI acceptance gates.
-- **Project Brain / canon memory foundation** — durable project memories, governed context assembly, provenance and author-controlled canon boundaries.
-- **Manuscript and Writing Desk foundation** — durable book/chapter/scene workspace, real AI provider boundary, durable proposal/review behavior and author-controlled application.
-- **Character Bible and living character-state foundation** — structured character profiles, versioned state/history and saliency-aware retrieval services.
-- **Research and research-honesty foundations** — provenance-aware research records and explicit fact/inference/creative/uncertain distinctions.
-- **Editing / Craft Lens foundations** — deterministic editorial analysis and author-reviewable proposal workflows without silent rewriting.
-- **Cover Studio / KDP production foundations** — production geometry, cover planning and KDP preflight infrastructure.
-- **Guided Journal Office — COMPLETE** — merged through PR #37 (`fe8125941b09159a57520ac39ecbdac040d322e2`) after build, unit, completion, desktop-browser, Guided Journal browser and Android/mobile acceptance passed.
-
-### ✅ Guided Journal Office capability checklist
-
-The Guided Journal Office now includes:
-
-- six Better Question-compatible categories: **Remember, Discover, Challenge, Create, Become, Hope**;
-- durable project-scoped master question and cover-statement libraries;
-- author add/revise, enable/disable, remove and JSON import/export controls;
-- deterministic single-question randomization;
-- category filters, exclusions, reproducible seeds and balanced generation;
-- no-repeat protection within an edition and across prior editions by default;
-- durable edition ordering and restart-safe history;
-- blank, lined, lightly-lined, dot-grid and guided-response page styles;
-- trim size, margins, typography, prompt alignment, line/dot spacing, page numbering, category labels, front matter, closing matter and response-page controls;
-- real print-PDF rendering with exact page count, byte length, SHA-256 and shared production validation;
-- live page preview and PDF download;
-- shared Project Brain context and production memory;
-- shared AI/provider stack through `generateProjectText` with configured OmniRoute, 9Router, K.I.N.G.S., OpenAI and Ollama routing/failover;
-- Brain-aware AI question proposals with explicit author approval before library promotion;
-- Brain-aware AI cover direction and back-cover copy;
-- direct `BookCoverStudioService` handoff using the journal's actual rendered page count/trim geometry for cover/spine calculations;
-- responsive dedicated journal workplace with Chromebook and Android launch paths;
-- real-browser regression coverage for durable library, randomizer, edition generation, lined PDF bytes, AI proposal/approval, cover geometry, restart persistence and phone-sized touch/overflow.
-
-### 🟡 Active next build — Specialized Creation Office
-
-**Research lock is complete.** The implementation contract is [`docs/MISSION-059-SPECIALIZED-CREATION-OFFICE.md`](docs/MISSION-059-SPECIALIZED-CREATION-OFFICE.md). Specialized Creation implementation must follow its requirement IDs, phase gates, research adoption ledger, ADR triggers, verification matrix and anti-drift rules. The reusable format for future major work is [`docs/ENGINEERING_MISSION_TEMPLATE.md`](docs/ENGINEERING_MISSION_TEMPLATE.md).
-
-The Specialized Creation Office is **not starting from zero**. Domain/workflow/production foundations already exist for exactly these six canonical modes:
-
-1. **Comic books**
-2. **Greeting cards**
-3. **Birthday cards**
-4. **Invitations**
-5. **Flyers**
-6. **Trading card game cards**
+`npm run forge` builds Forge and launches all four workplaces together:
 
-Existing foundations already define specialized creation identity, production dimensions/bleed, and the shared workflow:
+| Workplace | Default local URL | Purpose |
+| --- | --- | --- |
+| Main Studio | `http://127.0.0.1:4173` | Books, writing, Brain, editing, image/cover, publishing, market research, promotion, recovery |
+| Guided Journal | `http://127.0.0.1:4273` | Guided-journal libraries, editions, interiors, production |
+| Educational Workbooks | `http://127.0.0.1:4373` | Activities, AI proposals, editions, differentiation, rubrics, assessment |
+| Specialized Creation | `http://127.0.0.1:4473` | Comics, cards, invitations, flyers, TCG cards |
 
-**brief → plan → create → review → production**
+You can also launch an individual workplace:
 
-The next engineering phase is to turn those foundations into a complete live office. Completion requires:
+```bash
+npm run studio
+npm run studio:journal
+npm run studio:workbooks
+npm run studio:specialized
+```
 
-- durable specialized-project/application services and restart-safe storage;
-- Project Brain connection and shared AI-provider access rather than a separate AI silo;
-- shared illustration/image-generation integration where appropriate;
-- author-controlled AI proposals and revisions;
-- real mode-specific editors/workflows for all six creation types;
-- comic page/panel/script/lettering/asset workflows;
-- greeting/birthday card front/inside/back composition and fold/print handling;
-- invitation event-information, hierarchy, layout and production workflows;
-- flyer content hierarchy, image/text layout, bleed/safe-area and export workflows;
-- trading-card-game template, card data, rules/stat fields, fronts/backs, set/deck consistency and sheet/export workflows;
-- real production artifacts rather than preview-only controls;
-- integration with shared Brain, visual/illustration capabilities, Cover/production systems where applicable;
-- responsive live Studio surface with Chromebook and Android touch support;
-- domain, application, browser and mobile acceptance proving every major path.
+### Chromebook / Android access
 
-**Guided journals remain a separate completed office and must not be folded into Specialized Creation.**
+To bind the complete Forge launcher to the device/network interface:
 
-### 🟡 Remaining cross-Forge integration / hardening
+```bash
+npm run forge:android
+```
 
-These areas have foundations or substantial implementation but still require continued integration/hardening before the entire Author's Forge product is considered complete:
+Then open the Chromebook/Linux-container host IP from Android using the same ports (`4173`, `4273`, `4373`, `4473`). Only expose `0.0.0.0` on a network you trust.
 
-- finish the Mission 058 live Writing Desk/provider path so saliency-aware character context is proven end-to-end in ordinary drafting;
-- integrate Author Voice Memory and visible drift checks into live AI drafting/proposal application;
-- extend saliency-aware retrieval across character memory, canon, timeline, research and author voice;
-- continue Author Goals, Craft Lens, Knowledge Gap Radar and Story Map integration/hardening;
-- strengthen full-product production preview/KDP, metadata, export and delivery-audit flows;
-- complete marketing/promotion planning and measurement workflows;
-- complete final cross-office navigation/workflow consolidation;
-- perform the planned UI/UX redesign after functional office capability is in place, without weakening durable behavior;
-- verify complete end-to-end author journeys on Chromebook and Android with real configured providers.
+Forge's Android target is currently the responsive installable web/PWA application. This repository does **not** claim to ship a native Android APK.
 
-### Current build order
+## Real AI Provider Configuration
 
-1. Continue the Codex first pass from the active Forge Brain block while maintaining several coherent verified handoffs ahead of Android.
-2. Run the Android second pass behind those completed handoffs without duplicating Codex's active forward work.
-3. Once the lead cushion exists, begin Codex's final pass at 001A and continue through every block and office in order.
-4. Complete production/marketing/delivery hardening and cross-office integration discovered during traversal.
-5. Remodel and polish the overall Studio UI/UX once functional coverage is stable.
-6. Run full-product Chromebook + Android release acceptance and clear the final Definition of Complete gate.
+Forge discovers only providers that are actually configured. It does not register imaginary capacity when no provider exists.
 
-## Mission 058 — Saliency-Aware Character Memory Retrieval
+Common production environment variables include:
 
-Forge's living Character Bible now has an application-integrated retrieval boundary that can supply **only the most relevant character state needed for a drafting task**, instead of dumping every character into every AI request.
+```bash
+# OpenAI text / shared provider pool
+export OPENAI_API_KEY="..."
+export OPENAI_MODEL="..."
+# Optional comma-separated model pool
+export OPENAI_MODELS="model-a,model-b"
 
-`CharacterBibleService.memory()` provides:
+# Local Ollama
+export OLLAMA_BASE_URL="http://127.0.0.1:11434"
+export OLLAMA_MODEL="..."
+# Optional comma-separated model pool
+export OLLAMA_MODELS="model-a,model-b"
 
-- project-scoped character retrieval;
-- optional character targeting;
-- optional point-in-time historical reconstruction;
-- field-scoped context selection;
-- query-term relevance scoring;
-- deterministic ranking and limits;
-- human-readable evidence for why a character was selected;
-- current emotional state and location when broad context is requested;
-- defensive cloning so retrieval cannot mutate authoritative character state.
+# Optional OpenAI-compatible routers
+export OMNIROUTE_BASE_URL="..."
+export OMNIROUTE_MODEL="..."
+export ROUTER9_BASE_URL="..."
+export ROUTER9_MODEL="..."
 
-`assembleWritingContext()` consumes this saliency layer for the `characters` context section. Character context is restored through the authoritative Character Bible service, queried by task terms, ranked, limited, and emitted with relevance evidence and source IDs.
+# Optional routing preference
+export AI_PROVIDER_ORDER="openai,ollama"
+```
 
-`AiWritingStudioService.generateWithProjectContext()` is now the governed Studio application boundary for Mission 058. It:
+Current-market KDP research uses a real hosted web-search path and requires a configured OpenAI research model (`OPENAI_MARKET_RESEARCH_MODEL` or the configured `OPENAI_MODEL`) plus the real API key.
 
-- loads the authoritative project immediately before generation;
-- validates the real manuscript target;
-- assembles character context from current project state;
-- accepts explicit character targeting and historical `characterAsOf` context;
-- applies deterministic character-memory limits;
-- passes the assembled context and source IDs into the real AI writing coordinator;
-- creates the same durable author-reviewable proposal as the existing AI loop;
-- computes a fresh base-content hash so stale manuscript protection remains active.
+Image generation/editing also requires a real image-capable provider configuration. If it is unavailable, Image Lab returns a visible failure and does not fabricate an asset.
 
-The AI provider therefore receives a **salient character projection derived immediately from authoritative project state**, rather than a caller-supplied static character dump.
+Do not commit credentials to this repository.
 
-Regression coverage verifies the application boundary, including salient character selection, source-ID provenance, historical context, proposal creation, and existing author-approval/stale-content protections.
+## Main Studio Workflow
 
-### Mission 058 completion gate
+The current Main Studio exposes the real application surfaces for:
 
-Mission 058 remains active as a cross-Forge integration item until the live Studio route/provider execution is wired to this governed application boundary and CI/build verification proves the complete request path. The required final path is:
+1. Dashboard and natural-language / dictated Command Center;
+2. manuscript book/chapter/scene binder;
+3. Writing Desk and durable AI proposals;
+4. Story Architecture;
+5. Character Bible;
+6. World & Canon;
+7. Research;
+8. Editing Room;
+9. Author Voice;
+10. Illustration Studio / Image Lab;
+11. Cover Studio;
+12. Marketing / Promotion;
+13. Production & Publish;
+14. Book Genome;
+15. Project Health;
+16. Versions & Recovery;
+17. Provider & Settings;
+18. Author Control / governance.
 
-**Writing Desk request → authoritative project load → character retrieval → assembled context → real model/provider → durable proposal → character continuity evidence before application → author review.**
+AI output remains candidate material until the applicable author-review boundary says otherwise. Research remains evidence/working knowledge until deliberately promoted. Publishing or promotion state is not permission for Forge to bypass external retailer submission, account, or preview systems.
 
-This no longer blocks completion of independent offices; it remains explicitly tracked above under cross-Forge integration/hardening.
+## Specialized Offices
 
-## Mission 057 — Versioned Character State Memory
+### Guided Journal Office — port 4273
 
-Forge's character system is moving beyond a static character bible toward a **living, scene-aware character memory**. The existing Character Bible stores a complete structured profile, field history, effective timestamps, reasons and actor attribution.
+Built as a separate office rather than being mixed into Specialized Creation. It supports durable prompt libraries, category-aware generation, repeat protection, response-page styles, real PDF interiors, AI prompt proposals with author approval, and production-derived cover planning.
 
-`src/domain/character-state-memory.ts` adds scene-specific snapshots, project/character ownership, sequence-ordered memory history, provenance, point-in-time state resolution, deterministic relevance ranking, changed-field attribution, and validation.
+### Educational Workbook Office — port 4373
 
-## Mission 056 — Author Voice Memory + Drift Preservation
+Supports durable author activity libraries, grade/subject/type/difficulty metadata, answer-truth validation, AI activity proposals, deterministic editions, real PDF generation, answer keys, support/core/extension differentiation packs, teacher-guide PDF production, weighted rubrics, alternate evidence modes, and durable performance assessments.
 
-Forge's voice system maintains an explicit approved author corpus with provenance, genre/purpose metadata, weighting, canonical sample selection, aggregated voice fingerprinting, interpretable voice dimensions, corpus updates, drift detection, reference matching, actionable recommendations, and reusable author-voice context.
+Standards identifiers and learner-support tiers are evidence/authoring metadata; Forge does not silently convert them into certification, diagnosis, placement, eligibility, or claims about a learner's worth or ability.
 
-**Design rule:** Forge learns from the user's own approved corpus and treats voice preservation as a constraint alongside canon, character state, continuity, meaning, and author intent.
+### Specialized Creation Office — port 4473
 
-## Mission 055 — Craft Lens Foundation
+The canonical modes are only:
 
-Forge has a deterministic Craft Lens domain/application boundary for targeted manuscript feedback instead of a single opaque “quality score.” It measures concrete signals and produces evidence plus multiple revision strategies. The lens never rewrites prose or declares stylistic choices objectively wrong.
+- comic books;
+- greeting cards;
+- birthday cards;
+- invitations;
+- flyers;
+- trading-card-game cards.
 
-## Mission 054 — Author Goals Foundation
+The office preserves durable project/document revisions, production profiles, artifact lineage, AI proposal/review boundaries, TCG framework and playtest structures, comic panel/lettering semantics, folded-card imposition, duplex TCG sheets, and real SVG/PDF/PNG/JPEG/CBZ/JSON/CSV output paths where the selected workflow supports them.
 
-Forge has a deterministic Author Goals foundation designed around authoritative manuscript progress rather than an isolated counter. It supports word, scene, chapter, daily/weekly/session/project goals and deterministic progress calculations.
+## Publishing, Market Research, and Promotion Truth
 
-## Mission 053 — Live Story Map
+Forge may prepare publishing metadata, production files, preflight evidence, keyword/niche evidence, campaign drafts, and observed post-launch metrics. It must not invent:
 
-The Story Map is a live Studio planning surface derived from the existing durable book/chapter/scene hierarchy. It provides visual hierarchy, lifecycle status, completion, refresh behavior, and direct scene navigation without creating a second planning database.
+- retailer sales or revenue from BSR/review/rating proxies;
+- campaign impressions, clicks, spend, orders, revenue, or attribution that were not observed;
+- market-source URLs that were not actually returned by the research provider;
+- KDP readiness when required production evidence is absent;
+- external publication simply because a local asset is marked ready.
 
-## Mission 052 — Competitive Advantage Research
+Research recommendations cannot silently overwrite publishing keywords. Promotion assets remain draft/reviewable until explicit author action.
 
-Forge converted competitive research into an implementation sequence:
+## Durable State and Recovery
 
-1. Story Map.
-2. Author Goals.
-3. Knowledge Gap Radar.
-4. Craft Lens.
-5. Production Preview.
-6. Collaboration Review.
+The server-side Forge data boundary is the source of truth. Browser local storage/cache is not the project database.
 
-## Mission 051 — Editing Room Proposal Review Diff
+Forge currently supports:
 
-The Editing Room provides deterministic review of durable AI rewrite proposals. Authors can inspect line-level added/removed/unchanged content and before/after word counts. Approval remains separate from application, with server-side source-revision protection.
+- file-backed project persistence;
+- project-scoped memory and manuscript state;
+- structured versions and rollback checkpoints;
+- integrity-checked portable project packages;
+- local backup vault creation, preview, restore, and deletion;
+- author-approved restore with rollback evidence;
+- PWA shell caching while excluding `/api/` project state from durable browser caching.
 
-## Production, KDP and Promotion Benchmark
+Back up important projects before major upgrades or migrations.
 
-Forge is intentionally expanding beyond writing. Current all-in-one publishing products increasingly connect research, writing, editing, illustration, covers, formatting, publishing listings and promotion in one workflow. KDP-focused products emphasize print-ready EPUB/PDF output, full-wrap cover constraints, metadata and listing preparation.
+## Build and Verification
 
-Cover benchmarking reinforces that professional KDP output requires more than attractive artwork: trim, bleed, spine math, typography, barcode space and full-wrap export must be validated as production artifacts.
+Core commands:
 
-Forge's product goal is to connect these concerns to the same authoritative Book Genome and production state so metadata, cover, blurb, audience, launch plan, retailer readiness, and promotion evidence remain synchronized rather than becoming separate spreadsheets.
+```bash
+npm run build
+npm test
+npm run baseline
+npm run completion
+npm run verify
+```
 
-## CI / PWA Integrity
+`npm run verify` is the strongest repository-level gate. It runs the build, all regression tests, baseline/completion checks, complete desktop browser acceptance, and Android/mobile acceptance.
 
-Canonical CI covers installation, build, tests, completion measurement, client syntax checks, browser acceptance, and mobile acceptance. The PWA shell remains separate from durable `/api/` project state.
+Browser setup if running acceptance locally for the first time:
+
+```bash
+npm run browser:install
+```
+
+Canonical CI follows the same principle: a green source/unit test is evidence, not blanket proof. Major capabilities are expected to be reachable from the real UI, use durable state, survive restart where applicable, return real artifacts/errors, and pass the strongest available browser/mobile acceptance.
+
+## Engineering Coordination
+
+GitHub `main` is shared truth. Before starting a coherent engineering block, every lane/device should inspect current `main`, open pull requests, and the latest verification state.
+
+Parallel engineering is allowed, but duplicate ownership of the same coherent implementation block is not. Reconcile against current code instead of rebuilding a feature that another lane already merged.
+
+For merge-critical production work:
+
+1. inspect current implementation before editing;
+2. make the smallest coherent real fix or feature;
+3. add/strengthen regression coverage;
+4. run the exact-head verification gate;
+5. merge only the SHA that actually passed;
+6. update current documentation and move to the next real usability gap.
+
+Historical mission-by-mission details belong in [`docs/BUILD_HISTORY.md`](docs/BUILD_HISTORY.md), engineering handoff documents, and GitHub PR history rather than in a stale wall of status text at the top of this README.
+
+## Important Architecture References
+
+- [`AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md`](AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md) — canonical product contract.
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — high-level architecture.
+- [`docs/AUTHORS_FORGE_CANONICAL_ARCHITECTURE.md`](docs/AUTHORS_FORGE_CANONICAL_ARCHITECTURE.md) — canonical architecture detail.
+- [`docs/BUILD_HISTORY.md`](docs/BUILD_HISTORY.md) — historical capability/build record.
+- [`docs/FORGE_AI_TRUNK_ROUTING_CONTRACT.md`](docs/FORGE_AI_TRUNK_ROUTING_CONTRACT.md) — shared AI routing contract.
+- [`docs/MISSION-059-SPECIALIZED-CREATION-OFFICE.md`](docs/MISSION-059-SPECIALIZED-CREATION-OFFICE.md) — Specialized Creation contract.
+- [`docs/EDUCATIONAL_WORKBOOK_OFFICE.md`](docs/EDUCATIONAL_WORKBOOK_OFFICE.md) — Educational Workbook contract.
 
 ## Definition of Complete
 
-Forge is complete only when a real author can create or restore a project and carry it through the intended Studio journey — concept, architecture, canon, characters, research, manuscript, editing, visual work, cover, production, positioning, marketing, publishing preparation, delivery audit, and portable recovery — with durable state, real provider boundaries, author approval, truthful failures, preserved author voice, coherent scene-versioned character memory, salient context retrieval, and verified Chromebook/Android operation.
+Author's Forge is not considered complete merely because a completion script reports 100% or because a collection of tests is green.
+
+The product is complete only when a real author can reliably create or restore a project and carry it through the intended author journey—concept, architecture, canon, characters, research, manuscript, editing, visual work, cover, production, market/promotion preparation, publishing readiness, delivery audit, and recovery—using real durable state, real provider boundaries, explicit author authority, truthful failures, and verified Chromebook/Android operation.
+
+Until every user-facing gap meets that standard, engineering continues.
