@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { FileProjectStore } from "../infrastructure/file-project-store";
 import { createStudioArchitectureAiRoutes } from "./studio-architecture-ai-routes";
 import { createStudioAuthorCraftRoutes } from "./studio-author-craft-routes";
+import { createStudioChapterCardWorkflowRoutes } from "./studio-chapter-card-workflow-routes";
 import { createStudioImageLabRoutes } from "./studio-image-lab-routes";
 import { createStudioKnowledgeGapRoutes } from "./studio-knowledge-gap-routes";
 import { createStudioLiveResearchRoutes } from "./studio-live-research-routes";
@@ -15,12 +16,13 @@ export type StudioPublishingPromotionRouteHandler = (req: IncomingMessage, res: 
 /**
  * Modular Studio extension boundary. Historical name is retained to avoid
  * destabilizing the server entrypoint while architecture AI, author-craft,
- * Series, Story Map, research, image, publishing, market and promotion routes
- * remain independently implemented and testable.
+ * Chapter Card, Series, Story Map, research, image, publishing, market and
+ * promotion routes remain independently implemented and testable.
  */
 export function createStudioPublishingPromotionRoutes(store: FileProjectStore): StudioPublishingPromotionRouteHandler {
   const architectureAi = createStudioArchitectureAiRoutes(store);
   const authorCraft = createStudioAuthorCraftRoutes(store);
+  const chapterCards = createStudioChapterCardWorkflowRoutes(store);
   const series = createStudioSeriesRoutes(store);
   const storyMap = createStudioStoryMapRoutes(store);
   const knowledgeGaps = createStudioKnowledgeGapRoutes(store);
@@ -32,6 +34,7 @@ export function createStudioPublishingPromotionRoutes(store: FileProjectStore): 
   return async (req, res, url, projectId) => {
     if (await architectureAi(req, res, url, projectId)) return true;
     if (await authorCraft(req, res, url, projectId)) return true;
+    if (await chapterCards(req, res, url, projectId)) return true;
     if (await series(req, res, url, projectId)) return true;
     if (await storyMap(req, res, url, projectId)) return true;
     if (await knowledgeGaps(req, res, url, projectId)) return true;
