@@ -41,10 +41,12 @@ jobs:
           node --check public/forge-command-center.js
           node --check public/forge-workbench.js
           node --check public/forge-ai-proposals.js
+          node --check public/forge-series.js
           node --check public/forge-image-lab.js
           node --check public/forge-pwa.js
           node --check scripts/start-forge.js
           node --check scripts/forge-offices-browser-acceptance.js
+          node --check scripts/studio-series-browser-acceptance.js
           node --check scripts/studio-image-lab-browser-acceptance.js
           bash -n scripts/termux-forge.sh
 
@@ -66,14 +68,14 @@ jobs:
           npm run forge
           Open http://127.0.0.1:4173/
 
-          The unified launcher also starts the project-aware Guided Journal, Educational Workbook, and Specialized Creation offices on ports 4273, 4373, and 4473. Open those offices from the main Studio dashboard so the current project id is carried forward automatically.
+          The Main Studio includes the durable Series Engine for shared multi-book canon, book membership/order, and cross-book timeline work. The unified launcher also starts the project-aware Guided Journal, Educational Workbook, and Specialized Creation offices on ports 4273, 4373, and 4473. Open those offices from the main Studio dashboard so the current project id is carried forward automatically.
 
           The main Studio Illustration surface includes the durable Image Lab. Real image generation/editing requires an explicitly configured supported image provider credential; when unavailable Forge reports that condition and does not fabricate artwork.
 
           ## Android / Termux or LAN/device access
           npm install
           npm run forge:android
-          Open http://<device-ip>:4173/ from the device/browser that will use Forge. The dashboard office links reuse the same host and open the companion office ports automatically.
+          Open http://<device-ip>:4173/ from the device/browser that will use Forge. The Main Studio Series link stays on the same project and the dashboard companion-office links reuse the same host and open the companion office ports automatically.
 
           The individual `studio`, `studio:journal`, `studio:workbooks`, and `studio:specialized` commands remain available for engineering and isolated-office use.
 

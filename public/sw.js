@@ -1,7 +1,8 @@
-const CACHE = "authors-forge-shell-v7";
+const CACHE = "authors-forge-shell-v9";
 const SHELL = [
   "/",
   "/index.html",
+  "/series.html",
   "/styles.css",
   "/app.js",
   "/forge-command-center.js",
@@ -9,6 +10,7 @@ const SHELL = [
   "/forge-ai-proposals.js",
   "/forge-editing-proposals.js",
   "/forge-story-map.js",
+  "/forge-series.js",
   "/forge-image-lab.js",
   "/forge-pwa.js",
   "/manifest.webmanifest",
@@ -44,6 +46,12 @@ self.addEventListener("fetch", (event) => {
         }
         return response;
       })
-      .catch(() => caches.match(request).then((cached) => cached || caches.match("/index.html")))
+      .catch(async () => {
+        const exact = await caches.match(request);
+        if (exact) return exact;
+        const shellPath = await caches.match(url.pathname);
+        if (shellPath) return shellPath;
+        return caches.match("/index.html");
+      })
   );
 });

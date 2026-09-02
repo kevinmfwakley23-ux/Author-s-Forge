@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Author's Forge Series Engine — shared canon, books, characters, visual identity, locations, terminology, history, unresolved threads and timeline">
+<link rel="manifest" href="/manifest.webmanifest">
+<title>Series Engine • Author's Forge</title>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<aside class="sidebar">
+  <a class="brand" href="/">AUTHOR'S <strong>FORGE</strong></a>
+  <p class="tag">Series Engine</p>
+  <nav>
+    <a id="back-studio" href="/">← Main Studio</a>
+    <a href="#series-library">Series Library</a>
+    <a href="#series-canon">Shared Series Canon</a>
+    <a href="#series-books">Book Order</a>
+    <a href="#series-timeline">Cross-book Timeline</a>
+  </nav>
+  <div class="local-status"><span></span> Durable project state</div>
+</aside>
+<main>
+<header class="topbar">
+  <div><div class="eyebrow">CURRENT PROJECT</div><h1 id="series-project-title">Loading…</h1><p id="series-project-meta"></p></div>
+  <div class="top-actions"><button id="series-refresh" type="button">Refresh</button></div>
+</header>
+<div id="series-error" class="banner error" hidden role="alert"></div>
+<div id="series-success" class="banner success" hidden role="status"></div>
+
+<section id="series-library" class="view active">
+  <div class="section-title"><div><div class="eyebrow">SERIES ENGINE</div><h2>Manage a connected multi-book world</h2><p>Series state is stored inside the real Forge project package. Nothing here rewrites manuscript prose or promotes canon automatically.</p></div></div>
+  <div class="grid">
+    <article class="card">
+      <h3>Create series</h3>
+      <form id="series-create-form">
+        <label>Series name<input name="name" required maxlength="240" placeholder="Heartwood Jungle"></label>
+        <label>Start with book<select id="series-create-book" name="bookId"><option value="">No book yet</option></select></label>
+        <button class="primary" type="submit">Create durable series</button>
+      </form>
+    </article>
+    <article class="card">
+      <h3>Series library</h3>
+      <label>Active series<select id="series-select"><option value="">No series yet</option></select></label>
+      <div id="series-summary" class="list"><p class="muted">Create a series to begin.</p></div>
+      <button id="series-delete" type="button" disabled>Delete selected series</button>
+    </article>
+  </div>
+</section>
+
+<section id="series-canon" class="view active">
+  <div class="section-title"><div><div class="eyebrow">SHARED SERIES CANON</div><h2>Continuity that survives across books</h2><p>Edit only what you intend to change. Save is explicit and project-scoped.</p></div></div>
+  <article class="card">
+    <form id="series-details-form">
+      <label>Series name<input id="series-name" name="name" required maxlength="240"></label>
+      <div class="grid">
+        <label>Shared characters<select id="series-characters" name="sharedCharacters" multiple size="6"></select></label>
+        <label>Shared visual identities<select id="series-visuals" name="visualIdentityIds" multiple size="6"></select></label>
+      </div>
+      <div class="grid">
+        <label>World rules<textarea id="series-world-rules" name="worldRules" placeholder="One binding world rule per line"></textarea></label>
+        <label>Locations<textarea id="series-locations" name="locations" placeholder="One recurring location per line"></textarea></label>
+      </div>
+      <div class="grid">
+        <label>Terminology<textarea id="series-terminology" name="terminology" placeholder="One canonical term per line"></textarea></label>
+        <label>History<textarea id="series-history" name="history" placeholder="One series-history fact per line"></textarea></label>
+      </div>
+      <label>Unresolved threads<textarea id="series-threads" name="unresolvedThreads" placeholder="One cross-book unresolved thread per line"></textarea></label>
+      <button id="series-save-details" class="primary" type="submit" disabled>Save series canon</button>
+    </form>
+  </article>
+</section>
+
+<section id="series-books" class="view active">
+  <div class="section-title"><div><div class="eyebrow">BOOK ORDER</div><h2>Author-controlled series membership</h2><p>Order is durable. Removing a book never deletes the manuscript; removal is blocked while timeline events still depend on that book.</p></div></div>
+  <div class="grid">
+    <article class="card"><h3>Books in series</h3><div id="series-book-list" class="list"><p class="muted">No active series.</p></div></article>
+    <article class="card"><h3>Add existing project book</h3><select id="series-add-book"><option value="">No available books</option></select><button id="series-add-book-button" type="button" disabled>Add book to series</button></article>
+  </div>
+</section>
+
+<section id="series-timeline" class="view active">
+  <div class="section-title"><div><div class="eyebrow">CROSS-BOOK TIMELINE</div><h2>Track chronology across the whole series</h2><p>Dates may be real dates or story-relative labels such as “Book 2 / winter”.</p></div></div>
+  <div class="grid">
+    <article class="card">
+      <h3>Add timeline event</h3>
+      <form id="series-timeline-form">
+        <label>Book<select id="series-timeline-book" name="bookId" required></select></label>
+        <label>Date / story time<input name="date" required maxlength="240" placeholder="Book 2 / winter"></label>
+        <label>Description<textarea name="description" required maxlength="8000" placeholder="What changes here, and why it matters later?"></textarea></label>
+        <button id="series-add-event" class="primary" type="submit" disabled>Add timeline event</button>
+      </form>
+    </article>
+    <article class="card"><h3>Series timeline</h3><div id="series-timeline-list" class="list"><p class="muted">No timeline events.</p></div></article>
+  </div>
+</section>
+<footer>Author's Forge • Series state stays project-scoped • author-controlled changes only</footer>
+</main>
+<script src="/forge-pwa.js" defer></script>
+<script src="/forge-series.js" defer></script>
+</body>
+</html>

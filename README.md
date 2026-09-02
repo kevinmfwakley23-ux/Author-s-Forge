@@ -48,40 +48,40 @@ The cumulative build is now a substantial usable application with durable local 
 - a separate **Specialized Creation Office** for exactly six modes: comic books, greeting cards, birthday cards, invitations, flyers, and trading-card-game cards, including durable structured documents and real production artifacts where supported;
 - a responsive **PWA / Chromebook / Android web surface** with service-worker shell caching that deliberately does not treat browser cache as durable project state.
 
-### Engineering resume checkpoint — Story Architecture AI hardening
+### Engineering resume checkpoint — Series Engine final hardening
 
 **Checkpoint date:** September 2, 2026 (America/Denver)  
-**Current `main`:** `bec780c` — Story Map PR #109 merged only after its verification gate passed.  
-**Active PR:** #111 — `Harden Story Architecture AI with Project Brain context`  
-**Active branch:** `hardening/story-architecture-clean-main`  
-**Superseded stacked PR:** #110 — closed after Story Map's squash merge exposed stale branch-history conflicts.  
-**Implementation head immediately before this documentation update:** `df0147f`
+**Current `main`:** `a2afeb0` — Story Architecture AI hardening PR #111 merged only after build, baseline, unit/completion, desktop Chromium and Android/mobile gates passed on its exact head.  
+**Active PR:** #112 — `Complete durable Series Engine author workflow`  
+**Active branch:** `completion/series-author-workflow`  
+**PR state:** draft; do not merge or call Series complete before exact-head full Forge CI passes.  
+**Implementation head immediately before this documentation update:** `f024cfe`
 
-The current Story Architecture block now does all of the following:
+The active Series hardening block now does all of the following in code:
 
-- loads the real durable project before provider execution;
-- rehydrates durable Project Brain memory into the request boundary, including author, project, story canon, character, relationship, timeline, location, style, research, decision, creative-note, working-draft, and open-thread context;
-- routes generation through `generateProjectText`, preserving the shared provider broker, owner spend/model controls, capability routing, context optimization, failover, quota/cost safety, and provider-independent quality contract;
-- requires creative-writing and instruction-following capability without rejecting otherwise usable configured writing models merely because optional reasoning metadata is unknown;
-- returns architecture as an explicit **candidate** with `authorApprovalRequired: true` rather than silently becoming manuscript or canon;
-- validates project id, idea, book kind, and target-chapter inputs before provider execution;
-- fails honestly for missing projects and unavailable providers;
-- wires the actual Studio **Build architecture with real AI** button to the dedicated `/ai/architecture` Project-Brain-aware route;
-- removes the old browser-path side effect where requesting an architecture could create a `Working Draft` book and `Story Architecture` chapter before the author had approved anything;
-- adds regression coverage for Project Brain binding and pre-provider validation;
-- adds real Story Architecture browser acceptance proving provider reachability, durable canon injection, candidate-only behavior, no manuscript mutation, no silent canon promotion, and Android-sized touch/fit.
+- reuses the canonical `ProjectState.series` field and file-backed `project.json` source of truth rather than creating a Series sidecar;
+- validates duplicate Series/timeline identifiers and rejects timeline events that reference books outside Series membership;
+- validates Series book, shared-character and visual-identity references against the actual durable project;
+- supports explicit Series create/update/delete, existing-book membership, deterministic book ordering, and cross-book timeline mutation through Studio HTTP routes;
+- blocks removal of a Series book while cross-book timeline evidence still depends on it;
+- preserves manuscript books when Series membership or a Series record is removed;
+- keeps project `updatedAt` monotonic even when a deterministic caller timestamp or CI wall clock is older than existing durable project state, while still rejecting malformed timestamps;
+- provides a real `series.html` author workspace for shared characters, world rules, visual identities, locations, terminology, history, unresolved threads, book order and cross-book timeline;
+- makes the Main Studio actually load the PWA lifecycle it already shipped, exposes Series from that live Main Studio navigation/dashboard boundary, and includes the Series shell in service-worker caching while continuing to exclude `/api/` project state from browser cache;
+- adds unit/restart evidence plus a dedicated browser harness that must enter Series from the real Main Studio link and prove durable create/edit, membership/order, timeline, destructive-removal protection, reload, explicit Series deletion, manuscript preservation, Android fit and touch targets;
+- makes the completion meter treat Series Engine as its own capability and require the Series browser harness in the canonical desktop evidence inventory.
 
-Verification also exposed and repaired an unrelated weakness in the comic acceptance harness. The old `specialized-creation-comic-browser-acceptance.js` sent `SIGTERM`, slept only 150 ms, then restarted the server on the same randomly chosen port. CI could therefore race the old process and time out on `/api/health`. The harness now waits for actual child-process exit, force-cleans only if necessary, obtains a free application port from the operating system, and surfaces child stderr on startup failure. No comic production behavior or assertion was removed.
+The first Series CI runs correctly caught two hardening defects before browser execution: Series mutation timestamps could regress project chronology in deterministic fixtures, and the completion-evidence inventory did not yet account for the newly added Series browser harness. Both were fixed at their source and locked with stronger regression evidence. The newer Main Studio/PWA integration also repaired a pre-existing truth gap where `forge-pwa.js` existed and was syntax-checked/cached but was not actually loaded by `public/index.html`.
 
 **Resume here — do these in order:**
 
-1. Keep PR #111 limited to the Story Architecture production boundary/UI/browser proof plus the CI-harness hardening discovered while verifying it.
-2. Require a fresh full Forge CI run on the exact current PR head after this README commit. Build, baseline, unit, completion, desktop browser, Story Architecture browser, comic browser, and Android/mobile gates all remain mandatory.
-3. Fix any real failure at its source; do not weaken provider, memory, author-approval, Story Map, Research/Radar, Specialized Creation, browser, or mobile assertions to obtain green status.
-4. Merge only the exact verified head of PR #111.
-5. After merge, inspect fresh `main`, open PRs, the master directive, and the real UI before selecting the next author-journey gap. Basic Series domain/application primitives exist, but Series must not be claimed complete unless durable routes/UI and real author workflow are actually connected and verified.
+1. Require a fresh full Forge CI run on the exact current PR #112 head after this README commit.
+2. If build, baseline, unit, completion, syntax, desktop browser, Series browser, or Android/mobile exposes a real defect, fix the source without weakening the assertion.
+3. Keep Series changes author-controlled and project-scoped: no automatic manuscript rewriting, no silent canon promotion, no Series deletion cascading into manuscript deletion, and no browser cache becoming project state.
+4. Verify the final PR head SHA is exactly the SHA that passed the entire Forge CI workflow.
+5. Only then mark PR #112 ready and merge that exact verified head; afterward inspect fresh `main` for the next real author-journey gap.
 
-**Do not regress these invariants:** Story Map cannot rewrite/reorder manuscript prose in this increment; Story Architecture AI remains candidate-only; architecture generation itself cannot create manuscript structure or canon; Research/Radar cannot become canon automatically; No Paid Tokens remains fail-closed; provider failure must remain visible; browser cache is not durable project state; Chromebook and Android acceptance remain first-class verification targets.
+**Do not regress these invariants:** Story Map cannot silently rewrite/reorder manuscript prose; Story Architecture AI remains candidate-only; architecture generation itself cannot create manuscript structure or canon; Research/Radar cannot become canon automatically; Series cannot silently alter manuscript books; No Paid Tokens remains fail-closed; provider failure must remain visible; browser cache is not durable project state; Chromebook and Android acceptance remain first-class verification targets.
 
 ## Start Forge
 
@@ -104,7 +104,7 @@ npm run forge
 
 | Workplace | Default local URL | Purpose |
 | --- | --- | --- |
-| Main Studio | `http://127.0.0.1:4173` | Books, writing, Brain, editing, image/cover, publishing, market research, promotion, recovery |
+| Main Studio | `http://127.0.0.1:4173` | Books, Series Engine, writing, Brain, editing, image/cover, publishing, market research, promotion, recovery |
 | Guided Journal | `http://127.0.0.1:4273` | Guided-journal libraries, editions, interiors, production |
 | Educational Workbooks | `http://127.0.0.1:4373` | Activities, AI proposals, editions, differentiation, rubrics, assessment |
 | Specialized Creation | `http://127.0.0.1:4473` | Comics, cards, invitations, flyers, TCG cards |
@@ -171,23 +171,24 @@ The current Main Studio exposes the real application surfaces for:
 
 1. Dashboard and natural-language / dictated Command Center;
 2. manuscript book/chapter/scene binder;
-3. Writing Desk and durable AI proposals;
-4. Story Architecture;
-5. Story Map;
-6. Character Bible;
-7. World & Canon;
-8. Research;
-9. Editing Room;
-10. Author Voice;
-11. Illustration Studio / Image Lab;
-12. Cover Studio;
-13. Marketing / Promotion;
-14. Production & Publish;
-15. Book Genome;
-16. Project Health;
-17. Versions & Recovery;
-18. Provider & Settings;
-19. Author Control / governance.
+3. Series Engine for multi-book shared canon, membership/order and cross-book timeline;
+4. Writing Desk and durable AI proposals;
+5. Story Architecture;
+6. Story Map;
+7. Character Bible;
+8. World & Canon;
+9. Research;
+10. Editing Room;
+11. Author Voice;
+12. Illustration Studio / Image Lab;
+13. Cover Studio;
+14. Marketing / Promotion;
+15. Production & Publish;
+16. Book Genome;
+17. Project Health;
+18. Versions & Recovery;
+19. Provider & Settings;
+20. Author Control / governance.
 
 AI output remains candidate material until the applicable author-review boundary says otherwise. Research remains evidence/working knowledge until deliberately promoted. Publishing or promotion state is not permission for Forge to bypass external retailer submission, account, or preview systems.
 
