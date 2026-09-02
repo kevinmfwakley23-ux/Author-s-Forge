@@ -42,6 +42,7 @@ export class StudioArchitectureAiService {
       context: {
         projectId,
         taskMemoryClasses: [
+          "author-memory",
           "project-memory",
           "story-canon",
           "character-memory",
@@ -49,10 +50,10 @@ export class StudioArchitectureAiService {
           "timeline-memory",
           "location-memory",
           "style-memory",
-          "author-voice",
           "research-memory",
           "decision-memory",
           "creative-note",
+          "working-draft",
           "open-thread",
         ],
         relevanceTags: ["architecture", "outline", kind],
