@@ -47,6 +47,7 @@ export async function generateStudioAiWritingProposal(
     context: contextOptions({ ...input, query: input.contextQuery ?? input.query ?? instruction }),
     proposalId: String(input.proposalId ?? `proposal-${randomUUID()}`),
     now: input.now === undefined ? undefined : String(input.now),
+    sceneCardSha256: optionalSha256(input.sceneCardSha256),
   });
 }
 
@@ -83,6 +84,12 @@ function parsePolicies(value: unknown): readonly ContextSectionPolicy[] | undefi
 function writingTask(value: unknown): AiWritingTask {
   if (typeof value !== "string" || !AI_WRITING_TASKS.includes(value as AiWritingTask)) throw new Error("Invalid AI writing task.");
   return value as AiWritingTask;
+}
+
+function optionalSha256(value: unknown): string | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+  if (typeof value !== "string" || !/^[a-f0-9]{64}$/u.test(value)) throw new Error("Invalid Scene Card generation binding hash.");
+  return value;
 }
 
 function finitePositiveInteger(value: unknown, label: string): number {
