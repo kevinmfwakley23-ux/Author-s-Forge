@@ -3,19 +3,37 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="Author's Forge Live Research Office — source-backed web research stored as working project knowledge">
-<title>Author's Forge — Live Research Office</title>
+<meta name="description" content="Author's Forge Research Office — proactive knowledge-gap discovery and source-backed web research stored as working project knowledge">
+<title>Author's Forge — Research Office</title>
 <link rel="stylesheet" href="/styles.css">
 <style>
-.research-shell{max-width:1400px;margin:auto;padding:1rem}.research-head{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap}.research-grid{display:grid;grid-template-columns:minmax(300px,.8fr) minmax(0,1.2fr);gap:1rem}.research-card{background:var(--panel,#fff);border:1px solid #d6d6d6;border-radius:14px;padding:1rem;min-width:0}.research-form{display:grid;gap:.75rem}.research-form label{display:grid;gap:.3rem;font-weight:600}.research-form input,.research-form select,.research-form textarea,.research-form button,.research-row button{min-height:44px}.research-form textarea{min-height:110px}.research-row{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}.research-status{padding:.75rem;border-radius:10px;margin:.75rem 0;background:#f4f4f4}.research-status.ready{border-left:5px solid #237a3d}.research-status.blocked{border-left:5px solid #a4372a}.research-result{border:1px solid #ddd;border-radius:10px;padding:.8rem;margin:.7rem 0;overflow-wrap:anywhere}.research-result h3{margin:.1rem 0 .4rem}.research-meta{display:flex;gap:.45rem;flex-wrap:wrap;font-size:.88rem;opacity:.78}.research-badge{border:1px solid #bbb;border-radius:999px;padding:.15rem .45rem}.research-note{font-size:.9rem;opacity:.82}.research-error{background:#711;color:#fff;padding:.65rem .8rem;border-radius:9px;margin:.65rem 0}.research-error:empty{display:none}@media(max-width:800px){.research-grid{grid-template-columns:1fr}.research-shell{padding:.6rem}.research-head .research-row{width:100%}.research-head a,.research-head button{min-height:44px;display:inline-flex;align-items:center}}
+.research-shell{max-width:1400px;margin:auto;padding:1rem}.research-head{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap}.research-grid{display:grid;grid-template-columns:minmax(300px,.8fr) minmax(0,1.2fr);gap:1rem}.research-card{background:var(--panel,#fff);border:1px solid #d6d6d6;border-radius:14px;padding:1rem;min-width:0}.research-card.full{grid-column:1/-1}.research-form{display:grid;gap:.75rem}.research-form label{display:grid;gap:.3rem;font-weight:600}.research-form input,.research-form select,.research-form textarea,.research-form button,.research-row button,.gap-actions button{min-height:44px}.research-form textarea{min-height:110px}.research-row,.gap-actions{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}.research-status{padding:.75rem;border-radius:10px;margin:.75rem 0;background:#f4f4f4}.research-status.ready{border-left:5px solid #237a3d}.research-status.blocked{border-left:5px solid #a4372a}.research-result,.gap-card{border:1px solid #ddd;border-radius:10px;padding:.8rem;margin:.7rem 0;overflow-wrap:anywhere}.research-result h3,.gap-card h3{margin:.1rem 0 .4rem}.research-meta{display:flex;gap:.45rem;flex-wrap:wrap;font-size:.88rem;opacity:.78}.research-badge{border:1px solid #bbb;border-radius:999px;padding:.15rem .45rem}.research-note{font-size:.9rem;opacity:.82}.research-error{background:#711;color:#fff;padding:.65rem .8rem;border-radius:9px;margin:.65rem 0}.research-error:empty{display:none}.radar-explainer{display:grid;grid-template-columns:minmax(240px,.7fr) minmax(0,1.3fr);gap:1rem}.gap-card[data-status="open"]{border-left:5px solid #a56a00}.gap-card[data-status="researched"]{border-left:5px solid #237a3d}.gap-card[data-status="dismissed"]{opacity:.7}.gap-basis{background:rgba(127,127,127,.08);border-radius:8px;padding:.55rem}.gap-actions{margin-top:.7rem}@media(max-width:800px){.research-grid,.radar-explainer{grid-template-columns:1fr}.research-card.full{grid-column:auto}.research-shell{padding:.6rem}.research-head .research-row{width:100%}.research-head a,.research-head button,.gap-actions button{min-height:44px;display:inline-flex;align-items:center}.gap-actions button{flex:1 1 130px}}
 </style>
 </head>
 <body>
 <main class="research-shell">
-<header class="research-head"><div><div class="eyebrow">LIVE RESEARCH OFFICE</div><h1>Find evidence. Keep the sources. Protect the manuscript.</h1><p>Forge uses hosted web search for current source-backed research. Findings enter Project Brain as <strong>working research memory</strong>, never automatic canon.</p></div><div class="research-row"><a id="main-studio" href="/">Main Studio</a><a id="ai-control" href="/author-craft.html">Primary AI Control</a><button id="refresh" type="button">Refresh</button></div></header>
+<header class="research-head"><div><div class="eyebrow">RESEARCH OFFICE</div><h1>Spot what you do not know. Verify it. Keep the evidence.</h1><p>Knowledge Gap Radar can proactively identify research questions in your project. It never turns a question into a fact. Only source-backed Research can create working research memory, and only the author can promote knowledge into canon.</p></div><div class="research-row"><a id="main-studio" href="/">Main Studio</a><a id="ai-control" href="/author-craft.html">Primary AI Control</a><button id="refresh" type="button">Refresh</button></div></header>
 <div id="research-error" class="research-error" role="alert" aria-live="assertive"></div>
 <div id="research-status" class="research-status">Checking live research availability…</div>
 <div class="research-grid">
+<section class="research-card full" id="knowledge-gap-radar">
+<div class="eyebrow">KNOWLEDGE GAP RADAR</div><h2>Proactive research questions — never automatic facts</h2>
+<div class="radar-explainer">
+<form id="gap-scan-form" class="research-form">
+<label>What should Radar inspect?<textarea id="gap-focus" placeholder="Example: Scan the current historical scenes for real-world details I may need to verify before revision."></textarea></label>
+<label>Maximum questions<select id="gap-max"><option>3</option><option selected>6</option><option>8</option></select></label>
+<label>Book ID (optional)<input id="gap-book" placeholder="book-id"></label>
+<label>Chapter ID (optional)<input id="gap-chapter" placeholder="chapter-id"></label>
+<label>Scene ID (optional)<input id="gap-scene" placeholder="scene-id"></label>
+<button id="scan-knowledge-gaps" class="primary" type="submit">Scan project for knowledge gaps</button>
+<p class="research-note">Radar uses the normal Forge AI broker and owner spend controls. If no allowed real provider is configured, it fails honestly instead of fabricating questions.</p>
+</form>
+<div>
+<div id="radar-status" class="research-note" aria-live="polite">Loading durable research-question queue…</div>
+<div id="knowledge-gaps"><p class="muted">Loading knowledge gaps…</p></div>
+</div>
+</div>
+</section>
 <section class="research-card">
 <div class="eyebrow">SOURCE-BACKED SEARCH</div><h2>Research a real question</h2>
 <p class="research-note">Hosted web search can carry tool charges. Forge therefore blocks this feature in <strong>No Paid Tokens</strong> and <strong>Budgeted</strong> modes until hosted-tool fees can be pre-authorized reliably. Use the Primary AI Control if you deliberately want Unrestricted configured APIs.</p>
