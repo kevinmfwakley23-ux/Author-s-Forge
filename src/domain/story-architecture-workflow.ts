@@ -128,6 +128,14 @@ export function approveStoryArchitectureCandidate(state: StoryArchitectureWorkfl
   return validateStoryArchitectureWorkflowState({ ...current, approvals });
 }
 
+export function revokeStoryArchitectureApproval(state: StoryArchitectureWorkflowState, candidateId: string): StoryArchitectureWorkflowState {
+  const current = validateStoryArchitectureWorkflowState(state);
+  const id = identifier(candidateId, "Story Architecture candidate id");
+  if (!current.candidates.some((item) => item.id === id)) throw new Error(`Story Architecture candidate "${id}" not found.`);
+  if (!current.approvals.some((item) => item.candidateId === id)) throw new Error(`Story Architecture candidate "${id}" has no approval to revoke.`);
+  return validateStoryArchitectureWorkflowState({ ...current, approvals: current.approvals.filter((item) => item.candidateId !== id) });
+}
+
 export function storyArchitectureApprovalFor(state: StoryArchitectureWorkflowState | undefined, candidate: StoryArchitectureCandidate): StoryArchitectureApproval | undefined {
   if (!state) return undefined;
   const current = validateStoryArchitectureWorkflowState(state);
