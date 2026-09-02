@@ -87,3 +87,42 @@ test("governed AI writing honors the Chapter Card and anchors its characters aut
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("governed AI refuses an ambiguous cross-book Chapter Card before provider execution", async () => {
+  const root = await mkdtemp(join(tmpdir(), "forge-chapter-card-ai-collision-"));
+  try {
+    const projects = await projectFixture(root);
+    const project = await projects.load("project-1");
+    let workspace = project.studioWorkspace;
+    workspace = addWorkspaceBook(workspace, { id: "book-2", title: "Second Archive Story", kind: "novel", lifecycle: "active", description: "", chapters: [], updatedAt: "2026-09-02T16:03:00.000Z" });
+    workspace = addWorkspaceChapter(workspace, "book-2", { id: "chapter-1", number: 1, title: "Another Chapter One" });
+    workspace = addWorkspaceScene(workspace, "book-2", "chapter-1", { id: "scene-2", number: 1, title: "Elsewhere" });
+    await projects.save({ ...project, studioWorkspace: workspace });
+
+    let providerCalls = 0;
+    const coordinator = new AiWritingCoordinator(
+      new FileAiProposalStore(join(root, "collision-proposals.json")),
+      async () => {
+        providerCalls += 1;
+        return { provider: "test", model: "fixture", text: "This must never be generated." };
+      },
+    );
+    const service = new AiWritingStudioService(projects, coordinator);
+    await assert.rejects(
+      () => service.generateWithProjectContext({
+        projectId: "project-1",
+        bookId: "book-1",
+        chapterId: "chapter-1",
+        sceneId: "scene-1",
+        task: "continue",
+        instruction: "Continue the scene.",
+        proposalId: "ambiguous-proposal",
+        now: "2026-09-02T16:04:00.000Z",
+      }),
+      /ambiguous across books/,
+    );
+    assert.equal(providerCalls, 0, "Ambiguous Chapter Card targeting must fail before any AI provider is called.");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
