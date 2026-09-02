@@ -44,6 +44,8 @@ test('Studio project export is bound to the canonical v2 package endpoint', () =
 
 test('Studio workbench contains no fake provider result path', () => {
   assert.doesNotMatch(workbench, /mock.*ai|fake.*ai|placeholder.*response/i);
-  assert.match(workbench, /Real AI/);
+  assert.match(workbench, /api\(projectUrl\('\/ai\/architecture'\)/);
+  assert.match(workbench, /Project-Brain-aware architecture candidate returned/);
+  assert.match(workbench, /Nothing was added to manuscript or canon; review and approve the plan before applying it/);
   assert.match(workbench, /fails explicitly/);
 });
