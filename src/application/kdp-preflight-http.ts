@@ -1,25 +1,50 @@
+import { join } from "node:path";
 import type { PublishingConfiguration } from "../domain/book-cover-studio";
 import type { KdpCoverFileFacts, KdpInteriorFileFacts, KdpPreflightReport } from "../domain/kdp-preflight";
+import { FileProjectStore } from "../infrastructure/file-project-store";
 import { KdpPreflightHistoryService } from "./kdp-preflight-history";
+import { StudioKdpPreflightService } from "./studio-kdp-preflight";
 
 export interface KdpPreflightHttpDeps {
   readonly history: KdpPreflightHistoryService;
   readonly projectId: string;
+  /** Optional injection point for tests/alternate runtimes. Studio defaults to its durable project root. */
+  readonly projects?: Pick<FileProjectStore, "load">;
 }
 
-export async function runKdpPreflightFromHttp(deps: KdpPreflightHttpDeps, input: Record<string, unknown>): Promise<KdpPreflightReport> {
+export type KdpPreflightHttpResult = KdpPreflightReport & {
+  readonly coverPlanId: string;
+  readonly bookId: string;
+  readonly authoritativePublishing: PublishingConfiguration;
+};
+
+export async function runKdpPreflightFromHttp(deps: KdpPreflightHttpDeps, input: Record<string, unknown>): Promise<KdpPreflightHttpResult> {
   const projectId = requiredText(deps.projectId, "project id");
   const requestProjectId = input.projectId === undefined ? projectId : requiredText(input.projectId, "project id");
   if (requestProjectId !== projectId) throw new Error("KDP preflight request cannot target another project.");
 
-  return deps.history.audit({
-    id: optionalText(input.id) ?? `kdp-preflight-${crypto.randomUUID()}`,
-    projectId,
-    publishing: publishingConfiguration(input.publishing),
+  const projects = deps.projects ?? new FileProjectStore(process.env.FORGE_DATA_DIR ?? join(process.cwd(), ".forge-data"));
+  const project = await projects.load(projectId);
+  if (!project) throw new Error(`Project "${projectId}" not found.`);
+
+  const studio = new StudioKdpPreflightService(deps.history);
+  const result = await studio.audit({
+    project,
+    coverPlanId: optionalText(input.coverPlanId),
+    bookId: optionalText(input.bookId),
+    ...(input.publishing === undefined ? {} : { assertedPublishing: publishingConfiguration(input.publishing) }),
     interiorHasBleed: booleanValue(input.interiorHasBleed, "interiorHasBleed"),
     interior: interiorFacts(input.interior),
     cover: coverFacts(input.cover),
+    reportId: optionalText(input.id),
     ...(input.now === undefined ? {} : { now: requiredText(input.now, "now") }),
+  });
+
+  return Object.freeze({
+    ...result.report,
+    coverPlanId: result.coverPlanId,
+    bookId: result.bookId,
+    authoritativePublishing: result.publishing,
   });
 }
 
@@ -32,14 +57,14 @@ export async function listKdpPreflightHistoryFromHttp(deps: KdpPreflightHttpDeps
 function publishingConfiguration(value: unknown): PublishingConfiguration {
   const input = objectValue(value, "publishing");
   const binding = enumText(input.binding, ["paperback", "hardcover"] as const, "binding");
-  const interiorType = enumText(input.interiorType, ["black-white", "premium-color", "standard-color"] as const, "interior type");
-  const paperType = enumText(input.paperType, ["white", "cream"] as const, "paper type");
+  const interiorType = input.interiorType === undefined ? undefined : enumText(input.interiorType, ["black-white", "premium-color", "standard-color"] as const, "interior type");
+  const paperType = input.paperType === undefined ? undefined : enumText(input.paperType, ["white", "cream", "groundwood"] as const, "paper type");
   const readingDirection = enumText(input.readingDirection, ["ltr", "rtl"] as const, "reading direction");
   return {
     platform: "kdp",
     binding,
-    interiorType,
-    paperType,
+    ...(interiorType === undefined ? {} : { interiorType }),
+    ...(paperType === undefined ? {} : { paperType }),
     trimWidthInches: positiveNumber(input.trimWidthInches, "trim width"),
     trimHeightInches: positiveNumber(input.trimHeightInches, "trim height"),
     pageCount: integerNumber(input.pageCount, "page count"),
