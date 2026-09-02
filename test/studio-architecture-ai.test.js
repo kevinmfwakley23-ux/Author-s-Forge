@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { createProject } = require("../.forge-build/domain/project.js");
 const { createMemoryRecord } = require("../.forge-build/domain/memory.js");
+const { buildProjectContext } = require("../.forge-build/application/context-pipeline.js");
 const { StudioArchitectureAiService } = require("../.forge-build/application/studio-architecture-ai-routes.js");
 
 function projectFixture() {
@@ -52,6 +53,10 @@ test("Story Architecture binds provider work to durable Project Brain memory", a
   assert.match(captured.user, /TARGET CHAPTERS: 22/);
   assert.match(captured.user, /psychological-thriller/);
   assert.deepEqual(captured.memory.query({ projectId: "project-1", class: "story-canon" }).map((item) => item.id), ["canon-1"]);
+
+  const providerContext = buildProjectContext(captured.memory, { query: captured.context });
+  assert.ok(providerContext.selectedMemoryIds.includes("canon-1"), "binding story canon must survive the architecture retrieval query");
+  assert.match(providerContext.system, /isolated mountain city during one severe winter/i, "binding story canon content must reach provider context");
 });
 
 test("Story Architecture validates input before provider execution", async () => {
