@@ -44,8 +44,12 @@ jobs:
       - name: Run strongest Forge verification gate
         run: npm run verify
 
-      - name: Validate release launcher and packaging scripts
+      - name: Validate release launcher and workflow scripts
         run: |
+          node --check public/forge-chapter-card-workflow.js
+          node --check public/forge-chapter-card-approval.js
+          node --check public/forge-pwa.js
+          node --check public/sw.js
           node --check scripts/forge-network-security.js
           node --check scripts/start-forge.js
           bash -n scripts/termux-forge.sh
@@ -70,7 +74,9 @@ jobs:
           npm run forge
           Open http://127.0.0.1:4173/
 
-          The Main Studio includes the durable Series Engine and Chapter Cards. The unified launcher also starts the project-aware Guided Journal, Educational Workbook, and Specialized Creation offices on ports 4273, 4373, and 4473. Open those offices from the Main Studio dashboard so the current project id is carried forward automatically.
+          The Main Studio includes the durable Series Engine and the author-directed Chapter Card workflow. An author can give Forge a book description plus known events and timeline details, have real AI create structured Chapter Cards, edit/review them, explicitly approve the exact current cards, then either write manually from those cards or request AI chapter drafts. AI chapter drafts remain durable proposals for author review and do not overwrite existing manuscript prose.
+
+          The unified launcher also starts the project-aware Guided Journal, Educational Workbook, and Specialized Creation offices on ports 4273, 4373, and 4473. Open those offices from the Main Studio dashboard so the current project id is carried forward automatically.
 
           The main Studio Illustration surface includes the durable Image Lab. Real image generation/editing requires an explicitly configured supported image provider credential; when unavailable Forge reports that condition and does not fabricate artwork.
 
