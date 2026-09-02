@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { KdpPreflightHistoryService } from "../dist/application/kdp-preflight-history.js";
@@ -118,6 +118,41 @@ test("KDP preflight history rejects duplicate audit ids", async () => {
       service.audit(request("audit-dup", "project-a", "2026-08-31T18:01:00.000Z")),
       /Duplicate KDP preflight report id/,
     );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("failed KDP history persistence does not publish an unsaved report in memory", async () => {
+  const root = await mkdtemp(join(tmpdir(), "forge-kdp-history-atomic-"));
+  try {
+    const parent = join(root, "state");
+    const path = join(parent, "kdp-preflight.json");
+    await mkdir(parent);
+    const service = new KdpPreflightHistoryService(new FileKdpPreflightStore(path));
+    assert.deepEqual(await service.list("project-a"), []);
+    await rm(parent, { recursive: true, force: true });
+    await writeFile(parent, "blocks-directory-recreation", "utf8");
+
+    await assert.rejects(service.audit(request("audit-failed", "project-a", "2026-08-31T20:00:00.000Z")));
+    assert.deepEqual(await service.list("project-a"), []);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("concurrent KDP history appends serialize without losing durable reports", async () => {
+  const root = await mkdtemp(join(tmpdir(), "forge-kdp-history-concurrent-"));
+  try {
+    const path = join(root, "kdp-preflight.json");
+    const service = new KdpPreflightHistoryService(new FileKdpPreflightStore(path));
+    await Promise.all([
+      service.audit(request("audit-one", "project-a", "2026-08-31T21:00:00.000Z")),
+      service.audit(request("audit-two", "project-a", "2026-08-31T21:01:00.000Z", 0.5)),
+    ]);
+
+    const restarted = new KdpPreflightHistoryService(new FileKdpPreflightStore(path));
+    assert.deepEqual((await restarted.list("project-a")).map((report) => report.id), ["audit-two", "audit-one"]);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
