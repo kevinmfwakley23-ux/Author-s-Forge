@@ -86,9 +86,8 @@ export interface AiRoutingTelemetry {
  *
  * Unknown model limits remain unknown. A configured provider is rejected for a
  * capacity requirement only when Forge has real metadata proving that the
- * resource is too small. Spend policy is deliberately stricter: unknown or
- * gateway-managed billing is NOT assumed free when the author forbids new
- * token purchases.
+ * resource is too small. Spend policy is deliberately opt-in at this reusable
+ * layer: the live Forge runtime supplies its owner-selected policy explicitly.
  */
 export class AiModelBroker {
   private resources: AiModelResource[] = [];
@@ -163,7 +162,6 @@ export class AiModelBroker {
     if (resource.cooldownUntil && Number.isFinite(now) && Date.parse(resource.cooldownUntil) > now) return false;
     if (!this.spendEligible(resource, request, estimatedInputTokens, estimatedOutputTokens)) return false;
 
-    // Capacity metadata is optional. Unknown is not the same as insufficient.
     if (
       request.minimumContextWindow !== undefined &&
       capabilities.contextWindow !== undefined &&
@@ -175,7 +173,6 @@ export class AiModelBroker {
       capabilities.maxOutputTokens < request.minimumOutputTokens
     ) return false;
 
-    // Feature requirements are strict: advanced capability must be explicitly known true.
     if (request.requiresReasoning && capabilities.reasoning !== true) return false;
     if (request.requiresVision && capabilities.vision !== true) return false;
     if (request.requiresToolCalls && capabilities.toolCalls !== true) return false;
@@ -205,7 +202,9 @@ export class AiModelBroker {
   }
 
   private spendEligible(resource: AiModelResource, request: AiModelSelectionRequest, inputTokens: number, outputTokens: number): boolean {
-    const policy = request.spendPolicy ?? "no-paid-tokens";
+    const policy = request.spendPolicy;
+    if (!policy) return true;
+
     const trusted = new Set((request.trustedNoSpendModels ?? []).map((value) => value.trim().toLowerCase()).filter(Boolean));
     const key = `${resource.provider}/${resource.model}`.toLowerCase();
     const billing = resource.billingClass ?? "unknown";
