@@ -74,8 +74,9 @@
       $("#research-results").innerHTML = result.record.claims.map(claimCard).join("");
       await load();
     } catch (cause) {
-      error(cause instanceof Error ? cause.message : String(cause));
+      const message = cause instanceof Error ? cause.message : String(cause);
       await load().catch(() => {});
+      error(message);
     } finally {
       button.textContent = "Run source-backed web research";
       button.disabled = !statusSnapshot?.available;
