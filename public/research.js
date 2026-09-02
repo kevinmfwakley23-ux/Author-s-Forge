@@ -23,7 +23,7 @@
     statusSnapshot = status;
     const node = $("#research-status");
     node.className = `research-status ${status.available ? "ready" : "blocked"}`;
-    node.innerHTML = `<strong>${status.available ? "Live source-backed research ready" : "Live source-backed research blocked"}</strong><br>${esc(status.reason)}<div class="research-meta"><span class="research-badge">Spend: ${esc(status.spendPolicy)}</span><span class="research-badge">Authority: working</span><span class="research-badge">Canon: author promotion only</span>${status.pinnedProvider ? `<span class="research-badge">Pin: ${esc(status.pinnedProvider)}/${esc(status.pinnedModel)}</span>` : ""}</div>`;
+    node.innerHTML = `<strong>${status.available ? "Live research ready" : "Live research blocked"}</strong><br>${esc(status.reason)}<div class="research-meta"><span class="research-badge">Spend: ${esc(status.spendPolicy)}</span><span class="research-badge">Authority: working</span><span class="research-badge">Canon: author promotion only</span><span class="research-badge">Source-backed web search</span>${status.pinnedProvider ? `<span class="research-badge">Pin: ${esc(status.pinnedProvider)}/${esc(status.pinnedModel)}</span>` : ""}</div>`;
     const button = $("#run-live-research");
     button.disabled = !status.available;
     button.title = status.available ? "Run hosted source-backed web research" : status.reason;
@@ -136,7 +136,7 @@
     }
   }
   async function gapAction(event) {
-    const button = event.target.closest("[data-gap-action]");
+    const button = event.target instanceof Element ? event.target.closest("[data-gap-action]") : null;
     if (!button) return;
     const id = button.dataset.gapId;
     const action = button.dataset.gapAction;
