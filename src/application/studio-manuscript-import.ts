@@ -66,7 +66,6 @@ interface SourceBlock {
   readonly headingLevel?: number;
   readonly sceneBreak?: boolean;
 }
-
 interface MutableScene { title: string; paragraphs: string[]; }
 interface MutableChapter { title: string; scenes: MutableScene[]; }
 
@@ -77,11 +76,9 @@ export function previewManuscriptImport(input: PreviewManuscriptImportInput): Ma
   if (bytes.length > MANUSCRIPT_IMPORT_MAX_BYTES) throw new Error(`Manuscript import exceeds the ${formatBytes(MANUSCRIPT_IMPORT_MAX_BYTES)} source-file limit.`);
 
   const format = formatFromFileName(fileName);
-  const blocks = format === "docx" ? blocksFromDocx(bytes) : blocksFromText(bytes, format === "markdown");
   const warnings: string[] = [];
-  const chapters = structureBlocks(blocks, warnings);
-  const suggestedBookTitle = optionalText(input.bookTitle, 240) || titleFromFileName(fileName);
-  const normalized = chapters.map((chapter, chapterIndex): ManuscriptImportChapterPreview => {
+  const blocks = format === "docx" ? blocksFromDocx(bytes) : blocksFromText(bytes, format === "markdown");
+  const chapters = structureBlocks(blocks, warnings).map((chapter, chapterIndex): ManuscriptImportChapterPreview => {
     const scenes = chapter.scenes.map((scene, sceneIndex): ManuscriptImportScenePreview => {
       const content = scene.paragraphs.join("\n\n").trim();
       return { number: sceneIndex + 1, title: scene.title || `Scene ${sceneIndex + 1}`, content, wordCount: countWords(content) };
@@ -93,9 +90,9 @@ export function previewManuscriptImport(input: PreviewManuscriptImportInput): Ma
       wordCount: scenes.reduce((sum, scene) => sum + scene.wordCount, 0),
     };
   });
-  const wordCount = normalized.reduce((sum, chapter) => sum + chapter.wordCount, 0);
+  const wordCount = chapters.reduce((sum, chapter) => sum + chapter.wordCount, 0);
   if (!wordCount) warnings.push("No manuscript prose was detected. Review the preview before importing this structure.");
-  if (normalized.length === 1 && normalized[0]?.title === "Imported Manuscript") warnings.push("No explicit chapter headings were detected, so Forge preserved the manuscript as one chapter.");
+  if (chapters.length === 1 && chapters[0]?.title === "Imported Manuscript") warnings.push("No explicit chapter headings were detected, so Forge preserved the manuscript as one chapter.");
 
   return {
     formatVersion: MANUSCRIPT_IMPORT_FORMAT_VERSION,
@@ -103,12 +100,12 @@ export function previewManuscriptImport(input: PreviewManuscriptImportInput): Ma
     format,
     sourceBytes: bytes.length,
     sourceSha256: createHash("sha256").update(bytes).digest("hex"),
-    suggestedBookTitle,
-    chapterCount: normalized.length,
-    sceneCount: normalized.reduce((sum, chapter) => sum + chapter.scenes.length, 0),
+    suggestedBookTitle: optionalText(input.bookTitle, 240) || titleFromFileName(fileName),
+    chapterCount: chapters.length,
+    sceneCount: chapters.reduce((sum, chapter) => sum + chapter.scenes.length, 0),
     wordCount,
-    warnings: unique(warnings),
-    chapters: normalized,
+    warnings: [...new Set(warnings)],
+    chapters,
   };
 }
 
@@ -149,7 +146,6 @@ export function applyManuscriptImport(input: ApplyManuscriptImportInput): { work
       workspace = saveSceneContent(workspace, bookId, chapterId, sceneId, scene.content, now);
     }
   }
-
   return { workspace: setActiveBook(workspace, bookId), importedBookId: bookId };
 }
 
@@ -158,13 +154,10 @@ function structureBlocks(blocks: readonly SourceBlock[], warnings: string[]): Mu
   if (!meaningful.length) return [{ title: "Imported Manuscript", scenes: [{ title: "Scene 1", paragraphs: [] }] }];
 
   const chapters: MutableChapter[] = [];
-  let current: MutableChapter | null = null;
   let prefix: string[] = [];
-
   const startChapter = (title: string): MutableChapter => {
     const chapter: MutableChapter = { title: cleanHeading(title), scenes: [{ title: "Scene 1", paragraphs: [] }] };
     chapters.push(chapter);
-    current = chapter;
     return chapter;
   };
 
@@ -179,29 +172,26 @@ function structureBlocks(blocks: readonly SourceBlock[], warnings: string[]): Mu
       }
       continue;
     }
-
-    if (!current) {
-      if (block.sceneBreak) continue;
-      prefix.push(text);
+    if (!chapters.length) {
+      if (!block.sceneBreak) prefix.push(text);
       continue;
     }
 
+    const active = chapters[chapters.length - 1];
     if (block.sceneBreak) {
-      const last = current.scenes[current.scenes.length - 1];
-      if (last.paragraphs.length) current.scenes.push({ title: `Scene ${current.scenes.length + 1}`, paragraphs: [] });
+      const last = active.scenes[active.scenes.length - 1];
+      if (last.paragraphs.length) active.scenes.push({ title: `Scene ${active.scenes.length + 1}`, paragraphs: [] });
       continue;
     }
-    current.scenes[current.scenes.length - 1].paragraphs.push(text);
+    active.scenes[active.scenes.length - 1].paragraphs.push(text);
   }
 
   if (!chapters.length) {
-    const chapter = startChapter("Imported Manuscript");
-    chapter.scenes[0].paragraphs.push(...prefix);
+    startChapter("Imported Manuscript").scenes[0].paragraphs.push(...prefix);
   } else if (prefix.length) {
     chapters[0].scenes[0].paragraphs.unshift(...prefix);
     warnings.push("Content before the first detected chapter heading was preserved at the start of the first imported chapter.");
   }
-
   for (const chapter of chapters) {
     while (chapter.scenes.length > 1 && !chapter.scenes[chapter.scenes.length - 1].paragraphs.length) chapter.scenes.pop();
   }
@@ -210,11 +200,8 @@ function structureBlocks(blocks: readonly SourceBlock[], warnings: string[]): Mu
 
 function blocksFromText(bytes: Buffer, markdown: boolean): SourceBlock[] {
   let source: string;
-  try {
-    source = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-  } catch {
-    throw new Error("Text manuscript must use UTF-8 encoding.");
-  }
+  try { source = new TextDecoder("utf-8", { fatal: true }).decode(bytes); }
+  catch { throw new Error("Text manuscript must use UTF-8 encoding."); }
   source = source.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
   const blocks: SourceBlock[] = [];
   let paragraph: string[] = [];
@@ -252,11 +239,8 @@ function blocksFromText(bytes: Buffer, markdown: boolean): SourceBlock[] {
 function blocksFromDocx(bytes: Buffer): SourceBlock[] {
   const xml = extractZipEntry(bytes, "word/document.xml");
   let source: string;
-  try {
-    source = new TextDecoder("utf-8", { fatal: true }).decode(xml);
-  } catch {
-    throw new Error("DOCX document.xml is not valid UTF-8 XML.");
-  }
+  try { source = new TextDecoder("utf-8", { fatal: true }).decode(xml); }
+  catch { throw new Error("DOCX document.xml is not valid UTF-8 XML."); }
 
   const blocks: SourceBlock[] = [];
   const paragraphPattern = /<w:p(?:\s[^>]*)?>([\s\S]*?)<\/w:p>/gi;
@@ -339,18 +323,14 @@ function extractZipEntry(zip: Buffer, wantedName: string): Buffer {
 function findEndOfCentralDirectory(zip: Buffer): number {
   const minimum = Math.max(0, zip.length - 65_557);
   for (let offset = zip.length - 22; offset >= minimum; offset -= 1) {
-    if (zip.readUInt32LE(offset) === 0x06054b50) {
-      const commentLength = zip.readUInt16LE(offset + 20);
-      if (offset + 22 + commentLength === zip.length) return offset;
-    }
+    if (zip.readUInt32LE(offset) !== 0x06054b50) continue;
+    const commentLength = zip.readUInt16LE(offset + 20);
+    if (offset + 22 + commentLength === zip.length) return offset;
   }
   throw new Error("DOCX ZIP end-of-central-directory record was not found.");
 }
 
-function isChapterHeading(block: SourceBlock): boolean {
-  return block.headingLevel === 1 || looksLikeChapterHeading(block.text);
-}
-
+function isChapterHeading(block: SourceBlock): boolean { return block.headingLevel === 1 || looksLikeChapterHeading(block.text); }
 function looksLikeChapterHeading(value: string): boolean {
   const text = value.trim();
   if (!text || text.length > 180) return false;
@@ -358,23 +338,15 @@ function looksLikeChapterHeading(value: string): boolean {
   const number = "(?:\\d{1,4}|[ivxlcdm]{1,12}|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred)";
   return new RegExp(`^(?:chapter|part|book)\\s+${number}(?:\\s*$|\\s*[:.\\-–—]\\s*.+$|\\s+.+$)`, "i").test(text);
 }
-
-function isSceneBreakText(value: string): boolean {
-  const text = value.trim();
-  return /^(?:\*\s*\*\s*\*|#(?:\s*#){0,2}|-{3,}|—\s*—\s*—|•\s*•\s*•)$/.test(text);
-}
-
-function cleanHeading(value: string): string {
-  return value.replace(/^#{1,6}\s+/, "").replace(/\s+#{1,6}$/, "").trim().slice(0, 240) || "Imported Chapter";
-}
+function isSceneBreakText(value: string): boolean { return /^(?:\*\s*\*\s*\*|#(?:\s*#){0,2}|-{3,}|—\s*—\s*—|•\s*•\s*•)$/.test(value.trim()); }
+function cleanHeading(value: string): string { return value.replace(/^#{1,6}\s+/, "").replace(/\s+#{1,6}$/, "").trim().slice(0, 240) || "Imported Chapter"; }
 
 function decodeBase64(value: unknown): Buffer {
   if (typeof value !== "string" || !value.trim()) throw new Error("Manuscript file data is required.");
   const compact = value.replace(/\s+/g, "");
   if (!/^[A-Za-z0-9+/]*={0,2}$/.test(compact) || compact.length % 4 === 1) throw new Error("Manuscript file data is not valid base64.");
   const bytes = Buffer.from(compact, "base64");
-  const canonical = bytes.toString("base64").replace(/=+$/, "");
-  if (canonical !== compact.replace(/=+$/, "")) throw new Error("Manuscript file data is not valid base64.");
+  if (bytes.toString("base64").replace(/=+$/, "") !== compact.replace(/=+$/, "")) throw new Error("Manuscript file data is not valid base64.");
   return bytes;
 }
 
@@ -385,19 +357,16 @@ function formatFromFileName(fileName: string): ManuscriptImportFormat {
   if (lower.endsWith(".txt")) return "text";
   throw new Error("Unsupported manuscript format. Forge currently imports .docx, .txt, .md, and .markdown files.");
 }
-
 function requiredFileName(value: unknown): string {
   if (typeof value !== "string") throw new Error("Manuscript filename is required.");
   const name = value.trim();
   if (!name || name.length > 260 || /[\\/\u0000-\u001f]/.test(name)) throw new Error("Manuscript filename is invalid.");
   return name;
 }
-
 function titleFromFileName(fileName: string): string {
   const base = fileName.replace(/\.(?:docx|txt|md|markdown)$/i, "").replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
   return (base || "Imported Manuscript").slice(0, 240);
 }
-
 function optionalText(value: unknown, max: number): string | undefined {
   if (value === undefined || value === null || value === "") return undefined;
   if (typeof value !== "string") throw new Error("Book title must be text.");
@@ -406,7 +375,6 @@ function optionalText(value: unknown, max: number): string | undefined {
   if (text.length > max) throw new Error(`Book title exceeds ${max} characters.`);
   return text;
 }
-
 function optionalIdentifier(value: unknown): string | undefined {
   if (value === undefined || value === null || value === "") return undefined;
   if (typeof value !== "string") throw new Error("Imported book id must be text.");
@@ -414,10 +382,9 @@ function optionalIdentifier(value: unknown): string | undefined {
   if (!/^[A-Za-z0-9_-]{1,180}$/.test(id)) throw new Error("Imported book id must use only letters, numbers, underscores, or hyphens.");
   return id;
 }
-
 function slug(value: string): string {
-  const slugged = value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 120);
-  return slugged || "imported-manuscript";
+  const normalized = value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 120);
+  return normalized || "imported-manuscript";
 }
 
 function validatePreview(value: ManuscriptImportPreview): ManuscriptImportPreview {
@@ -442,7 +409,5 @@ function decodeXml(value: string): string {
     return ({ amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" } as Record<string, string>)[String(named).toLowerCase()] ?? match;
   });
 }
-
 function countWords(value: string): number { return value.trim() ? value.trim().split(/\s+/u).length : 0; }
-function unique(values: readonly string[]): readonly string[] { return [...new Set(values)]; }
 function formatBytes(value: number): string { return `${Math.round(value / 1024 / 1024)} MiB`; }
