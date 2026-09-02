@@ -17,14 +17,24 @@ export SPECIALIZED_PORT="${SPECIALIZED_PORT:-4473}"
 export FORGE_DATA_DIR="${FORGE_DATA_DIR:-$ROOT/.forge-data}"
 
 if ! command -v node >/dev/null 2>&1; then
-  echo "Node.js is required. Install it with: pkg install nodejs"
+  echo "Node.js 24 LTS is required. Install the Termux LTS runtime with: pkg install nodejs-lts npm"
+  exit 1
+fi
+
+NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
+if [ "$NODE_MAJOR" != "24" ]; then
+  echo "Author's Forge requires the validated Node.js 24 LTS runtime; found Node $(node -p 'process.versions.node')."
+  echo "Termux users should use nodejs-lts, not the current-release nodejs package."
+  echo "If nodejs is installed, switch deliberately with: pkg uninstall nodejs && pkg install nodejs-lts npm"
   exit 1
 fi
 
 if ! command -v npm >/dev/null 2>&1; then
-  echo "npm is required and should be installed with Node.js."
+  echo "npm is required. Install it with: pkg install npm"
   exit 1
 fi
+
+node scripts/require-node24.js
 
 if [ -z "${FORGE_ACCESS_TOKEN:-}" ]; then
   FORGE_ACCESS_TOKEN="$(node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("base64url"))')"
@@ -37,7 +47,7 @@ if [ "${#FORGE_ACCESS_TOKEN}" -lt 24 ]; then
 fi
 
 if [ ! -d node_modules ]; then
-  echo "Installing Forge dependencies..."
+  echo "Installing Forge dependencies from package-lock.json..."
   npm ci
 fi
 
@@ -45,6 +55,7 @@ mkdir -p "$FORGE_DATA_DIR"
 
 echo "Author's Forge — complete workplace"
 echo "===================================="
+echo "Runtime:              Node $(node -p 'process.versions.node')"
 echo "Main Studio:          http://127.0.0.1:${PORT}"
 echo "Guided Journal:       http://127.0.0.1:${JOURNAL_PORT}"
 echo "Educational Workbook: http://127.0.0.1:${WORKBOOK_PORT}"

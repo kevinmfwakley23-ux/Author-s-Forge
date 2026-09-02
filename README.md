@@ -32,7 +32,7 @@ The cumulative build is now a substantial usable application with durable local 
 
 - hardened **Project Brain** memory, provenance, point-in-time retrieval, lifecycle attribution, state-conflict detection, context budgeting, retrieval diagnostics, and evaluation;
 - durable **project / book / chapter / scene** manuscript structure;
-- **Story Architecture**, durable **Story Map** scene planning/plotlines, first-class **Chapter Cards**, **Writing Desk**, and governed AI writing proposals;
+- durable author-controlled **Story Architecture**, durable **Story Map** scene planning/plotlines, first-class **Chapter Cards**, first-class approved **Scene Cards**, **Writing Desk**, and governed AI writing proposals;
 - durable **Series Engine** state for multi-book shared canon, membership/order, and cross-book timeline planning;
 - structured **Character Bible** with temporal state and continuity evidence;
 - **World, canon, timeline, relationship, voice, research, decision, and production memory**;
@@ -55,10 +55,18 @@ Do not use a hard-coded PR number or branch name in this README as an engineerin
 
 Requirements:
 
-- Node.js **20 or newer**;
+- Node.js **24 LTS**. The validated runtime lane is Node 24; unsupported and end-of-life Node majors are rejected rather than silently treated as supported;
 - npm;
 - Chromium only if you want to run the browser-acceptance suite locally;
 - real provider credentials only for the AI/research/image capabilities you intend to use.
+
+On Chromebook/Linux with `nvm`, the repository's `.nvmrc` is the runtime authority:
+
+```bash
+nvm install 24
+nvm use 24
+node --version
+```
 
 Install and launch the complete local workplace:
 
@@ -68,7 +76,7 @@ npm ci
 npm run forge
 ```
 
-`npm run forge` builds Forge and launches all four workplaces together:
+`npm ci` installs exactly from `package-lock.json`, and the Forge install/build lifecycle verifies Node 24 before presenting the environment as supported. `npm run forge` builds Forge and launches all four workplaces together:
 
 | Workplace | Default local URL | Purpose |
 | --- | --- | --- |
@@ -104,7 +112,14 @@ Open that exact URL first. Forge immediately removes the access token from the b
 
 You may supply your own launcher token with `FORGE_ACCESS_TOKEN`; it must contain at least 24 characters. If it is omitted, Forge generates a strong random token for the current launcher run. The supported individual Android commands (`studio:android`, `studio:journal:android`, `studio:workbooks:android`, and `studio:specialized:android`) use the same protected boundary.
 
-For Termux, `scripts/termux-forge.sh` generates or reuses the access token and prints the correct bootstrap URL for the phone. For another trusted LAN device, replace `127.0.0.1` in that printed URL with the host device's LAN IP.
+For Termux, install the validated LTS runtime rather than the current-release Node package:
+
+```bash
+pkg install nodejs-lts npm
+bash scripts/termux-forge.sh
+```
+
+The Termux launcher verifies Node 24 before installation/build, generates or reuses the access token, and prints the correct bootstrap URL for the phone. If the incompatible `nodejs` current-release package is already installed, the launcher fails clearly and tells you how to switch rather than silently running an unvalidated Node major. For another trusted LAN device, replace `127.0.0.1` in the printed URL with the host device's LAN IP.
 
 The access gate protects Forge from casual/anonymous LAN access; it does **not** turn plain local HTTP into encrypted transport. Use LAN exposure only on a network you trust. For untrusted or remote networks, use a properly authenticated encrypted tunnel or HTTPS reverse proxy rather than exposing these ports directly.
 
@@ -154,7 +169,7 @@ The current Main Studio exposes the real application surfaces for:
 3. Series Engine for multi-book shared canon, membership/order and cross-book timeline;
 4. Writing Desk and durable AI proposals;
 5. Story Architecture;
-6. Story Map and first-class Chapter Cards;
+6. Story Map and first-class Chapter Cards / Scene Cards;
 7. Character Bible;
 8. World & Canon;
 9. Research;
@@ -230,6 +245,7 @@ Back up important projects before major upgrades or migrations.
 Core commands:
 
 ```bash
+npm run runtime:check
 npm run build
 npm test
 npm run baseline
@@ -237,7 +253,7 @@ npm run completion
 npm run verify
 ```
 
-`npm run verify` is the strongest repository-level gate. It runs the build, all regression tests, baseline/completion checks, complete desktop browser acceptance, and Android/mobile acceptance.
+`npm run verify` is the strongest repository-level gate. It runs the build, all regression tests, baseline/completion checks, complete desktop browser acceptance, and Android/mobile acceptance. CI, canonical verification, and release packaging all select Node from `.nvmrc` and use lockfile-exact `npm ci` installation.
 
 Browser setup if running acceptance locally for the first time:
 
