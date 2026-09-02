@@ -138,7 +138,11 @@ async function main() {
     const approveResponse = page.waitForResponse((response) => response.url().endsWith(`/story-architecture/candidates/${candidateId}/approve`) && response.request().method() === 'POST');
     await page.locator('#story-architecture-approve').click();
     assert.equal((await approveResponse).ok(), true);
-    await page.waitForFunction(() => /Approved exact architecture/i.test(document.querySelector('#story-architecture-status')?.textContent || ''));
+    await page.waitForFunction(() => {
+      const button = document.querySelector('#story-architecture-seed');
+      return button instanceof HTMLButtonElement && !button.disabled;
+    });
+    assert.match(await page.locator('#story-architecture-status').innerText(), /approved/i);
 
     const seedResponse = page.waitForResponse((response) => response.url().endsWith(`/story-architecture/candidates/${candidateId}/chapter-card-seed`) && response.request().method() === 'POST');
     await page.locator('#story-architecture-seed').click();
@@ -158,7 +162,11 @@ async function main() {
     const reapproveResponse = page.waitForResponse((response) => response.url().endsWith(`/story-architecture/candidates/${candidateId}/approve`) && response.request().method() === 'POST');
     await page.locator('#story-architecture-approve').click();
     assert.equal((await reapproveResponse).ok(), true);
-    await page.waitForFunction(() => /Approved exact architecture/i.test(document.querySelector('#story-architecture-status')?.textContent || ''));
+    await page.waitForFunction(() => {
+      const button = document.querySelector('#story-architecture-seed');
+      return button instanceof HTMLButtonElement && !button.disabled;
+    });
+    assert.match(await page.locator('#story-architecture-status').innerText(), /approved/i);
 
     assert.ok(providerPayload);
     const system = String(providerPayload.messages?.find((message) => message.role === 'system')?.content || '');
