@@ -21,6 +21,7 @@ export interface SceneCardDetails {
 export interface SceneCardSnapshot {
   readonly bookId: string;
   readonly chapterId: string;
+  readonly chapterCardSha256?: string;
   readonly sceneId: string;
   readonly sceneNumber: number;
   readonly sceneTitle: string;
@@ -171,6 +172,7 @@ export function validateSceneCardSnapshot(value: unknown): SceneCardSnapshot {
   return {
     bookId: identifier(input.bookId, "Scene Card book id"),
     chapterId: identifier(input.chapterId, "Scene Card chapter id"),
+    ...(input.chapterCardSha256 === undefined ? {} : { chapterCardSha256: sha256Value(input.chapterCardSha256, "Scene Card Chapter Card binding hash") }),
     sceneId: identifier(input.sceneId, "Scene Card scene id"),
     sceneNumber: positiveInteger(input.sceneNumber, "Scene Card scene number", 100_000),
     sceneTitle: requiredText(input.sceneTitle, "Scene Card scene title", 500),
@@ -185,10 +187,10 @@ export function validateSceneCardApproval(value: unknown): SceneCardApproval {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid Scene Card approval.");
   const input = value as Record<string, unknown>;
   const sceneId = identifier(input.sceneId, "Scene Card approval scene id");
-  if (typeof input.cardSha256 !== "string" || !/^[a-f0-9]{64}$/u.test(input.cardSha256)) throw new Error("Invalid Scene Card approval hash.");
+  const cardSha256 = sha256Value(input.cardSha256, "Scene Card approval hash");
   const approvedAt = timestamp(input.approvedAt, "Scene Card approval timestamp");
   if (input.approvedBy !== "author") throw new Error("Scene Card approval must be attributable to the author.");
-  return { sceneId, cardSha256: input.cardSha256, approvedAt, approvedBy: "author" };
+  return { sceneId, cardSha256, approvedAt, approvedBy: "author" };
 }
 
 function identifier(value: unknown, label: string): string {
@@ -226,6 +228,10 @@ function nonNegativeInteger(value: unknown, label: string, max: number): number 
 function positiveInteger(value: unknown, label: string, max: number): number {
   if (!Number.isInteger(value) || Number(value) < 1 || Number(value) > max) throw new Error(`${label} must be an integer from 1 through ${max}.`);
   return Number(value);
+}
+function sha256Value(value: unknown, label: string): string {
+  if (typeof value !== "string" || !/^[a-f0-9]{64}$/u.test(value)) throw new Error(`${label} is invalid.`);
+  return value;
 }
 function timestamp(value: unknown, label: string): string {
   if (typeof value !== "string" || Number.isNaN(Date.parse(value))) throw new Error(`${label} is invalid.`);
