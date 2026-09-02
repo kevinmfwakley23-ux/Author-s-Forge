@@ -46,8 +46,9 @@ test("Story Architecture binds provider work to durable Project Brain memory", a
   assert.ok(captured.context.taskMemoryClasses.includes("story-canon"));
   assert.ok(captured.context.taskMemoryClasses.includes("author-memory"));
   assert.equal(captured.task, "writing");
-  assert.equal(captured.requiresReasoning, true);
+  assert.equal(captured.requiresReasoning, undefined, "architecture must not reject capable writing models merely because reasoning metadata is unknown");
   assert.equal(captured.requiresCreativeWriting, true);
+  assert.equal(captured.requiresInstructionFollowing, true);
   assert.match(captured.user, /TARGET CHAPTERS: 22/);
   assert.match(captured.user, /psychological-thriller/);
   assert.deepEqual(captured.memory.query({ projectId: "project-1", class: "story-canon" }).map((item) => item.id), ["canon-1"]);
