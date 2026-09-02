@@ -29,6 +29,13 @@ async function waitForHttp(url, timeout = 12000) {
   }
   throw new Error(`Timed out waiting for ${url}`);
 }
+async function openStoryMap(page, base) {
+  await page.goto(`${base}/?project=${projectId}`, { waitUntil: "networkidle" });
+  await page.waitForSelector('[data-route="story-map"]');
+  await page.locator('[data-route="story-map"]').click();
+  await page.waitForFunction(() => location.hash === "#story-map" && document.querySelector("#story-map")?.hidden === false);
+  await page.waitForFunction(() => document.querySelector("#story-map-summary")?.textContent.includes("2") && document.querySelectorAll("#story-map-books .story-map-scene-wrap").length === 2);
+}
 
 async function main() {
   const dataDir = await mkdtemp(join(tmpdir(), "forge-story-map-browser-"));
@@ -49,9 +56,7 @@ async function main() {
     browser = await chromium.launch({ executablePath: process.env.FORGE_BROWSER_EXECUTABLE || chromium.executablePath(), headless: true, args: ["--no-sandbox", "--disable-gpu"] });
     const desktop = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     const page = await desktop.newPage();
-    await page.goto(`${base}/?project=${projectId}#story-map`, { waitUntil: "networkidle" });
-    await page.waitForSelector('[data-route="story-map"]');
-    await page.waitForFunction(() => document.querySelector("#story-map-summary")?.textContent.includes("2") && document.querySelectorAll("#story-map-books .story-map-scene-wrap").length === 2);
+    await openStoryMap(page, base);
 
     await page.locator("details.story-map-plotline-panel summary").click();
     await page.locator("#story-map-plotline-name").fill("Mara Learns Trust");
@@ -91,7 +96,9 @@ async function main() {
     assert.match(workspace.books[0].chapters[0].scenes[0].content, /station clock/, "Planning must not rewrite manuscript prose.");
 
     await page.reload({ waitUntil: "networkidle" });
-    await page.waitForFunction(() => document.querySelector('[data-scene-id="scene-1"]')?.textContent.includes("Union Station"));
+    await page.waitForSelector('[data-route="story-map"]');
+    await page.locator('[data-route="story-map"]').click();
+    await page.waitForFunction(() => document.querySelector("#story-map")?.hidden === false && document.querySelector('[data-scene-id="scene-1"]')?.textContent.includes("Union Station"));
     await page.locator("#story-map-filter-plotline").selectOption({ label: /Mara Learns Trust/ });
     await page.waitForFunction(() => document.querySelector('[data-scene-id="scene-1"]')?.hidden === false && document.querySelector('[data-scene-id="scene-2"]')?.hidden === true);
     await page.locator("#story-map-clear-filters").click();
@@ -104,8 +111,7 @@ async function main() {
 
     const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
     const phone = await mobile.newPage();
-    await phone.goto(`${base}/?project=${projectId}#story-map`, { waitUntil: "networkidle" });
-    await phone.waitForSelector("#story-map-books .story-map-scene-wrap");
+    await openStoryMap(phone, base);
     const dims = await phone.evaluate(() => ({ viewport: document.documentElement.clientWidth, body: document.body.scrollWidth, doc: document.documentElement.scrollWidth }));
     assert.ok(dims.body <= dims.viewport + 1, `Story Map mobile body overflow: ${JSON.stringify(dims)}`);
     assert.ok(dims.doc <= dims.viewport + 1, `Story Map mobile document overflow: ${JSON.stringify(dims)}`);
@@ -114,7 +120,7 @@ async function main() {
     await mobile.close();
     await desktop.close();
 
-    console.log("STORY MAP PLANNING BROWSER ACCEPTANCE PASSED: durable scene attributes + POV + plotlines/character arcs + cross-scene filters + no manuscript rewrite/reorder + reload + Android fit/touch.");
+    console.log("STORY MAP PLANNING BROWSER ACCEPTANCE PASSED: visible Studio navigation + durable scene attributes + POV + plotlines/character arcs + cross-scene filters + no manuscript rewrite/reorder + reload + Android fit/touch.");
   } finally {
     if (browser) await browser.close().catch(() => {});
     app.kill("SIGTERM");
