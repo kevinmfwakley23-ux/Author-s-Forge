@@ -8,6 +8,14 @@
     editing: "⚒", voice: "❧", art: "▧", cover: "▥", marketing: "◖", publishing: "▣", genome: "◇", health: "✥",
     versions: "▱", settings: "⚙", governance: "♜",
   };
+  const routeOrder = [
+    "dashboard", "manuscript", "writing", "architecture",
+    "characters", "world", "research", "genome",
+    "editing", "voice", "health",
+    "art", "cover",
+    "publishing", "marketing",
+    "versions", "settings", "governance",
+  ];
   const wingStarts = new Map([
     ["dashboard", "CREATE"],
     ["characters", "WORLD & CANON"],
@@ -59,10 +67,13 @@
     if (!nav || nav.dataset.royalDecorated === "true") return;
     nav.dataset.royalDecorated = "true";
 
-    const publishing = nav.querySelector('[data-route="publishing"]');
-    const marketing = nav.querySelector('[data-route="marketing"]');
-    if (publishing && marketing && marketing.compareDocumentPosition(publishing) & Node.DOCUMENT_POSITION_FOLLOWING) {
-      nav.insertBefore(publishing, marketing);
+    const links = new Map([...nav.querySelectorAll("a[data-route]")].map((link) => [link.dataset.route, link]));
+    const seriesLink = document.getElementById("open-series-engine");
+    for (const route of routeOrder) {
+      const link = links.get(route);
+      if (!link) continue;
+      nav.append(link);
+      if (route === "research" && seriesLink) nav.append(seriesLink);
     }
 
     [...nav.querySelectorAll("a[data-route]")].forEach((link) => {
