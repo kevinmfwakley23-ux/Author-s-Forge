@@ -12,6 +12,13 @@ test("royal UI shell is valid JavaScript and loaded by the Studio PWA", () => {
   assert.match(pwa, /loadExtension\("royal-ui","\/forge-royal-ui\.js"\)/);
 });
 
+test("royal UI is part of the versioned offline shell", () => {
+  const worker = read("public/sw.js");
+  assert.match(worker, /authors-forge-shell-v15/);
+  assert.match(worker, /"\/forge-royal-ui\.js"/);
+  assert.match(worker, /url\.pathname\.startsWith\("\/api\/"\)/);
+});
+
 test("royal UI supports persistent light and dark themes", () => {
   const ui = read("public/forge-royal-ui.js");
   const css = read("public/styles.css");
