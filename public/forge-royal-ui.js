@@ -233,7 +233,7 @@
     renderShelf(window.forgeWorkspaceState);
   }
 
-  window.addEventListener("forge:workspace-ready", (event) => renderShelf(event.detail));
+  window.addEventListener("forge:workspace-ready", (event) => renderShelf(event.detail || window.forgeWorkspaceState));
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", enhance, { once: true });
   else enhance();
 })();
