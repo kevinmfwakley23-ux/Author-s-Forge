@@ -8,7 +8,7 @@
     editing: "⚒", voice: "❧", art: "▧", cover: "▥", marketing: "◖", publishing: "▣", genome: "◇", health: "✥",
     versions: "▱", settings: "⚙", governance: "♜",
   };
-  const wingStarts = [
+  const wingStarts = new Map([
     ["dashboard", "CREATE"],
     ["characters", "WORLD & CANON"],
     ["editing", "REFINE"],
@@ -16,7 +16,11 @@
     ["publishing", "PUBLISH"],
     ["marketing", "PROMOTE"],
     ["versions", "VAULT"],
-  ];
+  ]);
+
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+  }
 
   function currentTheme() {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -30,13 +34,12 @@
     document.documentElement.style.colorScheme = value;
     if (persist) localStorage.setItem(STORAGE_KEY, value);
     const button = document.getElementById("forge-theme-toggle");
-    if (button) {
-      button.setAttribute("aria-pressed", String(value === "dark"));
-      button.setAttribute("aria-label", `Switch to ${value === "dark" ? "light" : "dark"} mode`);
-      button.title = `Switch to ${value === "dark" ? "light" : "dark"} mode`;
-      const label = button.querySelector("[data-theme-label]");
-      if (label) label.textContent = value === "dark" ? "Dark" : "Light";
-    }
+    if (!button) return;
+    button.setAttribute("aria-pressed", String(value === "dark"));
+    button.setAttribute("aria-label", `Switch to ${value === "dark" ? "light" : "dark"} mode`);
+    button.title = `Switch to ${value === "dark" ? "light" : "dark"} mode`;
+    const label = button.querySelector("[data-theme-label]");
+    if (label) label.textContent = value === "dark" ? "Dark" : "Light";
   }
 
   function ensureThemeToggle() {
@@ -46,7 +49,7 @@
     button.id = "forge-theme-toggle";
     button.type = "button";
     button.className = "forge-theme-toggle";
-    button.innerHTML = '<span class="theme-sun" aria-hidden="true">☀</span><span data-theme-label>Light</span><span class="theme-moon" aria-hidden="true">☾</span>';
+    button.innerHTML = `<span class="theme-sun" aria-hidden="true">☀</span><span data-theme-label>Light</span><span class="theme-moon" aria-hidden="true">☾</span>`;
     button.addEventListener("click", () => applyTheme(document.documentElement.dataset.forgeTheme === "dark" ? "light" : "dark"));
     host.prepend(button);
   }
@@ -55,20 +58,27 @@
     const nav = document.querySelector(".sidebar nav");
     if (!nav || nav.dataset.royalDecorated === "true") return;
     nav.dataset.royalDecorated = "true";
-    const starts = new Map(wingStarts);
+
+    const publishing = nav.querySelector('[data-route="publishing"]');
+    const marketing = nav.querySelector('[data-route="marketing"]');
+    if (publishing && marketing && marketing.compareDocumentPosition(publishing) & Node.DOCUMENT_POSITION_FOLLOWING) {
+      nav.insertBefore(publishing, marketing);
+    }
+
     [...nav.querySelectorAll("a[data-route]")].forEach((link) => {
       const route = link.dataset.route;
-      if (starts.has(route)) {
+      if (wingStarts.has(route)) {
         const heading = document.createElement("div");
         heading.className = "forge-nav-heading";
-        heading.textContent = starts.get(route);
+        heading.textContent = wingStarts.get(route);
         link.before(heading);
       }
       link.dataset.icon = routeIcons[route] || "•";
     });
+
     const brand = document.querySelector(".brand");
     if (brand && !brand.querySelector(".brand-quill")) {
-      brand.innerHTML = '<span class="brand-quill" aria-hidden="true">❧</span><span class="brand-word">AUTHOR\'S</span><strong>FORGE</strong><span class="brand-rule" aria-hidden="true"></span>';
+      brand.innerHTML = `<span class="brand-quill" aria-hidden="true">❧</span><span class="brand-word">AUTHOR'S</span><strong>FORGE</strong><span class="brand-rule" aria-hidden="true"></span>`;
     }
     const tag = document.querySelector(".tag");
     if (tag) tag.textContent = "Shape stories. Forge legacies.";
@@ -98,14 +108,7 @@
   }
 
   function possibleCover(book) {
-    const candidates = [
-      book?.coverUrl,
-      book?.coverImage,
-      book?.cover?.frontUrl,
-      book?.cover?.imageUrl,
-      book?.artwork?.coverUrl,
-      book?.metadata?.coverUrl,
-    ];
+    const candidates = [book?.coverUrl, book?.coverImage, book?.cover?.frontUrl, book?.cover?.imageUrl, book?.artwork?.coverUrl, book?.metadata?.coverUrl];
     return candidates.find((value) => typeof value === "string" && /^(https?:|data:|\/)/.test(value)) || "";
   }
 
@@ -114,7 +117,7 @@
     if (!shelf) return;
     const books = Array.isArray(workspace?.books) ? workspace.books : [];
     if (!books.length) {
-      shelf.innerHTML = '<div class="forge-shelf-empty"><span aria-hidden="true">✒</span><strong>Your forged works will appear here.</strong><small>Create a book to begin the shelf.</small></div>';
+      shelf.innerHTML = `<div class="forge-shelf-empty"><span aria-hidden="true">✒</span><strong>Your forged works will appear here.</strong><small>Create a book to begin the shelf.</small></div>`;
       return;
     }
     shelf.innerHTML = books.slice(0, 7).map((book, index) => {
@@ -128,20 +131,13 @@
     }).join("");
   }
 
-  function escapeHtml(value) {
-    return String(value ?? "").replace(/[&<>\"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '\"': "&quot;", "'": "&#39;" }[char]));
-  }
-
   function polishDashboard() {
     const dashboard = document.getElementById("dashboard");
     if (!dashboard) return;
     dashboard.classList.add("royal-dashboard");
-    const hero = dashboard.querySelector(".hero");
-    if (hero) hero.classList.add("forge-current-project");
-    const metrics = document.getElementById("metrics");
-    if (metrics) metrics.setAttribute("aria-label", "Forge status");
-    const command = document.querySelector("#dashboard .command-inline")?.closest(".card");
-    if (command) command.classList.add("forge-command-card");
+    dashboard.querySelector(".hero")?.classList.add("forge-current-project");
+    document.getElementById("metrics")?.setAttribute("aria-label", "Forge status");
+    document.querySelector("#dashboard .command-inline")?.closest(".card")?.classList.add("forge-command-card");
   }
 
   function addSidebarSeal() {
@@ -151,7 +147,7 @@
     const seal = document.createElement("div");
     seal.id = "forge-sidebar-seal";
     seal.className = "forge-sidebar-seal";
-    seal.innerHTML = '<span class="seal-crest" aria-hidden="true">♛</span><span>Every great story<br><strong>is forged, not found.</strong></span>';
+    seal.innerHTML = `<span class="seal-crest" aria-hidden="true">♛</span><span>Every great story<br><strong>is forged, not found.</strong></span>`;
     sidebar.insertBefore(seal, status);
   }
 
