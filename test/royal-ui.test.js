@@ -30,6 +30,23 @@ test("forged-work shelf is driven by real workspace books rather than sample tit
   assert.doesNotMatch(ui, /Heir of Dusk|Ashes of Empires|Silent Throne/);
 });
 
+test("approved current-project panel is bound to the real active book", () => {
+  const ui = read("public/forge-royal-ui.js");
+  assert.match(ui, /workspace\?\.activeBookId/);
+  assert.match(ui, /renderCurrentProject\(workspace\)/);
+  assert.match(ui, /buttons\[0\]\.dataset\.route = "writing"/);
+  assert.match(ui, /Continue Forging/);
+  assert.match(ui, /buttons\[1\]\.dataset\.route = "health"/);
+});
+
+test("royal navigation keeps every canonical route while organizing the approved wings", () => {
+  const ui = read("public/forge-royal-ui.js");
+  for (const route of ["dashboard", "manuscript", "writing", "architecture", "characters", "world", "research", "editing", "voice", "art", "cover", "publishing", "marketing", "genome", "health", "versions", "settings", "governance"]) {
+    assert.match(ui, new RegExp(`"${route}"`));
+  }
+  for (const wing of ["CREATE", "WORLD & CANON", "REFINE", "VISUALS", "PUBLISH", "PROMOTE", "VAULT"]) assert.match(ui, new RegExp(wing));
+});
+
 test("royal UI preserves existing route controls and mobile-responsive presentation", () => {
   const ui = read("public/forge-royal-ui.js");
   const css = read("public/styles.css");
