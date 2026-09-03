@@ -34,6 +34,7 @@ test("forged-work shelf is driven by real workspace books rather than sample tit
   assert.match(ui, /workspace\?\.books/);
   assert.match(ui, /forge:workspace-ready/);
   assert.match(ui, /possibleCover\(book\)/);
+  assert.match(ui, /event\.detail \|\| window\.forgeWorkspaceState/);
   assert.doesNotMatch(ui, /Heir of Dusk|Ashes of Empires|Silent Throne/);
 });
 
