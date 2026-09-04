@@ -39,6 +39,7 @@ jobs:
       - run: node --check public/forge-manuscript-import.js
       - run: node --check public/forge-series.js
       - run: node --check public/forge-image-lab.js
+      - run: node --check public/forge-model-freedom.js
       - run: node --check public/forge-recipes.js
       - run: node --check public/forge-review-room.js
       - run: node --check public/forge-reviewer.js
