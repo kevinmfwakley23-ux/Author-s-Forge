@@ -35,6 +35,7 @@ jobs:
       - run: node --check public/nft-author-artwork-ui.js
       - run: node --check public/nft-production-director.js
       - run: node --check public/forge-office-royal.js
+      - run: node --check public/guided-journal-royal.js
       - run: node --check public/forge-ai-proposals.js
       - run: node --check public/forge-editing-proposals.js
       - run: node --check public/forge-story-map.js
