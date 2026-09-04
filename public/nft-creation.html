@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Author's Forge NFT Creation Office — AI-assisted original NFT art, collections, trait systems, rarity analysis, metadata, provenance, launch planning, and honest production preflight.">
+<title>NFT Creation Office · Author's Forge</title>
+<link rel="stylesheet" href="/nft-creation.css">
+</head>
+<body>
+<header class="nft-header">
+  <div><div class="eyebrow">AUTHOR'S FORGE · NFT CREATION OFFICE</div><h1>Digital Collectibles Atelier</h1><p>Original art · coherent collections · traits · rarity · provenance · metadata · launch readiness</p></div>
+  <div class="nft-actions"><a id="nft-main-studio" href="#">Main Studio</a><button id="nft-refresh" type="button">Refresh</button></div>
+</header>
+<main class="nft-shell">
+  <div id="nft-status" class="nft-status" role="status" aria-live="polite"></div>
+  <section class="nft-hero">
+    <article class="nft-panel"><div class="eyebrow">ART FIRST · MARKET AWARE · NO FAKE PROMISES</div><h2>Create collectible worlds, not random image dumps.</h2><p>Forge helps build a coherent artistic thesis, collection bible, weighted trait system, AI-assisted artwork candidates, rarity structure, rights/provenance trail, marketplace metadata, and launch plan. Demand-related guidance is treated as an audience hypothesis to test—not a guaranteed price or sales claim.</p><div class="nft-disclaimer">Forge prepares creation and launch packages. It does not claim a blockchain mint, marketplace listing, contract deployment, wallet signature, investment return, or guaranteed collector demand unless a real verified external action is performed.</div></article>
+    <article class="nft-panel"><h3>Collection health</h3><div id="nft-metrics" class="nft-metrics"><div class="nft-metric"><span>Collection</span><strong>—</strong></div><div class="nft-metric"><span>Readiness</span><strong>—</strong></div><div class="nft-metric"><span>Items</span><strong>0</strong></div><div class="nft-metric"><span>Approved art</span><strong>0</strong></div></div></article>
+  </section>
+
+  <div class="nft-grid">
+    <aside class="nft-side">
+      <article class="nft-panel"><h3>Forge project</h3><form id="nft-project-form" class="nft-form"><label>Project ID<input name="id" required pattern="[A-Za-z0-9_-]+" placeholder="project-id"></label><label>Project title<input name="title" required placeholder="Project title"></label><button class="primary" type="submit">Create Forge project</button></form><div class="nft-row" style="margin-top:10px"><input id="nft-project-id" class="grow" placeholder="existing project id"><button id="nft-open-project" type="button">Open</button></div></article>
+      <article class="nft-panel"><h3>Create NFT collection</h3><form id="nft-collection-form" class="nft-form">
+        <label>Collection title<input name="title" required placeholder="Royal Beasts"></label>
+        <div class="nft-two"><label>Symbol<input name="symbol" required maxlength="16" placeholder="RBEAST"></label><label>Supply<input name="supply" type="number" min="1" max="15000" value="12" required></label></div>
+        <div class="nft-two"><label>Collection type<select name="collectionType"><option value="generative-series">Generative series</option><option value="drop">Scheduled drop</option><option value="edition">Edition</option><option value="one-of-one">One of one</option></select></label><label>Standard<select name="tokenStandard"><option value="erc-721">ERC-721</option><option value="erc-1155">ERC-1155</option><option value="metaplex-core">Metaplex Core</option></select></label></div>
+        <div class="nft-two"><label>Chain<input name="chain" value="base" required placeholder="ethereum / base / solana"></label><label>Storage<select name="storageMode"><option value="ipfs">IPFS</option><option value="arweave">Arweave</option><option value="onchain">Onchain</option><option value="centralized-draft">Centralized draft</option></select></label></div>
+        <div class="nft-two"><label>Royalty bps<input name="royaltyBps" type="number" min="0" max="10000" value="500"></label><label>Seed<input name="seed" placeholder="stable-generation-seed"></label></div>
+        <label>Description<textarea name="description" required placeholder="What is this collection?"></textarea></label>
+        <label>Collector / audience hypothesis<textarea name="audience" placeholder="Who is likely to care about this art and why?"></textarea></label>
+        <label>Artistic thesis<textarea name="artisticThesis" placeholder="Why does this series deserve to exist as art?"></textarea></label>
+        <label>Style guide<textarea name="styleGuide" placeholder="Visual language, materials, palette, composition, consistency rules"></textarea></label>
+        <label>Lore / world<textarea name="lore" placeholder="Optional story layer"></textarea></label>
+        <label>Rights / provenance expectations<textarea name="rightsNote" placeholder="Original work, source rights, AI assistance disclosures, trademark/likeness constraints"></textarea></label>
+        <button class="primary" type="submit">Create NFT workplace</button>
+      </form></article>
+      <article class="nft-panel"><h3>Collections</h3><div id="nft-collection-list" class="nft-list"><p class="nft-muted">Open a Forge project.</p></div></article>
+    </aside>
+
+    <section class="nft-work">
+      <article class="nft-panel"><div class="nft-row"><div class="grow"><div class="eyebrow">CURRENT COLLECTION</div><h2 id="nft-current-title">No collection selected</h2><p id="nft-current-meta" class="nft-muted">Create or open a collection to begin.</p></div><button id="nft-preflight-top" type="button">Run preflight</button></div><div class="nft-tabs" id="nft-tabs"><button class="active" data-view="strategy">Strategy</button><button data-view="traits">Trait Lab</button><button data-view="gallery">Art Gallery</button><button data-view="launch">Launch Lab</button><button data-view="metadata">Metadata & Preflight</button><button data-view="ai">Forge Brain + AI</button></div></article>
+
+      <section id="nft-view-strategy" class="nft-view" data-nft-view>
+        <article class="nft-panel"><h3>Collection Bible</h3><p class="nft-muted">This is the creative truth AI artwork should obey. Use AI proposals to strengthen it, then approve only what fits your vision.</p><div id="nft-strategy-summary" class="nft-code">No collection selected.</div></article>
+        <article class="nft-panel"><h3>Standards-aware design choices</h3><div class="nft-three"><div class="nft-list-item"><strong>ERC-721</strong><p>Unique token IDs and common drop/collection compatibility.</p></div><div class="nft-list-item"><strong>ERC-1155</strong><p>Useful for editions and mixed token supplies in one contract.</p></div><div class="nft-list-item"><strong>Metaplex Core</strong><p>Modern Solana NFT assets with collection plugins and royalty configuration.</p></div></div></article>
+      </section>
+
+      <section id="nft-view-traits" class="nft-view" data-nft-view hidden>
+        <article class="nft-panel"><h3>Weighted Trait Lab</h3><p class="nft-muted">Define traits as JSON. Weights are relative—not percentages—and Forge rejects duplicate values or a trait space too small for the requested unique supply.</p><textarea id="nft-traits-json" class="nft-code nft-trait-editor" spellcheck="false">[
+  {"id":"background","label":"Background","values":[{"value":"Ivory","weight":5},{"value":"Obsidian","weight":3},{"value":"Crimson","weight":1}]},
+  {"id":"crown","label":"Crown","values":[{"value":"Gold","weight":1},{"value":"Black Iron","weight":2},{"value":"None","weight":5}]}
+]</textarea><div class="nft-row"><button id="nft-save-traits" class="primary" type="button">Validate & save traits</button><button id="nft-generate-manifest" type="button">Generate deterministic manifest</button></div></article>
+        <article class="nft-panel"><h3>Rarity explorer</h3><div id="nft-rarity-output" class="nft-code">Generate a manifest to calculate actual frequencies and rarity ranks.</div></article>
+      </section>
+
+      <section id="nft-view-gallery" class="nft-view" data-nft-view hidden>
+        <article class="nft-panel"><div class="nft-row"><div class="grow"><h3>AI-assisted token artwork</h3><p class="nft-muted">Artwork is generated through Forge Image Lab with provider/model provenance. Every candidate stays pending until you approve it for a token.</p></div><select id="nft-gallery-filter"><option value="all">All tokens</option><option value="missing">Missing art</option><option value="approved">Approved art</option></select></div><div id="nft-gallery" class="nft-gallery"></div></article>
+      </section>
+
+      <section id="nft-view-launch" class="nft-view" data-nft-view hidden>
+        <article class="nft-panel"><h3>Mint, reveal & community plan</h3><form id="nft-launch-form" class="nft-form"><div class="nft-two"><label>Mint type<select name="mintType"><option value="scheduled-drop">Scheduled drop</option><option value="open-collection">Open collection</option></select></label><label>Reveal<select name="reveal"><option value="post-mint">Post-mint reveal</option><option value="instant">Instant reveal</option><option value="manual">Manual reveal</option></select></label></div><label>Collection story<textarea name="story" required placeholder="What should a collector understand on the landing page before minting?"></textarea></label><label>Mint phases JSON<textarea name="phases" class="nft-code" placeholder='[{"name":"Allowlist","audience":"Early community","allowlistRequired":true},{"name":"Public","audience":"Public collectors","allowlistRequired":false}]'></textarea></label><label>Roadmap — one per line<textarea name="roadmap" placeholder="Publish provenance archive&#10;Release collector process notes"></textarea></label><label>Community plan — one per line<textarea name="communityPlan" placeholder="Show process transparently&#10;Explain rarity without investment language"></textarea></label><button class="primary" type="submit">Save launch plan</button></form></article>
+      </section>
+
+      <section id="nft-view-metadata" class="nft-view" data-nft-view hidden>
+        <article class="nft-panel"><div class="nft-row"><div id="nft-readiness-score" class="nft-score">—</div><div class="grow"><h3>Technical + collector-readiness preflight</h3><p class="nft-muted">Collector readiness measures completeness and coherence signals only. It is not a demand, price, or investment forecast.</p><div id="nft-preflight" class="nft-preflight"></div></div></div></article>
+        <article class="nft-panel"><h3>Launch package</h3><p class="nft-muted">Forge exports metadata JSON records, a marketplace-oriented CSV, storage guidance, standard/royalty guidance, and the saved launch plan. Minting remains a separate wallet-authorized action.</p><div class="nft-row nft-downloads"><button id="nft-build-package" class="primary" type="button">Build verified package</button><button id="nft-download-package" type="button" disabled>Download package JSON</button><button id="nft-download-csv" type="button" disabled>Download metadata CSV</button></div><pre id="nft-package-preview" class="nft-code">No launch package built.</pre></article>
+      </section>
+
+      <section id="nft-view-ai" class="nft-view" data-nft-view hidden>
+        <article class="nft-panel"><h3>Forge Brain + AI creative partner</h3><form id="nft-ai-form" class="nft-form"><label>Proposal type<select name="kind"><option value="collection-strategy">Collection strategy</option><option value="trait-system">Trait system</option><option value="launch-strategy">Launch strategy</option><option value="copy">Collection copy / lore</option></select></label><label>Your direction<textarea name="instruction" required placeholder="Example: strengthen this collection around heraldic creatures and create a trait system with enough visual variation for 250 unique pieces, but keep the palette restrained and sophisticated."></textarea></label><button class="primary" type="submit">Ask Forge Brain</button></form></article>
+        <article class="nft-panel"><h3>Reviewable AI proposals</h3><div id="nft-proposals" class="nft-list"><p class="nft-muted">No proposals yet.</p></div></article>
+      </section>
+    </section>
+  </div>
+</main>
+<script src="/forge-office-royal.js"></script>
+<script src="/nft-creation.js"></script>
+</body>
+</html>
