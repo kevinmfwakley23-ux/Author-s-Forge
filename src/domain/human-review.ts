@@ -6,6 +6,7 @@ export type HumanReviewRole = (typeof HUMAN_REVIEW_ROLES)[number];
 export type HumanReviewerStatus = "active" | "revoked";
 export type HumanReviewCommentStatus = "open" | "resolved";
 export type HumanReviewSuggestionStatus = "pending" | "accepted" | "rejected" | "applied";
+export type HumanReviewScope = { readonly kind: "project" } | { readonly kind: "book"; readonly bookId: string };
 
 export interface HumanReviewTarget {
   readonly bookId: string;
@@ -18,6 +19,7 @@ export interface HumanReviewer {
   readonly projectId: string;
   readonly displayName: string;
   readonly role: HumanReviewRole;
+  readonly scope: HumanReviewScope;
   readonly tokenHash: string;
   readonly status: HumanReviewerStatus;
   readonly createdAt: string;
@@ -76,28 +78,43 @@ export function humanReviewRole(value: unknown): HumanReviewRole {
   return role;
 }
 
+export function humanReviewScope(value: unknown): HumanReviewScope {
+  if (value === undefined || value === null) return { kind: "project" };
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid human review scope.");
+  const candidate = value as Record<string, unknown>;
+  if (candidate.kind === "project") return { kind: "project" };
+  if (candidate.kind === "book") return { kind: "book", bookId: required(candidate.bookId, "Review scope book id") };
+  throw new Error("Human review scope must be project or book.");
+}
+
+export function reviewerCanAccessTarget(reviewer: Pick<HumanReviewer, "scope">, target: HumanReviewTarget): boolean {
+  const scope = humanReviewScope(reviewer.scope);
+  return scope.kind === "project" || scope.bookId === target.bookId;
+}
+
 export function reviewerPermissions(role: HumanReviewRole) {
   return Object.freeze({
     comment: true,
     suggest: role === "co-writer" || role === "editor",
     directManuscriptMutation: false,
     description: role === "beta-reader"
-      ? "Can read shared manuscript scenes and leave comments."
+      ? "Can read shared manuscript scenes and leave comments within the assigned scope."
       : role === "editor"
-        ? "Can comment and propose tracked manuscript replacements for author review."
-        : "Can comment and propose manuscript replacements; direct mutation remains author-controlled by default.",
+        ? "Can comment and propose tracked manuscript replacements within the assigned scope for author review."
+        : "Can comment and propose manuscript replacements within the assigned scope; direct mutation remains author-controlled by default.",
   });
 }
 
-export function createReviewer(input: { id: string; projectId: string; displayName: string; role: HumanReviewRole; now?: string }): { reviewer: HumanReviewer; token: string } {
+export function createReviewer(input: { id: string; projectId: string; displayName: string; role: HumanReviewRole; scope?: HumanReviewScope; now?: string }): { reviewer: HumanReviewer; token: string } {
   const now = timestamp(input.now);
   const id = required(input.id, "Reviewer id");
   const projectId = required(input.projectId, "Reviewer project id");
   const displayName = required(input.displayName, "Reviewer display name");
   const role = humanReviewRole(input.role);
+  const scope = humanReviewScope(input.scope);
   const token = randomBytes(32).toString("base64url");
   return {
-    reviewer: { id, projectId, displayName, role, tokenHash: hashReviewToken(token), status: "active", createdAt: now },
+    reviewer: { id, projectId, displayName, role, scope, tokenHash: hashReviewToken(token), status: "active", createdAt: now },
     token,
   };
 }
@@ -192,11 +209,12 @@ export function validateHumanReviewState(value: unknown): HumanReviewState {
   const reviewerIds = new Set<string>();
   const reviewers = state.reviewers.map((reviewer) => {
     required(reviewer.id, "Reviewer id"); required(reviewer.projectId, "Reviewer project id"); required(reviewer.displayName, "Reviewer display name"); humanReviewRole(reviewer.role);
+    const scope = humanReviewScope(reviewer.scope);
     if (!/^[a-f0-9]{64}$/.test(reviewer.tokenHash)) throw new Error(`Reviewer "${reviewer.id}" token hash is invalid.`);
     if (reviewer.status !== "active" && reviewer.status !== "revoked") throw new Error(`Reviewer "${reviewer.id}" status is invalid.`);
     timestamp(reviewer.createdAt); if (reviewer.revokedAt) timestamp(reviewer.revokedAt);
     if (reviewerIds.has(reviewer.id)) throw new Error(`Duplicate reviewer id "${reviewer.id}".`); reviewerIds.add(reviewer.id);
-    return { ...reviewer };
+    return { ...reviewer, scope };
   });
   const itemIds = new Set<string>();
   const comments = state.comments.map((comment) => {
