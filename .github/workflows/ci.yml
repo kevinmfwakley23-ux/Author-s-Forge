@@ -32,6 +32,7 @@ jobs:
       - run: node --check public/forge-agent-routing.js
       - run: node --check public/forge-media-studio.js
       - run: node --check public/nft-creation.js
+      - run: node --check public/nft-author-artwork-ui.js
       - run: node --check public/forge-office-royal.js
       - run: node --check public/forge-ai-proposals.js
       - run: node --check public/forge-editing-proposals.js
