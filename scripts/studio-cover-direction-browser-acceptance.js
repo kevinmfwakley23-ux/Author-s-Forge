@@ -143,7 +143,30 @@ async function main() {
     assert.match(project.bookCoverPlans[0].frontPrompt, /Typography:/);
     assert.equal(project.bookCoverPlans[0].approvalStatus, "draft");
 
-    console.log("COVER DIRECTION BROWSER ACCEPTANCE PASSED: workspace refresh recovery + reviewable AI candidate + explicit apply + one authoritative cover-plan request + one durable plan.");
+    // The HTTP route historically stamped format=paperback even for a real hardcover binding.
+    // Exercise that route directly and require the application boundary to return truthful print metadata.
+    const hardcover = await api(base, `/api/projects/${PROJECT_ID}/cover/plan`, "POST", {
+      bookId: BOOK_ID,
+      binding: "hardcover",
+      interior: "black-white",
+      paper: "white",
+      widthInches: 6,
+      heightInches: 9,
+      pages: 120,
+      title: "The Honest Cover — Hardcover",
+      author: "Forge Author",
+      front: "Hardcover front direction",
+      back: "Hardcover back copy",
+    });
+    assert.equal(hardcover.format, "hardcover", "hardcover binding must not be persisted as paperback format");
+    assert.equal(hardcover.publishing.binding, "hardcover");
+    assert.equal(hardcover.dimensions.wrapInches, 0.51);
+    assert.equal(hardcover.zones.safeMarginInches, 0.635);
+    const afterHardcover = await api(base, `/api/projects/${PROJECT_ID}`);
+    assert.equal(afterHardcover.bookCoverPlans.length, 2);
+    assert.equal(afterHardcover.bookCoverPlans[1].format, "hardcover");
+
+    console.log("COVER DIRECTION BROWSER ACCEPTANCE PASSED: workspace refresh recovery + reviewable AI candidate + explicit apply + one authoritative UI cover-plan request + truthful hardcover route metadata.");
   } finally {
     if (browser) await browser.close().catch(() => {});
     server.kill("SIGTERM");
