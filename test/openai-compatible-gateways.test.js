@@ -9,6 +9,7 @@ const {
   discoverGatewayModels,
   loadOpenAiCompatibleGateways,
   gatewayModelKey,
+  assertGatewayNetworkTarget,
 } = require("../dist/infrastructure/openai-compatible-gateways.js");
 const { generateText, aiConfiguredResources } = require("../dist/infrastructure/ai-provider.js");
 
@@ -122,18 +123,30 @@ test("generic gateway discovers models and completes a real generateText request
   }
 });
 
-test("gateway registry rejects insecure remote HTTP endpoints and never accepts raw credentials as URL data", async () => {
+test("gateway execution preflight blocks insecure/private remote targets by default and registry never accepts raw URL credentials", async () => {
   const env = { ...process.env };
   const root = await mkdtemp(join(tmpdir(), "forge-gateway-validation-"));
   try {
     process.env.FORGE_DATA_DIR = root;
-    assert.throws(() => upsertOpenAiCompatibleGateway({
-      id: "unsafe",
-      label: "Unsafe Gateway",
+
+    const insecureRemote = upsertOpenAiCompatibleGateway({
+      id: "unsafe-http",
+      label: "Unsafe HTTP Gateway",
       baseUrl: "http://192.168.1.20:4000",
       enabled: true,
       models: [],
-    }), /HTTPS|loopback/i);
+    });
+    await assert.rejects(() => assertGatewayNetworkTarget(insecureRemote), /plain HTTP|allowInsecureHttp/i);
+
+    const privateHttps = upsertOpenAiCompatibleGateway({
+      id: "private-https",
+      label: "Private HTTPS Gateway",
+      baseUrl: "https://192.168.1.20:4000",
+      enabled: true,
+      models: [],
+    });
+    await assert.rejects(() => assertGatewayNetworkTarget(privateHttps), /private|reserved|allowPrivateNetwork/i);
+
     assert.throws(() => upsertOpenAiCompatibleGateway({
       id: "url-secret",
       label: "URL Secret",
@@ -141,7 +154,8 @@ test("gateway registry rejects insecure remote HTTP endpoints and never accepts 
       enabled: true,
       models: [],
     }), /credentials/i);
-    assert.deepEqual(loadOpenAiCompatibleGateways(), []);
+
+    assert.deepEqual(loadOpenAiCompatibleGateways().map((gateway) => gateway.id).sort(), ["private-https", "unsafe-http"]);
   } finally {
     await rm(root, { recursive: true, force: true });
     restoreEnv(env);
