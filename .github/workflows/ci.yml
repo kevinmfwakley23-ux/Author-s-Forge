@@ -43,6 +43,8 @@ jobs:
       - run: node --check public/forge-review-room.js
       - run: node --check public/forge-reviewer.js
       - run: node --check public/forge-provenance.js
+      - run: node --check public/specialized-creation-api-state-sync.js
+      - run: node --check public/specialized-brand-kit.js
       - run: node --check public/forge-kdp-preflight.js
       - run: node --check public/forge-publishing-promotion.js
       - run: node --check public/forge-promotion-performance.js
