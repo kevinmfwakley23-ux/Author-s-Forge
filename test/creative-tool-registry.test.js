@@ -19,6 +19,7 @@ test('Creative Tool Registry exposes one typed governed definition per Agent Wor
     'story.chapter-cards.propose',
     'writing.propose',
     'editing.analyze',
+    'cover.direction.propose',
     'visual.image.generate',
     'promotion.campaign.propose',
     'production.export',
@@ -54,6 +55,17 @@ test('writing and Chapter Card tools stay proposal-only and cannot directly alte
   assert.equal(chapterCards.pathTemplate, '/api/projects/:projectId/story-map/chapter-card-workflow/generate');
 });
 
+test('Cover Studio direction is reviewable AI creative work and explicitly not production geometry', () => {
+  const cover = creativeToolById('cover.direction.propose');
+  assert.equal(cover.category, 'visual');
+  assert.equal(cover.approvalClass, 'author-step');
+  assert.equal(cover.providerRequirement, 'configured-ai');
+  assert.equal(cover.stateEffect, 'candidate-response');
+  assert.deepEqual(cover.requiredScope, ['project', 'book']);
+  assert.equal(cover.pathTemplate, '/api/projects/:projectId/agent/cover-direction');
+  assert.match(cover.description, /without inventing production geometry/i);
+});
+
 test('visual, market and promotion tools expose truthful provider and state requirements', () => {
   assert.equal(creativeToolById('architecture.generate').providerRequirement, 'configured-ai');
   assert.equal(creativeToolById('research.live').providerRequirement, 'hosted-research');
@@ -73,6 +85,7 @@ test('visual, market and promotion tools expose truthful provider and state requ
 test('creative tool paths are project-scoped and reject unsafe project ids', () => {
   assert.equal(resolveCreativeToolPath('writing.propose', 'forge-project_01'), '/api/projects/forge-project_01/ai/writing/generate');
   assert.equal(resolveCreativeToolPath('visual.image.generate', 'forge-project_01'), '/api/projects/forge-project_01/ai/image');
+  assert.equal(resolveCreativeToolPath('cover.direction.propose', 'forge-project_01'), '/api/projects/forge-project_01/agent/cover-direction');
   assert.throws(() => resolveCreativeToolPath('writing.propose', '../other-project'), /Invalid project id/);
   assert.throws(() => creativeToolById('proposal.apply'), /Unknown Forge creative tool/);
 });
