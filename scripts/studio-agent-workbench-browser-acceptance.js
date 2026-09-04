@@ -79,59 +79,76 @@ async function main() {
     assert.equal(await page.locator("#agent-chapter").inputValue(), CHAPTER_ID);
     assert.equal(await page.locator("#agent-scene").inputValue(), SCENE_ID);
     assert.match(await page.locator("#agent-snapshot").innerText(), /The Verified Forge/);
-    assert.match(await page.locator("#agent-snapshot").innerText(), /The Test/);
+    assert.match(await page.locator("#agent-snapshot").innerText(), /Agent tools\s*11/);
+    assert.equal(await page.locator("#agent-tools li").count(), 11);
 
-    // Editor mode must make the drafting restriction real at the orchestration surface.
+    // Editor mode must enforce the server planner's drafting restriction.
     await page.locator("#agent-mode").selectOption("editor");
     await page.locator("#agent-goal").fill("Draft a stronger version of this scene while preserving the author's intent.");
     await page.locator("#agent-form button[type=submit]").tap();
-    await page.waitForFunction(() => document.querySelector('[data-step-id="writing"]'));
-    assert.match(await page.locator('[data-step-id="writing"]').innerText(), /Editor mode does not permit drafting/);
-    assert.equal(await page.locator('[data-step-id="writing"] button').isDisabled(), true);
+    await page.waitForFunction(() => document.querySelector('[data-tool-id="writing.propose"]'));
+    assert.match(await page.locator('[data-tool-id="writing.propose"]').innerText(), /configured not to draft new prose/);
+    assert.equal(await page.locator('[data-tool-id="writing.propose"] button').isDisabled(), true);
     assert.equal((await api(base, `/api/projects/${PROJECT_ID}/collaboration`)).mode, "editor");
 
-    // Partner mode can plan drafting, but context runs independently and nothing auto-runs after it.
-    await page.locator("#agent-mode").selectOption("partner");
-    await page.locator("#agent-goal").fill("Draft a stronger version of this scene, grounded in the current project truth.");
+    // Autonomous mode may group only the read-only context + editing steps. Writing stays separately approved.
+    await page.locator("#agent-mode").selectOption("autonomous");
+    await page.locator("#agent-goal").fill("Draft and continuity edit this scene, grounded in the current project truth.");
     await page.locator("#agent-form button[type=submit]").tap();
-    await page.waitForFunction(() => document.querySelector('[data-step-id="context"]'));
-    assert.equal((await api(base, `/api/projects/${PROJECT_ID}/collaboration`)).mode, "partner");
-    await page.locator('[data-step-id="context"] button').tap();
-    await page.waitForFunction(() => document.querySelector('[data-step-id="context"] button')?.textContent === "Completed");
-    assert.equal(await page.locator('[data-step-id="writing"] button').isEnabled(), true, "writing should still require its own approval click");
-    assert.match(await page.locator("#agent-status").innerText(), /No additional step ran automatically/);
+    await page.waitForFunction(() => document.querySelector('[data-tool-id="project.context"]') && document.querySelector('[data-tool-id="editing.analyze"]'));
+    assert.equal((await api(base, `/api/projects/${PROJECT_ID}/collaboration`)).mode, "autonomous");
+    assert.match(await page.locator(".agent-group-run").innerText(), /2 safe read-only steps/);
+    await page.locator(".agent-group-run").tap();
+    await page.waitForFunction(() => document.querySelector('[data-tool-id="project.context"] button')?.textContent === "Completed" && document.querySelector('[data-tool-id="editing.analyze"] button')?.textContent === "Completed");
+    assert.equal(await page.locator('[data-tool-id="writing.propose"] button').isEnabled(), true, "writing should still require its own author approval");
+    assert.notEqual(await page.locator('[data-tool-id="writing.propose"] button').innerText(), "Completed");
+    assert.match(await page.locator("#agent-status").innerText(), /read-only group completed/i);
 
-    // Explicitly record completed workflow evidence as working memory, not canon.
-    await page.locator('[data-step-id="record"] button').tap();
-    await page.waitForFunction(() => document.querySelector('[data-step-id="record"] button')?.textContent === "Completed");
+    // Explicit workflow evidence remains a separate author-approved working-memory operation.
+    await page.locator('[data-tool-id="memory.record-working"] button').tap();
+    await page.waitForFunction(() => document.querySelector('[data-tool-id="memory.record-working"] button')?.textContent === "Completed");
     const projectAfterRecord = await api(base, `/api/projects/${PROJECT_ID}`);
-    const runMemory = projectAfterRecord.memories.find((memory) => memory.relevanceTags?.includes("agent-workflow"));
+    const runMemory = projectAfterRecord.memories.find((memory) => memory.relevanceTags?.includes("agent-workflow") && !memory.relevanceTags?.includes("agent-recipe"));
     assert.ok(runMemory, "Agent Workbench should persist explicit run evidence");
     assert.equal(runMemory.authority, "working");
     assert.equal(runMemory.class, "creative-note");
 
+    // Save the current governed plan as a durable no-code Forge Recipe, then compile it back through server governance.
+    await page.locator("#agent-recipe-name").fill("Verified Review Pass");
+    await page.locator("#agent-recipe-save").tap();
+    await page.waitForFunction(() => document.querySelector("#agent-recipe-status")?.textContent.includes("Saved Verified Review Pass"));
+    const savedRecipes = await api(base, `/api/projects/${PROJECT_ID}/agent/recipes`);
+    assert.equal(savedRecipes.recipes.length, 1);
+    assert.equal(savedRecipes.recipes[0].title, "Verified Review Pass");
+    assert.notEqual(await page.locator("#agent-recipe-select").inputValue(), "");
+    await page.locator("#agent-recipe-compile").tap();
+    await page.waitForFunction(() => document.querySelector("#agent-recipe-status")?.textContent.includes("Recipe compiled"));
+    assert.equal(await page.locator('[data-tool-id="memory.record-working"]').count(), 1, "compiled Recipe must contain exactly one final workflow evidence step");
+    const compiledToolIds = await page.locator(".agent-step").evaluateAll((nodes) => nodes.map((node) => node.dataset.toolId));
+    assert.equal(compiledToolIds.at(-1), "memory.record-working");
+
     // Production is provider-independent and must download the exact real Forge artifact.
     await page.locator("#agent-goal").fill("Export a PDF review copy of this book.");
     await page.locator("#agent-form button[type=submit]").tap();
-    await page.waitForFunction(() => document.querySelector('[data-step-id="production"]'));
+    await page.waitForFunction(() => document.querySelector('[data-tool-id="production.export"]'));
     const downloadPromise = page.waitForEvent("download");
-    await page.locator('[data-step-id="production"] button').tap();
+    await page.locator('[data-tool-id="production.export"] button').tap();
     const download = await downloadPromise;
     const savedPath = join(dataDir, "agent-review.pdf");
     await download.saveAs(savedPath);
     assert.match(download.suggestedFilename(), /\.pdf$/i);
     assert.ok((await stat(savedPath)).size > 100, "real PDF artifact should contain bytes");
-    await page.waitForFunction(() => document.querySelector('[data-step-id="production"] button')?.textContent === "Completed");
-    assert.match(await page.locator('[data-step-id="production"] .agent-result').innerText(), /sha256/i);
-    assert.doesNotMatch(await page.locator('[data-step-id="production"] .agent-result').innerText(), /contentBase64"\s*:\s*"[A-Za-z0-9+/]{100}/);
+    await page.waitForFunction(() => document.querySelector('[data-tool-id="production.export"] button')?.textContent === "Completed");
+    assert.match(await page.locator('[data-tool-id="production.export"] .agent-result').innerText(), /sha256/i);
+    assert.doesNotMatch(await page.locator('[data-tool-id="production.export"] .agent-result').innerText(), /contentBase64"\s*:\s*"[A-Za-z0-9+/]{100}/);
 
     const dimensions = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, body: document.body.scrollWidth, document: document.documentElement.scrollWidth }));
     assert.ok(dimensions.body <= dimensions.viewport + 1, `Agent Workbench introduced horizontal body overflow: ${JSON.stringify(dimensions)}`);
     assert.ok(dimensions.document <= dimensions.viewport + 1, `Agent Workbench introduced horizontal document overflow: ${JSON.stringify(dimensions)}`);
-    const approveBox = await page.locator('[data-step-id="production"] button').boundingBox();
+    const approveBox = await page.locator('[data-tool-id="production.export"] button').boundingBox();
     assert.ok(approveBox && approveBox.height >= 40, `Agent step control is too small for touch: ${JSON.stringify(approveBox)}`);
 
-    console.log("FORGE AGENT WORKBENCH BROWSER ACCEPTANCE PASSED: 11-tool live registry + real target loading + mode enforcement + explicit context execution + durable working-memory evidence + real PDF download + Android-sized layout.");
+    console.log("FORGE AGENT WORKBENCH BROWSER ACCEPTANCE PASSED: server discovery + 11 tools + Editor enforcement + bounded read-only run group + durable evidence + Recipe save/compile + real PDF + Android layout.");
   } finally {
     if (browser) await browser.close().catch(() => {});
     server.kill("SIGTERM");
