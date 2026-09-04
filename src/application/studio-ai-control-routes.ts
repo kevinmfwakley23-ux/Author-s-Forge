@@ -176,7 +176,10 @@ async function openAiCatalog(provider: Provider, baseUrl: string | undefined, ap
   if (!response.ok) throw new Error(`${provider} model catalog failed (${response.status}).`);
   const raw = Array.isArray(payload.data) ? payload.data : Array.isArray(payload.models) ? payload.models : [];
   const models = raw.map(normalizeModelRecord).filter((model) => typeof model.id === "string" && model.id);
-  if (provider === "omniroute" || provider === "9router") models.unshift({ id: "auto", name: "Automatic router selection", routerManaged: true });
+  // OmniRoute explicitly documents "auto" as a router-managed model. 9Router
+  // requires a concrete model or combo returned by its catalog, so do not
+  // fabricate a generic auto entry for 9Router.
+  if (provider === "omniroute" && !models.some((model) => model.id === "auto")) models.unshift({ id: "auto", name: "Automatic router selection", routerManaged: true });
   return { provider, models, source: `${baseUrl.replace(/\/$/, "")}/v1/models`, fetchedAt };
 }
 async function ollamaCatalog(fetchedAt: string) {
