@@ -67,7 +67,7 @@ async function main() {
     assert.equal(registry.tools.length, 12);
     assert.equal(registry.tools.find((tool) => tool.id === "writing.propose")?.pathTemplate, "/api/projects/:projectId/ai/writing/generate");
     assert.equal(registry.tools.find((tool) => tool.id === "visual.image.generate")?.pathTemplate, "/api/projects/:projectId/ai/image");
-    assert.equal(registry.tools.find((tool) => tool.id === "cover.direction.propose")?.pathTemplate, "/api/projects/:projectId/ai/cover-directions");
+    assert.equal(registry.tools.find((tool) => tool.id === "cover.direction.propose")?.pathTemplate, "/api/projects/:projectId/agent/cover-direction");
     assert.equal(registry.tools.some((tool) => tool.pathTemplate.includes("/apply") || tool.pathTemplate.includes("/content")), false);
 
     browser = await chromium.launch({ executablePath: process.env.FORGE_BROWSER_EXECUTABLE || chromium.executablePath(), headless: true, args: ["--no-sandbox", "--disable-gpu"] });
