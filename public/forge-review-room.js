@@ -38,17 +38,18 @@
     section.innerHTML = `
       <div class="section-title"><div><div class="eyebrow">HUMAN REVIEW</div><h2>Comments and tracked suggestions without surrendering author control</h2><p>Invite a co-writer, editor, or beta reader. Reviewer tokens are shown once. Human suggestions remain separate from the manuscript until you accept and apply them.</p></div><button id="review-refresh" type="button">Refresh</button></div>
       <div class="grid">
-        <article class="card"><h3>Invite reviewer</h3><form id="reviewer-form"><input name="displayName" required maxlength="160" placeholder="Reviewer name"><select name="role"><option value="beta-reader">Beta Reader — comments</option><option value="editor">Editor — comments + tracked suggestions</option><option value="co-writer">Co-writer — comments + governed suggestions</option></select><button class="primary" type="submit">Create secure review link</button></form><div id="review-invite-result" class="list"></div><hr><h3>Reviewer access</h3><div id="reviewer-list" class="list"></div></article>
+        <article class="card"><h3>Invite reviewer</h3><form id="reviewer-form"><input name="displayName" required maxlength="160" placeholder="Reviewer name"><select name="role"><option value="beta-reader">Beta Reader — comments</option><option value="editor">Editor — comments + tracked suggestions</option><option value="co-writer">Co-writer — comments + governed suggestions</option></select><label>Access scope<select name="scopeKind" id="review-scope-kind"><option value="project">Entire project</option><option value="book">One book only</option></select></label><label id="review-scope-book-label" hidden>Shared book<select name="scopeBookId" id="review-scope-book"></select></label><p class="muted">Book scope is enforced by the server. A scoped reviewer cannot read or submit feedback against other books in this project.</p><button class="primary" type="submit">Create secure review link</button></form><div id="review-invite-result" class="list"></div><hr><h3>Reviewer access</h3><div id="reviewer-list" class="list"></div></article>
         <article class="card"><h3>Open comments</h3><div id="review-comment-list" class="list"></div></article>
       </div>
       <article class="card"><h3>Tracked human suggestions</h3><p class="muted">Accept/reject records the author decision. Apply is deliberately separate and fails if the underlying scene revision changed.</p><div id="review-suggestion-list" class="list"></div></article>`;
     if (footer) main.insertBefore(section, footer); else main?.appendChild(section);
-    bind(); refresh();
+    bind(); refreshScopeBooks(); refresh();
   }
 
   function bind() {
     $("#reviewer-form")?.addEventListener("submit", inviteReviewer);
     $("#review-refresh")?.addEventListener("click", refresh);
+    $("#review-scope-kind")?.addEventListener("change", syncScopeControls);
     $("#review-room")?.addEventListener("click", async (event) => {
       const button = event.target instanceof Element ? event.target.closest("button[data-review-action]") : null;
       if (!button) return;
@@ -77,14 +78,34 @@
     });
   }
 
+  function refreshScopeBooks() {
+    const select = $("#review-scope-book");
+    if (!select) return;
+    const books = window.forgeWorkspaceState?.books || [];
+    const previous = select.value;
+    select.innerHTML = books.length ? books.map((book) => `<option value="${esc(book.id)}">${esc(book.title)}</option>`).join("") : '<option value="">No books available</option>';
+    if (books.some((book) => book.id === previous)) select.value = previous;
+    syncScopeControls();
+  }
+
+  function syncScopeControls() {
+    const kind = $("#review-scope-kind")?.value || "project";
+    const label = $("#review-scope-book-label"), select = $("#review-scope-book");
+    if (label) label.hidden = kind !== "book";
+    if (select) select.disabled = kind !== "book";
+  }
+
   async function inviteReviewer(event) {
     event.preventDefault();
-    const form = event.currentTarget, data = Object.fromEntries(new FormData(form).entries());
+    const form = event.currentTarget, formData = Object.fromEntries(new FormData(form).entries());
+    const scopeKind = String(formData.scopeKind || "project");
+    const payload = { displayName: formData.displayName, role: formData.role, scope: scopeKind === "book" ? { kind: "book", bookId: String(formData.scopeBookId || "") } : { kind: "project" } };
+    if (scopeKind === "book" && !payload.scope.bookId) return notify("Choose a book for this scoped review invitation.");
     try {
-      const created = await api(`${root}/reviewers`, { method: "POST", body: JSON.stringify(data) });
+      const created = await api(`${root}/reviewers`, { method: "POST", body: JSON.stringify(payload) });
       const absolute = new URL(created.reviewUrl, location.origin).href;
-      $("#review-invite-result").innerHTML = `<article class="memory"><strong>${esc(created.reviewer.displayName)} — ${esc(created.reviewer.role)}</strong><p>This credential is shown once. Share it only with the intended reviewer.</p><input readonly value="${esc(absolute)}" aria-label="Secure review link"><div class="row"><button type="button" data-copy-review-link="${esc(absolute)}">Copy secure link</button><a class="forge-office-link" href="${esc(absolute)}" target="_blank" rel="noopener">Open reviewer portal</a></div></article>`;
-      form.reset(); await refresh(); notify("Reviewer access created. The token will not be shown again after this page state is replaced.", true);
+      $("#review-invite-result").innerHTML = `<article class="memory"><strong>${esc(created.reviewer.displayName)} — ${esc(created.reviewer.role)}</strong><p>${esc(scopeLabel(created.reviewer.scope))}. This credential is shown once. Share it only with the intended reviewer.</p><input readonly value="${esc(absolute)}" aria-label="Secure review link"><div class="row"><button type="button" data-copy-review-link="${esc(absolute)}">Copy secure link</button><a class="forge-office-link" href="${esc(absolute)}" target="_blank" rel="noopener">Open reviewer portal</a></div></article>`;
+      form.reset(); refreshScopeBooks(); await refresh(); notify("Reviewer access created. The token will not be shown again after this page state is replaced.", true);
     } catch (error) { notify(error instanceof Error ? error.message : String(error)); }
   }
 
@@ -94,6 +115,8 @@
   }
 
   function reviewerName(id) { return state.reviewers.find((reviewer) => reviewer.id === id)?.displayName || id; }
+  function bookTitle(id) { return window.forgeWorkspaceState?.books?.find((book) => book.id === id)?.title || id; }
+  function scopeLabel(scope) { return scope?.kind === "book" ? `Book only: ${bookTitle(scope.bookId)}` : "Entire project"; }
   function targetLabel(target) {
     const workspace = window.forgeWorkspaceState;
     const book = workspace?.books?.find((item) => item.id === target.bookId);
@@ -104,7 +127,7 @@
 
   function render() {
     const reviewers = $("#reviewer-list");
-    if (reviewers) reviewers.innerHTML = state.reviewers.length ? state.reviewers.map((item) => `<article class="memory"><strong>${esc(item.displayName)}</strong><p>${esc(item.role)} • ${esc(item.status)}</p><small>Created ${esc(new Date(item.createdAt).toLocaleString())}</small>${item.status === "active" ? `<button type="button" data-review-action="revoke" data-id="${esc(item.id)}">Revoke access</button>` : ""}</article>`).join("") : '<p class="muted">No human reviewers invited yet.</p>';
+    if (reviewers) reviewers.innerHTML = state.reviewers.length ? state.reviewers.map((item) => `<article class="memory"><strong>${esc(item.displayName)}</strong><p>${esc(item.role)} • ${esc(item.status)}</p><small>${esc(scopeLabel(item.scope))}</small><br><small>Created ${esc(new Date(item.createdAt).toLocaleString())}</small>${item.status === "active" ? `<button type="button" data-review-action="revoke" data-id="${esc(item.id)}">Revoke access</button>` : ""}</article>`).join("") : '<p class="muted">No human reviewers invited yet.</p>';
 
     const comments = $("#review-comment-list");
     const open = state.comments.filter((item) => item.status === "open");
@@ -114,6 +137,6 @@
     if (suggestions) suggestions.innerHTML = state.suggestions.length ? state.suggestions.slice().reverse().map((item) => `<article class="memory"><strong>${esc(reviewerName(item.reviewerId))} • ${esc(item.status)}</strong><small>${esc(targetLabel(item.target))}</small><p><b>Reason:</b> ${esc(item.rationale)}</p><details><summary>Review proposed replacement</summary><textarea class="editor candidate" readonly>${esc(item.replacementContent)}</textarea></details><div class="row">${item.status === "pending" ? `<button type="button" data-review-action="accept" data-id="${esc(item.id)}">Accept</button><button type="button" data-review-action="reject" data-id="${esc(item.id)}">Reject</button>` : ""}${item.status === "accepted" ? `<button class="primary" type="button" data-review-action="apply" data-id="${esc(item.id)}">Apply to manuscript</button>` : ""}</div></article>`).join("") : '<p class="muted">No tracked human suggestions.</p>';
   }
 
-  window.addEventListener("forge:workspace-ready", () => { if ($("#review-room")) render(); });
+  window.addEventListener("forge:workspace-ready", () => { if ($("#review-room")) { refreshScopeBooks(); render(); } });
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", ensureUi, { once: true }); else ensureUi();
 })();
