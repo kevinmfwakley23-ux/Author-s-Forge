@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
+import { attachAuthorNftArtwork } from "./application/nft-author-artwork";
 import { NftCreationOfficeService, type NftAiProposalKind } from "./application/nft-creation-office";
 import { createProject } from "./domain/project";
 import {
@@ -16,6 +17,7 @@ import {
 } from "./domain/nft-creation";
 import { discoverConfiguredAiModelResources } from "./infrastructure/ai-model-resources";
 import { FileNftCreationStore } from "./infrastructure/file-nft-creation-store";
+import { FileProjectStore } from "./infrastructure/file-project-store";
 import { createForgeStudioRuntime } from "./infrastructure/forge-studio-runtime";
 import type { ImageGenerationQuality, ImageGenerationSize } from "./infrastructure/image-provider";
 
@@ -24,8 +26,10 @@ const host = process.env.HOST ?? "127.0.0.1";
 const dataRoot = process.env.FORGE_DATA_DIR ?? join(process.cwd(), ".forge-data");
 const publicRoot = join(process.cwd(), "public");
 const runtime = createForgeStudioRuntime(dataRoot);
-const projects = runtime.projectStore;
-const office = new NftCreationOfficeService(new FileNftCreationStore(join(dataRoot, "nft-creation.json")), projects as never);
+// createForgeStudioRuntime composes this exact concrete adapter in production.
+const projects = runtime.projectStore as FileProjectStore;
+const nftStore = new FileNftCreationStore(join(dataRoot, "nft-creation.json"));
+const office = new NftCreationOfficeService(nftStore, projects);
 
 function json(res: ServerResponse, status: number, value: unknown): void {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" });
@@ -134,6 +138,17 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
     const input = await body(req);
     const decision = proposalReview[2] === "approve" ? "approved" : "rejected";
     json(res, 200, await office.reviewProposal(forgeProjectId, collectionId, decodeURIComponent(proposalReview[1]), decision, input.apply === true));
+    return true;
+  }
+  const authorArtwork = tail.match(/^art\/([^/]+)\/author$/);
+  if (authorArtwork && req.method === "POST") {
+    const input = await body(req);
+    json(res, 200, await attachAuthorNftArtwork(nftStore, projects, forgeProjectId, collectionId, decodeURIComponent(authorArtwork[1]), {
+      imageUri: required(input.imageUri, "NFT artwork URI"),
+      animationUrl: typeof input.animationUrl === "string" && input.animationUrl.trim() ? input.animationUrl.trim() : undefined,
+      sourceReference: required(input.sourceReference, "NFT artwork source reference"),
+      authorDeclaresRights: input.authorDeclaresRights === true ? true : (() => { throw new Error("Explicit author rights/provenance declaration is required."); })(),
+    }));
     return true;
   }
   const artworkGenerate = tail.match(/^art\/([^/]+)\/generate$/);
