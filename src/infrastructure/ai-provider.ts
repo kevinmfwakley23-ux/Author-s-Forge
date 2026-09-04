@@ -8,7 +8,7 @@ import { AiModelBroker, type AiSpendPolicy, type AiTask } from "../application/a
 import { AiRoutingState } from "../application/ai-routing-state";
 import type { AiCostRoutingMode } from "../application/ai-cost-routing-policy";
 import { assertForgeOutputQuality, buildForgeQualityContract, type ForgeOutputQualityReport } from "../application/forge-quality-contract";
-import { discoverConfiguredAiModelResources } from "./ai-model-resources";
+import { discoverConfiguredAiModelResources, discoverConfiguredAiProviderQuotas } from "./ai-model-resources";
 import { generateWithKingsAi } from "./kings-ai-bridge";
 import { providerFetch } from "./provider-transport";
 
@@ -225,11 +225,19 @@ export function aiConfiguredResources() {
   return refreshLiveBroker();
 }
 
+/** Effective provider/account quotas after all routed model usage is aggregated. */
+export function aiConfiguredProviderQuotas() {
+  refreshLiveBroker();
+  return liveBroker.listProviderQuotas();
+}
+
 type ProviderName = AiGenerationResult["provider"];
 
 function refreshLiveBroker() {
   const resources = discoverConfiguredAiModelResources(process.env);
+  const providerQuotas = discoverConfiguredAiProviderQuotas(process.env);
   liveBroker.setResources(resources);
+  liveBroker.setProviderQuotas(providerQuotas);
   liveRoutingState.hydrate(resources);
   liveBroker.applyRoutingTelemetry(liveRoutingState.snapshot().map((state) => ({
     provider: state.provider,
