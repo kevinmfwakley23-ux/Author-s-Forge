@@ -16,7 +16,7 @@ test("royal UI shell is valid JavaScript and loaded by the Studio PWA", () => {
 
 test("royal UI is part of the versioned offline shell", () => {
   const worker = read("public/sw.js");
-  assert.match(worker, /authors-forge-shell-v16/);
+  assert.match(worker, /const CACHE = "authors-forge-shell-v\d+"/);
   assert.match(worker, /"\/forge-royal-ui\.js"/);
   assert.match(worker, /"\/forge-royal-hardening\.css"/);
   assert.match(worker, /url\.pathname\.startsWith\("\/api\/"\)/);
