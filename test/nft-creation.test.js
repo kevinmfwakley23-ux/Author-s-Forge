@@ -59,8 +59,11 @@ test('NFT generator refuses an impossible unique trait space', () => {
 });
 
 test('preflight blocks launch metadata until every token has approved artwork', () => {
+  // Keep this test's collection otherwise collector-ready so the assertion is
+  // about artwork gating, not an unrelated trait-diversity score deduction.
   let planned = generateNftItems(withNftTraitDefinitions(collection({ supply: 2 }), [
     { id: 'house', label: 'House', values: [{ value: 'Sun', weight: 1 }, { value: 'Moon', weight: 1 }] },
+    { id: 'crown', label: 'Crown', values: [{ value: 'Gold', weight: 1 }, { value: 'Obsidian', weight: 1 }] },
   ]));
   let report = nftCollectionPreflight(planned);
   assert.equal(report.readyForMetadata, false);
@@ -81,6 +84,7 @@ test('preflight blocks launch metadata until every token has approved artwork', 
   assert.equal(report.readyForMetadata, true);
   assert.equal(report.readyForLaunchPackage, true);
   assert.ok(report.collectorReadiness >= 90);
+  assert.ok(report.readinessSignals.includes('structured trait/variation system'));
 });
 
 test('metadata compiler emits marketplace-compatible EVM traits and Metaplex Core properties', () => {
