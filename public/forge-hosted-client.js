@@ -65,11 +65,15 @@
     return url.href;
   }
 
+  function rewriteAnchor(anchor) {
+    if (!(anchor instanceof HTMLAnchorElement) || !anchor.hasAttribute("href")) return;
+    const mapped = remapForgeUrl(anchor.href);
+    if (mapped && mapped !== anchor.href) anchor.href = mapped;
+  }
+
   function rewriteAnchors(root = document) {
-    root.querySelectorAll?.("a[href]").forEach((anchor) => {
-      const mapped = remapForgeUrl(anchor.href);
-      if (mapped && mapped !== anchor.href) anchor.href = mapped;
-    });
+    if (root instanceof HTMLAnchorElement) rewriteAnchor(root);
+    root.querySelectorAll?.("a[href]").forEach(rewriteAnchor);
   }
 
   const nativeOpen = window.open?.bind(window);
@@ -94,7 +98,7 @@
     if (typeof MutationObserver !== "undefined") {
       const observer = new MutationObserver((records) => {
         for (const record of records) {
-          if (record.type === "attributes" && record.target instanceof HTMLAnchorElement) rewriteAnchors(record.target.parentNode || document);
+          if (record.type === "attributes") rewriteAnchor(record.target);
           for (const node of record.addedNodes || []) if (node.nodeType === 1) rewriteAnchors(node);
         }
       });
