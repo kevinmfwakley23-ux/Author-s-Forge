@@ -2,7 +2,18 @@ import { calculateKdpCoverLayout, createBookCoverPlan, validateBookCoverFile, ty
 
 export class BookCoverStudioService {
   private readonly plans = new Map<string, BookCoverPlan>();
-  create(input: CreateBookCoverPlanInput): BookCoverPlan { const plan = createBookCoverPlan(input); if (this.plans.has(plan.id)) throw new Error(`Duplicate book cover plan id "${plan.id}".`); this.plans.set(plan.id, plan); return clone(plan); }
+  create(input: CreateBookCoverPlanInput): BookCoverPlan {
+    // Print cover format and KDP binding describe the same physical product and must never disagree.
+    // Normalize at the application boundary so every caller, including older HTTP routes, produces
+    // truthful metadata while non-print formats (ebook, series, promotional, etc.) remain untouched.
+    const normalized = input.format === "paperback" || input.format === "hardcover"
+      ? { ...input, format: input.publishing.binding }
+      : input;
+    const plan = createBookCoverPlan(normalized);
+    if (this.plans.has(plan.id)) throw new Error(`Duplicate book cover plan id "${plan.id}".`);
+    this.plans.set(plan.id, plan);
+    return clone(plan);
+  }
   get(id: string): BookCoverPlan | undefined { const plan = this.plans.get(id); return plan ? clone(plan) : undefined; }
   require(id: string): BookCoverPlan { const plan = this.get(id); if (!plan) throw new Error(`Book cover plan "${id}" not found.`); return plan; }
   calculate(input: CreateBookCoverPlanInput["publishing"]) { return calculateKdpCoverLayout(input); }
