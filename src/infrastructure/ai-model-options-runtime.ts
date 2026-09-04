@@ -25,6 +25,7 @@ export interface AiModelRuntimeOptions {
   readonly ensembleEnabled: boolean;
   readonly ensembleMaxWorkers: number;
   readonly ensembleMinQualityScore: number;
+  readonly ensembleMaxTotalEstimatedCostUsd?: number;
   readonly updatedAt: string;
 }
 
@@ -56,6 +57,9 @@ export function validateAiModelRuntimeOptions(value: unknown, previous = default
   const ensembleEnabled = input.ensembleEnabled === undefined ? previous.ensembleEnabled : boolean(input.ensembleEnabled, "ensembleEnabled");
   const ensembleMaxWorkers = input.ensembleMaxWorkers === undefined ? previous.ensembleMaxWorkers : boundedInteger(input.ensembleMaxWorkers, "ensembleMaxWorkers", 1, 8);
   const ensembleMinQualityScore = input.ensembleMinQualityScore === undefined ? previous.ensembleMinQualityScore : boundedInteger(input.ensembleMinQualityScore, "ensembleMinQualityScore", 70, 100);
+  const ensembleMaxTotalEstimatedCostUsd = input.ensembleMaxTotalEstimatedCostUsd === undefined
+    ? previous.ensembleMaxTotalEstimatedCostUsd
+    : optionalNonnegative(input.ensembleMaxTotalEstimatedCostUsd, "ensembleMaxTotalEstimatedCostUsd");
   return {
     formatVersion: AI_MODEL_OPTIONS_FORMAT_VERSION,
     additionalModels,
@@ -63,6 +67,7 @@ export function validateAiModelRuntimeOptions(value: unknown, previous = default
     ensembleEnabled,
     ensembleMaxWorkers,
     ensembleMinQualityScore,
+    ...(ensembleMaxTotalEstimatedCostUsd === undefined ? {} : { ensembleMaxTotalEstimatedCostUsd }),
     updatedAt: new Date().toISOString(),
   };
 }
@@ -131,6 +136,8 @@ export function applyAiModelRuntimeOptions(options: AiModelRuntimeOptions, env: 
   env.AI_ENSEMBLE_ENABLED = String(options.ensembleEnabled);
   env.AI_ENSEMBLE_MAX_WORKERS = String(options.ensembleMaxWorkers);
   env.AI_ENSEMBLE_MIN_QUALITY_SCORE = String(options.ensembleMinQualityScore);
+  if (options.ensembleMaxTotalEstimatedCostUsd === undefined) delete env.AI_ENSEMBLE_MAX_TOTAL_ESTIMATED_COST_USD;
+  else env.AI_ENSEMBLE_MAX_TOTAL_ESTIMATED_COST_USD = String(options.ensembleMaxTotalEstimatedCostUsd);
   appliedState.set(env, {
     extrasByProvider: Object.freeze(Object.fromEntries(AI_MODEL_OPTION_PROVIDERS.map((provider) => [provider, Object.freeze([...nextExtras[provider]])])) as Record<AiModelOptionProvider, readonly string[]>),
     trusted: Object.freeze([...options.trustedNoSpendModels]),
@@ -199,6 +206,12 @@ function boolean(value: unknown, label: string): boolean {
 function boundedInteger(value: unknown, label: string, minimum: number, maximum: number): number {
   const number = Number(value);
   if (!Number.isInteger(number) || number < minimum || number > maximum) throw new Error(`${label} must be an integer from ${minimum} to ${maximum}.`);
+  return number;
+}
+function optionalNonnegative(value: unknown, label: string): number | undefined {
+  if (value === null || value === "") return undefined;
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < 0) throw new Error(`${label} must be a non-negative number or blank.`);
   return number;
 }
 function csv(value: string | undefined): string[] { return value?.split(",").map((item) => item.trim()).filter(Boolean) ?? []; }
