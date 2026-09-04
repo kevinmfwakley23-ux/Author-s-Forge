@@ -4,6 +4,17 @@ const HOSTED_OFFICES = Object.freeze([
   Object.freeze({ id: "specialized", prefix: "/specialized" }),
 ]);
 
+const PUBLIC_REVIEW_ASSETS = Object.freeze([
+  "/review.html",
+  "/forge-reviewer.js",
+  "/styles.css",
+  "/forge-royal-hardening.css",
+  "/forge-hosted-client.js",
+  "/forge-hosted-client.css",
+]);
+const PUBLIC_REVIEW_ASSET_SET = new Set(PUBLIC_REVIEW_ASSETS);
+const PUBLIC_REVIEW_API = /^\/api\/projects\/[^/]+\/human-review\/(context|comments|suggestions)$/;
+
 function resolveHostedRoute(requestUrl) {
   const parsed = new URL(requestUrl || "/", "http://forge.local");
   for (const office of HOSTED_OFFICES) {
@@ -65,9 +76,26 @@ function publicOrigin(headers = {}, fallbackHost = "localhost") {
   return `${protocol}://${host}`;
 }
 
+function isPublicReviewShellRequest(method, pathname) {
+  return (method === "GET" || method === "HEAD") && PUBLIC_REVIEW_ASSET_SET.has(pathname);
+}
+
+function isTokenGovernedReviewApiRequest({ method, pathname, reviewToken }) {
+  const match = String(pathname || "").match(PUBLIC_REVIEW_API);
+  if (!match) return false;
+  const resource = match[1];
+  const methodAllowed = resource === "context" ? method === "GET" : method === "GET" || method === "POST";
+  if (!methodAllowed) return false;
+  const token = String(reviewToken || "").trim();
+  return token.length >= 32 && token.length <= 512;
+}
+
 module.exports = {
   HOSTED_OFFICES,
+  PUBLIC_REVIEW_ASSETS,
   isHttpsRequest,
+  isPublicReviewShellRequest,
+  isTokenGovernedReviewApiRequest,
   publicOrigin,
   requestProtocol,
   resolveHostedRoute,
