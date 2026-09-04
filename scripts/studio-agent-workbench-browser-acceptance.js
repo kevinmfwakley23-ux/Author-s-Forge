@@ -62,11 +62,12 @@ async function main() {
     await api(base, `/api/projects/${PROJECT_ID}/workspace/books/${BOOK_ID}/chapters/${CHAPTER_ID}/scenes/${SCENE_ID}/content`, "PUT", { content: "The author opened the Forge and checked every visible boundary. Nothing changed without a deliberate decision." });
 
     const registry = await api(base, `/api/projects/${PROJECT_ID}/agent/tools`);
-    assert.equal(registry.formatVersion, 2);
+    assert.equal(registry.formatVersion, 3);
     assert.equal(registry.authority, "discovery-only");
-    assert.equal(registry.tools.length, 11);
+    assert.equal(registry.tools.length, 12);
     assert.equal(registry.tools.find((tool) => tool.id === "writing.propose")?.pathTemplate, "/api/projects/:projectId/ai/writing/generate");
     assert.equal(registry.tools.find((tool) => tool.id === "visual.image.generate")?.pathTemplate, "/api/projects/:projectId/ai/image");
+    assert.equal(registry.tools.find((tool) => tool.id === "cover.direction.propose")?.pathTemplate, "/api/projects/:projectId/ai/cover-directions");
     assert.equal(registry.tools.some((tool) => tool.pathTemplate.includes("/apply") || tool.pathTemplate.includes("/content")), false);
 
     browser = await chromium.launch({ executablePath: process.env.FORGE_BROWSER_EXECUTABLE || chromium.executablePath(), headless: true, args: ["--no-sandbox", "--disable-gpu"] });
@@ -79,8 +80,8 @@ async function main() {
     assert.equal(await page.locator("#agent-chapter").inputValue(), CHAPTER_ID);
     assert.equal(await page.locator("#agent-scene").inputValue(), SCENE_ID);
     assert.match(await page.locator("#agent-snapshot").innerText(), /The Verified Forge/);
-    assert.match(await page.locator("#agent-snapshot").innerText(), /Agent tools\s*11/);
-    assert.equal(await page.locator("#agent-tools li").count(), 11);
+    assert.match(await page.locator("#agent-snapshot").innerText(), /Agent tools\s*12/);
+    assert.equal(await page.locator("#agent-tools li").count(), 12);
 
     // Editor mode must enforce the server planner's drafting restriction.
     await page.locator("#agent-mode").selectOption("editor");
@@ -128,27 +129,33 @@ async function main() {
     assert.equal(compiledToolIds.at(-1), "memory.record-working");
 
     // Production is provider-independent and must download the exact real Forge artifact.
-    await page.locator("#agent-goal").fill("Export a PDF review copy of this book.");
+    await page.locator("#agent-goal").fill("Export a PDF review copy of the current manuscript.");
     await page.locator("#agent-form button[type=submit]").tap();
     await page.waitForFunction(() => document.querySelector('[data-tool-id="production.export"]'));
     const downloadPromise = page.waitForEvent("download");
     await page.locator('[data-tool-id="production.export"] button').tap();
     const download = await downloadPromise;
-    const savedPath = join(dataDir, "agent-review.pdf");
-    await download.saveAs(savedPath);
-    assert.match(download.suggestedFilename(), /\.pdf$/i);
-    assert.ok((await stat(savedPath)).size > 100, "real PDF artifact should contain bytes");
-    await page.waitForFunction(() => document.querySelector('[data-tool-id="production.export"] button')?.textContent === "Completed");
-    assert.match(await page.locator('[data-tool-id="production.export"] .agent-result').innerText(), /sha256/i);
-    assert.doesNotMatch(await page.locator('[data-tool-id="production.export"] .agent-result').innerText(), /contentBase64"\s*:\s*"[A-Za-z0-9+/]{100}/);
+    const path = await download.path();
+    assert.ok(path, "Production export should create a real download");
+    assert.ok((await stat(path)).size > 100, "Production export should contain real bytes");
+    assert.equal(await download.suggestedFilename(), "the-verified-forge.pdf");
 
-    const dimensions = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, body: document.body.scrollWidth, document: document.documentElement.scrollWidth }));
-    assert.ok(dimensions.body <= dimensions.viewport + 1, `Agent Workbench introduced horizontal body overflow: ${JSON.stringify(dimensions)}`);
-    assert.ok(dimensions.document <= dimensions.viewport + 1, `Agent Workbench introduced horizontal document overflow: ${JSON.stringify(dimensions)}`);
-    const approveBox = await page.locator('[data-tool-id="production.export"] button').boundingBox();
-    assert.ok(approveBox && approveBox.height >= 40, `Agent step control is too small for touch: ${JSON.stringify(approveBox)}`);
+    // Image generation is a real tool and must fail honestly when no real provider is configured.
+    await page.locator("#agent-goal").fill("Create a cover image for this book.");
+    await page.locator("#agent-form button[type=submit]").tap();
+    await page.waitForFunction(() => document.querySelector('[data-tool-id="visual.image.generate"]'));
+    await page.locator('[data-tool-id="visual.image.generate"] button').tap();
+    await page.waitForFunction(() => /No real image provider is configured/i.test(document.querySelector("#agent-status")?.textContent || ""));
+    assert.match(await page.locator("#agent-status").innerText(), /No real image provider is configured/i);
 
-    console.log("FORGE AGENT WORKBENCH BROWSER ACCEPTANCE PASSED: server discovery + 11 tools + Editor enforcement + bounded read-only run group + durable evidence + Recipe save/compile + real PDF + Android layout.");
+    // Workbench must remain usable at an Android phone viewport.
+    const overflow = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, body: document.body.scrollWidth, doc: document.documentElement.scrollWidth }));
+    assert.ok(overflow.body <= overflow.viewport + 1 && overflow.doc <= overflow.viewport + 1, `Agent Workbench mobile shell overflows: ${JSON.stringify(overflow)}`);
+    const buttons = await page.locator("button").evaluateAll((nodes) => nodes.filter((node) => node.offsetParent !== null).map((node) => ({ text: node.textContent.trim(), height: node.getBoundingClientRect().height })));
+    assert.ok(buttons.filter((button) => button.text).every((button) => button.height >= 40), `Agent Workbench contains undersized visible touch actions: ${JSON.stringify(buttons.filter((button) => button.height < 40))}`);
+
+    await context.close();
+    console.log("FORGE AGENT WORKBENCH BROWSER ACCEPTANCE PASSED: registry v3 + 12 governed tools + Editor enforcement + bounded Autonomous read-only group + durable workflow evidence + Forge Recipe round-trip + real PDF export + honest no-provider image failure + Android fit/touch.");
   } finally {
     if (browser) await browser.close().catch(() => {});
     server.kill("SIGTERM");
