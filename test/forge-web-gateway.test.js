@@ -6,7 +6,12 @@ const { tmpdir } = require("node:os");
 const { join } = require("node:path");
 const net = require("node:net");
 const { authorizeLanRequest } = require("../scripts/forge-network-security");
-const { resolveHostedRoute, rewriteHostedHtml } = require("../scripts/forge-web-gateway");
+const {
+  isPublicReviewShellRequest,
+  isTokenGovernedReviewApiRequest,
+  resolveHostedRoute,
+  rewriteHostedHtml,
+} = require("../scripts/forge-web-gateway");
 
 function reservePort() {
   return new Promise((resolve, reject) => {
@@ -57,6 +62,35 @@ test("hosted route resolver keeps all Forge offices on one public origin", () =>
   });
   assert.equal(resolveHostedRoute("/workbooks/api/projects/book-1").serviceId, "workbooks");
   assert.equal(resolveHostedRoute("/specialized/api/projects/book-1").serviceId, "specialized");
+});
+
+test("hosted reviewer bypass is least privilege and cannot reach author-control routes", () => {
+  const token = "r".repeat(43);
+  assert.equal(isPublicReviewShellRequest("GET", "/review.html"), true);
+  assert.equal(isPublicReviewShellRequest("HEAD", "/forge-reviewer.js"), true);
+  assert.equal(isPublicReviewShellRequest("POST", "/review.html"), false);
+  assert.equal(isPublicReviewShellRequest("GET", "/index.html"), false);
+
+  for (const resource of ["context", "comments", "suggestions"]) {
+    const pathname = `/api/projects/book-1/human-review/${resource}`;
+    assert.equal(isTokenGovernedReviewApiRequest({ method: "GET", pathname, reviewToken: token }), true);
+    if (resource !== "context") assert.equal(isTokenGovernedReviewApiRequest({ method: "POST", pathname, reviewToken: token }), true);
+  }
+  assert.equal(isTokenGovernedReviewApiRequest({ method: "POST", pathname: "/api/projects/book-1/human-review/context", reviewToken: token }), false);
+  assert.equal(isTokenGovernedReviewApiRequest({ method: "GET", pathname: "/api/projects/book-1/human-review/comments", reviewToken: "short" }), false);
+  assert.equal(isTokenGovernedReviewApiRequest({ method: "GET", pathname: "/api/projects/book-1/human-review/comments", reviewToken: "" }), false);
+  for (const pathname of [
+    "/api/projects/book-1/human-review",
+    "/api/projects/book-1/human-review/reviewers",
+    "/api/projects/book-1/human-review/reviewers/r1/revoke",
+    "/api/projects/book-1/human-review/comments/c1/resolve",
+    "/api/projects/book-1/human-review/suggestions/s1/review",
+    "/api/projects/book-1/human-review/suggestions/s1/apply",
+    "/api/projects/book-1/provenance",
+  ]) {
+    assert.equal(isTokenGovernedReviewApiRequest({ method: "POST", pathname, reviewToken: token }), false, `${pathname} must remain owner-authenticated`);
+    assert.equal(isTokenGovernedReviewApiRequest({ method: "GET", pathname, reviewToken: token }), false, `${pathname} must remain owner-authenticated`);
+  }
 });
 
 test("hosted HTML rewriting keeps office assets under their path and installs the browser bridge", () => {
@@ -126,6 +160,15 @@ test("hosted Forge gateway performs real login and serves Studio plus prefixed o
   const denied = await fetch(`${base}/`, { redirect: "manual" });
   assert.equal(denied.status, 401);
   assert.match(await denied.text(), /Author's Forge/);
+
+  const reviewShell = await fetch(`${base}/review.html?project=book-1`);
+  assert.equal(reviewShell.status, 200);
+  assert.match(await reviewShell.text(), /Reviewer Portal/);
+  const reviewerScript = await fetch(`${base}/forge-reviewer.js`);
+  assert.equal(reviewerScript.status, 200);
+
+  const deniedReviewerApi = await fetch(`${base}/api/projects/book-1/human-review/context`, { headers: { accept: "application/json" } });
+  assert.equal(deniedReviewerApi.status, 401);
 
   const login = await fetch(`${base}/__forge/login`, {
     method: "POST",
