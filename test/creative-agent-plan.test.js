@@ -66,6 +66,33 @@ test('Planner coordinates market, Chapter Card, visual and promotion capabilitie
   assert.equal(plan.steps.slice(0, -1).every((step) => step.eligibleForApprovedRunGroup === false), true);
 });
 
+test('Cover direction and cover art are separate governed steps so production geometry is never guessed', () => {
+  const plan = compileCreativeAgentPlan({
+    goal: 'Create a cover direction and then generate cover art for this book.',
+    mode: 'director',
+    scope: fullScope,
+  });
+  assert.deepEqual(plan.steps.map((step) => step.toolId), [
+    'cover.direction.propose',
+    'visual.image.generate',
+    'memory.record-working',
+  ]);
+  const direction = plan.steps.find((step) => step.toolId === 'cover.direction.propose');
+  assert.equal(direction.providerRequirement, 'configured-ai');
+  assert.equal(direction.stateEffect, 'candidate-response');
+  assert.equal(direction.eligibleForApprovedRunGroup, false);
+  assert.match(direction.reason, /without inventing production geometry/i);
+});
+
+test('Cover direction is blocked when no real book target exists', () => {
+  const plan = compileCreativeAgentPlan({
+    goal: 'Plan the cover direction.',
+    mode: 'partner',
+    scope: { project: true },
+  });
+  assert.match(plan.steps.find((step) => step.toolId === 'cover.direction.propose').blockedReason, /requires book scope/);
+});
+
 test('Planner blocks book-scoped campaign and Chapter Card work when the book target is missing', () => {
   const plan = compileCreativeAgentPlan({
     goal: 'Create chapter cards and a promotion campaign.',
