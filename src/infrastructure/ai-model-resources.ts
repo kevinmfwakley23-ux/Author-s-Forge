@@ -1,4 +1,4 @@
-import type { AiBillingClass, AiModelCapabilities, AiModelResource } from "../application/ai-model-broker";
+import type { AiBillingClass, AiModelCapabilities, AiModelResource, AiProviderQuota } from "../application/ai-model-broker";
 import { constrainResourcesForOwnerPin, refreshPersistedAiOwnerControl } from "./ai-owner-control-runtime";
 
 type SupportedProvider = "omniroute" | "9router" | "kings" | "openai" | "ollama" | "groq" | "mistral" | "gemini" | "anthropic" | "openrouter";
@@ -37,17 +37,26 @@ const BILLING_CLASSES: readonly AiBillingClass[] = ["local", "subscription", "fr
 export function discoverConfiguredAiModelResources(env: NodeJS.ProcessEnv = process.env): AiModelResource[] {
   const ownerControl = refreshPersistedAiOwnerControl(env);
   const resources: AiModelResource[] = [];
+  const quotaScopes = new Set(discoverConfiguredAiProviderQuotas(env).map((quota) => quota.scope));
   const addProvider = (provider: SupportedProvider, configured: boolean, candidateModels: readonly string[], prefix: string): void => {
     if (!configured) return;
     const pinnedModel = env.AI_PINNED_PROVIDER === provider ? env.AI_PINNED_MODEL?.trim() : undefined;
     const uniqueModels = [...new Set([...(pinnedModel ? [pinnedModel] : []), ...candidateModels].map((model) => model.trim()).filter(Boolean))];
     const billingClass = billingClassFromEnv(env[`${prefix}_BILLING_CLASS`], DEFAULT_BILLING[provider], prefix);
-    for (const model of uniqueModels) resources.push(withProviderMetrics({ provider, model, configured: true, healthy: true, billingClass, capabilities: { ...BASE_CAPABILITIES[provider] } }, env, prefix, uniqueModels.length === 1));
+    for (const model of uniqueModels) {
+      resources.push(withProviderMetrics({
+        provider,
+        model,
+        configured: true,
+        healthy: true,
+        billingClass,
+        capabilities: { ...BASE_CAPABILITIES[provider] },
+        ...(quotaScopes.has(provider) ? { quotaScope: provider } : {}),
+      }, env, prefix));
+    }
   };
 
   const kingsTextEndpoint = kingsResponsesEndpoint(env);
-  // ai-provider's legacy bridge reads KINGS_AI_ENDPOINT. Only rewrite it when a text-generation endpoint has been explicitly established.
-  if (kingsTextEndpoint) env.KINGS_AI_ENDPOINT = kingsTextEndpoint;
 
   addProvider("omniroute", Boolean(env.OMNIROUTE_BASE_URL?.trim()), models(env.OMNIROUTE_MODELS, env.OMNIROUTE_MODEL, "auto"), "OMNIROUTE");
   addProvider("9router", Boolean(env.ROUTER9_BASE_URL?.trim()), models(env.ROUTER9_MODELS, env.ROUTER9_MODEL), "ROUTER9");
@@ -64,8 +73,38 @@ export function discoverConfiguredAiModelResources(env: NodeJS.ProcessEnv = proc
 
   const overrides = parseExplicitResources(env.AI_MODEL_RESOURCES_JSON, env);
   const byKey = new Map(resources.map((resource) => [`${resource.provider}::${resource.model}`, resource]));
-  for (const resource of overrides) byKey.set(`${resource.provider}::${resource.model}`, resource);
+  for (const resource of overrides) {
+    const quotaScope = quotaScopes.has(resource.provider) ? resource.provider : undefined;
+    byKey.set(`${resource.provider}::${resource.model}`, { ...resource, ...(quotaScope ? { quotaScope } : {}) });
+  }
   return constrainResourcesForOwnerPin([...byKey.values()], ownerControl);
+}
+
+/**
+ * Provider/account quota discovery is intentionally separate from model
+ * discovery. One OMNIROUTE_TOKEN_QUOTA or ROUTER9_TOKEN_QUOTA represents one
+ * shared allowance regardless of how many models are configured behind it.
+ */
+export function discoverConfiguredAiProviderQuotas(env: NodeJS.ProcessEnv = process.env): AiProviderQuota[] {
+  const definitions: readonly [SupportedProvider, boolean, string][] = [
+    ["omniroute", Boolean(env.OMNIROUTE_BASE_URL?.trim()), "OMNIROUTE"],
+    ["9router", Boolean(env.ROUTER9_BASE_URL?.trim()), "ROUTER9"],
+    ["openai", Boolean(env.OPENAI_API_KEY?.trim()), "OPENAI"],
+    ["ollama", Boolean(env.OLLAMA_BASE_URL?.trim()), "OLLAMA"],
+    ["kings", Boolean(kingsResponsesEndpoint(env)), "KINGS_AI"],
+    ["groq", Boolean(env.GROQ_API_KEY?.trim()), "GROQ"],
+    ["mistral", Boolean(env.MISTRAL_API_KEY?.trim()), "MISTRAL"],
+    ["gemini", Boolean(env.GEMINI_API_KEY?.trim()), "GEMINI"],
+    ["anthropic", Boolean(env.ANTHROPIC_API_KEY?.trim()), "ANTHROPIC"],
+    ["openrouter", Boolean(env.OPENROUTER_API_KEY?.trim()), "OPENROUTER"],
+  ];
+  const quotas: AiProviderQuota[] = [];
+  for (const [provider, configured, prefix] of definitions) {
+    if (!configured) continue;
+    const quota = providerQuotaFromEnv(provider, prefix, env);
+    if (quota) quotas.push(quota);
+  }
+  return quotas;
 }
 
 function kingsResponsesEndpoint(env: NodeJS.ProcessEnv): string | undefined {
@@ -82,16 +121,32 @@ function models(list: string | undefined, single: string | undefined, fallback?:
   return fallback ? [fallback] : [];
 }
 
-function withProviderMetrics(resource: AiModelResource, env: NodeJS.ProcessEnv, prefix: string, applySharedQuota: boolean): AiModelResource {
-  const quotaLimit = applySharedQuota ? positive(env[`${prefix}_TOKEN_QUOTA`]) : undefined;
-  const usedTokens = applySharedQuota ? nonnegative(env[`${prefix}_USED_TOKENS`]) : undefined;
-  const remainingQuota = applySharedQuota ? nonnegative(env[`${prefix}_REMAINING_TOKENS`]) : undefined;
+function withProviderMetrics(resource: AiModelResource, env: NodeJS.ProcessEnv, prefix: string): AiModelResource {
   const estimatedInputCostPerMillion = nonnegative(env[`${prefix}_INPUT_COST_PER_MILLION`]);
   const estimatedOutputCostPerMillion = nonnegative(env[`${prefix}_OUTPUT_COST_PER_MILLION`]);
-  const rawReset = applySharedQuota ? env[`${prefix}_QUOTA_RESET_AT`] : undefined;
+  return {
+    ...resource,
+    ...(estimatedInputCostPerMillion !== undefined ? { estimatedInputCostPerMillion } : {}),
+    ...(estimatedOutputCostPerMillion !== undefined ? { estimatedOutputCostPerMillion } : {}),
+  };
+}
+
+function providerQuotaFromEnv(provider: SupportedProvider, prefix: string, env: NodeJS.ProcessEnv): AiProviderQuota | undefined {
+  const quotaLimit = positive(env[`${prefix}_TOKEN_QUOTA`]);
+  const usedTokens = nonnegative(env[`${prefix}_USED_TOKENS`]);
+  const remainingQuota = nonnegative(env[`${prefix}_REMAINING_TOKENS`]);
+  const rawReset = env[`${prefix}_QUOTA_RESET_AT`];
   if (rawReset?.trim() && !validTimestamp(rawReset)) throw new Error(`${prefix}_QUOTA_RESET_AT must be a valid timestamp.`);
   const quotaResetAt = rawReset?.trim();
-  return { ...resource, ...(quotaLimit !== undefined ? { quotaLimit } : {}), ...(usedTokens !== undefined ? { usedTokens } : {}), ...(remainingQuota !== undefined ? { remainingQuota } : {}), ...(quotaResetAt ? { quotaResetAt } : {}), ...(estimatedInputCostPerMillion !== undefined ? { estimatedInputCostPerMillion } : {}), ...(estimatedOutputCostPerMillion !== undefined ? { estimatedOutputCostPerMillion } : {}) };
+  if (quotaLimit === undefined && usedTokens === undefined && remainingQuota === undefined && !quotaResetAt) return undefined;
+  return {
+    scope: provider,
+    provider,
+    ...(quotaLimit !== undefined ? { quotaLimit } : {}),
+    ...(usedTokens !== undefined ? { usedTokens } : {}),
+    ...(remainingQuota !== undefined ? { remainingQuota } : {}),
+    ...(quotaResetAt ? { quotaResetAt } : {}),
+  };
 }
 
 function parseExplicitResources(raw: string | undefined, env: NodeJS.ProcessEnv): AiModelResource[] {
@@ -145,6 +200,6 @@ function parseBillingClass(value: unknown, fallback: AiBillingClass, label: stri
 function optionalNumberField(value: Record<string, unknown>, key: keyof AiModelResource): Partial<AiModelResource> { const raw = value[key as string]; if (raw === undefined) return {}; if (typeof raw !== "number" || !Number.isFinite(raw) || raw < 0) throw new Error(`AI model resource ${String(key)} must be a non-negative finite number.`); return { [key]: raw } as Partial<AiModelResource>; }
 function optionalTimestamp(value: unknown, label: string): string | undefined { if (value === undefined) return undefined; if (typeof value !== "string" || !validTimestamp(value)) throw new Error(`${label} must be a valid timestamp.`); return value.trim(); }
 function requiredString(value: unknown, label: string): string { if (typeof value !== "string" || !value.trim()) throw new Error(`${label} is required.`); return value.trim(); }
-function positive(value: string | undefined): number | undefined { const parsed = Number(value); return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined; }
-function nonnegative(value: string | undefined): number | undefined { const parsed = Number(value); return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined; }
+function positive(value: string | undefined): number | undefined { if (!value?.trim()) return undefined; const parsed = Number(value); return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined; }
+function nonnegative(value: string | undefined): number | undefined { if (!value?.trim()) return undefined; const parsed = Number(value); return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined; }
 function validTimestamp(value: string | undefined): boolean { return Boolean(value?.trim() && Number.isFinite(Date.parse(value))); }
