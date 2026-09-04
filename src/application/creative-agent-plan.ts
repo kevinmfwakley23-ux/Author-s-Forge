@@ -83,6 +83,11 @@ export function compileCreativeAgentPlan(input: CreativeAgentPlanInput): Creativ
   if (wantsEditing || input.mode === "editor") requested.add("editing.analyze");
 
   if (hasAny(lower, [
+    "cover direction", "cover brief", "cover concept", "cover design", "design the cover", "plan the cover",
+    "back cover copy", "back-cover copy", "spine text", "cover typography", "book jacket direction",
+  ])) requested.add("cover.direction.propose");
+
+  if (hasAny(lower, [
     "image", "illustration", "illustrate", "artwork", "cover art", "character art", "character image", "visual",
     "picture", "concept art", "scene art", "book cover image",
   ])) requested.add("visual.image.generate");
@@ -110,6 +115,7 @@ export function compileCreativeAgentPlan(input: CreativeAgentPlanInput): Creativ
     "project.context",
     "writing.propose",
     "editing.analyze",
+    "cover.direction.propose",
     "visual.image.generate",
     "production.export",
     "promotion.campaign.propose",
@@ -215,6 +221,7 @@ function reasonFor(toolId: string, goal: string): string {
     case "project.context": return "Ground later generation in the current Project Brain and author-controlled project truth.";
     case "writing.propose": return `Create a durable, separately reviewable writing proposal for: ${goal}`;
     case "editing.analyze": return `Analyze existing manuscript craft without silently rewriting it: ${goal}`;
+    case "cover.direction.propose": return `Create a Project Brain-grounded Cover Studio direction candidate without inventing production geometry for: ${goal}`;
     case "visual.image.generate": return `Create a reviewable visual asset with provider/model provenance for: ${goal}`;
     case "production.export": return `Render a real review/production artifact requested by the author: ${goal}`;
     case "promotion.campaign.propose": return `Create a draft promotion campaign from saved book truth and optional market evidence for: ${goal}`;
