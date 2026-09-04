@@ -10,6 +10,7 @@ import type { AiCostRoutingMode } from "../application/ai-cost-routing-policy";
 import { assertForgeOutputQuality, buildForgeQualityContract, type ForgeOutputQualityReport } from "../application/forge-quality-contract";
 import { discoverConfiguredAiModelResources } from "./ai-model-resources";
 import { generateWithKingsAi } from "./kings-ai-bridge";
+import { resolveOpenAiCompatibleGatewayModel } from "./openai-compatible-gateways";
 
 export interface AiTokenUsage {
   readonly inputTokens: number;
@@ -39,7 +40,7 @@ export interface AiGenerationRequest {
   readonly requiresInstructionFollowing?: boolean;
 }
 export interface AiGenerationResult {
-  readonly provider: "omniroute" | "9router" | "openai" | "ollama" | "kings" | "groq" | "mistral" | "gemini" | "anthropic" | "openrouter";
+  readonly provider: "omniroute" | "9router" | "openai" | "ollama" | "kings" | "groq" | "mistral" | "gemini" | "anthropic" | "openrouter" | "gateway";
   readonly model: string;
   readonly text: string;
   readonly requestId?: string;
@@ -106,7 +107,7 @@ export async function generateText(request: AiGenerationRequest): Promise<AiGene
     strategy: optimized.strategy,
   };
   const resources = refreshLiveBroker();
-  if (!resources.length) throw new Error("No AI provider is configured. Configure OmniRoute, 9Router, K.I.N.G.S., Ollama, Groq, Mistral, Gemini, Anthropic, OpenRouter, or OpenAI. Forge never fabricates AI output.");
+  if (!resources.length) throw new Error("No AI provider is configured. Configure OmniRoute, 9Router, K.I.N.G.S., Ollama, Groq, Mistral, Gemini, Anthropic, OpenRouter, OpenAI, or an OpenAI-compatible gateway. Forge never fabricates AI output.");
 
   const routingMode = request.routingMode ?? routingModeFromEnv(process.env.AI_ROUTING_MODE);
   const spendPolicy = request.spendPolicy ?? spendPolicyFromEnv(process.env.AI_SPEND_POLICY);
@@ -242,7 +243,7 @@ function refreshLiveBroker() {
 }
 
 function providerOrder(): ProviderName[] {
-  const defaults: ProviderName[] = ["omniroute", "9router", "kings", "ollama", "groq", "mistral", "gemini", "anthropic", "openrouter", "openai"];
+  const defaults: ProviderName[] = ["omniroute", "9router", "kings", "ollama", "groq", "mistral", "gemini", "anthropic", "openrouter", "gateway", "openai"];
   const configured = (process.env.AI_PROVIDER_ORDER?.trim() || defaults.join(",")).split(",").map((value) => value.trim().toLowerCase()).filter(Boolean) as ProviderName[];
   const allowed = new Set<ProviderName>(defaults);
   const unique = configured.filter((provider, index) => allowed.has(provider) && configured.indexOf(provider) === index);
@@ -275,6 +276,11 @@ async function generateFromProvider(provider: ProviderName, model: string, reque
       const key = process.env.MISTRAL_API_KEY?.trim();
       if (!key) throw new Error("Mistral is not configured.");
       return generateWithOpenAiCompatibleGateway("mistral", process.env.MISTRAL_BASE_URL?.trim() || "https://api.mistral.ai", key, request, model);
+    }
+    case "gateway": {
+      const resolved = resolveOpenAiCompatibleGatewayModel(model);
+      const generated = await generateWithOpenAiCompatibleGateway("gateway", resolved.gateway.baseUrl, resolved.apiKey, request, resolved.upstreamModel);
+      return { ...generated, model };
     }
     case "gemini": {
       const key = process.env.GEMINI_API_KEY?.trim();
@@ -329,7 +335,7 @@ function spendPolicyFromEnv(value: string | undefined): AiSpendPolicy {
 }
 function csv(value: string | undefined): string[] { return value?.split(",").map((item) => item.trim()).filter(Boolean) ?? []; }
 
-async function generateWithOpenAiCompatibleGateway(provider: "omniroute" | "9router" | "groq" | "mistral" | "openrouter", baseUrl: string, apiKey: string | undefined, request: AiGenerationRequest, model: string, extraHeaders: Record<string, string> = {}): Promise<AiGenerationResult> {
+async function generateWithOpenAiCompatibleGateway(provider: "omniroute" | "9router" | "groq" | "mistral" | "openrouter" | "gateway", baseUrl: string, apiKey: string | undefined, request: AiGenerationRequest, model: string, extraHeaders: Record<string, string> = {}): Promise<AiGenerationResult> {
   const response = await fetch(`${baseUrl.replace(/\/$/, "")}/v1/chat/completions`, { method: "POST", headers: { "content-type": "application/json", ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}), ...extraHeaders }, body: JSON.stringify({ model, messages: [{ role: "system", content: request.system }, { role: "user", content: request.user }], temperature: request.temperature ?? 0.7, ...(request.maxOutputTokens ? { max_tokens: request.maxOutputTokens } : {}) }) });
   const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
   if (!response.ok) throw new Error(typeof payload.error === "object" && payload.error ? String((payload.error as Record<string, unknown>).message ?? `${provider} request failed (${response.status}).`) : `${provider} request failed (${response.status}).`);
