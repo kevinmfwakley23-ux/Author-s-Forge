@@ -62,8 +62,12 @@ async function main() {
 
     const registry = await api(base, `/api/projects/${PROJECT_ID}/agent/tools`);
     assert.equal(registry.authority, "discovery-only");
-    assert.equal(registry.tools.length, 7);
+    assert.equal(registry.formatVersion, 2);
+    assert.equal(registry.tools.length, 11);
     assert.equal(registry.tools.find((tool) => tool.id === "writing.propose").stateEffect, "proposal-ledger");
+    assert.equal(registry.tools.find((tool) => tool.id === "visual.image.generate").providerRequirement, "configured-image");
+    assert.equal(registry.tools.find((tool) => tool.id === "market.kdp.research").stateEffect, "market-intelligence");
+    assert.equal(registry.tools.find((tool) => tool.id === "promotion.campaign.propose").stateEffect, "campaign-draft");
 
     await api(base, `/api/projects/${PROJECT_ID}/collaboration`, "POST", { mode: "editor" });
     const editorPlanResponse = await api(base, `/api/projects/${PROJECT_ID}/agent/plan`, "POST", {
@@ -88,10 +92,26 @@ async function main() {
     assert.equal(plan.steps.find((step) => step.toolId === "production.export").eligibleForApprovedRunGroup, false);
     assert.equal(plan.steps.some((step) => step.toolId.includes("apply") || step.toolId.includes("content")), false);
 
+    const crossSurface = await api(base, `/api/projects/${PROJECT_ID}/agent/plan`, "POST", {
+      goal: "Research the KDP niche and keywords, create chapter cards, generate an illustration, and build a promotion campaign.",
+      bookId: BOOK_ID,
+      chapterId: CHAPTER_ID,
+      sceneId: SCENE_ID,
+    });
+    assert.deepEqual(crossSurface.plan.steps.map((step) => step.toolId), [
+      "market.kdp.research",
+      "story.chapter-cards.propose",
+      "visual.image.generate",
+      "promotion.campaign.propose",
+      "memory.record-working",
+    ]);
+    assert.equal(crossSurface.plan.steps.find((step) => step.toolId === "visual.image.generate").providerRequirement, "configured-image");
+    assert.equal(crossSurface.plan.steps.find((step) => step.toolId === "promotion.campaign.propose").eligibleForApprovedRunGroup, false);
+
     const missingScopeResponse = await api(base, `/api/projects/${PROJECT_ID}/agent/plan`, "POST", { goal: "Draft the next scene." });
     assert.match(missingScopeResponse.plan.steps.find((step) => step.toolId === "writing.propose").blockedReason, /requires chapter, scene scope/);
 
-    console.log("FORGE AGENT PLANNER API ACCEPTANCE PASSED: discoverable registry + persisted-mode planning + Editor block + bounded Autonomous grouping + missing-scope honesty.");
+    console.log("FORGE AGENT PLANNER API ACCEPTANCE PASSED: 11-tool registry + cross-surface planning + persisted-mode Editor block + bounded Autonomous grouping + missing-scope honesty.");
   } finally {
     server.kill("SIGTERM");
     await new Promise((resolve) => server.exitCode !== null ? resolve() : server.once("exit", resolve));
