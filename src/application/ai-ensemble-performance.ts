@@ -34,14 +34,33 @@ export function createAiEnsemblePerformanceTracker(input: {
   const resources = input.resources ?? aiConfiguredResources();
   const ensembleId = input.ensembleId?.trim() || `ensemble-run-${randomUUID()}`;
   const observations: AiModelPerformanceObservation[] = [];
+  let flushedCount = 0;
 
   const generate: AiTextEnsembleGenerator = async (request) => {
     const phase = phaseFromRequest(request);
     const started = Date.now();
     try {
       const result = await delegate(request);
-      const latencyMs = Date.now() - started;
+      // generateText exposes every internal failover attempt. Preserve failed
+      // model evidence instead of crediting only the eventual winner.
+      for (const attempt of result.attempts ?? []) {
+        if (attempt.success || !attempt.model) continue;
+        observations.push(failedObservation({
+          projectId: input.projectId,
+          ensembleId,
+          task: input.task,
+          phase,
+          provider: attempt.provider,
+          model: attempt.model,
+          billingClass: billingFor(resources, attempt.provider, attempt.model),
+          latencyMs: attempt.latencyMs,
+        }));
+      }
+
+      const latencyMs = result.attempts?.find((attempt) => attempt.success && attempt.provider === result.provider && attempt.model === result.model)?.latencyMs
+        ?? Date.now() - started;
       const judged = judgeOutcome(phase, result, input.qualityFloor);
+      const billing = billingFor(resources, result.provider, result.model);
       observations.push(createAiModelPerformanceObservation({
         id: `model-observation-${randomUUID()}`,
         projectId: input.projectId,
@@ -50,7 +69,7 @@ export function createAiEnsemblePerformanceTracker(input: {
         provider: result.provider,
         model: result.model,
         phase,
-        ...(billingFor(resources, result.provider, result.model) ? { billingClass: billingFor(resources, result.provider, result.model) } : {}),
+        ...(billing ? { billingClass: billing } : {}),
         ...(judged.qualityScore === undefined ? {} : { qualityScore: judged.qualityScore }),
         accepted: judged.accepted,
         latencyMs,
@@ -63,19 +82,15 @@ export function createAiEnsemblePerformanceTracker(input: {
       // Attribute a total call failure only when the request was explicitly
       // assigned to a provider/model. Unpinned broker failures are not guessed.
       if (provider && model) {
-        const billing = billingFor(resources, provider, model);
-        observations.push(createAiModelPerformanceObservation({
-          id: `model-observation-${randomUUID()}`,
+        observations.push(failedObservation({
           projectId: input.projectId,
           ensembleId,
           task: input.task,
+          phase,
           provider,
           model,
-          phase,
-          ...(billing ? { billingClass: billing } : {}),
-          accepted: false,
+          billingClass: billingFor(resources, provider, model),
           latencyMs: Date.now() - started,
-          createdAt: new Date().toISOString(),
         }));
       }
       throw error;
@@ -85,9 +100,40 @@ export function createAiEnsemblePerformanceTracker(input: {
   return {
     ensembleId,
     generate,
-    pending: () => observations.map(clone),
-    flush: async () => observations.length ? input.store.appendMany(observations) : [],
+    pending: () => observations.slice(flushedCount).map(clone),
+    flush: async () => {
+      const batch = observations.slice(flushedCount);
+      if (!batch.length) return [];
+      const persisted = await input.store.appendMany(batch);
+      flushedCount += batch.length;
+      return persisted;
+    },
   };
+}
+
+function failedObservation(input: {
+  projectId: string;
+  ensembleId: string;
+  task: string;
+  phase: AiModelPerformancePhase;
+  provider: string;
+  model: string;
+  billingClass?: AiBillingClass;
+  latencyMs: number;
+}): AiModelPerformanceObservation {
+  return createAiModelPerformanceObservation({
+    id: `model-observation-${randomUUID()}`,
+    projectId: input.projectId,
+    ensembleId: input.ensembleId,
+    task: input.task,
+    provider: input.provider,
+    model: input.model,
+    phase: input.phase,
+    ...(input.billingClass ? { billingClass: input.billingClass } : {}),
+    accepted: false,
+    latencyMs: input.latencyMs,
+    createdAt: new Date().toISOString(),
+  });
 }
 
 function phaseFromRequest(request: AiGenerationRequest): AiModelPerformancePhase {
