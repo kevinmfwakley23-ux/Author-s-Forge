@@ -40,13 +40,16 @@ async function main() {
       HOST,
       PORT: String(PORT),
       FORGE_DATA_DIR: dataDir,
-      OPENAI_API_KEY: "",
-      OPENAI_MODEL: "",
-      OLLAMA_BASE_URL: "",
-      OLLAMA_MODEL: "",
-      KINGS_AI_ENDPOINT: "",
-      OMNIROUTE_BASE_URL: "",
-      ROUTER9_BASE_URL: "",
+      OPENAI_API_KEY: "", OPENAI_MODEL: "", OPENAI_MODELS: "",
+      OLLAMA_BASE_URL: "", OLLAMA_MODEL: "", OLLAMA_MODELS: "",
+      KINGS_AI_ENDPOINT: "", KINGS_AI_MODEL: "", KINGS_AI_MODELS: "",
+      OMNIROUTE_BASE_URL: "", OMNIROUTE_API_KEY: "", OMNIROUTE_MODEL: "", OMNIROUTE_MODELS: "",
+      ROUTER9_BASE_URL: "", ROUTER9_API_KEY: "", ROUTER9_MODEL: "", ROUTER9_MODELS: "",
+      GROQ_API_KEY: "", GROQ_MODEL: "", GROQ_MODELS: "",
+      MISTRAL_API_KEY: "", MISTRAL_MODEL: "", MISTRAL_MODELS: "",
+      GEMINI_API_KEY: "", GEMINI_MODEL: "", GEMINI_MODELS: "",
+      ANTHROPIC_API_KEY: "", ANTHROPIC_MODEL: "", ANTHROPIC_MODELS: "",
+      OPENROUTER_API_KEY: "", OPENROUTER_MODEL: "", OPENROUTER_MODELS: "",
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -74,6 +77,8 @@ async function main() {
       goal: "Draft and continuity edit this scene.", bookId: BOOK_ID, chapterId: CHAPTER_ID, sceneId: SCENE_ID,
     });
     assert.equal(editorPlanResponse.authority, "plan-only");
+    assert.equal(editorPlanResponse.plannerRequested, "deterministic");
+    assert.equal(editorPlanResponse.plannerUsed, "deterministic");
     assert.equal(editorPlanResponse.plan.mode, "editor");
     assert.match(editorPlanResponse.plan.steps.find((step) => step.toolId === "writing.propose").blockedReason, /configured not to draft new prose/);
     assert.equal(editorPlanResponse.plan.policy.bulkExecutionEligible, false);
@@ -94,19 +99,25 @@ async function main() {
 
     const crossSurface = await api(base, `/api/projects/${PROJECT_ID}/agent/plan`, "POST", {
       goal: "Research the KDP niche and keywords, create chapter cards, generate an illustration, and build a promotion campaign.",
-      bookId: BOOK_ID,
-      chapterId: CHAPTER_ID,
-      sceneId: SCENE_ID,
+      bookId: BOOK_ID, chapterId: CHAPTER_ID, sceneId: SCENE_ID,
     });
     assert.deepEqual(crossSurface.plan.steps.map((step) => step.toolId), [
-      "market.kdp.research",
-      "story.chapter-cards.propose",
-      "visual.image.generate",
-      "promotion.campaign.propose",
-      "memory.record-working",
+      "market.kdp.research", "story.chapter-cards.propose", "visual.image.generate", "promotion.campaign.propose", "memory.record-working",
     ]);
     assert.equal(crossSurface.plan.steps.find((step) => step.toolId === "visual.image.generate").providerRequirement, "configured-image");
     assert.equal(crossSurface.plan.steps.find((step) => step.toolId === "promotion.campaign.propose").eligibleForApprovedRunGroup, false);
+
+    // AI-enhanced planning is opt-in. With every provider deliberately absent it must visibly fall back, not fabricate an AI plan.
+    const aiFallback = await api(base, `/api/projects/${PROJECT_ID}/agent/plan`, "POST", {
+      planner: "ai",
+      goal: "Research the KDP niche and keywords, create chapter cards, generate an illustration, and build a promotion campaign.",
+      bookId: BOOK_ID, chapterId: CHAPTER_ID, sceneId: SCENE_ID,
+    });
+    assert.equal(aiFallback.plannerRequested, "ai");
+    assert.equal(aiFallback.plannerUsed, "deterministic-fallback");
+    assert.match(aiFallback.plannerFallbackReason, /No AI provider is configured/i);
+    assert.equal(aiFallback.plannerProvider, undefined);
+    assert.deepEqual(aiFallback.plan.steps.map((step) => step.toolId), crossSurface.plan.steps.map((step) => step.toolId));
 
     const createdRecipe = await api(base, `/api/projects/${PROJECT_ID}/agent/recipes`, "POST", {
       id: "launch-recipe",
@@ -126,17 +137,12 @@ async function main() {
     assert.deepEqual(recipeList.recipes.map((recipe) => recipe.id), ["launch-recipe"]);
 
     const recipePlan = await api(base, `/api/projects/${PROJECT_ID}/agent/recipes/launch-recipe/plan`, "POST", {
-      goal: "Prepare this book's launch kit.",
-      bookId: BOOK_ID,
-      chapterId: CHAPTER_ID,
-      sceneId: SCENE_ID,
+      goal: "Prepare this book's launch kit.", bookId: BOOK_ID, chapterId: CHAPTER_ID, sceneId: SCENE_ID,
     });
     assert.equal(recipePlan.authority, "plan-only");
+    assert.equal(recipePlan.plannerUsed, "recipe");
     assert.deepEqual(recipePlan.plan.steps.map((step) => step.toolId), [
-      "market.kdp.research",
-      "visual.image.generate",
-      "promotion.campaign.propose",
-      "memory.record-working",
+      "market.kdp.research", "visual.image.generate", "promotion.campaign.propose", "memory.record-working",
     ]);
     assert.equal(recipePlan.plan.steps.find((step) => step.toolId === "promotion.campaign.propose").eligibleForApprovedRunGroup, false);
     const projectWithRecipe = await api(base, `/api/projects/${PROJECT_ID}`);
@@ -145,7 +151,7 @@ async function main() {
     const missingScopeResponse = await api(base, `/api/projects/${PROJECT_ID}/agent/plan`, "POST", { goal: "Draft the next scene." });
     assert.match(missingScopeResponse.plan.steps.find((step) => step.toolId === "writing.propose").blockedReason, /requires chapter, scene scope/);
 
-    console.log("FORGE AGENT PLANNER API ACCEPTANCE PASSED: 11-tool registry + cross-surface planning + durable Forge Recipes + persisted-mode Editor block + bounded Autonomous grouping + missing-scope honesty.");
+    console.log("FORGE AGENT PLANNER API ACCEPTANCE PASSED: 11-tool registry + deterministic default + truthful AI fallback + durable Forge Recipes + Editor block + bounded Autonomous grouping + missing-scope honesty.");
   } finally {
     server.kill("SIGTERM");
     await new Promise((resolve) => server.exitCode !== null ? resolve() : server.once("exit", resolve));
