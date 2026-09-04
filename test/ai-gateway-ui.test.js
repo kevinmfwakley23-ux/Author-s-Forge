@@ -5,10 +5,11 @@ const vm = require("node:vm");
 
 async function text(path) { return readFile(path, "utf8"); }
 
-test("AI gateway browser module parses and exposes real gateway operations without raw-secret storage", async () => {
+test("AI gateway browser module parses and exposes real project-scoped gateway operations without raw-secret storage", async () => {
   const source = await text("public/forge-ai-gateways.js");
   assert.doesNotThrow(() => new vm.Script(source, { filename:"forge-ai-gateways.js" }));
-  assert.match(source, /\/ai\/gateways/);
+  assert.match(source, /const root = `\/api\/projects\/\$\{encodeURIComponent\(projectId\)\}\/ai`/);
+  assert.match(source, /`\$\{root\}\/gateways`/);
   assert.match(source, /Discover & register models/);
   assert.match(source, /apiKeyEnv/);
   assert.match(source, /Raw API keys are intentionally rejected/);
