@@ -58,9 +58,9 @@ export function createStudioHumanReviewRoutes(
 
     if (url.pathname === `${root}/comments` && req.method === "GET") {
       await requireProject(projects, projectId);
-      const token = reviewToken(req);
-      if (token) await reviews.authenticate(projectId, token);
-      json(res, 200, { comments: await reviews.listComments(projectId) });
+      const reviewer = await authenticateReviewer(req, reviews, projectId);
+      const comments = (await reviews.listComments(projectId)).filter((item) => item.reviewerId === reviewer.id);
+      json(res, 200, { comments });
       return true;
     }
 
@@ -101,9 +101,9 @@ export function createStudioHumanReviewRoutes(
 
     if (url.pathname === `${root}/suggestions` && req.method === "GET") {
       await requireProject(projects, projectId);
-      const token = reviewToken(req);
-      if (token) await reviews.authenticate(projectId, token);
-      json(res, 200, { suggestions: await reviews.listSuggestions(projectId) });
+      const reviewer = await authenticateReviewer(req, reviews, projectId);
+      const suggestions = (await reviews.listSuggestions(projectId)).filter((item) => item.reviewerId === reviewer.id);
+      json(res, 200, { suggestions });
       return true;
     }
 
