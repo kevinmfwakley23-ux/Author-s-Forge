@@ -8,7 +8,7 @@
   if (!form || !projectInput || !collectionSelect || !status || !collectionList) return;
 
   function setStatus(message) { status.textContent = message || ''; }
-  function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[char])); }
+  function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;" }[char])); }
   function projectId() {
     const value = projectInput.value.trim() || new URLSearchParams(location.search).get('project') || localStorage.getItem('forge-project') || '';
     if (!/^[A-Za-z0-9_-]+$/.test(value)) throw new Error('Open a valid Forge project first.');
@@ -53,8 +53,18 @@
     setStatus(`Author artwork attached to token ${tokenId}. Rights/provenance declaration recorded in Project Brain.`);
   }
 
+  function loadMarketSignalLab() {
+    if (document.querySelector('script[data-nft-market-ui]')) return;
+    const script = document.createElement('script');
+    script.src = '/nft-market-ui.js';
+    script.defer = true;
+    script.dataset.nftMarketUi = 'true';
+    document.head.append(script);
+  }
+
   form.addEventListener('submit', (event) => attach(event).catch((error) => setStatus(error.message)));
   new MutationObserver(refreshCollections).observe(collectionList, { childList: true, subtree: true });
   document.querySelector('#nft-refresh')?.addEventListener('click', () => setTimeout(refreshCollections, 50));
   refreshCollections();
+  loadMarketSignalLab();
 })();
