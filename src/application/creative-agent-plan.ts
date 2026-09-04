@@ -17,6 +17,11 @@ export interface CreativeAgentPlanInput {
   readonly scope: CreativeAgentPlanScope;
 }
 
+export interface CreativeAgentToolSelection {
+  readonly toolId: string;
+  readonly reason?: string;
+}
+
 export interface CreativeAgentPlanStep {
   readonly sequence: number;
   readonly id: string;
@@ -45,10 +50,10 @@ export interface CreativeAgentPlan {
   readonly steps: readonly CreativeAgentPlanStep[];
 }
 
+/** Deterministic, provider-free planner. This remains Forge's default/free planning path. */
 export function compileCreativeAgentPlan(input: CreativeAgentPlanInput): CreativeAgentPlan {
   const goal = text(input.goal, "Creative agent goal");
   const lower = goal.toLowerCase();
-  const policy = createAiCollaborationPolicy(input.mode);
   const requested = new Set<string>();
 
   const wantsMarketResearch = hasAny(lower, [
@@ -96,7 +101,6 @@ export function compileCreativeAgentPlan(input: CreativeAgentPlanInput): Creativ
       requested.add("writing.propose");
     }
   }
-  requested.add("memory.record-working");
 
   const orderedIds = [
     "research.live",
@@ -109,16 +113,60 @@ export function compileCreativeAgentPlan(input: CreativeAgentPlanInput): Creativ
     "visual.image.generate",
     "production.export",
     "promotion.campaign.propose",
-    "memory.record-working",
   ].filter((id) => requested.has(id));
 
-  const steps = orderedIds.map((toolId, index) => {
-    const tool = creativeToolById(toolId);
+  return compileCreativeAgentSelectedPlan(
+    { ...input, goal },
+    orderedIds.map((toolId) => ({ toolId })),
+  );
+}
+
+/**
+ * Shared safety compiler for deterministic, Recipe, and model-assisted tool selections.
+ * It is the only place that turns selected tool ids into executable-plan metadata.
+ */
+export function compileCreativeAgentSelectedPlan(
+  input: CreativeAgentPlanInput,
+  selections: readonly CreativeAgentToolSelection[],
+): CreativeAgentPlan {
+  const goal = text(input.goal, "Creative agent goal");
+  if (!Array.isArray(selections) || !selections.length) throw new Error("Creative agent plan requires at least one registered tool selection.");
+  if (selections.length > 20) throw new Error("Creative agent plan cannot exceed 20 selected tools.");
+
+  const normalized: CreativeAgentToolSelection[] = [];
+  const seen = new Set<string>();
+  for (const selection of selections) {
+    if (!selection || typeof selection !== "object") throw new Error("Creative agent tool selection must be an object.");
+    const toolId = text(selection.toolId, "Creative agent tool id");
+    creativeToolById(toolId);
+    if (toolId === "memory.record-working" || seen.has(toolId)) continue;
+    seen.add(toolId);
+    const reason = optionalReason(selection.reason);
+    normalized.push(Object.freeze({ toolId, ...(reason ? { reason } : {}) }));
+  }
+  if (!normalized.length) throw new Error("Creative agent plan requires at least one non-audit tool selection.");
+
+  const writingIndex = normalized.findIndex((selection) => selection.toolId === "writing.propose");
+  if (writingIndex >= 0 && !seen.has("project.context")) {
+    normalized.splice(writingIndex, 0, Object.freeze({
+      toolId: "project.context",
+      reason: "Ground writing in the current Project Brain and author-controlled truth before any prose proposal.",
+    }));
+    seen.add("project.context");
+  }
+  normalized.push(Object.freeze({
+    toolId: "memory.record-working",
+    reason: "Preserve author-approved execution evidence as working memory without promoting it to canon.",
+  }));
+
+  const policy = createAiCollaborationPolicy(input.mode);
+  const steps = normalized.map((selection, index) => {
+    const tool = creativeToolById(selection.toolId);
     let blockedReason = missingScopeReason(tool, input.scope);
-    if (!blockedReason && toolId === "writing.propose" && !policy.aiMayDraft) {
+    if (!blockedReason && tool.id === "writing.propose" && !policy.aiMayDraft) {
       blockedReason = `Collaboration mode "${policy.mode}" is configured not to draft new prose. Change mode before planning an AI writing proposal.`;
     }
-    if (!blockedReason && toolId === "editing.analyze" && input.scope.scene && !input.scope.sceneHasContent) {
+    if (!blockedReason && tool.id === "editing.analyze" && input.scope.scene && !input.scope.sceneHasContent) {
       blockedReason = "The selected scene has no manuscript text to analyze.";
     }
     const eligibleForApprovedRunGroup = !blockedReason && policy.aiMayExecuteBulkWork && tool.approvalClass === "read-only" && tool.stateEffect === "none";
@@ -127,7 +175,7 @@ export function compileCreativeAgentPlan(input: CreativeAgentPlanInput): Creativ
       id: `step-${index + 1}-${tool.id}`,
       toolId: tool.id,
       title: tool.title,
-      reason: reasonFor(tool.id, goal),
+      reason: selection.reason ?? reasonFor(tool.id, goal),
       approvalClass: tool.approvalClass,
       providerRequirement: tool.providerRequirement,
       stateEffect: tool.stateEffect,
@@ -179,9 +227,18 @@ function hasAny(value: string, terms: readonly string[]): boolean {
   return terms.some((term) => value.includes(term));
 }
 
-function text(value: string, label: string): string {
+function text(value: unknown, label: string): string {
   if (typeof value !== "string" || !value.trim()) throw new Error(`${label} is required.`);
   const normalized = value.trim();
   if (normalized.length > 10_000) throw new Error(`${label} exceeds 10,000 characters.`);
+  return normalized;
+}
+
+function optionalReason(value: unknown): string | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+  if (typeof value !== "string") throw new Error("Creative agent tool reason must be a string.");
+  const normalized = value.trim();
+  if (!normalized) return undefined;
+  if (normalized.length > 2_000) throw new Error("Creative agent tool reason exceeds 2,000 characters.");
   return normalized;
 }
