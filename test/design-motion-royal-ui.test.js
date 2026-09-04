@@ -15,6 +15,14 @@ const specialized = read('public/specialized-creation-api-state-sync.js');
 const specializedRoyal = read('public/specialized-creation-royal.css');
 const officeRoyal = read('public/forge-office-royal.css');
 const officeRoyalJs = read('public/forge-office-royal.js');
+const journalHtml = read('public/guided-journal.html');
+const journalRoyal = read('public/guided-journal-royal.css');
+const journalRoyalJs = read('public/guided-journal-royal.js');
+const workbookHtml = read('public/educational-workbooks.html');
+const differentiationHtml = read('public/educational-differentiation.html');
+const assessmentHtml = read('public/educational-assessment.html');
+const nftHtml = read('public/nft-creation.html');
+const nftDirector = read('public/nft-production-director.js');
 
 test('Design & Motion exposes all six requested first-class offices', () => {
   for (const mode of ['calendar', 'advertisement', 'daily-planner', 'meme', 'gif', 'stop-motion']) {
@@ -40,7 +48,7 @@ test('Design & Motion is integrated into installed Forge shell', () => {
 });
 
 test('new creative surfaces use the approved royal marble light-dark system', () => {
-  for (const source of [css, specializedRoyal, officeRoyal]) {
+  for (const source of [css, specializedRoyal, officeRoyal, journalRoyal]) {
     assert.match(source, /gold|#b68a3f|#c49345/i);
     assert.match(source, /data-forge-theme=["\\]?dark|data-forge-theme\\?="dark"/i);
   }
@@ -48,4 +56,20 @@ test('new creative surfaces use the approved royal marble light-dark system', ()
   assert.match(specialized, /forge-theme/);
   assert.match(officeRoyalJs, /forge-theme/);
   assert.match(officeRoyalJs, /Switch to/);
+  assert.match(journalRoyalJs, /forge-theme/);
+  assert.match(journalRoyalJs, /Switch to/);
+});
+
+test('standalone creation offices actually load the royal UI runtime', () => {
+  assert.match(journalHtml, /guided-journal-royal\.css/);
+  assert.match(journalHtml, /guided-journal-royal\.js/);
+  for (const page of [workbookHtml, differentiationHtml, assessmentHtml]) {
+    assert.match(page, /forge-office-royal\.css/);
+    assert.match(page, /forge-office-royal\.js/);
+  }
+  assert.match(nftHtml, /forge-office-royal\.js/);
+  assert.match(nftHtml, /nft-production-director\.js/);
+  assert.match(nftDirector, /Series \/ Set Director|Series & Sets/);
+  assert.match(nftDirector, /Market Signals/);
+  assert.match(nftDirector, /Storage & Provenance/);
 });
