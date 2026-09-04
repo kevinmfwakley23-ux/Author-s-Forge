@@ -148,8 +148,8 @@ export class CreativeAgentRecipeService {
     };
     const policy = resolveAiCollaborationPolicy(project.aiCollaborationPolicy);
     const goal = optionalText(input.goal, "Recipe goal", 10_000) || recipe.description || recipe.title;
-    const recipeSteps = [...recipe.steps];
-    if (!recipeSteps.some((step) => step.toolId === "memory.record-working")) recipeSteps.push({ toolId: "memory.record-working", instruction: "Record the author-approved recipe run evidence as working memory." });
+    const recipeSteps = recipe.steps.filter((step) => step.toolId !== "memory.record-working");
+    recipeSteps.push({ toolId: "memory.record-working", instruction: "Record the author-approved recipe run evidence as working memory after all other recipe operations finish." });
     const steps = recipeSteps.map((step, index) => planStep(step, index, recipe, goal, scope, policy.mode));
     const plan: CreativeAgentPlan = Object.freeze({
       formatVersion: CREATIVE_AGENT_PLAN_FORMAT_VERSION,
