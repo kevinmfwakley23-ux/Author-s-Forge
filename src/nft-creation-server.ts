@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { attachAuthorNftArtwork } from "./application/nft-author-artwork";
 import { NftCreationOfficeService, type NftAiProposalKind } from "./application/nft-creation-office";
+import { NftMarketIntelligenceService } from "./application/nft-market-intelligence";
 import { createProject } from "./domain/project";
 import {
   NFT_COLLECTION_TYPES,
@@ -30,6 +31,7 @@ const runtime = createForgeStudioRuntime(dataRoot);
 const projects = runtime.projectStore as FileProjectStore;
 const nftStore = new FileNftCreationStore(join(dataRoot, "nft-creation.json"));
 const office = new NftCreationOfficeService(nftStore, projects);
+const market = new NftMarketIntelligenceService(projects);
 
 function json(res: ServerResponse, status: number, value: unknown): void {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" });
@@ -128,6 +130,11 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
     const input = await body(req);
     if (!input.launchPlan || typeof input.launchPlan !== "object" || Array.isArray(input.launchPlan)) throw new Error("NFT launchPlan object is required.");
     json(res, 200, await office.setLaunchPlan(forgeProjectId, collectionId, input.launchPlan as unknown as NftLaunchPlan));
+    return true;
+  }
+  if (tail === "market-research" && req.method === "POST") {
+    const input = await body(req);
+    json(res, 201, await market.research(current, typeof input.focus === "string" ? input.focus : undefined));
     return true;
   }
   if (tail === "preflight" && (req.method === "GET" || req.method === "POST")) { json(res, 200, await office.preflight(forgeProjectId, collectionId)); return true; }
