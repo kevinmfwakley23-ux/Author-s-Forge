@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Author's Forge governed execution workplace for approved Linux and cloud sandbox jobs">
+<title>Forge Execution Workplace</title>
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/forge-royal-hardening.css">
+</head>
+<body>
+<main style="max-width:1200px;margin:0 auto;padding:24px">
+<header class="topbar" style="position:static"><div><div class="eyebrow">FORGE TRUNK • GOVERNED TOOLS</div><h1>Execution Workplace</h1><p>Build, inspect, validate, and package in real Linux or isolated cloud sandboxes. Nothing executes until you approve the exact plan.</p></div><div class="top-actions"><a id="back-to-studio" class="primary" href="/">Back to Studio</a><button id="refresh-execution" type="button">Refresh</button></div></header>
+<div id="execution-error" class="banner error" hidden role="alert"></div>
+<div id="execution-success" class="banner success" hidden role="status"></div>
+
+<section class="grid" aria-label="Execution controls">
+<article class="card">
+<h2>Propose a tool job</h2>
+<p class="muted">This creates a durable pending proposal only. Approval and execution are separate actions.</p>
+<form id="execution-proposal-form">
+<label>Title<input name="title" required maxlength="180" placeholder="Validate exported EPUB"></label>
+<label>Purpose<textarea name="purpose" required maxlength="4000" placeholder="Explain exactly why this command is needed and what evidence it should produce."></textarea></label>
+<label>Execution provider<select name="provider" id="execution-provider" required></select></label>
+<label>Program<input name="program" required placeholder="npm"></label>
+<label>Arguments — one exact argument per line<textarea name="args" placeholder="test\n--\n--runInBand"></textarea></label>
+<label>Working directory relative to the approved workspace<input name="cwd" placeholder="workspace"></label>
+<label>Timeout seconds<input name="timeoutSeconds" type="number" min="1" max="900" value="120"></label>
+<label>Network domains — one host per line<textarea name="networkDomains" placeholder="github.com\nregistry.npmjs.org"></textarea></label>
+<button class="primary" type="submit">Create pending proposal</button>
+</form>
+</article>
+<article class="card">
+<h2>Execution boundary</h2>
+<div id="execution-provider-status" class="list"></div>
+<hr>
+<ul>
+<li>AI cannot approve its own job.</li>
+<li>The exact plan is SHA-256 locked before approval.</li>
+<li>Local Linux uses an executable allowlist and no shell.</li>
+<li>Cloud sandboxes default to no outbound network.</li>
+<li>Tool output is evidence, not automatically approved manuscript/art/canon.</li>
+<li>Provider and cleanup failures remain visible.</li>
+</ul>
+</article>
+</section>
+
+<section>
+<div class="section-title"><div><div class="eyebrow">AUTHOR REVIEW QUEUE</div><h2>Proposed and completed jobs</h2><p>Review the exact program, arguments, workspace, network scope, and digest before approving.</p></div></div>
+<div id="execution-jobs" class="list"></div>
+</section>
+<footer>Author's Forge • exact-plan approval • isolated execution • durable evidence • author-controlled application</footer>
+</main>
+<script src="/forge-execution.js" defer></script>
+</body>
+</html>
