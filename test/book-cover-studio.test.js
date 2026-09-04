@@ -23,6 +23,31 @@ test("Mission 015 creates and validates a complete paperback cover plan", () => 
   assert.deepEqual(issues, []);
 });
 
+test("print cover metadata follows the real KDP binding instead of preserving contradictory caller metadata", () => {
+  const service = new BookCoverStudioService();
+  const plan = service.create({
+    id: "cover-hardcover",
+    projectId: "project-1",
+    bookId: "book-1",
+    format: "paperback",
+    publishing: { platform: "kdp", binding: "hardcover", interiorType: "black-white", paperType: "white", trimWidthInches: 6, trimHeightInches: 9, pageCount: 120, bleedInches: 0.125, readingDirection: "ltr" },
+    title: "Hardcover Truth",
+    author: "Author Example",
+    frontPrompt: "Hardcover front direction",
+    spineText: "Hardcover Truth",
+    backText: "Hardcover back copy",
+    outputFormat: "pdf",
+    dpi: 300,
+    version: 1,
+    approvalStatus: "draft",
+    now: "2026-01-01T00:00:00Z",
+  });
+  assert.equal(plan.format, "hardcover");
+  assert.equal(plan.publishing.binding, "hardcover");
+  assert.equal(plan.dimensions.wrapInches, 0.51);
+  assert.equal(plan.zones.safeMarginInches, 0.635);
+});
+
 test("Mission 015 rejects production files that violate publishing requirements", () => {
   const publishing = { platform: "kdp", binding: "paperback", interiorType: "black-white", paperType: "white", trimWidthInches: 6, trimHeightInches: 9, pageCount: 100, bleedInches: 0.125, readingDirection: "ltr" };
   const layout = calculateKdpCoverLayout(publishing);
