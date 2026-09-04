@@ -3,37 +3,70 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
-test('Forge Agent Workbench is a real governed orchestration surface, not a draft shortcut', () => {
+test('Forge Agent Workbench v2 plans from server discovery instead of a browser-local workflow planner', () => {
   const html = fs.readFileSync('public/forge-agent.html', 'utf8');
-  const source = fs.readFileSync('public/forge-agent.js', 'utf8');
+  const source = fs.readFileSync('public/forge-agent-v2.js', 'utf8');
 
   assert.match(html, /Forge Agent Workbench/);
-  assert.match(html, /Collaboration mode/);
+  assert.match(html, /server planner/i);
   assert.match(html, /id="agent-book"/);
   assert.match(html, /id="agent-chapter"/);
   assert.match(html, /id="agent-scene"/);
-  assert.match(html, /Every provider-backed or state-affecting step remains visible and requires a fresh author click/);
+  assert.match(html, /forge-agent-v2\.js/);
+  assert.doesNotMatch(html, /src="\/forge-agent\.js"/);
 
-  for (const route of [
-    '/collaboration',
-    '/research/live',
-    '/context',
-    '/ai/architecture',
-    '/ai/writing/generate',
-    '/edit',
-    '/export',
-    '/memory',
-  ]) assert.ok(source.includes(route), `missing real Forge route ${route}`);
-
+  assert.match(source, /\/agent\/tools/);
+  assert.match(source, /\/agent\/plan/);
+  assert.match(source, /pathTemplate/);
+  assert.match(source, /Server plan referenced undiscovered Forge tool/);
+  assert.doesNotMatch(source, /function buildPlan\s*\(/);
   assert.doesNotMatch(source, /\/ai\/draft/);
   assert.doesNotMatch(source, /\/ai\/proposals\/[^`'"\s]+\/apply/);
   assert.doesNotMatch(source, /\/workspace\/books\/[^`'"\s]+\/chapters\/[^`'"\s]+\/scenes\/[^`'"\s]+\/content/);
-  assert.match(source, /durable proposal ledger/i);
-  assert.match(source, /Editor mode does not permit drafting/);
-  assert.match(source, /Approve & run this step/);
-  assert.match(source, /No additional step ran automatically/);
-  assert.match(source, /working creative memory/);
-  assert.match(source, /does not claim external publication or retailer acceptance/);
+});
+
+test('Agent Workbench exposes all eleven registry-backed operation adapters without direct author-owned apply routes', () => {
+  const source = fs.readFileSync('public/forge-agent-v2.js', 'utf8');
+  for (const toolId of [
+    'project.context',
+    'research.live',
+    'market.kdp.research',
+    'architecture.generate',
+    'story.chapter-cards.propose',
+    'writing.propose',
+    'editing.analyze',
+    'visual.image.generate',
+    'promotion.campaign.propose',
+    'production.export',
+    'memory.record-working',
+  ]) assert.ok(source.includes(`"${toolId}"`), `missing Workbench execution adapter ${toolId}`);
+
+  assert.match(source, /toolPath\(tool\)/);
+  assert.match(source, /tool\.pathTemplate/);
+  assert.match(source, /configured tool/i);
+  assert.doesNotMatch(source, /proposal\.apply/);
+});
+
+test('Forge Recipes are a real no-code reusable workflow surface backed by the durable Recipe API', () => {
+  const html = fs.readFileSync('public/forge-agent.html', 'utf8');
+  const source = fs.readFileSync('public/forge-agent-v2.js', 'utf8');
+  for (const id of ['agent-recipe-select', 'agent-recipe-name', 'agent-recipe-save', 'agent-recipe-compile', 'agent-recipe-delete']) {
+    assert.match(html, new RegExp(`id="${id}"`));
+  }
+  assert.match(source, /\/agent\/recipes/);
+  assert.match(source, /Saving durable Forge Recipe/);
+  assert.match(source, /append-only tombstone/);
+  assert.match(source, /Compile selected Recipe|compileRecipe/);
+  assert.match(source, /memory\.record-working/);
+});
+
+test('bounded run groups execute only registry-approved read-only no-state-effect steps and stop on failure', () => {
+  const source = fs.readFileSync('public/forge-agent-v2.js', 'utf8');
+  assert.match(source, /eligibleForApprovedRunGroup/);
+  assert.match(source, /Approve & run \$\{safe\.length\} safe read-only steps/);
+  assert.match(source, /for \(const step of eligible\)/);
+  assert.match(source, /Safe run group stopped at/);
+  assert.match(source, /Proposal, artifact, provider-backed state changes, and memory steps still require individual approval/);
 });
 
 test('Agent Workbench exposes the existing real Forge AI resource, catalog, pinning and spend-policy controls', () => {
@@ -57,18 +90,19 @@ test('Agent Workbench exposes the existing real Forge AI resource, catalog, pinn
   assert.doesNotThrow(() => new vm.Script(routing, { filename: 'forge-agent-routing.js' }));
 });
 
-test('Agent Workbench is reachable from Studio and cached by the PWA shell', () => {
+test('Agent Workbench v2 is reachable from Studio and cached by the PWA shell', () => {
   const pwa = fs.readFileSync('public/forge-pwa.js', 'utf8');
   const sw = fs.readFileSync('public/sw.js', 'utf8');
   assert.match(pwa, /open-agent-workbench/);
   assert.match(pwa, /forge-agent\.html/);
-  assert.match(sw, /authors-forge-shell-v18/);
+  assert.match(sw, /authors-forge-shell-v19/);
   assert.match(sw, /forge-agent\.html/);
-  assert.match(sw, /forge-agent\.js/);
+  assert.match(sw, /forge-agent-v2\.js/);
   assert.match(sw, /forge-agent-routing\.js/);
+  assert.doesNotMatch(sw, /"\/forge-agent\.js"/);
 });
 
-test('Agent Workbench client script parses as JavaScript', () => {
-  const source = fs.readFileSync('public/forge-agent.js', 'utf8');
-  assert.doesNotThrow(() => new vm.Script(source, { filename: 'forge-agent.js' }));
+test('Agent Workbench v2 client script parses as JavaScript', () => {
+  const source = fs.readFileSync('public/forge-agent-v2.js', 'utf8');
+  assert.doesNotThrow(() => new vm.Script(source, { filename: 'forge-agent-v2.js' }));
 });
