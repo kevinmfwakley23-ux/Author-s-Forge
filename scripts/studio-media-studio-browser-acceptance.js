@@ -89,12 +89,36 @@ async function main() {
     const gifBytes = await readFile(gifPath);
     assert.equal(gifBytes.subarray(0, 6).toString('ascii'), 'GIF89a');
     assert.equal(gifBytes.at(-1), 0x3b, 'GIF should contain a trailer byte');
+    const gifBase64 = gifBytes.toString('base64');
+    const decodedGif = await page.evaluate(async (encoded) => new Promise((resolve) => {
+      const image = new Image();
+      image.onload = () => resolve({ width: image.naturalWidth, height: image.naturalHeight });
+      image.onerror = () => resolve(null);
+      image.src = `data:image/gif;base64,${encoded}`;
+    }), gifBase64);
+    assert.ok(decodedGif && decodedGif.width > 0 && decodedGif.height > 0, `browser must decode exported GIF: ${JSON.stringify(decodedGif)}`);
 
     await page.locator('#media-modes [data-mode="stop-motion"]').tap();
     assert.equal(await page.locator('#media-export-video').isEnabled(), true);
-    const videoCapability = await page.evaluate(() => ({ mediaRecorder: typeof MediaRecorder !== 'undefined', captureStream: typeof document.createElement('canvas').captureStream === 'function' }));
+    const videoCapability = await page.evaluate(() => ({
+      mediaRecorder: typeof MediaRecorder !== 'undefined',
+      captureStream: typeof document.createElement('canvas').captureStream === 'function',
+      supported: typeof MediaRecorder !== 'undefined' && typeof document.createElement('canvas').captureStream === 'function' && ['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm','video/mp4'].some((mime) => !MediaRecorder.isTypeSupported || MediaRecorder.isTypeSupported(mime)),
+    }));
     assert.equal(typeof videoCapability.mediaRecorder, 'boolean');
     assert.equal(typeof videoCapability.captureStream, 'boolean');
+    if (videoCapability.supported) {
+      const videoDownloadPromise = page.waitForEvent('download', { timeout: 15000 });
+      await page.locator('#media-export-video').tap();
+      const videoDownload = await videoDownloadPromise;
+      const suffix = /\.mp4$/i.test(videoDownload.suggestedFilename()) ? 'mp4' : 'webm';
+      const videoPath = join(dataDir, `proof.${suffix}`);
+      await videoDownload.saveAs(videoPath);
+      assert.ok((await stat(videoPath)).size > 1000, 'stop-motion export should contain real recorded video bytes');
+    } else {
+      await page.locator('#media-export-video').tap();
+      await page.waitForFunction(() => /does not expose MediaRecorder|reports no supported MediaRecorder/.test(document.querySelector('#media-status')?.textContent || ''));
+    }
 
     const dimensions = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, body: document.body.scrollWidth, document: document.documentElement.scrollWidth }));
     assert.ok(dimensions.body <= dimensions.viewport + 1, `Design & Motion body overflowed mobile viewport: ${JSON.stringify(dimensions)}`);
@@ -102,7 +126,7 @@ async function main() {
     const saveBox = await page.locator('#media-save').boundingBox();
     assert.ok(saveBox && saveBox.height >= 40, `Design & Motion save control is too small for touch: ${JSON.stringify(saveBox)}`);
 
-    console.log('FORGE DESIGN & MOTION BROWSER ACCEPTANCE PASSED: six offices + durable working memory + ad presets + real GIF89a bytes + stop-motion capability truth + Android layout.');
+    console.log('FORGE DESIGN & MOTION BROWSER ACCEPTANCE PASSED: six offices + durable working memory + ad presets + browser-decodable GIF89a + real stop-motion bytes when supported + Android layout.');
   } finally {
     if (browser) await browser.close().catch(() => {});
     server.kill('SIGTERM');
