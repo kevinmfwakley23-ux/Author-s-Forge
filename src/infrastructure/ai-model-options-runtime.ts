@@ -28,9 +28,12 @@ export interface AiModelRuntimeOptions {
   readonly updatedAt: string;
 }
 
-const baselineModels = new WeakMap<NodeJS.ProcessEnv, Map<string, string | undefined>>();
-const baselineExplicitResources = new WeakMap<NodeJS.ProcessEnv, string | undefined>();
-const baselineTrusted = new WeakMap<NodeJS.ProcessEnv, string | undefined>();
+interface AppliedOptionsState {
+  readonly extrasByProvider: Readonly<Record<AiModelOptionProvider, readonly string[]>>;
+  readonly trusted: readonly string[];
+  readonly explicitResourceKeys: readonly string[];
+}
+const appliedState = new WeakMap<NodeJS.ProcessEnv, AppliedOptionsState>();
 
 export function defaultAiModelRuntimeOptions(now = new Date().toISOString()): AiModelRuntimeOptions {
   return {
@@ -98,53 +101,53 @@ export function refreshAiModelRuntimeOptions(env: NodeJS.ProcessEnv = process.en
 }
 
 export function applyAiModelRuntimeOptions(options: AiModelRuntimeOptions, env: NodeJS.ProcessEnv = process.env): void {
-  captureBaseline(env);
-  const modelBaseline = baselineModels.get(env)!;
-  for (const [key, value] of modelBaseline) {
-    if (value === undefined) delete env[key];
-    else env[key] = value;
-  }
+  const previous = appliedState.get(env) ?? emptyAppliedState();
+  const nextExtras = Object.fromEntries(AI_MODEL_OPTION_PROVIDERS.map((provider) => [provider, options.additionalModels.filter((item) => item.provider === provider).map((item) => item.model)])) as Record<AiModelOptionProvider, string[]>;
+
   for (const provider of AI_MODEL_OPTION_PROVIDERS) {
-    const prefix = MODEL_PREFIX[provider];
-    const key = `${prefix}_MODELS`;
-    const original = csv(modelBaseline.get(key));
-    const extras = options.additionalModels.filter((item) => item.provider === provider).map((item) => item.model);
-    const combined = unique([...original, ...extras]);
+    const key = `${MODEL_PREFIX[provider]}_MODELS`;
+    const current = csv(env[key]);
+    const withoutPriorExtras = current.filter((model) => !previous.extrasByProvider[provider].includes(model));
+    const combined = unique([...withoutPriorExtras, ...nextExtras[provider]]);
     if (combined.length) env[key] = combined.join(",");
+    else delete env[key];
   }
 
-  const baselineTrust = csv(baselineTrusted.get(env));
-  const trusted = unique([...baselineTrust, ...options.trustedNoSpendModels]);
+  const currentTrusted = csv(env.AI_TRUSTED_NO_SPEND_MODELS).map((item) => item.toLowerCase());
+  const withoutPriorTrusted = currentTrusted.filter((item) => !previous.trusted.includes(item));
+  const trusted = unique([...withoutPriorTrusted, ...options.trustedNoSpendModels]);
   if (trusted.length) env.AI_TRUSTED_NO_SPEND_MODELS = trusted.join(",");
   else delete env.AI_TRUSTED_NO_SPEND_MODELS;
 
-  const explicitBase = parseExplicitResources(baselineExplicitResources.get(env));
+  const currentExplicit = parseExplicitResources(env.AI_MODEL_RESOURCES_JSON);
+  const withoutPriorExplicit = currentExplicit.filter((item) => !previous.explicitResourceKeys.includes(explicitKey(item)));
   const explicitExtras = options.additionalModels
     .filter((item) => item.billingClass !== undefined)
     .map((item) => ({ provider: item.provider, model: item.model, billingClass: item.billingClass }));
-  const explicit = mergeExplicitResources(explicitBase, explicitExtras);
+  const explicit = mergeExplicitResources(withoutPriorExplicit, explicitExtras);
   if (explicit.length) env.AI_MODEL_RESOURCES_JSON = JSON.stringify(explicit);
   else delete env.AI_MODEL_RESOURCES_JSON;
 
   env.AI_ENSEMBLE_ENABLED = String(options.ensembleEnabled);
   env.AI_ENSEMBLE_MAX_WORKERS = String(options.ensembleMaxWorkers);
   env.AI_ENSEMBLE_MIN_QUALITY_SCORE = String(options.ensembleMinQualityScore);
+  appliedState.set(env, {
+    extrasByProvider: Object.freeze(Object.fromEntries(AI_MODEL_OPTION_PROVIDERS.map((provider) => [provider, Object.freeze([...nextExtras[provider]])])) as Record<AiModelOptionProvider, readonly string[]>),
+    trusted: Object.freeze([...options.trustedNoSpendModels]),
+    explicitResourceKeys: Object.freeze(explicitExtras.map(explicitKey)),
+  });
 }
 
 export function modelOptionKey(provider: AiModelOptionProvider, model: string): string {
   return `${provider}/${model}`.toLowerCase();
 }
 
-function captureBaseline(env: NodeJS.ProcessEnv): void {
-  if (baselineModels.has(env)) return;
-  const values = new Map<string, string | undefined>();
-  for (const prefix of Object.values(MODEL_PREFIX)) {
-    values.set(`${prefix}_MODEL`, env[`${prefix}_MODEL`]);
-    values.set(`${prefix}_MODELS`, env[`${prefix}_MODELS`]);
-  }
-  baselineModels.set(env, values);
-  baselineExplicitResources.set(env, env.AI_MODEL_RESOURCES_JSON);
-  baselineTrusted.set(env, env.AI_TRUSTED_NO_SPEND_MODELS);
+function emptyAppliedState(): AppliedOptionsState {
+  return {
+    extrasByProvider: Object.freeze(Object.fromEntries(AI_MODEL_OPTION_PROVIDERS.map((provider) => [provider, Object.freeze([])])) as Record<AiModelOptionProvider, readonly string[]>),
+    trusted: Object.freeze([]),
+    explicitResourceKeys: Object.freeze([]),
+  };
 }
 function optionsPath(env: NodeJS.ProcessEnv): string {
   const dataRoot = env.FORGE_DATA_DIR?.trim() || join(process.cwd(), ".forge-data");
@@ -216,4 +219,7 @@ function mergeExplicitResources(base: readonly Record<string, unknown>[], extras
     byKey.set(`${provider}::${model}`, { ...item, provider, model });
   }
   return [...byKey.values()];
+}
+function explicitKey(item: Record<string, unknown>): string {
+  return `${String(item.provider ?? "").trim().toLowerCase()}::${String(item.model ?? "").trim()}`;
 }
