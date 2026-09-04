@@ -1,9 +1,10 @@
-const CACHE = "authors-forge-shell-v15";
+const CACHE = "authors-forge-shell-v16";
 const SHELL = [
   "/",
   "/index.html",
   "/series.html",
   "/styles.css",
+  "/forge-royal-hardening.css",
   "/app.js",
   "/forge-command-center.js",
   "/forge-workbench.js",
