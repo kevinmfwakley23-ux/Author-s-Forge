@@ -40,6 +40,9 @@ jobs:
       - run: node --check public/forge-series.js
       - run: node --check public/forge-image-lab.js
       - run: node --check public/forge-recipes.js
+      - run: node --check public/forge-review-room.js
+      - run: node --check public/forge-reviewer.js
+      - run: node --check public/forge-provenance.js
       - run: node --check public/forge-kdp-preflight.js
       - run: node --check public/forge-publishing-promotion.js
       - run: node --check public/forge-promotion-performance.js
