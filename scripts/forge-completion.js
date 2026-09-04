@@ -39,6 +39,7 @@ const browserHarnesses = [
   "scripts/studio-manuscript-import-browser-acceptance.js",
   "scripts/studio-image-lab-browser-acceptance.js",
   "scripts/studio-kdp-preflight-browser-acceptance.js",
+  "scripts/studio-cover-direction-browser-acceptance.js",
   "scripts/studio-recovery-browser-acceptance.js",
   "scripts/studio-children-topics-browser-acceptance.js",
   "scripts/studio-agent-routing-browser-acceptance.js",
