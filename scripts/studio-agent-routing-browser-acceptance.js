@@ -88,11 +88,11 @@ async function main() {
     assert.equal(changed.control.spendPolicy, "no-paid-tokens");
     assert.equal(changed.control.pinnedProvider, undefined);
 
-    // An unconfigured catalog must fail honestly instead of inventing models.
-    await page.locator("#agent-provider").selectOption("openai");
+    // An intentionally unconfigured local router catalog must fail honestly instead of inventing models or reaching the internet.
+    await page.locator("#agent-provider").selectOption("omniroute");
     await page.locator("#agent-load-catalog").tap();
-    await page.waitForFunction(() => /not configured|catalog failed/i.test(document.querySelector("#agent-routing-status")?.textContent || ""));
-    assert.match(await page.locator("#agent-routing-status").innerText(), /not configured|catalog failed/i);
+    await page.waitForFunction(() => /not configured/i.test(document.querySelector("#agent-routing-status")?.textContent || ""));
+    assert.match(await page.locator("#agent-routing-status").innerText(), /not configured/i);
     assert.equal(await page.locator("#agent-pin-model").isDisabled(), true);
 
     const dimensions = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, body: document.body.scrollWidth, document: document.documentElement.scrollWidth }));
@@ -101,7 +101,7 @@ async function main() {
     const applyBox = await page.locator("#agent-apply-routing-policy").boundingBox();
     assert.ok(applyBox && applyBox.height >= 40, `Routing policy control is too small for touch: ${JSON.stringify(applyBox)}`);
 
-    console.log("FORGE AGENT ROUTING BROWSER ACCEPTANCE PASSED: real AI control state + ten-provider UI + explicit policy mutation + safe spend preservation + honest unconfigured catalog failure + Android-sized layout.");
+    console.log("FORGE AGENT ROUTING BROWSER ACCEPTANCE PASSED: real AI control state + ten-provider UI + explicit policy mutation + safe spend preservation + honest offline catalog failure + Android-sized layout.");
   } finally {
     if (browser) await browser.close().catch(() => {});
     server.kill("SIGTERM");
