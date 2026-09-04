@@ -83,7 +83,6 @@ async function main() {
     assert.match(await page.locator("#agent-snapshot").innerText(), /Agent tools\s*12/);
     assert.equal(await page.locator("#agent-tools li").count(), 12);
 
-    // Editor mode must enforce the server planner's drafting restriction.
     await page.locator("#agent-mode").selectOption("editor");
     await page.locator("#agent-goal").fill("Draft a stronger version of this scene while preserving the author's intent.");
     await page.locator("#agent-form button[type=submit]").tap();
@@ -92,7 +91,6 @@ async function main() {
     assert.equal(await page.locator('[data-tool-id="writing.propose"] button').isDisabled(), true);
     assert.equal((await api(base, `/api/projects/${PROJECT_ID}/collaboration`)).mode, "editor");
 
-    // Autonomous mode may group only the read-only context + editing steps. Writing stays separately approved.
     await page.locator("#agent-mode").selectOption("autonomous");
     await page.locator("#agent-goal").fill("Draft and continuity edit this scene, grounded in the current project truth.");
     await page.locator("#agent-form button[type=submit]").tap();
@@ -105,7 +103,6 @@ async function main() {
     assert.notEqual(await page.locator('[data-tool-id="writing.propose"] button').innerText(), "Completed");
     assert.match(await page.locator("#agent-status").innerText(), /read-only group completed/i);
 
-    // Explicit workflow evidence remains a separate author-approved working-memory operation.
     await page.locator('[data-tool-id="memory.record-working"] button').tap();
     await page.waitForFunction(() => document.querySelector('[data-tool-id="memory.record-working"] button')?.textContent === "Completed");
     const projectAfterRecord = await api(base, `/api/projects/${PROJECT_ID}`);
@@ -114,7 +111,6 @@ async function main() {
     assert.equal(runMemory.authority, "working");
     assert.equal(runMemory.class, "creative-note");
 
-    // Save the current governed plan as a durable no-code Forge Recipe, then compile it back through server governance.
     await page.locator("#agent-recipe-name").fill("Verified Review Pass");
     await page.locator("#agent-recipe-save").tap();
     await page.waitForFunction(() => document.querySelector("#agent-recipe-status")?.textContent.includes("Saved Verified Review Pass"));
@@ -128,7 +124,6 @@ async function main() {
     const compiledToolIds = await page.locator(".agent-step").evaluateAll((nodes) => nodes.map((node) => node.dataset.toolId));
     assert.equal(compiledToolIds.at(-1), "memory.record-working");
 
-    // Production is provider-independent and must download the exact real Forge artifact.
     await page.locator("#agent-goal").fill("Export a PDF review copy of the current manuscript.");
     await page.locator("#agent-form button[type=submit]").tap();
     await page.waitForFunction(() => document.querySelector('[data-tool-id="production.export"]'));
@@ -140,22 +135,23 @@ async function main() {
     assert.ok((await stat(path)).size > 100, "Production export should contain real bytes");
     assert.equal(await download.suggestedFilename(), "the-verified-forge.pdf");
 
-    // Image generation is a real tool and must fail honestly when no real provider is configured.
     await page.locator("#agent-goal").fill("Create a cover image for this book.");
     await page.locator("#agent-form button[type=submit]").tap();
     await page.waitForFunction(() => document.querySelector('[data-tool-id="visual.image.generate"]'));
     await page.locator('[data-tool-id="visual.image.generate"] button').tap();
-    await page.waitForFunction(() => /No real image provider is configured/i.test(document.querySelector("#agent-status")?.textContent || ""));
-    assert.match(await page.locator("#agent-status").innerText(), /No real image provider is configured/i);
+    const imageStep = page.locator('[data-tool-id="visual.image.generate"]');
+    await page.waitForFunction(() => /No real image provider is configured/i.test(document.querySelector('[data-tool-id="visual.image.generate"] .agent-result')?.textContent || ""));
+    assert.match(await imageStep.locator(".agent-result").innerText(), /No real image provider is configured/i);
+    assert.match(await page.locator("#agent-status").innerText(), /failed safely.*No later step was run/i);
+    assert.match(await imageStep.locator("button").innerText(), /Retry approved step/i);
 
-    // Workbench must remain usable at an Android phone viewport.
     const overflow = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, body: document.body.scrollWidth, doc: document.documentElement.scrollWidth }));
     assert.ok(overflow.body <= overflow.viewport + 1 && overflow.doc <= overflow.viewport + 1, `Agent Workbench mobile shell overflows: ${JSON.stringify(overflow)}`);
     const buttons = await page.locator("button").evaluateAll((nodes) => nodes.filter((node) => node.offsetParent !== null).map((node) => ({ text: node.textContent.trim(), height: node.getBoundingClientRect().height })));
     assert.ok(buttons.filter((button) => button.text).every((button) => button.height >= 40), `Agent Workbench contains undersized visible touch actions: ${JSON.stringify(buttons.filter((button) => button.height < 40))}`);
 
     await context.close();
-    console.log("FORGE AGENT WORKBENCH BROWSER ACCEPTANCE PASSED: registry v3 + 12 governed tools + Editor enforcement + bounded Autonomous read-only group + durable workflow evidence + Forge Recipe round-trip + real PDF export + honest no-provider image failure + Android fit/touch.");
+    console.log("FORGE AGENT WORKBENCH BROWSER ACCEPTANCE PASSED: registry v3 + 12 governed tools + Editor enforcement + bounded Autonomous read-only group + durable workflow evidence + Forge Recipe round-trip + real PDF export + honest no-provider image failure + safety-stop status + Android fit/touch.");
   } finally {
     if (browser) await browser.close().catch(() => {});
     server.kill("SIGTERM");
