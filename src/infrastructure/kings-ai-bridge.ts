@@ -1,4 +1,5 @@
 import type { AiGenerationRequest, AiGenerationResult, AiTokenUsage } from "./ai-provider";
+import { providerFetch } from "./provider-transport";
 
 export interface KingsAiBridgeConfig {
   readonly endpoint: string;
@@ -25,7 +26,7 @@ export async function generateWithKingsAi(config: KingsAiBridgeConfig, request: 
   const apiKey = config.apiKey?.trim() || process.env.KINGS_AI_API_KEY?.trim();
   if (apiKey) headers.authorization = `Bearer ${apiKey}`;
 
-  const response = await fetch(endpoint, {
+  const response = await providerFetch(endpoint, {
     method: "POST",
     headers,
     body: JSON.stringify({
@@ -37,7 +38,9 @@ export async function generateWithKingsAi(config: KingsAiBridgeConfig, request: 
       temperature: request.temperature ?? 0.7,
       max_output_tokens: request.maxOutputTokens ?? 4000,
     }),
-    signal: AbortSignal.timeout(readTimeout(process.env.KINGS_AI_TIMEOUT_MS) ?? 120_000),
+  }, {
+    timeoutMs: readTimeout(process.env.KINGS_AI_TIMEOUT_MS),
+    label: "K.I.N.G.S.",
   });
 
   const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
@@ -55,7 +58,8 @@ export async function generateWithKingsAi(config: KingsAiBridgeConfig, request: 
 function readTimeout(value: string | undefined): number | undefined {
   if (!value?.trim()) return undefined;
   const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed >= 1_000 && parsed <= 600_000 ? parsed : undefined;
+  if (!Number.isInteger(parsed) || parsed < 1_000 || parsed > 600_000) throw new Error("KINGS_AI_TIMEOUT_MS must be an integer from 1000 to 600000.");
+  return parsed;
 }
 
 function providerError(payload: Record<string, unknown>): string | undefined {
