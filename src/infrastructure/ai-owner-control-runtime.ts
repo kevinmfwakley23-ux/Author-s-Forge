@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { AiCostRoutingMode } from "../application/ai-cost-routing-policy";
 import type { AiModelResource, AiSpendPolicy } from "../application/ai-model-broker";
+import { refreshAiModelRuntimeOptions } from "./ai-model-options-runtime";
 
 const PROVIDERS = ["omniroute", "9router", "kings", "ollama", "groq", "mistral", "gemini", "anthropic", "openrouter", "openai"] as const;
 export type AiOwnerProvider = typeof PROVIDERS[number];
@@ -40,6 +41,10 @@ export function refreshPersistedAiOwnerControl(env: NodeJS.ProcessEnv = process.
     delete env.AI_PINNED_PROVIDER;
     delete env.AI_PINNED_MODEL;
   }
+
+  // Model Freedom augments the configured pool and no-spend trust choices.
+  // It never replaces owner pinning or weakens the shared spend policy.
+  refreshAiModelRuntimeOptions(env);
   return control;
 }
 
