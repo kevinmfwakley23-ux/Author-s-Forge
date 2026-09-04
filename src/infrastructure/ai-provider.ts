@@ -278,7 +278,7 @@ async function generateFromProvider(provider: ProviderName, model: string, reque
       return generateWithOpenAiCompatibleGateway("mistral", process.env.MISTRAL_BASE_URL?.trim() || "https://api.mistral.ai", key, request, model);
     }
     case "gateway": {
-      const resolved = resolveOpenAiCompatibleGatewayModel(model);
+      const resolved = await resolveOpenAiCompatibleGatewayModel(model);
       const generated = await generateWithOpenAiCompatibleGateway("gateway", resolved.gateway.baseUrl, resolved.apiKey, request, resolved.upstreamModel);
       return { ...generated, model };
     }
