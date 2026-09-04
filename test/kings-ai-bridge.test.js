@@ -35,7 +35,7 @@ test("KINGS owner/coding-machine root is not falsely treated as a generic text p
   assert.equal(env.KINGS_AI_ENDPOINT, "http://127.0.0.1:8787");
 });
 
-test("explicit KINGS Responses endpoint creates a fail-closed text resource", () => {
+test("explicit KINGS Responses endpoint creates a fail-closed text resource without overwriting the owner endpoint", () => {
   const env = {
     KINGS_AI_ENDPOINT: "http://127.0.0.1:8787",
     KINGS_AI_RESPONSES_URL: "http://127.0.0.1:9999/v1/responses",
@@ -43,9 +43,11 @@ test("explicit KINGS Responses endpoint creates a fail-closed text resource", ()
   };
   const resources = discoverConfiguredAiModelResources(env);
   const kings = resources.find((resource) => resource.provider === "kings");
+  assert.ok(kings);
   assert.equal(kings.model, "creative-route");
   assert.equal(kings.billingClass, "unknown", "KINGS cost must not be assumed local/free");
-  assert.equal(env.KINGS_AI_ENDPOINT, "http://127.0.0.1:9999/v1/responses", "legacy bridge variable is rewritten only after a real Responses endpoint is explicit");
+  assert.equal(env.KINGS_AI_ENDPOINT, "http://127.0.0.1:8787", "owner/orchestration endpoint must remain distinct from text generation");
+  assert.equal(env.KINGS_AI_RESPONSES_URL, "http://127.0.0.1:9999/v1/responses");
 });
 
 test("legacy KINGS_AI_ENDPOINT remains supported only when it is explicitly a Responses route", () => {
