@@ -3,8 +3,9 @@ import { dirname, join } from "node:path";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { AiCostRoutingMode } from "./ai-cost-routing-policy";
 import type { AiSpendPolicy } from "./ai-model-broker";
-import { aiConfiguredResources, aiRoutingTelemetry } from "../infrastructure/ai-provider";
+import { aiConfiguredProviderQuotas, aiConfiguredResources, aiRoutingTelemetry } from "../infrastructure/ai-provider";
 import type { FileProjectStore } from "../infrastructure/file-project-store";
+import { providerFetch, readAiProviderTimeoutMs } from "../infrastructure/provider-transport";
 
 const PROVIDERS = ["omniroute", "9router", "kings", "ollama", "groq", "mistral", "gemini", "anthropic", "openrouter", "openai"] as const;
 type Provider = typeof PROVIDERS[number];
@@ -68,6 +69,7 @@ function snapshot() {
   return {
     control: current,
     resources: aiConfiguredResources(),
+    providerQuotas: aiConfiguredProviderQuotas(),
     telemetry: aiRoutingTelemetry(),
     policyExplanation: current.spendPolicy === "no-paid-tokens"
       ? "Metered, unknown, and gateway-managed resources are blocked unless their billing class is explicitly configured as local, subscription, or free."
@@ -171,7 +173,10 @@ async function providerCatalog(provider: Provider): Promise<{ provider: Provider
 }
 async function openAiCatalog(provider: Provider, baseUrl: string | undefined, apiKey: string | undefined, fetchedAt: string) {
   if (!baseUrl?.trim()) throw new Error(`${provider} base URL is not configured.`);
-  const response = await fetch(`${baseUrl.replace(/\/$/, "")}/v1/models`, { headers: { accept: "application/json", ...(apiKey?.trim() ? { authorization: `Bearer ${apiKey.trim()}` } : {}) }, signal: AbortSignal.timeout(10_000) });
+  const endpoint = openAiCompatibleEndpoint(baseUrl, "models");
+  const response = await providerFetch(endpoint, {
+    headers: { accept: "application/json", ...(apiKey?.trim() ? { authorization: `Bearer ${apiKey.trim()}` } : {}) },
+  }, { timeoutMs: catalogTimeoutMs(), label: `${provider} model catalog` });
   const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
   if (!response.ok) throw new Error(`${provider} model catalog failed (${response.status}).`);
   const raw = Array.isArray(payload.data) ? payload.data : Array.isArray(payload.models) ? payload.models : [];
@@ -180,22 +185,24 @@ async function openAiCatalog(provider: Provider, baseUrl: string | undefined, ap
   // requires a concrete model or combo returned by its catalog, so do not
   // fabricate a generic auto entry for 9Router.
   if (provider === "omniroute" && !models.some((model) => model.id === "auto")) models.unshift({ id: "auto", name: "Automatic router selection", routerManaged: true });
-  return { provider, models, source: `${baseUrl.replace(/\/$/, "")}/v1/models`, fetchedAt };
+  return { provider, models, source: endpoint, fetchedAt };
 }
 async function ollamaCatalog(fetchedAt: string) {
   const baseUrl = process.env.OLLAMA_BASE_URL?.trim();
   if (!baseUrl) throw new Error("Ollama is not configured.");
-  const response = await fetch(`${baseUrl.replace(/\/$/, "")}/api/tags`, { signal: AbortSignal.timeout(5_000) });
+  const endpoint = `${baseUrl.replace(/\/$/, "")}/api/tags`;
+  const response = await providerFetch(endpoint, {}, { timeoutMs: catalogTimeoutMs(), label: "Ollama model catalog" });
   const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
   if (!response.ok) throw new Error(`Ollama model catalog failed (${response.status}).`);
   const raw = Array.isArray(payload.models) ? payload.models : [];
-  return { provider: "ollama" as const, models: raw.map(normalizeModelRecord), source: `${baseUrl.replace(/\/$/, "")}/api/tags`, fetchedAt };
+  return { provider: "ollama" as const, models: raw.map(normalizeModelRecord), source: endpoint, fetchedAt };
 }
 async function geminiCatalog(fetchedAt: string) {
   const key = process.env.GEMINI_API_KEY?.trim();
   if (!key) throw new Error("Gemini is not configured.");
   const base = process.env.GEMINI_BASE_URL?.trim()?.replace(/\/$/, "") || "https://generativelanguage.googleapis.com/v1beta";
-  const response = await fetch(`${base}/models?key=${encodeURIComponent(key)}`, { signal: AbortSignal.timeout(10_000) });
+  const endpoint = `${base}/models?key=${encodeURIComponent(key)}`;
+  const response = await providerFetch(endpoint, {}, { timeoutMs: catalogTimeoutMs(), label: "Gemini model catalog" });
   const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
   if (!response.ok) throw new Error(`Gemini model catalog failed (${response.status}).`);
   const raw = Array.isArray(payload.models) ? payload.models : [];
@@ -210,11 +217,14 @@ async function anthropicCatalog(fetchedAt: string) {
   const key = process.env.ANTHROPIC_API_KEY?.trim();
   if (!key) throw new Error("Anthropic is not configured.");
   const base = process.env.ANTHROPIC_BASE_URL?.trim()?.replace(/\/$/, "") || "https://api.anthropic.com";
-  const response = await fetch(`${base}/v1/models`, { headers: { "x-api-key": key, "anthropic-version": process.env.ANTHROPIC_VERSION?.trim() || "2023-06-01" }, signal: AbortSignal.timeout(10_000) });
+  const endpoint = `${base}/v1/models`;
+  const response = await providerFetch(endpoint, {
+    headers: { "x-api-key": key, "anthropic-version": process.env.ANTHROPIC_VERSION?.trim() || "2023-06-01" },
+  }, { timeoutMs: catalogTimeoutMs(), label: "Anthropic model catalog" });
   const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
   if (!response.ok) throw new Error(`Anthropic model catalog failed (${response.status}).`);
   const raw = Array.isArray(payload.data) ? payload.data : [];
-  return { provider: "anthropic" as const, models: raw.map(normalizeModelRecord), source: `${base}/v1/models`, fetchedAt };
+  return { provider: "anthropic" as const, models: raw.map(normalizeModelRecord), source: endpoint, fetchedAt };
 }
 function normalizeModelRecord(value: unknown): Record<string, unknown> {
   if (typeof value === "string") return { id: value };
@@ -224,6 +234,19 @@ function normalizeModelRecord(value: unknown): Record<string, unknown> {
   const normalized: Record<string, unknown> = { id: typeof id === "string" ? id : "" };
   for (const key of ["name", "displayName", "context_length", "contextWindow", "owned_by", "pricing", "architecture", "supported_parameters", "inputTokenLimit", "outputTokenLimit"]) if (record[key] !== undefined) normalized[key] = record[key];
   return normalized;
+}
+function openAiCompatibleEndpoint(baseUrl: string, suffix: "models"): string {
+  const normalized = baseUrl.trim().replace(/\/+$/, "");
+  return /\/v1$/i.test(normalized) ? `${normalized}/${suffix}` : `${normalized}/v1/${suffix}`;
+}
+function catalogTimeoutMs(): number {
+  const raw = process.env.AI_PROVIDER_CATALOG_TIMEOUT_MS?.trim();
+  if (raw) {
+    const parsed = Number(raw);
+    if (!Number.isInteger(parsed) || parsed < 1_000 || parsed > 60_000) throw new Error("AI_PROVIDER_CATALOG_TIMEOUT_MS must be an integer from 1000 to 60000.");
+    return parsed;
+  }
+  return Math.min(10_000, readAiProviderTimeoutMs(process.env.AI_PROVIDER_TIMEOUT_MS));
 }
 
 function spendPolicyValue(value: unknown): AiSpendPolicy {
