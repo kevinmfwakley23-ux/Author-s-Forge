@@ -4,8 +4,8 @@ import { AiModelBroker, type AiBillingClass, type AiModelSelection } from "./ai-
 import { estimateTokens } from "./context-optimizer";
 import { IntelligentEditingService } from "./intelligent-editing";
 import { EDITOR_ROLES, type EditorialFinding, type EditorialReport } from "../domain/intelligent-editing";
-import { aiConfiguredResources, generateText, type AiGenerationResult } from "../infrastructure/ai-provider";
-import { loadAiModelRuntimeOptions } from "../infrastructure/ai-model-options-runtime";
+import { aiConfiguredResources, generateText, type AiGenerationRequest, type AiGenerationResult } from "../infrastructure/ai-provider";
+import { loadAiModelRuntimeOptions, type AiModelRuntimeOptions } from "../infrastructure/ai-model-options-runtime";
 
 export const AI_ENSEMBLE_FORMAT_VERSION = 1 as const;
 
@@ -64,19 +64,27 @@ export interface AiTextEnsembleRequest {
   readonly title?: string;
 }
 
+export type AiTextEnsembleGenerator = (request: AiGenerationRequest) => Promise<AiGenerationResult>;
+export interface AiTextEnsembleRuntime {
+  readonly generate?: AiTextEnsembleGenerator;
+  readonly resources?: ReturnType<typeof aiConfiguredResources>;
+  readonly options?: AiModelRuntimeOptions;
+}
+
 /**
  * Parallel candidate generation plus fan-in synthesis and independent quality
- * gates. The owner spend policy and model choices remain authoritative because
- * every real provider call goes through generateText and the shared broker.
+ * gates. The production default uses the real generateText boundary. Tests may
+ * inject a runtime so orchestration can be verified without external providers.
  */
-export async function runAiTextEnsemble(request: AiTextEnsembleRequest): Promise<AiTextEnsembleResult> {
+export async function runAiTextEnsemble(request: AiTextEnsembleRequest, runtime: AiTextEnsembleRuntime = {}): Promise<AiTextEnsembleResult> {
   if (!request.system.trim()) throw new Error("AI ensemble system instruction is required.");
   if (!request.user.trim()) throw new Error("AI ensemble user request is required.");
 
-  const options = loadAiModelRuntimeOptions();
+  const generate = runtime.generate ?? generateText;
+  const options = runtime.options ?? loadAiModelRuntimeOptions();
   const maxOutputTokens = clampInteger(request.maxOutputTokens ?? 5000, 128, 12000);
   const qualityFloor = options.ensembleMinQualityScore;
-  const resources = aiConfiguredResources();
+  const resources = runtime.resources ?? aiConfiguredResources();
   if (!resources.length) throw new Error("AI ensemble has no configured model resources.");
 
   const broker = new AiModelBroker();
@@ -100,11 +108,11 @@ export async function runAiTextEnsemble(request: AiTextEnsembleRequest): Promise
   }, options.ensembleEnabled ? options.ensembleMaxWorkers : 1);
   if (!plan.candidates.length) throw new Error("No AI model is eligible for the ensemble under the current owner spend, quota, capability, and health rules.");
 
-  const assigned = diversify(plan.candidates, options.ensembleEnabled ? options.ensembleMaxWorkers : 1);
+  const assigned = selectDiverseEnsembleCandidates(plan.candidates, options.ensembleEnabled ? options.ensembleMaxWorkers : 1);
   const candidateOutputTokens = Math.min(maxOutputTokens, 3000);
-  const candidateCalls = assigned.map(async (selection, index): Promise<AiEnsembleWorkerResult> => {
+  const candidateCalls = assigned.map(async (selection): Promise<AiEnsembleWorkerResult> => {
     const started = Date.now();
-    const result = await generateText({
+    const result = await generate({
       system: [
         request.system,
         "ENSEMBLE ROLE: Produce one independent high-quality candidate. Do not mention other models. Preserve every supplied canon, author-voice, continuity, and intent constraint. Do not sacrifice correctness for novelty.",
@@ -144,7 +152,7 @@ export async function runAiTextEnsemble(request: AiTextEnsembleRequest): Promise
   let finalText = uniqueWorkers[0].text;
   let synthesis: AiTextEnsembleResult["synthesis"];
   if (uniqueWorkers.length > 1) {
-    const synthesisResult = await generateText({
+    const synthesisResult = await generate({
       system: [
         request.system,
         "ENSEMBLE SYNTHESIZER: Combine only the strongest compatible material from the candidate drafts. Project Brain/canon/author constraints outrank candidate consensus. Never average away distinctive author voice. Never introduce a new fact merely because multiple candidates sound plausible. Return only the finished candidate artifact.",
@@ -162,11 +170,10 @@ export async function runAiTextEnsemble(request: AiTextEnsembleRequest): Promise
   }
 
   const editorial = runEditingOffice(finalText, request);
-  const judgeCalls = [
-    runJudge("continuity", request, finalText, qualityFloor, uniqueWorkers.at(-1)),
-    runJudge("voice", request, finalText, qualityFloor, uniqueWorkers.length > 1 ? uniqueWorkers[1] : uniqueWorkers[0]),
-  ] as const;
-  const judges = await Promise.all(judgeCalls);
+  const judges = await Promise.all([
+    runJudge("continuity", request, finalText, qualityFloor, uniqueWorkers.at(-1), generate),
+    runJudge("voice", request, finalText, qualityFloor, uniqueWorkers.length > 1 ? uniqueWorkers[1] : uniqueWorkers[0], generate),
+  ]);
   const blockedReasons: string[] = [];
   for (const judge of judges) {
     if (!judge.accepted || judge.score < qualityFloor) blockedReasons.push(`${judge.kind} anti-drift gate rejected the candidate at ${judge.score}/${qualityFloor}${judge.failures.length ? `: ${judge.failures.join("; ")}` : ""}`);
@@ -191,7 +198,7 @@ export async function runAiTextEnsemble(request: AiTextEnsembleRequest): Promise
   };
 }
 
-function diversify(candidates: readonly AiModelSelection[], max: number): AiModelSelection[] {
+export function selectDiverseEnsembleCandidates(candidates: readonly AiModelSelection[], max: number): AiModelSelection[] {
   const selected: AiModelSelection[] = [];
   const providers = new Set<string>();
   for (const candidate of candidates) {
@@ -206,6 +213,24 @@ function diversify(candidates: readonly AiModelSelection[], max: number): AiMode
   }
   return selected;
 }
+
+export function parseAiEnsembleJudge(text: string): Omit<AiEnsembleJudgeResult, "kind" | "provider" | "model"> {
+  const cleaned = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+  const first = cleaned.indexOf("{"); const last = cleaned.lastIndexOf("}");
+  if (first < 0 || last <= first) throw new Error("Anti-drift judge returned no JSON object.");
+  const value = JSON.parse(cleaned.slice(first, last + 1)) as Record<string, unknown>;
+  if (typeof value.accepted !== "boolean") throw new Error("Anti-drift judge omitted accepted boolean.");
+  const score = Number(value.score);
+  if (!Number.isFinite(score) || score < 0 || score > 100) throw new Error("Anti-drift judge score must be 0-100.");
+  return {
+    accepted: value.accepted,
+    score: Math.round(score),
+    failures: stringArray(value.failures),
+    warnings: stringArray(value.warnings),
+    evidence: stringArray(value.evidence),
+  };
+}
+
 function deduplicateActualModels(workers: readonly AiEnsembleWorkerResult[]): AiEnsembleWorkerResult[] {
   const best = new Map<string, AiEnsembleWorkerResult>();
   for (const worker of workers) {
@@ -236,13 +261,13 @@ function runEditingOffice(text: string, request: AiTextEnsembleRequest): AiEnsem
   });
   return { report, blockingFindings };
 }
-async function runJudge(kind: "continuity" | "voice", request: AiTextEnsembleRequest, finalText: string, qualityFloor: number, preferred?: AiEnsembleWorkerResult): Promise<AiEnsembleJudgeResult> {
+async function runJudge(kind: "continuity" | "voice", request: AiTextEnsembleRequest, finalText: string, qualityFloor: number, preferred: AiEnsembleWorkerResult | undefined, generate: AiTextEnsembleGenerator): Promise<AiEnsembleJudgeResult> {
   const task = kind === "continuity" ? "continuity" : "voice-preservation";
   const criterion = kind === "continuity"
     ? "Check the candidate against every supplied canon fact, chronology, relationship, character state, POV/tense instruction, and author intent. Treat unsupported inventions and contradictions as failures."
     : "Check whether the candidate preserves the supplied author voice, narrative distance, rhythm, emotional intent, dialogue/description balance, and wording character. Generic model voice or stylistic homogenization is a failure.";
   try {
-    const result = await generateText({
+    const result = await generate({
       system: `${request.system}\n\nINDEPENDENT ANTI-DRIFT JUDGE. ${criterion} Do not rewrite the candidate. Return strict JSON only.`,
       user: [
         "ORIGINAL REQUEST AND GOVERNED CONTEXT:", request.user,
@@ -256,29 +281,12 @@ async function runJudge(kind: "continuity" | "voice", request: AiTextEnsembleReq
       preferProvider: preferred?.actualProvider,
       preferModel: preferred?.actualModel,
       requiresInstructionFollowing: true,
-      requiresReasoning: kind === "continuity" ? undefined : false,
     });
-    const parsed = parseJudge(result.text);
+    const parsed = parseAiEnsembleJudge(result.text);
     return { kind, ...parsed, provider: result.provider, model: result.model };
   } catch (error) {
     return { kind, accepted: false, score: 0, failures: [`Judge execution failed closed: ${errorText(error)}`], warnings: [], evidence: [] };
   }
-}
-function parseJudge(text: string): Omit<AiEnsembleJudgeResult, "kind" | "provider" | "model"> {
-  const cleaned = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
-  const first = cleaned.indexOf("{"); const last = cleaned.lastIndexOf("}");
-  if (first < 0 || last <= first) throw new Error("Anti-drift judge returned no JSON object.");
-  const value = JSON.parse(cleaned.slice(first, last + 1)) as Record<string, unknown>;
-  if (typeof value.accepted !== "boolean") throw new Error("Anti-drift judge omitted accepted boolean.");
-  const score = Number(value.score);
-  if (!Number.isFinite(score) || score < 0 || score > 100) throw new Error("Anti-drift judge score must be 0-100.");
-  return {
-    accepted: value.accepted,
-    score: Math.round(score),
-    failures: stringArray(value.failures),
-    warnings: stringArray(value.warnings),
-    evidence: stringArray(value.evidence),
-  };
 }
 function resourceBilling(resources: ReturnType<typeof aiConfiguredResources>, provider: string, model: string): AiBillingClass | undefined {
   return resources.find((resource) => resource.provider === provider && resource.model === model)?.billingClass;
