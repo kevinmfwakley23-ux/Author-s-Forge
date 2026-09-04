@@ -36,6 +36,7 @@ export class DaytonaExecutionProvider implements ForgeExecutionProvider {
     if (!this.available) throw new Error("Daytona execution is unavailable because DAYTONA_API_KEY is not configured.");
     const sandboxId = await this.createSandbox(job);
     const results: ForgeExecutionCommandResult[] = [];
+    let primaryError: unknown;
     try {
       for (const command of job.plan.commands) {
         const result = await this.executeCommand(sandboxId, command);
@@ -43,8 +44,18 @@ export class DaytonaExecutionProvider implements ForgeExecutionProvider {
         if (result.exitCode !== 0) break;
       }
       return { provider: this.kind, sandboxId, commands: results };
+    } catch (error) {
+      primaryError = error;
+      throw error;
     } finally {
-      await this.deleteSandbox(sandboxId).catch(() => undefined);
+      try {
+        await this.deleteSandbox(sandboxId);
+      } catch (cleanupError) {
+        if (primaryError) {
+          throw new AggregateError([primaryError, cleanupError], `Daytona execution failed and sandbox ${sandboxId} cleanup also failed.`);
+        }
+        throw cleanupError;
+      }
     }
   }
 
