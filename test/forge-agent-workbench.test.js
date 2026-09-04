@@ -43,7 +43,7 @@ test('Agent Workbench exposes all eleven registry-backed operation adapters with
 
   assert.match(source, /toolPath\(tool\)/);
   assert.match(source, /tool\.pathTemplate/);
-  assert.match(source, /configured tool/i);
+  assert.match(source, /undiscovered Forge tool/i);
   assert.doesNotMatch(source, /proposal\.apply/);
 });
 
