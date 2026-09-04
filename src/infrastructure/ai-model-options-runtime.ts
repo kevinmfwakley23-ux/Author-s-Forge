@@ -158,8 +158,20 @@ function effectiveOwnerBillingClass(item: AiAdditionalModelOption, trusted: Read
   return declared;
 }
 function emptyAppliedState(): AppliedOptionsState {
+  const extrasByProvider: Readonly<Record<AiModelOptionProvider, readonly string[]>> = Object.freeze({
+    omniroute: Object.freeze([]),
+    "9router": Object.freeze([]),
+    kings: Object.freeze([]),
+    ollama: Object.freeze([]),
+    groq: Object.freeze([]),
+    mistral: Object.freeze([]),
+    gemini: Object.freeze([]),
+    anthropic: Object.freeze([]),
+    openrouter: Object.freeze([]),
+    openai: Object.freeze([]),
+  });
   return {
-    extrasByProvider: Object.freeze(Object.fromEntries(AI_MODEL_OPTION_PROVIDERS.map((provider) => [provider, Object.freeze([])])) as Record<AiModelOptionProvider, readonly string[]>),
+    extrasByProvider,
     trusted: Object.freeze([]),
     explicitResourceKeys: Object.freeze([]),
   };
