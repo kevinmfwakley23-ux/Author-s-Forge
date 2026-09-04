@@ -121,7 +121,7 @@ test('Daytona provider creates a TTL sandbox with restricted network, executes, 
     calls.push({ url: String(url), method: init.method || 'GET', body: init.body ? JSON.parse(init.body) : undefined, authorization: init.headers?.Authorization });
     if (String(url).endsWith('/sandbox') && init.method === 'POST') return new Response(JSON.stringify({ id: 'sandbox-123' }), { status: 200, headers: { 'content-type': 'application/json' } });
     if (String(url).includes('/process/execute')) return new Response(JSON.stringify({ result: 'REMOTE_OK', exitCode: 0 }), { status: 200, headers: { 'content-type': 'application/json' } });
-    if (String(url).endsWith('/sandbox/sandbox-123') && init.method === 'DELETE') return new Response('', { status: 204 });
+    if (String(url).endsWith('/sandbox/sandbox-123') && init.method === 'DELETE') return new Response(null, { status: 204 });
     return new Response('not found', { status: 404 });
   };
   const provider = new DaytonaExecutionProvider({ apiKey: 'test-key', fetchImpl, ttlMinutes: 20 });
@@ -147,10 +147,23 @@ test('Daytona provider blocks outbound network by default', async () => {
     calls.push({ url: String(url), method: init.method || 'GET', body: init.body ? JSON.parse(init.body) : undefined });
     if (String(url).endsWith('/sandbox') && init.method === 'POST') return new Response(JSON.stringify({ id: 'sandbox-offline' }), { status: 200 });
     if (String(url).includes('/process/execute')) return new Response(JSON.stringify({ result: 'ok', exitCode: 0 }), { status: 200 });
-    return new Response('', { status: 204 });
+    return new Response(null, { status: 204 });
   };
   const provider = new DaytonaExecutionProvider({ apiKey: 'test-key', fetchImpl });
   await provider.execute({ formatVersion: 1, id: 'offline', projectId: 'p', title: 'Offline', requestedBy: 'author', requestedAt: new Date().toISOString(), status: 'approved', planDigest: 'x', approvedBy: 'author', approvedAt: new Date().toISOString(), plan: { provider: 'daytona', purpose: 'No internet required.', commands: [{ program: 'node', args: ['-v'] }] } });
   assert.equal(calls[0].body.networkBlockAll, true);
   assert.equal(calls[0].body.domainAllowList, undefined);
+});
+
+test('Daytona cleanup failure is reported instead of hidden', async () => {
+  const fetchImpl = async (url, init = {}) => {
+    if (String(url).endsWith('/sandbox') && init.method === 'POST') return new Response(JSON.stringify({ id: 'sandbox-cleanup' }), { status: 200 });
+    if (String(url).includes('/process/execute')) return new Response(JSON.stringify({ result: 'ok', exitCode: 0 }), { status: 200 });
+    return new Response('delete failed', { status: 503 });
+  };
+  const provider = new DaytonaExecutionProvider({ apiKey: 'test-key', fetchImpl });
+  await assert.rejects(
+    () => provider.execute({ formatVersion: 1, id: 'cleanup', projectId: 'p', title: 'Cleanup', requestedBy: 'author', requestedAt: new Date().toISOString(), status: 'approved', planDigest: 'x', approvedBy: 'author', approvedAt: new Date().toISOString(), plan: { provider: 'daytona', purpose: 'Verify sandbox cleanup errors remain visible.', commands: [{ program: 'node', args: ['-v'] }] } }),
+    /Unable to delete Daytona sandbox/,
+  );
 });
