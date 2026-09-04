@@ -36,14 +36,36 @@ test('Forge Agent Workbench is a real governed orchestration surface, not a draf
   assert.match(source, /does not claim external publication or retailer acceptance/);
 });
 
+test('Agent Workbench exposes the existing real Forge AI resource, catalog, pinning and spend-policy controls', () => {
+  const html = fs.readFileSync('public/forge-agent.html', 'utf8');
+  const routing = fs.readFileSync('public/forge-agent-routing.js', 'utf8');
+  assert.match(html, /forge-agent-routing\.js/);
+  assert.match(routing, /\/ai\/control/);
+  assert.match(routing, /\/ai\/catalog\?provider=/);
+  assert.match(routing, /No paid tokens/);
+  assert.match(routing, /Budgeted/);
+  assert.match(routing, /Unrestricted/);
+  assert.match(routing, /economy/);
+  assert.match(routing, /balanced/);
+  assert.match(routing, /quality/);
+  assert.match(routing, /Pin selected model/);
+  assert.match(routing, /Clear model pin/);
+  for (const provider of ['omniroute', '9router', 'kings', 'ollama', 'groq', 'mistral', 'gemini', 'anthropic', 'openrouter', 'openai']) {
+    assert.ok(routing.includes(`"${provider}"`), `missing Agent provider option ${provider}`);
+  }
+  assert.doesNotMatch(routing, /api[_-]?key/i, 'Agent routing UI must never expose or request provider secrets');
+  assert.doesNotThrow(() => new vm.Script(routing, { filename: 'forge-agent-routing.js' }));
+});
+
 test('Agent Workbench is reachable from Studio and cached by the PWA shell', () => {
   const pwa = fs.readFileSync('public/forge-pwa.js', 'utf8');
   const sw = fs.readFileSync('public/sw.js', 'utf8');
   assert.match(pwa, /open-agent-workbench/);
   assert.match(pwa, /forge-agent\.html/);
-  assert.match(sw, /authors-forge-shell-v17/);
+  assert.match(sw, /authors-forge-shell-v18/);
   assert.match(sw, /forge-agent\.html/);
   assert.match(sw, /forge-agent\.js/);
+  assert.match(sw, /forge-agent-routing\.js/);
 });
 
 test('Agent Workbench client script parses as JavaScript', () => {
