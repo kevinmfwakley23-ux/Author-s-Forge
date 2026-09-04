@@ -1,10 +1,19 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import type { CreateNftSeriesInput, NftSeriesRules, NftSeriesSet } from "../domain/nft-series-director";
+import type { NftSeriesRules, NftSeriesSet } from "../domain/nft-series-director";
 import type { FileNftCreationStore } from "../infrastructure/file-nft-creation-store";
 import type { NftSeriesDirectorService } from "./nft-series-director";
 import type { NftStoragePublisherService } from "./nft-storage-publisher";
 
 export type NftAdvancedRouteHandler = (req: IncomingMessage, res: ServerResponse, url: URL, forgeProjectId: string) => Promise<boolean>;
+
+type MutableSeriesPatch = {
+  title?: string;
+  thesis?: string;
+  audience?: string;
+  collectionIds?: string[];
+  sets?: NftSeriesSet[];
+  rules?: Partial<NftSeriesRules>;
+};
 
 export function createNftAdvancedRoutes(
   series: NftSeriesDirectorService,
@@ -42,7 +51,7 @@ export function createNftAdvancedRoutes(
       }
       if (!tail && req.method === "PUT") {
         const input = await body(req);
-        const patch: Partial<Omit<CreateNftSeriesInput, "id" | "forgeProjectId" | "now">> = {};
+        const patch: MutableSeriesPatch = {};
         if (input.title !== undefined) patch.title = required(input.title, "NFT series title");
         if (input.thesis !== undefined) patch.thesis = text(input.thesis) ?? "";
         if (input.audience !== undefined) patch.audience = text(input.audience) ?? "";
