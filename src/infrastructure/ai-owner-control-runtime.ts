@@ -19,6 +19,12 @@ export interface RuntimeAiOwnerControl {
 
 const DEFAULT_ORDER: readonly AiOwnerProvider[] = PROVIDERS;
 
+// OmniRoute and 9Router documentation commonly gives an OpenAI-compatible
+// base URL ending in /v1. Forge's provider adapter appends /v1/... itself.
+// Canonicalize either documented form (root or root/v1) to the root exactly
+// once, so a valid user configuration can never become /v1/v1/....
+normalizeRouterBaseUrls(process.env);
+
 /**
  * Reload the durable owner-level AI control and apply it at the shared provider
  * boundary. Every Forge office that calls generateText therefore observes the
@@ -26,6 +32,7 @@ const DEFAULT_ORDER: readonly AiOwnerProvider[] = PROVIDERS;
  * process. A corrupt control file always fails closed to No Paid Tokens.
  */
 export function refreshPersistedAiOwnerControl(env: NodeJS.ProcessEnv = process.env): RuntimeAiOwnerControl {
+  normalizeRouterBaseUrls(env);
   const control = readControl(env);
   env.AI_SPEND_POLICY = control.spendPolicy;
   env.AI_ROUTING_MODE = control.routingMode;
@@ -61,6 +68,24 @@ export function defaultAiOwnerControl(): RuntimeAiOwnerControl {
     routingMode: "economy",
     providerOrder: [...DEFAULT_ORDER],
   };
+}
+
+function normalizeRouterBaseUrls(env: NodeJS.ProcessEnv): void {
+  for (const key of ["OMNIROUTE_BASE_URL", "ROUTER9_BASE_URL"] as const) {
+    const normalized = normalizeRouterBaseUrl(env[key]);
+    if (normalized === undefined) delete env[key];
+    else env[key] = normalized;
+  }
+}
+
+function normalizeRouterBaseUrl(value: string | undefined): string | undefined {
+  if (!value?.trim()) return undefined;
+  let normalized = value.trim().replace(/\/+$/, "");
+  // Accept a pasted full OpenAI-compatible endpoint as well as the documented
+  // /v1 base. This is deliberately limited to the two known router variables.
+  normalized = normalized.replace(/\/v1\/(?:chat\/completions|models)$/i, "");
+  normalized = normalized.replace(/\/v1$/i, "");
+  return normalized.replace(/\/+$/, "");
 }
 
 function readControl(env: NodeJS.ProcessEnv): RuntimeAiOwnerControl {
