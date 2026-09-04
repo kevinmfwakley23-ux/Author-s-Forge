@@ -30,6 +30,7 @@ jobs:
       - run: node --check public/forge-workbench.js
       - run: node --check public/forge-agent-v3.js
       - run: node --check public/forge-agent-routing.js
+      - run: node --check public/forge-media-studio.js
       - run: node --check public/forge-ai-proposals.js
       - run: node --check public/forge-editing-proposals.js
       - run: node --check public/forge-story-map.js
@@ -55,6 +56,7 @@ jobs:
       - run: node --check scripts/studio-agent-planner-api-acceptance.js
       - run: node --check scripts/studio-agent-routing-browser-acceptance.js
       - run: node --check scripts/studio-agent-workbench-browser-acceptance.js
+      - run: node --check scripts/studio-media-studio-browser-acceptance.js
       - run: node --check scripts/studio-architecture-browser-acceptance.js
       - run: node --check scripts/studio-scene-card-browser-acceptance.js
       - run: node --check scripts/studio-series-browser-acceptance.js
