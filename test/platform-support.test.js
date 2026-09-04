@@ -49,6 +49,25 @@ test('responsive UI has Chromebook and phone layout breakpoints', () => {
   assert.match(series, /viewport-fit=cover/);
 });
 
+test('royal marble UI preserves author-selected light and dark appearance', () => {
+  assert.match(styles, /--gold:/, 'shared UI must expose the approved gold accent token');
+  assert.match(styles, /data-forge-theme="dark"/, 'shared UI must include a true dark theme');
+  assert.match(styles, /\.brand::before\{content:"♛"/, 'Forge identity must include the approved crown treatment');
+  assert.match(styles, /\.brand::after\{content:"✒"/, 'Forge identity must retain the quill treatment');
+  assert.match(pwa, /forge-ui-theme/, 'theme choice must persist locally across launches');
+  assert.match(pwa, /forge-theme-toggle/, 'PWA must render a user-facing light/dark control');
+  assert.match(pwa, /localStorage\.setItem\(THEME_KEY,next\)/, 'theme choice must be durable on the device');
+});
+
+test('Android UI hardening protects touch size, safe areas, and narrow-screen editing', () => {
+  assert.match(styles, /min-height:44px/, 'touch controls must meet the Forge 44px mobile target');
+  assert.match(styles, /env\(safe-area-inset-top\)/, 'phone chrome/notch safe area must be respected');
+  assert.match(styles, /env\(safe-area-inset-bottom\)/, 'bottom gesture safe area must be respected');
+  assert.match(styles, /overflow-x:auto/, 'large Studio navigation must remain reachable without widening the viewport');
+  assert.match(styles, /select,input,textarea\{font-size:16px;min-height:44px\}/, 'mobile form fields must avoid browser zoom and remain touch-sized');
+  assert.match(styles, /\.editor\{min-height:54vh;font-size:16px\}/, 'phone manuscript editing must preserve a useful writing viewport');
+});
+
 test('platform contract keeps future native environments behind shared boundaries', () => {
   assert.match(platformContract, /Asus Chromebook/);
   assert.match(platformContract, /Android phone/);
