@@ -201,6 +201,31 @@ async function serveHostedAsset(req, res, pathname) {
   return true;
 }
 
+const PUBLIC_REVIEW_ASSETS = new Set([
+  "/review.html",
+  "/forge-reviewer.js",
+  "/styles.css",
+  "/forge-royal-hardening.css",
+  "/forge-hosted-client.js",
+  "/forge-hosted-client.css",
+]);
+const PUBLIC_REVIEW_API = /^\/api\/projects\/[^/]+\/human-review\/(context|comments|suggestions)$/;
+
+function isPublicReviewShellRequest(req, pathname) {
+  return (req.method === "GET" || req.method === "HEAD") && PUBLIC_REVIEW_ASSETS.has(pathname);
+}
+
+function isTokenGovernedReviewApiRequest(req, pathname) {
+  const match = pathname.match(PUBLIC_REVIEW_API);
+  if (!match) return false;
+  const resource = match[1];
+  const methodAllowed = resource === "context" ? req.method === "GET" : req.method === "GET" || req.method === "POST";
+  if (!methodAllowed) return false;
+  const raw = req.headers["x-forge-review-token"];
+  const token = Array.isArray(raw) ? raw[0] : raw;
+  return typeof token === "string" && token.trim().length >= 32 && token.trim().length <= 512;
+}
+
 function proxyRequest(req, res, route) {
   const port = internalPorts.get(route.serviceId);
   const headers = { ...req.headers };
@@ -292,6 +317,12 @@ async function handleRequest(req, res) {
   }
 
   if (parsed.pathname === "/__forge/login") return handleLogin(req, res);
+
+  if (isPublicReviewShellRequest(req, parsed.pathname) || isTokenGovernedReviewApiRequest(req, parsed.pathname)) {
+    const reviewRoute = resolveHostedRoute(req.url);
+    proxyRequest(req, res, reviewRoute);
+    return;
+  }
 
   const auth = authorizeLanRequest({
     requestUrl: req.url,
