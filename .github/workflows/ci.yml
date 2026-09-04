@@ -51,6 +51,7 @@ jobs:
       - run: node --check scripts/forge-network-security.js
       - run: node --check scripts/start-forge.js
       - run: node --check scripts/forge-offices-browser-acceptance.js
+      - run: node --check scripts/studio-agent-planner-api-acceptance.js
       - run: node --check scripts/studio-agent-workbench-browser-acceptance.js
       - run: node --check scripts/studio-architecture-browser-acceptance.js
       - run: node --check scripts/studio-scene-card-browser-acceptance.js
