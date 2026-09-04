@@ -33,6 +33,7 @@ jobs:
       - run: node --check public/forge-media-studio.js
       - run: node --check public/nft-creation.js
       - run: node --check public/nft-author-artwork-ui.js
+      - run: node --check public/nft-production-director.js
       - run: node --check public/forge-office-royal.js
       - run: node --check public/forge-ai-proposals.js
       - run: node --check public/forge-editing-proposals.js
@@ -61,6 +62,7 @@ jobs:
       - run: node --check scripts/studio-agent-workbench-browser-acceptance.js
       - run: node --check scripts/studio-media-studio-browser-acceptance.js
       - run: node --check scripts/nft-creation-browser-acceptance.js
+      - run: node --check scripts/nft-production-director-browser-acceptance.js
       - run: node --check scripts/studio-architecture-browser-acceptance.js
       - run: node --check scripts/studio-scene-card-browser-acceptance.js
       - run: node --check scripts/studio-series-browser-acceptance.js
