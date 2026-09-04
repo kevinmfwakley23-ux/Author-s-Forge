@@ -39,6 +39,7 @@ jobs:
       - run: node --check public/forge-manuscript-import.js
       - run: node --check public/forge-series.js
       - run: node --check public/forge-image-lab.js
+      - run: node --check public/forge-recipes.js
       - run: node --check public/forge-kdp-preflight.js
       - run: node --check public/forge-publishing-promotion.js
       - run: node --check public/forge-promotion-performance.js
@@ -46,9 +47,16 @@ jobs:
       - run: node --check public/forge-pwa.js
       - run: node --check public/forge-royal-ui.js
       - run: node --check public/sw.js
+      - run: node --check public/sw-hosted.js
+      - run: node --check native-shell/app.js
       - run: node --check scripts/require-node24.js
       - run: node --check scripts/forge-network-security.js
       - run: node --check scripts/start-forge.js
+      - run: node --check scripts/start-forge-web.js
+      - run: node --check scripts/forge-platform-doctor.js
+      - run: node --check scripts/forge-sandbox.js
+      - run: node --check scripts/forge-codespaces.js
+      - run: node --check scripts/forge-ssh.js
       - run: node --check scripts/forge-offices-browser-acceptance.js
       - run: node --check scripts/studio-architecture-browser-acceptance.js
       - run: node --check scripts/studio-scene-card-browser-acceptance.js
