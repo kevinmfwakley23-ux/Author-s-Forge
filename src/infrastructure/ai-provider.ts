@@ -10,6 +10,7 @@ import type { AiCostRoutingMode } from "../application/ai-cost-routing-policy";
 import { assertForgeOutputQuality, buildForgeQualityContract, type ForgeOutputQualityReport } from "../application/forge-quality-contract";
 import { discoverConfiguredAiModelResources } from "./ai-model-resources";
 import { generateWithKingsAi } from "./kings-ai-bridge";
+import { providerFetch } from "./provider-transport";
 
 export interface AiTokenUsage {
   readonly inputTokens: number;
@@ -97,7 +98,8 @@ export async function generateText(request: AiGenerationRequest): Promise<AiGene
   const task = request.task ?? "writing";
   const governedSystem = [buildForgeQualityContract(task), request.system].filter(Boolean).join("\n\n");
   const optimized = optimizeContext({ system: governedSystem, user: request.user, maxInputTokens: readPositiveInteger(process.env.AI_CONTEXT_MAX_INPUT_TOKENS) });
-  const optimizedRequest = { ...request, system: optimized.system, user: optimized.user };
+  const maxOutputTokens = request.maxOutputTokens ?? 4000;
+  const optimizedRequest = { ...request, system: optimized.system, user: optimized.user, maxOutputTokens };
   const optimization = {
     originalEstimatedTokens: optimized.originalEstimatedTokens,
     optimizedEstimatedTokens: optimized.optimizedEstimatedTokens,
@@ -110,14 +112,13 @@ export async function generateText(request: AiGenerationRequest): Promise<AiGene
 
   const routingMode = request.routingMode ?? routingModeFromEnv(process.env.AI_ROUTING_MODE);
   const spendPolicy = request.spendPolicy ?? spendPolicyFromEnv(process.env.AI_SPEND_POLICY);
-  const maxOutputTokens = request.maxOutputTokens ?? 4000;
   const providerPreference = providerOrder();
   const trustedNoSpendModels = request.trustedNoSpendModels ?? csv(process.env.AI_TRUSTED_NO_SPEND_MODELS);
   const maxEstimatedRequestCostUsd = request.maxEstimatedRequestCostUsd ?? readNonnegative(process.env.AI_MAX_REQUEST_COST_USD);
   const cacheEnabled = process.env.AI_CACHE_ENABLED?.trim().toLowerCase() === "true";
   const cacheable = cacheEnabled && (request.temperature ?? 0.7) === 0;
   const resourceSignature = resources.map((resource) => `${resource.provider}/${resource.model}/${resource.billingClass ?? "unknown"}`).join("|");
-  const cacheKey = cacheable ? stableCacheKey(["forge-ai-v6", optimizedRequest.system, optimizedRequest.user, request.temperature ?? 0.7, maxOutputTokens, task, routingMode, spendPolicy, request.preferProvider ?? "", request.preferModel ?? "", resourceSignature]) : undefined;
+  const cacheKey = cacheable ? stableCacheKey(["forge-ai-v7", optimizedRequest.system, optimizedRequest.user, request.temperature ?? 0.7, maxOutputTokens, task, routingMode, spendPolicy, request.preferProvider ?? "", request.preferModel ?? "", resourceSignature]) : undefined;
   if (cacheKey) {
     const cached = responseCache.get(cacheKey);
     if (cached) {
@@ -287,8 +288,8 @@ async function generateFromProvider(provider: ProviderName, model: string, reque
       return generateAnthropic(key, model, request);
     }
     case "kings": {
-      const endpoint = process.env.KINGS_AI_ENDPOINT?.trim();
-      if (!endpoint) throw new Error("K.I.N.G.S. is not configured.");
+      const endpoint = process.env.KINGS_AI_RESPONSES_URL?.trim();
+      if (!endpoint) throw new Error("K.I.N.G.S. Responses endpoint is not configured.");
       return generateWithKingsAi({ endpoint, apiKey: process.env.KINGS_AI_API_KEY?.trim(), model }, request) as Promise<AiGenerationResult>;
     }
     case "openai": {
@@ -330,7 +331,16 @@ function spendPolicyFromEnv(value: string | undefined): AiSpendPolicy {
 function csv(value: string | undefined): string[] { return value?.split(",").map((item) => item.trim()).filter(Boolean) ?? []; }
 
 async function generateWithOpenAiCompatibleGateway(provider: "omniroute" | "9router" | "groq" | "mistral" | "openrouter", baseUrl: string, apiKey: string | undefined, request: AiGenerationRequest, model: string, extraHeaders: Record<string, string> = {}): Promise<AiGenerationResult> {
-  const response = await fetch(`${baseUrl.replace(/\/$/, "")}/v1/chat/completions`, { method: "POST", headers: { "content-type": "application/json", ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}), ...extraHeaders }, body: JSON.stringify({ model, messages: [{ role: "system", content: request.system }, { role: "user", content: request.user }], temperature: request.temperature ?? 0.7, ...(request.maxOutputTokens ? { max_tokens: request.maxOutputTokens } : {}) }) });
+  const response = await providerFetch(openAiCompatibleEndpoint(baseUrl, "chat/completions"), {
+    method: "POST",
+    headers: { "content-type": "application/json", ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}), ...extraHeaders },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: "system", content: request.system }, { role: "user", content: request.user }],
+      temperature: request.temperature ?? 0.7,
+      max_tokens: request.maxOutputTokens ?? 4000,
+    }),
+  }, { label: provider });
   const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
   if (!response.ok) throw new Error(typeof payload.error === "object" && payload.error ? String((payload.error as Record<string, unknown>).message ?? `${provider} request failed (${response.status}).`) : `${provider} request failed (${response.status}).`);
   const choices = Array.isArray(payload.choices) ? payload.choices : [];
@@ -343,7 +353,11 @@ async function generateWithOpenAiCompatibleGateway(provider: "omniroute" | "9rou
 }
 
 async function generateOpenAi(apiKey: string, model: string, request: AiGenerationRequest): Promise<AiGenerationResult> {
-  const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" }, body: JSON.stringify({ model, input: [{ role: "system", content: request.system }, { role: "user", content: request.user }], temperature: request.temperature ?? 0.7, max_output_tokens: request.maxOutputTokens ?? 4000 }) });
+  const response = await providerFetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+    body: JSON.stringify({ model, input: [{ role: "system", content: request.system }, { role: "user", content: request.user }], temperature: request.temperature ?? 0.7, max_output_tokens: request.maxOutputTokens ?? 4000 }),
+  }, { label: "OpenAI" });
   const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
   if (!response.ok) throw new Error(typeof payload.error === "object" && payload.error ? String((payload.error as Record<string, unknown>).message ?? `OpenAI request failed (${response.status}).`) : `OpenAI request failed (${response.status}).`);
   const text = extractOpenAiText(payload);
@@ -353,11 +367,11 @@ async function generateOpenAi(apiKey: string, model: string, request: AiGenerati
 }
 
 async function generateAnthropic(apiKey: string, model: string, request: AiGenerationRequest): Promise<AiGenerationResult> {
-  const response = await fetch(`${process.env.ANTHROPIC_BASE_URL?.trim()?.replace(/\/$/, "") || "https://api.anthropic.com"}/v1/messages`, {
+  const response = await providerFetch(`${process.env.ANTHROPIC_BASE_URL?.trim()?.replace(/\/$/, "") || "https://api.anthropic.com"}/v1/messages`, {
     method: "POST",
     headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": process.env.ANTHROPIC_VERSION?.trim() || "2023-06-01" },
     body: JSON.stringify({ model, max_tokens: request.maxOutputTokens ?? 4000, system: request.system, messages: [{ role: "user", content: request.user }], ...(request.temperature === undefined ? {} : { temperature: request.temperature }) }),
-  });
+  }, { label: "Anthropic" });
   const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
   if (!response.ok) throw new Error(anthropicError(payload) || `Anthropic request failed (${response.status}).`);
   const text = textFromContent(payload.content);
@@ -368,15 +382,15 @@ async function generateAnthropic(apiKey: string, model: string, request: AiGener
 
 async function generateGemini(apiKey: string, model: string, request: AiGenerationRequest): Promise<AiGenerationResult> {
   const base = process.env.GEMINI_BASE_URL?.trim()?.replace(/\/$/, "") || "https://generativelanguage.googleapis.com/v1beta";
-  const response = await fetch(`${base}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+  const response = await providerFetch(`${base}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: request.system }] },
       contents: [{ role: "user", parts: [{ text: request.user }] }],
-      generationConfig: { ...(request.temperature === undefined ? {} : { temperature: request.temperature }), ...(request.maxOutputTokens ? { maxOutputTokens: request.maxOutputTokens } : {}) },
+      generationConfig: { ...(request.temperature === undefined ? {} : { temperature: request.temperature }), maxOutputTokens: request.maxOutputTokens ?? 4000 },
     }),
-  });
+  }, { label: "Gemini" });
   const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
   if (!response.ok) throw new Error(geminiError(payload) || `Gemini request failed (${response.status}).`);
   const candidates = Array.isArray(payload.candidates) ? payload.candidates : [];
@@ -389,7 +403,16 @@ async function generateGemini(apiKey: string, model: string, request: AiGenerati
 }
 
 async function generateOllama(baseUrl: string, model: string, request: AiGenerationRequest): Promise<AiGenerationResult> {
-  const response = await fetch(`${baseUrl}/api/chat`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ model, stream: false, messages: [{ role: "system", content: request.system }, { role: "user", content: request.user }], options: { temperature: request.temperature ?? 0.7 } }) });
+  const response = await providerFetch(`${baseUrl}/api/chat`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      model,
+      stream: false,
+      messages: [{ role: "system", content: request.system }, { role: "user", content: request.user }],
+      options: { temperature: request.temperature ?? 0.7, num_predict: request.maxOutputTokens ?? 4000 },
+    }),
+  }, { label: "Ollama" });
   const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
   if (!response.ok) throw new Error(`Ollama request failed (${response.status}).`);
   const message = payload.message as Record<string, unknown> | undefined;
@@ -397,6 +420,11 @@ async function generateOllama(baseUrl: string, model: string, request: AiGenerat
   if (!text) throw new Error("Ollama returned no generated text.");
   const usage = ollamaUsage(payload);
   return { provider: "ollama", model, text, ...(usage ? { usage } : {}) };
+}
+
+function openAiCompatibleEndpoint(baseUrl: string, suffix: "chat/completions"): string {
+  const normalized = baseUrl.trim().replace(/\/+$/, "");
+  return /\/v1$/i.test(normalized) ? `${normalized}/${suffix}` : `${normalized}/v1/${suffix}`;
 }
 
 function chatUsage(payload: Record<string, unknown>): AiTokenUsage | undefined {
