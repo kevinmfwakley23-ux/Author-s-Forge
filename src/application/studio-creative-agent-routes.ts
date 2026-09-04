@@ -74,12 +74,15 @@ export function createStudioCreativeAgentRoutes(store: FileProjectStore): Studio
 
     if (url.pathname === recipesPath && req.method === "POST") {
       const input = await body(req);
+      const recipeId = optionalId(input.id);
+      const description = optionalText(input.description);
+      const now = optionalText(input.now);
       const recipe = await recipes.create(projectId, {
-        id: optionalId(input.id),
+        ...(recipeId ? { id: recipeId } : {}),
         title: requiredText(input.title, "Recipe title"),
-        description: optionalText(input.description),
+        ...(description ? { description } : {}),
         steps: recipeSteps(input.steps),
-        now: optionalText(input.now),
+        ...(now ? { now } : {}),
       });
       json(res, 201, { projectId, recipe, authority: "author-defined-workflow" });
       return true;
@@ -87,11 +90,15 @@ export function createStudioCreativeAgentRoutes(store: FileProjectStore): Studio
 
     if (recipePlanMatch && req.method === "POST") {
       const input = await body(req);
+      const goal = optionalText(input.goal);
+      const bookId = optionalId(input.bookId);
+      const chapterId = optionalId(input.chapterId);
+      const sceneId = optionalId(input.sceneId);
       const compiled = await recipes.compile(projectId, recipePlanMatch[1], {
-        goal: optionalText(input.goal),
-        bookId: optionalId(input.bookId),
-        chapterId: optionalId(input.chapterId),
-        sceneId: optionalId(input.sceneId),
+        ...(goal ? { goal } : {}),
+        ...(bookId ? { bookId } : {}),
+        ...(chapterId ? { chapterId } : {}),
+        ...(sceneId ? { sceneId } : {}),
       });
       json(res, 200, {
         projectId,
@@ -104,11 +111,13 @@ export function createStudioCreativeAgentRoutes(store: FileProjectStore): Studio
 
     if (recipeMatch && req.method === "PUT") {
       const input = await body(req);
+      const title = optionalText(input.title);
+      const now = optionalText(input.now);
       const recipe = await recipes.update(projectId, recipeMatch[1], {
-        title: optionalText(input.title),
-        description: input.description === undefined ? undefined : String(input.description ?? ""),
-        steps: input.steps === undefined ? undefined : recipeSteps(input.steps),
-        now: optionalText(input.now),
+        ...(title ? { title } : {}),
+        ...(input.description === undefined ? {} : { description: String(input.description ?? "") }),
+        ...(input.steps === undefined ? {} : { steps: recipeSteps(input.steps) }),
+        ...(now ? { now } : {}),
       });
       json(res, 200, { projectId, recipe, authority: "author-defined-workflow" });
       return true;
@@ -139,9 +148,10 @@ function recipeSteps(value: unknown): readonly CreativeAgentRecipeStep[] {
   return value.map((entry, index) => {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw new Error(`Forge Recipe step ${index + 1} must be an object.`);
     const row = entry as Record<string, unknown>;
+    const instruction = optionalText(row.instruction);
     return {
       toolId: requiredText(row.toolId, `Forge Recipe step ${index + 1} tool id`),
-      ...(optionalText(row.instruction) ? { instruction: optionalText(row.instruction) } : {}),
+      ...(instruction ? { instruction } : {}),
     };
   });
 }
