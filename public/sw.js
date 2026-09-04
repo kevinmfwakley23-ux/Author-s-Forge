@@ -1,8 +1,9 @@
-const CACHE = "authors-forge-shell-v17";
+const CACHE = "authors-forge-shell-v18";
 const SHELL = [
   "/",
   "/index.html",
   "/series.html",
+  "/review.html",
   "/styles.css",
   "/forge-royal-hardening.css",
   "/app.js",
@@ -20,6 +21,8 @@ const SHELL = [
   "/forge-series.js",
   "/forge-image-lab.js",
   "/forge-recipes.js",
+  "/forge-review-room.js",
+  "/forge-reviewer.js",
   "/forge-royal-ui.js",
   "/forge-pwa.js",
   "/manifest.webmanifest",
@@ -60,6 +63,7 @@ self.addEventListener("fetch", (event) => {
         if (exact) return exact;
         const shellPath = await caches.match(url.pathname);
         if (shellPath) return shellPath;
+        if (url.pathname === "/review.html") return caches.match("/review.html");
         return caches.match("/index.html");
       })
   );
