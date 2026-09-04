@@ -9,6 +9,7 @@ const read = (file) => readFileSync(join(root, file), 'utf8');
 const html = read('public/forge-media-studio.html');
 const js = read('public/forge-media-studio.js');
 const css = read('public/forge-media-studio.css');
+const baseCss = read('public/styles.css');
 const pwa = read('public/forge-pwa.js');
 const sw = read('public/sw.js');
 const specialized = read('public/specialized-creation-api-state-sync.js');
@@ -48,7 +49,16 @@ test('Design & Motion is integrated into installed Forge shell', () => {
 });
 
 test('new creative surfaces use the approved royal marble light-dark system', () => {
-  for (const source of [css, specializedRoyal, officeRoyal, journalRoyal]) {
+  // Design & Motion composes the canonical Studio token sheet rather than
+  // duplicating a second dark-theme palette inside its office-local CSS.
+  assert.match(html, /href="\/styles\.css"/);
+  assert.match(html, /forge-royal-hardening\.css/);
+  assert.match(baseCss, /:root\[data-forge-theme="dark"\]/);
+  for (const token of ['--forge-bg', '--forge-panel', '--forge-ink', '--forge-muted', '--forge-gold']) assert.match(css, new RegExp(token));
+  assert.match(js, /document\.documentElement\.dataset\.forgeTheme = next/);
+  assert.match(js, /localStorage\.setItem\("forge-theme", next\)/);
+
+  for (const source of [specializedRoyal, officeRoyal, journalRoyal]) {
     assert.match(source, /gold|#b68a3f|#c49345/i);
     assert.match(source, /data-forge-theme=["\\]?dark|data-forge-theme\\?="dark"/i);
   }
