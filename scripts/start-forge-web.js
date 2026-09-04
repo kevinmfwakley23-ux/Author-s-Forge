@@ -206,6 +206,7 @@ function proxyRequest(req, res, route) {
   const headers = { ...req.headers };
   delete headers.connection;
   delete headers["proxy-connection"];
+  delete headers["accept-encoding"];
   headers.host = `127.0.0.1:${port}`;
   headers["x-forwarded-host"] = req.headers["x-forwarded-host"] || req.headers.host || "";
   headers["x-forwarded-proto"] = requestProtocol(req.headers, "http");
@@ -218,12 +219,27 @@ function proxyRequest(req, res, route) {
     path: route.upstreamPath,
     headers,
   }, (upstreamRes) => {
+    upstreamRes.on("error", (error) => {
+      if (res.headersSent) {
+        res.destroy(error);
+        return;
+      }
+      res.writeHead(502, { ...commonHeaders(req), "cache-control": "no-store", "content-type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ error: "Forge office response could not be processed." }));
+    });
+
+    if (req.method === "HEAD") {
+      res.writeHead(upstreamRes.statusCode || 502, { ...upstreamRes.headers, ...commonHeaders(req) });
+      res.end();
+      upstreamRes.resume();
+      return;
+    }
+
     const contentType = String(upstreamRes.headers["content-type"] || "").toLowerCase();
     const shouldRewriteHtml = contentType.includes("text/html");
     if (!shouldRewriteHtml) {
       const responseHeaders = { ...upstreamRes.headers, ...commonHeaders(req) };
       res.writeHead(upstreamRes.statusCode || 502, responseHeaders);
-      if (req.method === "HEAD") return res.end();
       upstreamRes.pipe(res);
       return;
     }
@@ -245,7 +261,6 @@ function proxyRequest(req, res, route) {
       delete responseHeaders["content-encoding"];
       delete responseHeaders["transfer-encoding"];
       res.writeHead(upstreamRes.statusCode || 200, responseHeaders);
-      if (req.method === "HEAD") return res.end();
       res.end(rewritten);
     });
   });
