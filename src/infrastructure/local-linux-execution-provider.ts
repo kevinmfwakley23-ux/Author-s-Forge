@@ -1,5 +1,5 @@
 import { realpath } from "node:fs/promises";
-import { delimiter, relative, resolve } from "node:path";
+import { relative, resolve, sep } from "node:path";
 import { spawn } from "node:child_process";
 import type {
   ForgeExecutionCommand,
@@ -67,7 +67,7 @@ async function resolveSafeCwd(root: string, requested?: string): Promise<string>
   const candidate = requested?.trim() ? resolve(root, requested) : root;
   const actual = await realpath(candidate);
   const relation = relative(root, actual);
-  if (relation === ".." || relation.startsWith(`..${delimiter}`) || resolve(root, relation) !== actual) {
+  if (relation === ".." || relation.startsWith(`..${sep}`) || resolve(root, relation) !== actual) {
     throw new Error("Execution working directory escapes the configured workspace root.");
   }
   return actual;
