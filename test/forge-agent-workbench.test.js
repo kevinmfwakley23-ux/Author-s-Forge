@@ -25,7 +25,7 @@ test('Forge Agent Workbench v3 plans from server discovery instead of a browser-
   assert.doesNotMatch(source, /\/workspace\/books\/[^`'"\s]+\/chapters\/[^`'"\s]+\/scenes\/[^`'"\s]+\/content/);
 });
 
-test('Agent Workbench exposes all eleven registry-backed operation adapters without direct author-owned apply routes', () => {
+test('Agent Workbench exposes all twelve registry-backed operation adapters without direct author-owned apply routes', () => {
   const source = fs.readFileSync('public/forge-agent-v3.js', 'utf8');
   for (const toolId of [
     'project.context',
@@ -35,6 +35,7 @@ test('Agent Workbench exposes all eleven registry-backed operation adapters with
     'story.chapter-cards.propose',
     'writing.propose',
     'editing.analyze',
+    'cover.direction.propose',
     'visual.image.generate',
     'promotion.campaign.propose',
     'production.export',
@@ -44,6 +45,8 @@ test('Agent Workbench exposes all eleven registry-backed operation adapters with
   assert.match(source, /toolPath\(tool\)/);
   assert.match(source, /tool\.pathTemplate/);
   assert.match(source, /undiscovered Forge tool/i);
+  assert.match(source, /bookId: book\?\.id, brief: goal/);
+  assert.match(source, /"cover-art" : "illustration"/);
   assert.doesNotMatch(source, /proposal\.apply/);
 });
 
