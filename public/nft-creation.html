@@ -56,7 +56,8 @@
       </section>
 
       <section id="nft-view-gallery" class="nft-view" data-nft-view hidden>
-        <article class="nft-panel"><div class="nft-row"><div class="grow"><h3>AI-assisted token artwork</h3><p class="nft-muted">Artwork is generated through Forge Image Lab with provider/model provenance. Every candidate stays pending until you approve it for a token.</p></div><select id="nft-gallery-filter"><option value="all">All tokens</option><option value="missing">Missing art</option><option value="approved">Approved art</option></select></div><div id="nft-gallery" class="nft-gallery"></div></article>
+        <article class="nft-panel"><div class="nft-row"><div class="grow"><h3>Artwork Studio</h3><p class="nft-muted">Use your own finished art or generate AI-assisted candidates through Forge Image Lab. AI is optional. Every source keeps a provenance trail, and AI candidates stay pending until you approve them.</p></div><select id="nft-gallery-filter"><option value="all">All tokens</option><option value="missing">Missing art</option><option value="approved">Approved art</option></select></div><div id="nft-gallery" class="nft-gallery"></div></article>
+        <article class="nft-panel"><h3>Attach author-owned artwork</h3><p class="nft-muted">Map an existing IPFS, Arweave, HTTPS, data, or other final media URI to a token without invoking AI. Forge requires your explicit rights/provenance declaration and records the source reference in Project Brain.</p><form id="nft-author-art-form" class="nft-form"><div class="nft-two"><label>Collection<select id="nft-author-art-collection" required></select></label><label>Token ID<input name="tokenId" required placeholder="1"></label></div><label>Image URI<input name="imageUri" required placeholder="ipfs://... or https://..."></label><label>Animation URL / URI<input name="animationUrl" placeholder="Optional mp4/webm/html/audio URI"></label><label>Source / provenance reference<input name="sourceReference" required placeholder="Original file name, archive id, author source note, or rights record"></label><label class="nft-row"><input name="authorDeclaresRights" type="checkbox" required style="width:auto;min-height:auto"> <span>I declare that I have the rights or permission needed to use this artwork/media in this NFT project.</span></label><button class="primary" type="submit">Attach artwork + record provenance</button></form></article>
       </section>
 
       <section id="nft-view-launch" class="nft-view" data-nft-view hidden>
@@ -77,5 +78,6 @@
 </main>
 <script src="/forge-office-royal.js"></script>
 <script src="/nft-creation.js"></script>
+<script src="/nft-author-artwork-ui.js"></script>
 </body>
 </html>
