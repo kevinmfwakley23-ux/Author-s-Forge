@@ -13,6 +13,8 @@
     "verify": "npm run build && npm run baseline && node --test test/*.test.js && npm run completion && npm run test:browser && npm run test:browser:mobile",
     "forge": "npm run build && node scripts/start-forge.js",
     "forge:android": "npm run build && node scripts/start-forge.js --host=0.0.0.0",
+    "forge:web": "npm run build && node scripts/start-forge-web.js",
+    "forge:web:prepared": "node scripts/start-forge-web.js",
     "studio": "npm run build && node dist/studio-server.js",
     "studio:android": "npm run build && node scripts/start-forge.js --host=0.0.0.0 --only=studio",
     "studio:journal": "npm run build && node dist/guided-journal-server.js",
