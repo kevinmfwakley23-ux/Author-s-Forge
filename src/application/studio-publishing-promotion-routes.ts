@@ -5,6 +5,7 @@ import { FileAiProposalStore } from "../infrastructure/file-ai-proposal-store";
 import { FileCreativeProvenanceStore } from "../infrastructure/file-creative-provenance-store";
 import { FileForgeRecipeStore } from "../infrastructure/file-forge-recipe-store";
 import { FileHumanReviewStore } from "../infrastructure/file-human-review-store";
+import { createStudioAiEnsembleRoutes } from "./studio-ai-ensemble-routes";
 import { createStudioAiModelOptionsRoutes } from "./studio-ai-model-options-routes";
 import { createStudioArchitectureAiRoutes } from "./studio-architecture-ai-routes";
 import { createStudioAuthorCraftRoutes } from "./studio-author-craft-routes";
@@ -28,9 +29,10 @@ export type StudioPublishingPromotionRouteHandler = (req: IncomingMessage, res: 
 /**
  * Modular Studio extension boundary. Historical name is retained to avoid
  * destabilizing the server entrypoint while architecture planning, author-craft,
- * model freedom, reusable Forge Recipes, governed human review, creative provenance,
- * Chapter Card, Scene Card, manuscript intake, Series, Story Map, research, image,
- * publishing, market and promotion routes remain independently testable.
+ * model freedom, governed multi-model writing, reusable Forge Recipes, governed
+ * human review, creative provenance, Chapter Card, Scene Card, manuscript intake,
+ * Series, Story Map, research, image, publishing, market and promotion routes
+ * remain independently testable.
  */
 export function createStudioPublishingPromotionRoutes(store: FileProjectStore): StudioPublishingPromotionRouteHandler {
   const dataRoot = process.env.FORGE_DATA_DIR ?? join(process.cwd(), ".forge-data");
@@ -39,6 +41,7 @@ export function createStudioPublishingPromotionRoutes(store: FileProjectStore): 
   const provenanceStore = new FileCreativeProvenanceStore(join(dataRoot, "creative-provenance.json"));
   const sharedProposalStore = new FileAiProposalStore(join(dataRoot, "ai-proposals.json"));
   const modelOptions = createStudioAiModelOptionsRoutes(store);
+  const ensembleWriting = createStudioAiEnsembleRoutes(store, sharedProposalStore);
   const storyArchitecture = createStudioStoryArchitectureRoutes(store);
   const architectureAi = createStudioArchitectureAiRoutes(store);
   const authorCraft = createStudioAuthorCraftRoutes(store);
@@ -58,6 +61,7 @@ export function createStudioPublishingPromotionRoutes(store: FileProjectStore): 
 
   return async (req, res, url, projectId) => {
     if (await modelOptions(req, res, url, projectId)) return true;
+    if (await ensembleWriting(req, res, url, projectId)) return true;
     if (await storyArchitecture(req, res, url, projectId)) return true;
     if (await architectureAi(req, res, url, projectId)) return true;
     if (await authorCraft(req, res, url, projectId)) return true;
