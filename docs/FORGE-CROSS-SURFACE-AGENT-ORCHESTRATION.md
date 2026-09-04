@@ -6,18 +6,27 @@
 
 ## Competitive engineering target
 
-Current leading AI coding and creative systems increasingly combine four ideas:
+Current leading AI coding and creative systems increasingly combine agentic tool loops, persistent project context, model/provider flexibility, reusable workflows, and reviewable outputs. Author's Forge adopts those useful patterns through its existing Project Brain, provider router, proposal ledgers, Image Lab, publishing/market/promotion systems, production engines, and author-governance boundaries rather than creating an ungoverned second AI stack.
 
-1. an agent that can decompose a goal into multiple tool operations;
-2. persistent project context rather than isolated prompts;
-3. model/provider flexibility;
-4. reusable cross-tool workflows that produce editable or reviewable outputs instead of silently replacing source material.
+The Forge-specific target is:
 
-Author's Forge already has unusually strong author-specific primitives: Project Brain, durable manuscript structure, Chapter Cards, Image Lab, live research, KDP market intelligence, promotion planning, proposal review boundaries, real production artifacts, provider routing and explicit author governance. The gap was orchestration: those capabilities were implemented as separate offices but were not all discoverable by one governed agent plan.
+**one author goal → server-owned governed plan → registered real tools → explicit approvals / bounded safe groups → durable proposals, evidence and artifacts → reusable Recipe**
 
-## Registry v2
+## One planning authority
 
-The Creative Tool Registry now exposes eleven real project-scoped operations:
+The production Workbench now loads only `public/forge-agent-v3.js`. The superseded browser-local Agent planner clients were removed.
+
+The browser no longer invents its own tool sequence. It:
+
+1. discovers `/agent/tools` from the server-owned Creative Tool Registry;
+2. asks `/agent/plan` for the governed plan;
+3. resolves each planned operation from its registry descriptor;
+4. displays scope/provider/state/approval truth before execution;
+5. executes only after the applicable author approval.
+
+The browser still owns tool-specific request-form adaptation because each real Forge operation has a different validated application input. It does **not** own tool discovery, route identity, planning authority, state classification, or mutation authority.
+
+## Registry v2 — eleven real operations
 
 | Tool | Real Forge boundary | State/authority |
 | --- | --- | --- |
@@ -35,36 +44,17 @@ The Creative Tool Registry now exposes eleven real project-scoped operations:
 
 The registry does not expose proposal-apply routes, direct scene-content mutation, canon mutation, publishing claims, or external campaign publication as agent tools.
 
-## Provider truth
+## Deterministic planner — default and free
 
-Tool metadata distinguishes provider requirements rather than pretending every operation is available:
+Forge's deterministic planner remains the default. It uses no model call and therefore does not consume provider tokens simply to decide which Forge tools match a goal.
 
-- `none` — deterministic/local Forge capability;
-- `configured-ai` — real text generation provider required;
-- `configured-image` — real image-capable provider required;
-- `hosted-research` — real hosted research provider required.
+It recognizes missions spanning research, KDP market intelligence, architecture, Chapter Cards, writing proposals, editing, image generation, production, and promotion. Missing book/chapter/scene scope is surfaced as blocked instead of guessed.
 
-When a provider is unavailable, the executing Forge route remains responsible for failing honestly. Registry discovery never fabricates provider success.
-
-## Planner v2
-
-The deterministic governed planner now recognizes missions that combine:
-
-- general factual research;
-- KDP market/niche/keyword research;
-- architecture/outline work;
-- Chapter Card generation;
-- manuscript drafting;
-- editorial analysis;
-- illustration/image creation;
-- production exports;
-- marketing/promotion campaigns.
-
-Example mission:
+Example:
 
 > Research the KDP niche and keywords, create chapter cards, generate an illustration, and build a promotion campaign.
 
-The resulting plan is ordered as:
+Deterministic plan:
 
 1. `market.kdp.research`
 2. `story.chapter-cards.propose`
@@ -72,48 +62,96 @@ The resulting plan is ordered as:
 4. `promotion.campaign.propose`
 5. `memory.record-working`
 
-A missing book target blocks Chapter Card and campaign operations instead of guessing a book. Provider-backed/state-changing operations are never silently included in an Autonomous read-only run group.
+## Optional AI-enhanced planner
 
-## Forge Recipes — reusable governed workflows
+The Workbench now offers an explicit **AI-enhanced · routed model** planner option alongside **Deterministic · free/default**.
 
-Forge Recipes now provide an author-defined reusable workflow layer over the registry rather than an unrestricted plugin execution surface.
+AI-enhanced planning uses the same Project Brain context and shared routed provider boundary as other Forge AI work. It therefore inherits the owner's current model pin, provider order, routing mode, spend policy, quota/cost safeguards, failover telemetry, and real-provider honesty.
+
+The model never receives execution authority. It may return only:
+
+```json
+{"steps":[{"toolId":"registered.tool.id","reason":"brief reason"}]}
+```
+
+Forge then validates and recompiles that selection through the same governance compiler used for deterministic plans. The validator rejects:
+
+- unknown or invented tool ids;
+- `memory.record-working` supplied by the model, because Forge owns final audit ordering;
+- extra model-invented fields such as `autoExecute`;
+- malformed or commentary-wrapped non-JSON responses that cannot be parsed safely;
+- more than twenty selected operations;
+- direct apply/content routes indirectly, because those routes are absent from the registry.
+
+If the model selects writing without Project Brain grounding, Forge inserts `project.context` before `writing.propose`. Forge then appends exactly one final `memory.record-working` step.
+
+If provider execution fails or model output violates the schema/registry contract, the API returns `plannerUsed: "deterministic-fallback"` plus `plannerFallbackReason`. The Workbench displays that fact. It never labels the deterministic fallback as an AI-generated plan.
+
+This compatibility layer deliberately uses strict application-side validation because Forge supports many provider/router implementations; it does not falsely claim that every connected provider supports one native structured-output API.
+
+## Forge Recipes — durable reusable governed workflows
+
+Forge Recipes provide an author-defined reusable workflow layer over the registry rather than an unrestricted plugin execution surface.
 
 API:
 
-- `GET /api/projects/:projectId/agent/recipes` — list active recipes;
-- `POST /api/projects/:projectId/agent/recipes` — create a recipe;
-- `PUT /api/projects/:projectId/agent/recipes/:recipeId` — append a new recipe version;
-- `DELETE /api/projects/:projectId/agent/recipes/:recipeId` — append a tombstone version without erasing history;
-- `POST /api/projects/:projectId/agent/recipes/:recipeId/plan` — compile the recipe to a visible governed plan without executing anything.
+- `GET /api/projects/:projectId/agent/recipes` — list active Recipes;
+- `POST /api/projects/:projectId/agent/recipes` — create a Recipe;
+- `PUT /api/projects/:projectId/agent/recipes/:recipeId` — append a new Recipe version;
+- `DELETE /api/projects/:projectId/agent/recipes/:recipeId` — append a tombstone without erasing history;
+- `POST /api/projects/:projectId/agent/recipes/:recipeId/plan` — compile to a visible governed plan without executing anything.
 
-A recipe stores only registered tool ids plus optional author instructions. Unknown or unsafe tool ids are rejected through the same Creative Tool Registry authority. Recipe compilation retains every tool's real provider requirement, state effect, scope requirement and approval class. It automatically adds a final `memory.record-working` evidence step when the author did not include one.
+A Recipe stores only registered tool ids plus optional author instructions. Recipes persist inside the existing project memory/package boundary as versioned `creative-note` records with `agent-recipe` relevance tags and author provenance. Updating or deleting appends history instead of rewriting it.
 
-Recipes persist inside the existing project memory/package boundary as versioned `creative-note` records with `agent-recipe` relevance tags and author provenance. Updating or deleting a recipe appends a new version instead of rewriting history, so ordinary Forge backup/recovery continues to carry the workflow definition with the project.
+Compilation strips any author-positioned audit-memory step and forces exactly one `memory.record-working` operation at the end. This prevents a Recipe from recording apparent completion and then performing additional operations afterward.
 
-This provides the useful custom-workflow idea found in modern writing/creative tools while keeping Forge's stronger rules: a reusable workflow may coordinate more work, but it does not acquire hidden canon, manuscript, publication, or provider authority.
+## Bounded safe run groups
 
-## Governance invariant
+In Director/Autonomous modes, Forge may offer one group approval only for steps whose server plan explicitly marks them `eligibleForApprovedRunGroup`.
 
-`autonomous` means Forge may plan a larger amount of work. It does **not** mean Forge may silently change author-owned creative truth.
+Eligibility requires all of the following:
 
-Only operations classified `read-only` with `stateEffect: none` can be eligible for a bounded author-approved run group. Writing, Chapter Cards, images, market reports, production artifacts, promotion drafts and memory records remain explicit operations with their existing review/state boundaries.
+- no blocked scope/mode reason;
+- collaboration policy permits bulk work;
+- registry approval class is `read-only`;
+- registry state effect is `none`.
 
-Forge Recipes preserve the same rule. Compiling a Recipe is plan-only; execution remains a separate author-visible action per registered tool boundary.
+The Workbench executes eligible steps sequentially and stops on the first failure. Writing proposals, Chapter Cards, research state, market reports, images, promotion drafts, production artifacts, and workflow-memory records remain outside the group and require their individual approval path.
 
-## Verification added
+## Provider truth
 
-The branch regression suite now covers:
+Tool metadata distinguishes provider requirements rather than pretending every operation is available:
 
-- all eleven registered tool ids and their provider/state classifications;
-- proposal-only Chapter Card and manuscript-writing paths;
-- Image Lab provider classification and asset-library state effect;
-- market-intelligence and promotion-draft effects;
-- cross-surface planning order;
-- missing-book blocking for Chapter Cards and promotion;
-- durable Forge Recipe creation, reload, versioned update, compilation, unsafe-tool rejection and append-only deletion;
-- live Studio planner API discovery of all eleven tools plus Recipe create/list/compile acceptance;
-- Android-sized Agent Workbench acceptance against registry format v2.
+- `none` — deterministic/local Forge capability;
+- `configured-ai` — real text-generation provider required;
+- `configured-image` — real image-capable provider required;
+- `hosted-research` — real hosted research provider required.
 
-## Next block
+When a provider is unavailable, its executing route fails honestly. Registry discovery and planning do not fabricate provider availability or operation success.
 
-The next highest-value step is to make the Agent Workbench render and execute the expanded tools and Forge Recipes directly from server discovery metadata instead of keeping operation-specific endpoint knowledge in client code. After that, add bounded author-approved run groups for safe/read-only operations with visible stop-on-failure evidence.
+## Verification coverage
+
+The branch regression/acceptance contract now covers:
+
+- all eleven registered tool ids and provider/state classifications;
+- one canonical Workbench client and PWA shell cache;
+- server-owned planning rather than browser-local `buildPlan` logic;
+- Editor-mode writing restrictions;
+- bounded Autonomous read-only run groups and stop-on-failure behavior;
+- cross-surface planning order and missing-scope honesty;
+- durable Recipe create/reload/version/update/delete/compile behavior;
+- forced final Recipe audit-memory ordering;
+- strict AI planner JSON/tool validation;
+- unknown/apply-tool and hidden-field rejection;
+- AI selection of writing being forced through Project Brain grounding;
+- real provider-unavailable AI planning falling back visibly to deterministic planning;
+- Android-sized Workbench behavior;
+- exact real PDF artifact download with SHA evidence.
+
+## Next engineering blocks
+
+1. Expand the Creative Tool Registry and Workbench adapters into Cover Studio and the remaining Specialized Creation workflows.
+2. Add richer server-owned execution schemas so more request-payload construction can become registry/discovery driven instead of client adapter code.
+3. Add live-provider AI-planner acceptance where credentials are intentionally available while retaining deterministic no-provider fallback coverage in ordinary CI.
+4. Continue closing device/release gaps, especially hosted Android/PS5 acceptance and exact-head release verification.
+5. Merge only after a real runner executes the canonical verification gates successfully.
