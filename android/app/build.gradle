@@ -4,6 +4,7 @@ plugins {
 
 def configuredForgeUrl = providers.gradleProperty('FORGE_DEFAULT_URL').getOrElse('')
 def escapedForgeUrl = configuredForgeUrl.replace('\\', '\\\\').replace('"', '\\"')
+def releaseKeystore = System.getenv('ANDROID_KEYSTORE_PATH')
 
 android {
     namespace 'com.authorsforge.app'
@@ -22,6 +23,17 @@ android {
         buildConfig true
     }
 
+    signingConfigs {
+        release {
+            if (releaseKeystore) {
+                storeFile file(releaseKeystore)
+                storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('ANDROID_KEY_ALIAS')
+                keyPassword System.getenv('ANDROID_KEY_PASSWORD')
+            }
+        }
+    }
+
     buildTypes {
         debug {
             applicationIdSuffix '.debug'
@@ -30,6 +42,7 @@ android {
         release {
             minifyEnabled false
             debuggable false
+            if (releaseKeystore) signingConfig signingConfigs.release
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
