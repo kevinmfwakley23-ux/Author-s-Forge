@@ -162,7 +162,10 @@ test("hosted Forge gateway performs real login and serves Studio plus prefixed o
 
   const consoleBridge = await fetch(`${base}/forge-hosted-client.js`, { headers: authHeaders });
   assert.equal(consoleBridge.status, 200);
-  assert.match(await consoleBridge.text(), /PlayStation 5/);
+  const consoleBridgeSource = await consoleBridge.text();
+  assert.match(consoleBridgeSource, /PlayStation 5/);
+  assert.match(consoleBridgeSource, /removeAttribute\("target"\)/);
+  assert.match(consoleBridgeSource, /location\.assign\(mapped\)/);
 
   const pwaRuntime = await fetch(`${base}/forge-pwa.js`, { headers: authHeaders });
   assert.equal(pwaRuntime.status, 200);
