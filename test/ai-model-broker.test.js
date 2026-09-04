@@ -80,6 +80,32 @@ test('AI model broker protects output tokens in the quota reserve calculation', 
   assert.equal(broker.select({ task: 'writing', estimatedInputTokens: 200, estimatedOutputTokens: 900, quotaSafetyFraction: .05 }).resource.provider, 'safe');
 });
 
+test('AI model broker enforces one shared provider quota across multiple models', () => {
+  const broker = new AiModelBroker();
+  broker.setResources([
+    { provider: 'omniroute', model: 'writer-a', configured: true, healthy: true, quotaScope: 'omniroute', capabilities: { contextWindow: 128000 } },
+    { provider: 'omniroute', model: 'writer-b', configured: true, healthy: true, quotaScope: 'omniroute', capabilities: { contextWindow: 128000 } },
+    { provider: 'backup', model: 'safe', configured: true, healthy: true, capabilities: { contextWindow: 128000 } },
+  ]);
+  broker.setProviderQuotas([{ scope: 'omniroute', provider: 'omniroute', quotaLimit: 10000, usedTokens: 8500, remainingQuota: 1500 }]);
+  const selected = broker.select({ task: 'writing', estimatedInputTokens: 400, estimatedOutputTokens: 600, quotaSafetyFraction: .1 });
+  assert.equal(selected.resource.provider, 'backup');
+});
+
+test('shared provider quota consumes runtime usage from every model in the pool', () => {
+  const broker = new AiModelBroker();
+  broker.setResources([
+    { provider: 'omniroute', model: 'writer-a', configured: true, healthy: true, quotaScope: 'omniroute', capabilities: {} },
+    { provider: 'omniroute', model: 'writer-b', configured: true, healthy: true, quotaScope: 'omniroute', capabilities: {} },
+  ]);
+  broker.setProviderQuotas([{ scope: 'omniroute', provider: 'omniroute', quotaLimit: 10000, usedTokens: 2000, remainingQuota: 8000 }]);
+  broker.applyRoutingTelemetry([
+    { provider: 'omniroute', model: 'writer-a', consecutiveFailures: 0, totalTokens: 1200 },
+    { provider: 'omniroute', model: 'writer-b', consecutiveFailures: 0, totalTokens: 800 },
+  ]);
+  assert.deepEqual(broker.listProviderQuotas(), [{ scope: 'omniroute', provider: 'omniroute', quotaLimit: 10000, usedTokens: 4000, remainingQuota: 6000 }]);
+});
+
 test('AI model broker avoids a provider in cooldown', () => {
   const broker = new AiModelBroker();
   broker.setResources([
