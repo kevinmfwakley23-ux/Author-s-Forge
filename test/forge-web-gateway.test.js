@@ -137,29 +137,42 @@ test("hosted Forge gateway performs real login and serves Studio plus prefixed o
   const cookie = login.headers.get("set-cookie");
   assert.ok(cookie, "login must set the access cookie");
   const cookieHeader = cookie.split(";")[0];
+  const authHeaders = { cookie: cookieHeader };
 
-  const studio = await fetch(`${base}/`, { headers: { cookie: cookieHeader } });
+  const studio = await fetch(`${base}/`, { headers: authHeaders });
   assert.equal(studio.status, 200);
   const studioHtml = await studio.text();
   assert.match(studioHtml, /forge-hosted-client\.js/);
 
-  const journal = await fetch(`${base}/journal/`, { headers: { cookie: cookieHeader } });
+  const journal = await fetch(`${base}/journal/`, { headers: authHeaders });
   assert.equal(journal.status, 200);
   const journalHtml = await journal.text();
   assert.match(journalHtml, /\/journal\/guided-journal\.css/);
   assert.match(journalHtml, /forge-hosted-client\.js/);
 
-  const journalCss = await fetch(`${base}/journal/guided-journal.css`, { headers: { cookie: cookieHeader } });
+  const journalCss = await fetch(`${base}/journal/guided-journal.css`, { headers: authHeaders });
   assert.equal(journalCss.status, 200);
   assert.match(String(journalCss.headers.get("content-type")), /text\/css/);
 
-  const workbooks = await fetch(`${base}/workbooks/`, { headers: { cookie: cookieHeader } });
+  const workbooks = await fetch(`${base}/workbooks/`, { headers: authHeaders });
   assert.equal(workbooks.status, 200);
 
-  const specialized = await fetch(`${base}/specialized/`, { headers: { cookie: cookieHeader } });
+  const specialized = await fetch(`${base}/specialized/`, { headers: authHeaders });
   assert.equal(specialized.status, 200);
 
-  const consoleBridge = await fetch(`${base}/forge-hosted-client.js`, { headers: { cookie: cookieHeader } });
+  const consoleBridge = await fetch(`${base}/forge-hosted-client.js`, { headers: authHeaders });
   assert.equal(consoleBridge.status, 200);
   assert.match(await consoleBridge.text(), /PlayStation 5/);
+
+  const pwaRuntime = await fetch(`${base}/forge-pwa.js`, { headers: authHeaders });
+  assert.equal(pwaRuntime.status, 200);
+  assert.match(await pwaRuntime.text(), /hostedMode\(\)\?"\/sw-hosted\.js":"\/sw\.js"/);
+
+  const hostedWorker = await fetch(`${base}/sw-hosted.js`, { headers: authHeaders });
+  assert.equal(hostedWorker.status, 200);
+  const hostedWorkerSource = await hostedWorker.text();
+  assert.match(hostedWorkerSource, /ROOT_API/);
+  assert.match(hostedWorkerSource, /OFFICE_API/);
+  assert.match(hostedWorkerSource, /journal\|workbooks\|specialized/);
+  assert.match(hostedWorkerSource, /isProjectStateRequest\(url\)/);
 });
