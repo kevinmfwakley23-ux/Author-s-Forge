@@ -95,7 +95,7 @@ export class FileCreativeProvenanceStore {
     await mkdir(dirname(this.path), { recursive: true });
     const tmp = `${this.path}.${process.pid}.${Date.now()}.tmp`;
     const payload: ProvenanceFile = { formatVersion: FORGE_PROVENANCE_FORMAT_VERSION, records: this.backend.records };
-    await writeFile(tmp, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+    await writeFile(tmp, `${JSON.stringify(payload, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
     await rename(tmp, this.path);
   }
 }
