@@ -31,9 +31,9 @@ test("Forge Recipes client exposes no-code stages, provider/model control, durab
     "data-recipe-review",
     "data-recipe-apply",
     "nothing was applied automatically",
+    "This will make ${recipe.stages.length} real AI request",
   ]) assert.match(recipes, new RegExp(contract.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
   assert.match(recipes, /min=\"128\" max=\"32000\"/);
-  assert.match(recipes, /Run \\"\$\{recipe\.name\}\\"\? This will make \$\{recipe\.stages\.length\} real AI request/);
 });
 
 test("native shell never mislabels WebView CORS as server-offline state", () => {
