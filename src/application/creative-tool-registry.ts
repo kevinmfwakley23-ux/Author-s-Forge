@@ -1,19 +1,23 @@
-export const CREATIVE_TOOL_REGISTRY_FORMAT_VERSION = 1 as const;
+export const CREATIVE_TOOL_REGISTRY_FORMAT_VERSION = 2 as const;
 
-export const CREATIVE_TOOL_CATEGORIES = ["research", "planning", "writing", "editing", "production", "memory"] as const;
+export const CREATIVE_TOOL_CATEGORIES = ["research", "planning", "writing", "editing", "visual", "marketing", "production", "memory"] as const;
 export type CreativeToolCategory = typeof CREATIVE_TOOL_CATEGORIES[number];
 
 export const CREATIVE_TOOL_APPROVAL_CLASSES = ["read-only", "author-step", "proposal", "artifact"] as const;
 export type CreativeToolApprovalClass = typeof CREATIVE_TOOL_APPROVAL_CLASSES[number];
 
-export const CREATIVE_TOOL_PROVIDER_REQUIREMENTS = ["none", "configured-ai", "hosted-research"] as const;
+export const CREATIVE_TOOL_PROVIDER_REQUIREMENTS = ["none", "configured-ai", "configured-image", "hosted-research"] as const;
 export type CreativeToolProviderRequirement = typeof CREATIVE_TOOL_PROVIDER_REQUIREMENTS[number];
 
 export const CREATIVE_TOOL_STATE_EFFECTS = [
   "none",
   "working-research",
+  "market-intelligence",
   "candidate-response",
+  "candidate-ledger",
   "proposal-ledger",
+  "asset-library",
+  "campaign-draft",
   "artifact-response",
   "working-memory",
 ] as const;
@@ -64,6 +68,18 @@ const TOOL_DEFINITIONS: readonly CreativeToolDescriptor[] = Object.freeze([
     authorCanReviewBeforeMutation: true,
   }),
   tool({
+    id: "market.kdp.research",
+    title: "Run live KDP market research",
+    description: "Gather dated source-backed KDP keyword, niche, comparable-title and positioning evidence through Forge's real market-research provider boundary.",
+    category: "research",
+    pathTemplate: "/api/projects/:projectId/market-research",
+    approvalClass: "author-step",
+    providerRequirement: "hosted-research",
+    stateEffect: "market-intelligence",
+    requiredScope: ["project"],
+    authorCanReviewBeforeMutation: true,
+  }),
+  tool({
     id: "architecture.generate",
     title: "Generate architecture candidate",
     description: "Generate a story architecture candidate for author review without silently persisting it into manuscript structure.",
@@ -73,6 +89,18 @@ const TOOL_DEFINITIONS: readonly CreativeToolDescriptor[] = Object.freeze([
     providerRequirement: "configured-ai",
     stateEffect: "candidate-response",
     requiredScope: ["project"],
+    authorCanReviewBeforeMutation: true,
+  }),
+  tool({
+    id: "story.chapter-cards.propose",
+    title: "Generate Chapter Card candidates",
+    description: "Turn an author description, events and timeline details into durable Chapter Card candidates that remain pending until separately approved by the author.",
+    category: "planning",
+    pathTemplate: "/api/projects/:projectId/story-map/chapter-card-workflow/generate",
+    approvalClass: "proposal",
+    providerRequirement: "configured-ai",
+    stateEffect: "candidate-ledger",
+    requiredScope: ["project", "book"],
     authorCanReviewBeforeMutation: true,
   }),
   tool({
@@ -97,6 +125,30 @@ const TOOL_DEFINITIONS: readonly CreativeToolDescriptor[] = Object.freeze([
     providerRequirement: "none",
     stateEffect: "none",
     requiredScope: ["project", "scene"],
+    authorCanReviewBeforeMutation: true,
+  }),
+  tool({
+    id: "visual.image.generate",
+    title: "Generate reviewable visual asset",
+    description: "Generate or edit an image through Forge Image Lab. The resulting asset remains in the governed asset library with provenance and separate review state.",
+    category: "visual",
+    pathTemplate: "/api/projects/:projectId/ai/image",
+    approvalClass: "proposal",
+    providerRequirement: "configured-image",
+    stateEffect: "asset-library",
+    requiredScope: ["project"],
+    authorCanReviewBeforeMutation: true,
+  }),
+  tool({
+    id: "promotion.campaign.propose",
+    title: "Generate promotion campaign draft",
+    description: "Generate substantive launch and marketing assets from saved book metadata and optional market evidence. Every asset remains draft until separately approved.",
+    category: "marketing",
+    pathTemplate: "/api/projects/:projectId/promotion/generate",
+    approvalClass: "proposal",
+    providerRequirement: "configured-ai",
+    stateEffect: "campaign-draft",
+    requiredScope: ["project", "book"],
     authorCanReviewBeforeMutation: true,
   }),
   tool({
