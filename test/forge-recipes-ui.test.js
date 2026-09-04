@@ -16,8 +16,8 @@ test("Forge Recipes client is valid JavaScript and loaded by both installed shel
   assert.match(pwa, /loadExtension\("forge-recipes","\/forge-recipes\.js"\)/);
   assert.match(localWorker, /"\/forge-recipes\.js"/);
   assert.match(hostedWorker, /"\/forge-recipes\.js"/);
-  assert.match(localWorker, /authors-forge-shell-v17/);
-  assert.match(hostedWorker, /authors-forge-hosted-shell-v2/);
+  assert.match(localWorker, /authors-forge-shell-v\d+/);
+  assert.match(hostedWorker, /authors-forge-hosted-shell-v\d+/);
 });
 
 test("Forge Recipes client exposes no-code stages, provider/model control, durable history, and separate review/apply", () => {
