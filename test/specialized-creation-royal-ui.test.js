@@ -10,7 +10,8 @@ test('Specialized Creation activates the approved royal marble skin without repl
 
   assert.match(html, /specialized-creation-api-state-sync\.js/);
   assert.match(sync, /specialized-creation-royal\.css/);
-  assert.match(sync, /data\.specializedRoyal/);
+  assert.match(sync, /dataset\.specializedRoyal/);
+  assert.match(sync, /link\[data-specialized-royal\]/);
   assert.match(sync, /forge-theme/);
   assert.match(sync, /sc-royal-theme/);
   assert.match(sync, /window\.forgeSpecializedApi/);
