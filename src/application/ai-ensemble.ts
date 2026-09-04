@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { AiFederation } from "./ai-federation";
-import { AiModelBroker, type AiBillingClass, type AiModelSelection } from "./ai-model-broker";
+import { AiModelBroker, type AiBillingClass, type AiModelSelection, type AiSpendPolicy } from "./ai-model-broker";
 import { estimateTokens } from "./context-optimizer";
 import { IntelligentEditingService } from "./intelligent-editing";
 import { EDITOR_ROLES, type EditorialFinding, type EditorialReport } from "../domain/intelligent-editing";
@@ -48,6 +48,12 @@ export interface AiTextEnsembleResult {
   readonly synthesis?: { readonly provider: AiGenerationResult["provider"]; readonly model: string; readonly qualityScore: number };
   readonly judges: readonly AiEnsembleJudgeResult[];
   readonly editorial: AiEnsembleEditorialGate;
+  readonly budget: {
+    readonly spendPolicy: AiSpendPolicy;
+    readonly maxTotalEstimatedCostUsd?: number;
+    readonly perCallEstimatedCostCeilingUsd?: number;
+    readonly reservedCallCount: number;
+  };
   readonly accepted: boolean;
   readonly blockedReasons: readonly string[];
   readonly finalText: string;
@@ -87,6 +93,20 @@ export async function runAiTextEnsemble(request: AiTextEnsembleRequest, runtime:
   const resources = runtime.resources ?? aiConfiguredResources();
   if (!resources.length) throw new Error("AI ensemble has no configured model resources.");
 
+  const maxWorkers = options.ensembleEnabled ? options.ensembleMaxWorkers : 1;
+  // Reserve the worst-case number of calls before fan-out: workers + synthesis
+  // when multi-worker + continuity judge + voice judge. Using the configured
+  // worker maximum makes this deliberately conservative if fewer models survive.
+  const reservedCallCount = maxWorkers + (maxWorkers > 1 ? 1 : 0) + 2;
+  const totalCap = options.ensembleMaxTotalEstimatedCostUsd;
+  const perCallFromTotal = totalCap === undefined ? undefined : totalCap / reservedCallCount;
+  const ownerPerRequestCap = nonnegative(process.env.AI_MAX_REQUEST_COST_USD);
+  const perCallCeiling = minimumDefined(ownerPerRequestCap, perCallFromTotal);
+  const ownerSpendPolicy = spendPolicy();
+  // A user-specified ensemble total cap must remain meaningful even if the
+  // general owner mode is unrestricted. No-paid-tokens remains stricter.
+  const ensembleSpendPolicy: AiSpendPolicy = totalCap !== undefined && ownerSpendPolicy !== "no-paid-tokens" ? "budgeted" : ownerSpendPolicy;
+
   const broker = new AiModelBroker();
   broker.setResources(resources);
   const estimatedInputTokens = estimateTokens(`${request.system}\n\n${request.user}`);
@@ -94,9 +114,9 @@ export async function runAiTextEnsemble(request: AiTextEnsembleRequest, runtime:
   const plan = federation.plan({
     task: "writing",
     routingMode: routingMode(),
-    spendPolicy: spendPolicy(),
+    spendPolicy: ensembleSpendPolicy,
     trustedNoSpendModels: csv(process.env.AI_TRUSTED_NO_SPEND_MODELS),
-    maxEstimatedRequestCostUsd: nonnegative(process.env.AI_MAX_REQUEST_COST_USD),
+    maxEstimatedRequestCostUsd: perCallCeiling,
     estimatedInputTokens,
     estimatedOutputTokens: Math.min(maxOutputTokens, 3000),
     minimumContextWindow: estimatedInputTokens + Math.min(maxOutputTokens, 3000),
@@ -105,10 +125,10 @@ export async function runAiTextEnsemble(request: AiTextEnsembleRequest, runtime:
     preferredProviders: csv(process.env.AI_PROVIDER_ORDER),
     requiresCreativeWriting: true,
     requiresInstructionFollowing: true,
-  }, options.ensembleEnabled ? options.ensembleMaxWorkers : 1);
+  }, maxWorkers);
   if (!plan.candidates.length) throw new Error("No AI model is eligible for the ensemble under the current owner spend, quota, capability, and health rules.");
 
-  const assigned = selectDiverseEnsembleCandidates(plan.candidates, options.ensembleEnabled ? options.ensembleMaxWorkers : 1);
+  const assigned = selectDiverseEnsembleCandidates(plan.candidates, maxWorkers);
   const candidateOutputTokens = Math.min(maxOutputTokens, 3000);
   const candidateCalls = assigned.map(async (selection): Promise<AiEnsembleWorkerResult> => {
     const started = Date.now();
@@ -121,6 +141,10 @@ export async function runAiTextEnsemble(request: AiTextEnsembleRequest, runtime:
       temperature: request.temperature ?? 0.7,
       maxOutputTokens: candidateOutputTokens,
       task: "writing",
+      routingMode: routingMode(),
+      spendPolicy: ensembleSpendPolicy,
+      maxEstimatedRequestCostUsd: perCallCeiling,
+      trustedNoSpendModels: csv(process.env.AI_TRUSTED_NO_SPEND_MODELS),
       preferProvider: selection.resource.provider,
       preferModel: selection.resource.model,
       requiresCreativeWriting: true,
@@ -161,6 +185,10 @@ export async function runAiTextEnsemble(request: AiTextEnsembleRequest, runtime:
       temperature: Math.min(0.6, request.temperature ?? 0.55),
       maxOutputTokens,
       task: "writing",
+      routingMode: routingMode(),
+      spendPolicy: ensembleSpendPolicy,
+      maxEstimatedRequestCostUsd: perCallCeiling,
+      trustedNoSpendModels: csv(process.env.AI_TRUSTED_NO_SPEND_MODELS),
       requiresCreativeWriting: true,
       requiresInstructionFollowing: true,
     });
@@ -171,8 +199,8 @@ export async function runAiTextEnsemble(request: AiTextEnsembleRequest, runtime:
 
   const editorial = runEditingOffice(finalText, request);
   const judges = await Promise.all([
-    runJudge("continuity", request, finalText, qualityFloor, uniqueWorkers.at(-1), generate),
-    runJudge("voice", request, finalText, qualityFloor, uniqueWorkers.length > 1 ? uniqueWorkers[1] : uniqueWorkers[0], generate),
+    runJudge("continuity", request, finalText, qualityFloor, uniqueWorkers.at(-1), generate, ensembleSpendPolicy, perCallCeiling),
+    runJudge("voice", request, finalText, qualityFloor, uniqueWorkers.length > 1 ? uniqueWorkers[1] : uniqueWorkers[0], generate, ensembleSpendPolicy, perCallCeiling),
   ]);
   const blockedReasons: string[] = [];
   for (const judge of judges) {
@@ -191,6 +219,12 @@ export async function runAiTextEnsemble(request: AiTextEnsembleRequest, runtime:
     ...(synthesis ? { synthesis } : {}),
     judges,
     editorial,
+    budget: {
+      spendPolicy: ensembleSpendPolicy,
+      ...(totalCap === undefined ? {} : { maxTotalEstimatedCostUsd: totalCap }),
+      ...(perCallCeiling === undefined ? {} : { perCallEstimatedCostCeilingUsd: perCallCeiling }),
+      reservedCallCount,
+    },
     accepted: blockedReasons.length === 0,
     blockedReasons,
     finalText,
@@ -261,7 +295,16 @@ function runEditingOffice(text: string, request: AiTextEnsembleRequest): AiEnsem
   });
   return { report, blockingFindings };
 }
-async function runJudge(kind: "continuity" | "voice", request: AiTextEnsembleRequest, finalText: string, qualityFloor: number, preferred: AiEnsembleWorkerResult | undefined, generate: AiTextEnsembleGenerator): Promise<AiEnsembleJudgeResult> {
+async function runJudge(
+  kind: "continuity" | "voice",
+  request: AiTextEnsembleRequest,
+  finalText: string,
+  qualityFloor: number,
+  preferred: AiEnsembleWorkerResult | undefined,
+  generate: AiTextEnsembleGenerator,
+  ensembleSpendPolicy: AiSpendPolicy,
+  perCallCeiling: number | undefined,
+): Promise<AiEnsembleJudgeResult> {
   const task = kind === "continuity" ? "continuity" : "voice-preservation";
   const criterion = kind === "continuity"
     ? "Check the candidate against every supplied canon fact, chronology, relationship, character state, POV/tense instruction, and author intent. Treat unsupported inventions and contradictions as failures."
@@ -278,6 +321,10 @@ async function runJudge(kind: "continuity" | "voice", request: AiTextEnsembleReq
       temperature: 0,
       maxOutputTokens: 1200,
       task,
+      routingMode: routingMode(),
+      spendPolicy: ensembleSpendPolicy,
+      maxEstimatedRequestCostUsd: perCallCeiling,
+      trustedNoSpendModels: csv(process.env.AI_TRUSTED_NO_SPEND_MODELS),
       preferProvider: preferred?.actualProvider,
       preferModel: preferred?.actualModel,
       requiresInstructionFollowing: true,
@@ -295,7 +342,7 @@ function stringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean).slice(0, 50);
 }
-function spendPolicy(): "no-paid-tokens" | "budgeted" | "unrestricted" {
+function spendPolicy(): AiSpendPolicy {
   const value = process.env.AI_SPEND_POLICY?.trim();
   return value === "budgeted" || value === "unrestricted" ? value : "no-paid-tokens";
 }
@@ -307,4 +354,9 @@ function csv(value: string | undefined): string[] { return value?.split(",").map
 function nonnegative(value: string | undefined): number | undefined { const parsed = Number(value); return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined; }
 function fraction(value: string | undefined): number | undefined { const parsed = Number(value); return Number.isFinite(parsed) && parsed >= 0 && parsed < 1 ? parsed : undefined; }
 function clampInteger(value: number, min: number, max: number): number { return Math.max(min, Math.min(max, Math.round(value))); }
+function minimumDefined(a: number | undefined, b: number | undefined): number | undefined {
+  if (a === undefined) return b;
+  if (b === undefined) return a;
+  return Math.min(a, b);
+}
 function errorText(error: unknown): string { return error instanceof Error ? error.message : String(error); }
