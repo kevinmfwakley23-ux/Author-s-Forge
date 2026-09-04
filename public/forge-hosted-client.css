@@ -1,0 +1,50 @@
+html.forge-hosted {
+  min-height: 100%;
+}
+
+html.forge-hosted body {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+html.forge-console :is(a, button, input, select, textarea, [tabindex]):focus,
+html.forge-console :is(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 3px solid currentColor !important;
+  outline-offset: 4px !important;
+}
+
+html.forge-console button,
+html.forge-console a,
+html.forge-console input,
+html.forge-console select,
+html.forge-console textarea {
+  min-height: 42px;
+}
+
+html.forge-console {
+  scroll-behavior: auto;
+}
+
+#forge-console-notice {
+  position: fixed;
+  right: max(12px, env(safe-area-inset-right));
+  bottom: max(12px, env(safe-area-inset-bottom));
+  z-index: 2147483646;
+  max-width: min(320px, calc(100vw - 24px));
+  padding: 8px 12px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: Canvas;
+  color: CanvasText;
+  font: 600 12px/1.2 system-ui, sans-serif;
+  opacity: .86;
+  pointer-events: none;
+}
+
+@media (max-width: 760px) {
+  html.forge-hosted input,
+  html.forge-hosted select,
+  html.forge-hosted textarea {
+    font-size: 16px;
+  }
+}
