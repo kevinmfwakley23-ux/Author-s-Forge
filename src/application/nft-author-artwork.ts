@@ -26,16 +26,28 @@ export async function attachAuthorNftArtwork(
   const sourceReference = required(input.sourceReference, "NFT artwork source reference", 2000);
   const imageUri = required(input.imageUri, "NFT artwork URI", 2_000_000);
   const animationUrl = optional(input.animationUrl, 2_000_000);
-  const collection = await store.get(forgeProjectId, collectionId);
-  if (!collection) throw new Error(`NFT collection "${collectionId}" not found.`);
-  const sourceAssetId = `author-nft-${randomUUID()}`;
-  const saved = await store.save(attachNftArtwork(collection, tokenId, { imageUri, sourceAssetId, ...(animationUrl ? { animationUrl } : {}) }, now));
 
-  const project = await projects.load(forgeProjectId);
+  // Load and validate both durable aggregates before mutating either one.
+  const [collection, project] = await Promise.all([
+    store.get(forgeProjectId, collectionId),
+    projects.load(forgeProjectId),
+  ]);
+  if (!collection) throw new Error(`NFT collection "${collectionId}" not found.`);
   if (!project) throw new Error(`Forge project "${forgeProjectId}" not found.`);
+
+  // A caller-supplied deterministic timestamp may never move either durable
+  // aggregate backwards. Use one monotonic event time for artwork + provenance.
+  const eventAt = latestTimestamp(now, collection.updatedAt, project.metadata.createdAt, project.metadata.updatedAt);
+  const sourceAssetId = `author-nft-${randomUUID()}`;
+  const nextCollection = attachNftArtwork(collection, tokenId, {
+    imageUri,
+    sourceAssetId,
+    ...(animationUrl ? { animationUrl } : {}),
+  }, eventAt);
+
   const memory = new ProjectMemoryStore();
   memory.restore(project.memories);
-  const memoryId = `nft-art:${collectionId}:${tokenId}:${now.replace(/[^0-9]/g, "")}`;
+  const memoryId = `nft-art:${collectionId}:${tokenId}:${eventAt.replace(/[^0-9]/g, "")}`;
   memory.register(createMemoryRecord({
     id: memoryId,
     projectId: forgeProjectId,
@@ -43,12 +55,36 @@ export async function attachAuthorNftArtwork(
     authority: "working",
     summary: `NFT author artwork · ${collection.title} #${tokenId}`,
     content: JSON.stringify({ collectionId, tokenId, imageUri, ...(animationUrl ? { animationUrl } : {}), sourceAssetId, sourceReference, declaration: "Author explicitly declared they have the rights/permission needed to use this artwork reference for the NFT project. Forge does not independently adjudicate ownership." }),
-    provenance: [{ kind: "author", reference: sourceReference, recordedAt: now }],
+    provenance: [{ kind: "author", reference: sourceReference, recordedAt: eventAt }],
     relevanceTags: ["nft", "nft-artwork", "rights-provenance", collectionId, tokenId],
-    now,
+    now: eventAt,
   }));
-  await projects.save(withProjectMemories(project, memory.toPortableState(), now));
+  const nextProject = withProjectMemories(project, memory.toPortableState(), eventAt);
+
+  // File stores do not share a native transaction. Compensate the first write
+  // if the Project Brain persistence step fails so artwork cannot remain
+  // attached without the provenance record that justified it.
+  const saved = await store.save(nextCollection);
+  try {
+    await projects.save(nextProject);
+  } catch (projectError) {
+    try {
+      await store.save(collection);
+    } catch (rollbackError) {
+      throw new AggregateError(
+        [projectError, rollbackError],
+        "NFT artwork provenance save failed and the NFT collection rollback also failed.",
+      );
+    }
+    throw projectError;
+  }
   return saved;
+}
+
+function latestTimestamp(...values: readonly string[]): string {
+  const parsed = values.map((value) => Date.parse(value));
+  if (parsed.some((value) => !Number.isFinite(value))) throw new Error("NFT artwork timestamp must be a valid ISO-compatible timestamp.");
+  return new Date(Math.max(...parsed)).toISOString();
 }
 
 function required(value: unknown, label: string, max: number): string { if (typeof value !== "string" || !value.trim()) throw new Error(`${label} is required.`); const normalized = value.trim(); if (normalized.length > max) throw new Error(`${label} exceeds ${max} characters.`); return normalized; }
