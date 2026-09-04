@@ -6,19 +6,22 @@ import { compileCreativeAgentPlan } from "./creative-agent-plan";
 import { compileCreativeAgentPlanWithAi } from "./creative-agent-ai-planner";
 import { CreativeAgentRecipeService, type CreativeAgentRecipeStep } from "./creative-agent-recipes";
 import { creativeToolRegistrySnapshot } from "./creative-tool-registry";
+import { StudioCoverDirectionService } from "./studio-cover-direction";
 
 export type StudioCreativeAgentRouteHandler = (req: IncomingMessage, res: ServerResponse, url: URL, projectId: string) => Promise<boolean>;
 
-/** Discoverable tool metadata, governed planning, and durable reusable Forge Recipes. */
+/** Discoverable tool metadata, governed planning, cover direction, and durable reusable Forge Recipes. */
 export function createStudioCreativeAgentRoutes(store: FileProjectStore): StudioCreativeAgentRouteHandler {
   const recipes = new CreativeAgentRecipeService(store);
+  const coverDirection = new StudioCoverDirectionService(store);
   return async (req, res, url, projectId) => {
     const toolsPath = `/api/projects/${projectId}/agent/tools`;
     const planPath = `/api/projects/${projectId}/agent/plan`;
+    const coverDirectionPath = `/api/projects/${projectId}/agent/cover-direction`;
     const recipesPath = `/api/projects/${projectId}/agent/recipes`;
     const recipeMatch = url.pathname.match(new RegExp(`^${escapeRegExp(recipesPath)}/([A-Za-z0-9_-]+)$`));
     const recipePlanMatch = url.pathname.match(new RegExp(`^${escapeRegExp(recipesPath)}/([A-Za-z0-9_-]+)/plan$`));
-    if (url.pathname !== toolsPath && url.pathname !== planPath && url.pathname !== recipesPath && !recipeMatch && !recipePlanMatch) return false;
+    if (url.pathname !== toolsPath && url.pathname !== planPath && url.pathname !== coverDirectionPath && url.pathname !== recipesPath && !recipeMatch && !recipePlanMatch) return false;
     const project = await store.load(projectId);
     if (!project) throw new Error(`Project "${projectId}" not found.`);
 
@@ -29,6 +32,15 @@ export function createStudioCreativeAgentRoutes(store: FileProjectStore): Studio
         authority: "discovery-only",
         executionRule: "Each operation remains subject to its existing Forge route, provider, state, proposal, and author-approval boundary.",
       });
+      return true;
+    }
+
+    if (url.pathname === coverDirectionPath && req.method === "POST") {
+      const input = await body(req);
+      json(res, 200, await coverDirection.propose(projectId, {
+        bookId: requiredText(input.bookId, "Book id"),
+        brief: requiredText(input.brief, "Cover direction brief"),
+      }));
       return true;
     }
 
