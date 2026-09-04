@@ -195,8 +195,8 @@ test("Image Lab refuses fake or mismatched provider image bytes instead of persi
   t.after(() => rm(root, { recursive: true, force: true }));
   await assert.rejects(() => service.generate({ projectId: "project-1", prompt: "fake provider image" }), /not a valid PNG byte stream/);
   const persisted = await store.load("project-1");
-  assert.equal(persisted.illustrationAssetLibrary.assets.length, 0);
-  assert.equal(persisted.assetRightsRegistry.records.length, 0);
+  assert.equal(persisted.illustrationAssetLibrary?.assets.length ?? 0, 0, "invalid provider bytes must not create an illustration asset library entry");
+  assert.equal(persisted.assetRightsRegistry?.records.length ?? 0, 0, "invalid provider bytes must not create generation provenance");
 
   const mismatch = new StudioImageLabService(store, async () => Object.freeze({
     provider: "openai",
@@ -209,5 +209,6 @@ test("Image Lab refuses fake or mismatched provider image bytes instead of persi
   }));
   await assert.rejects(() => mismatch.generate({ projectId: "project-1", prompt: "mismatched provider image" }));
   const afterMismatch = await store.load("project-1");
-  assert.equal(afterMismatch.illustrationAssetLibrary.assets.length, 0);
+  assert.equal(afterMismatch.illustrationAssetLibrary?.assets.length ?? 0, 0, "mismatched provider payloads must not persist artwork");
+  assert.equal(afterMismatch.assetRightsRegistry?.records.length ?? 0, 0, "mismatched provider payloads must not persist generation provenance");
 });
