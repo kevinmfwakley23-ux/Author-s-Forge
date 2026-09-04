@@ -1,7 +1,7 @@
 import { createAiCollaborationPolicy, type AiCollaborationMode } from "../domain/ai-collaboration";
 import { creativeToolById, type CreativeToolDescriptor, type CreativeToolScope } from "./creative-tool-registry";
 
-export const CREATIVE_AGENT_PLAN_FORMAT_VERSION = 1 as const;
+export const CREATIVE_AGENT_PLAN_FORMAT_VERSION = 2 as const;
 
 export interface CreativeAgentPlanScope {
   readonly project: true;
@@ -51,8 +51,20 @@ export function compileCreativeAgentPlan(input: CreativeAgentPlanInput): Creativ
   const policy = createAiCollaborationPolicy(input.mode);
   const requested = new Set<string>();
 
-  if (hasAny(lower, ["research", "source", "fact", "verify", "market", "niche", "history", "setting", "real world"])) requested.add("research.live");
+  const wantsMarketResearch = hasAny(lower, [
+    "market research", "market", "niche", "keyword", "keywords", "book category", "category demand",
+    "reader demand", "comparable title", "comparable book", "comp book", "selling", "sales trend", "book trend",
+  ]);
+  const wantsGeneralResearch = hasAny(lower, [
+    "research", "source", "fact", "verify", "history", "historical", "setting", "real world", "science",
+    "medical", "legal", "law", "geography", "travel", "terminology",
+  ]);
+  if (wantsMarketResearch) requested.add("market.kdp.research");
+  if (wantsGeneralResearch && !wantsMarketResearch) requested.add("research.live");
+
   if (hasAny(lower, ["outline", "architecture", "plot", "story structure", "chapter plan", "plan the book", "premise"])) requested.add("architecture.generate");
+  if (hasAny(lower, ["chapter card", "chapter cards", "plan chapters", "outline chapters", "chapter outline", "chapter-by-chapter"])) requested.add("story.chapter-cards.propose");
+
   const wantsWriting = hasAny(lower, [
     "write", "draft", "continue", "prose", "manuscript", "rewrite", "compose",
     "write the scene", "write this scene", "write a scene", "draft the scene", "draft this scene",
@@ -64,6 +76,17 @@ export function compileCreativeAgentPlan(input: CreativeAgentPlanInput): Creativ
     requested.add("writing.propose");
   }
   if (wantsEditing || input.mode === "editor") requested.add("editing.analyze");
+
+  if (hasAny(lower, [
+    "image", "illustration", "illustrate", "artwork", "cover art", "character art", "character image", "visual",
+    "picture", "concept art", "scene art", "book cover image",
+  ])) requested.add("visual.image.generate");
+
+  if (hasAny(lower, [
+    "promotion", "promote", "marketing", "campaign", "launch campaign", "social post", "social media", "ad copy",
+    "amazon ads", "a+ content", "press release", "email campaign", "reader community",
+  ])) requested.add("promotion.campaign.propose");
+
   if (hasAny(lower, ["export", "pdf", "epub", "docx", "production", "print", "review copy", "publish"])) requested.add("production.export");
 
   if (!requested.size) {
@@ -77,11 +100,15 @@ export function compileCreativeAgentPlan(input: CreativeAgentPlanInput): Creativ
 
   const orderedIds = [
     "research.live",
+    "market.kdp.research",
     "architecture.generate",
+    "story.chapter-cards.propose",
     "project.context",
     "writing.propose",
     "editing.analyze",
+    "visual.image.generate",
     "production.export",
+    "promotion.campaign.propose",
     "memory.record-working",
   ].filter((id) => requested.has(id));
 
@@ -134,11 +161,15 @@ function missingScopeReason(tool: CreativeToolDescriptor, scope: CreativeAgentPl
 function reasonFor(toolId: string, goal: string): string {
   switch (toolId) {
     case "research.live": return `Gather source-backed working evidence relevant to: ${goal}`;
+    case "market.kdp.research": return `Gather dated source-backed KDP market evidence relevant to: ${goal}`;
     case "architecture.generate": return `Generate a reviewable architecture candidate relevant to: ${goal}`;
+    case "story.chapter-cards.propose": return `Generate durable Chapter Card candidates for author review from: ${goal}`;
     case "project.context": return "Ground later generation in the current Project Brain and author-controlled project truth.";
     case "writing.propose": return `Create a durable, separately reviewable writing proposal for: ${goal}`;
     case "editing.analyze": return `Analyze existing manuscript craft without silently rewriting it: ${goal}`;
+    case "visual.image.generate": return `Create a reviewable visual asset with provider/model provenance for: ${goal}`;
     case "production.export": return `Render a real review/production artifact requested by the author: ${goal}`;
+    case "promotion.campaign.propose": return `Create a draft promotion campaign from saved book truth and optional market evidence for: ${goal}`;
     case "memory.record-working": return "Preserve author-approved execution evidence as working memory without promoting it to canon.";
     default: return goal;
   }
