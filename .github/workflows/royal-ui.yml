@@ -1,0 +1,39 @@
+name: Royal UI Android Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "public/forge-pwa.js"
+      - "public/forge-royal-ui.js"
+      - "public/forge-royal-hardening.css"
+      - "public/styles.css"
+      - "public/sw.js"
+      - "test/royal-ui.test.js"
+      - ".github/workflows/royal-ui.yml"
+  push:
+    branches: [main]
+    paths:
+      - "public/forge-pwa.js"
+      - "public/forge-royal-ui.js"
+      - "public/forge-royal-hardening.css"
+      - "public/styles.css"
+      - "public/sw.js"
+      - "test/royal-ui.test.js"
+
+permissions:
+  contents: read
+
+jobs:
+  source-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: JavaScript syntax
+        run: |
+          node --check public/forge-pwa.js
+          node --check public/forge-royal-ui.js
+          node --check public/sw.js
+      - name: Royal UI contract tests
+        run: node --test test/royal-ui.test.js
