@@ -62,10 +62,11 @@ async function main() {
     await api(base, `/api/projects/${PROJECT_ID}/workspace/books/${BOOK_ID}/chapters/${CHAPTER_ID}/scenes/${SCENE_ID}/content`, "PUT", { content: "The author opened the Forge and checked every visible boundary. Nothing changed without a deliberate decision." });
 
     const registry = await api(base, `/api/projects/${PROJECT_ID}/agent/tools`);
-    assert.equal(registry.formatVersion, 1);
+    assert.equal(registry.formatVersion, 2);
     assert.equal(registry.authority, "discovery-only");
-    assert.equal(registry.tools.length, 7);
+    assert.equal(registry.tools.length, 11);
     assert.equal(registry.tools.find((tool) => tool.id === "writing.propose")?.pathTemplate, "/api/projects/:projectId/ai/writing/generate");
+    assert.equal(registry.tools.find((tool) => tool.id === "visual.image.generate")?.pathTemplate, "/api/projects/:projectId/ai/image");
     assert.equal(registry.tools.some((tool) => tool.pathTemplate.includes("/apply") || tool.pathTemplate.includes("/content")), false);
 
     browser = await chromium.launch({ executablePath: process.env.FORGE_BROWSER_EXECUTABLE || chromium.executablePath(), headless: true, args: ["--no-sandbox", "--disable-gpu"] });
@@ -130,7 +131,7 @@ async function main() {
     const approveBox = await page.locator('[data-step-id="production"] button').boundingBox();
     assert.ok(approveBox && approveBox.height >= 40, `Agent step control is too small for touch: ${JSON.stringify(approveBox)}`);
 
-    console.log("FORGE AGENT WORKBENCH BROWSER ACCEPTANCE PASSED: live tool registry + real target loading + mode enforcement + explicit context execution + durable working-memory evidence + real PDF download + Android-sized layout.");
+    console.log("FORGE AGENT WORKBENCH BROWSER ACCEPTANCE PASSED: 11-tool live registry + real target loading + mode enforcement + explicit context execution + durable working-memory evidence + real PDF download + Android-sized layout.");
   } finally {
     if (browser) await browser.close().catch(() => {});
     server.kill("SIGTERM");
