@@ -36,11 +36,12 @@ function parseCookies(header) {
   return cookies;
 }
 
-function accessCookie(token) {
-  return `${ACCESS_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict`;
+function accessCookie(token, options = {}) {
+  const secure = options.secure === true ? "; Secure" : "";
+  return `${ACCESS_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict${secure}`;
 }
 
-function authorizeLanRequest({ requestUrl, cookieHeader, token }) {
+function authorizeLanRequest({ requestUrl, cookieHeader, token, secureCookie = false }) {
   const parsed = new URL(requestUrl || "/", "http://forge.local");
   const bootstrapToken = parsed.searchParams.get("access");
   if (bootstrapToken && safeTokenEqual(bootstrapToken, token)) {
@@ -50,7 +51,7 @@ function authorizeLanRequest({ requestUrl, cookieHeader, token }) {
       authorized: true,
       bootstrap: true,
       redirectPath: `${parsed.pathname}${search ? `?${search}` : ""}${parsed.hash}`,
-      setCookie: accessCookie(token),
+      setCookie: accessCookie(token, { secure: secureCookie }),
     };
   }
   const cookies = parseCookies(cookieHeader);
