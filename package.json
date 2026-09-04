@@ -18,6 +18,7 @@
     "forge:doctor": "node scripts/forge-platform-doctor.js",
     "forge:doctor:json": "node scripts/forge-platform-doctor.js --json",
     "forge:sandbox": "node scripts/forge-sandbox.js",
+    "forge:codespaces": "node scripts/forge-codespaces.js",
     "studio": "npm run build && node dist/studio-server.js",
     "studio:android": "npm run build && node scripts/start-forge.js --host=0.0.0.0 --only=studio",
     "studio:journal": "npm run build && node dist/guided-journal-server.js",
