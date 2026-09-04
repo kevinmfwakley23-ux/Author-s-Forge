@@ -4,7 +4,7 @@ import type { AiCostRoutingMode } from "../application/ai-cost-routing-policy";
 import type { AiModelResource, AiSpendPolicy } from "../application/ai-model-broker";
 import { refreshAiModelRuntimeOptions } from "./ai-model-options-runtime";
 
-const PROVIDERS = ["omniroute", "9router", "kings", "ollama", "groq", "mistral", "gemini", "anthropic", "openrouter", "openai"] as const;
+const PROVIDERS = ["omniroute", "9router", "kings", "ollama", "groq", "mistral", "gemini", "anthropic", "openrouter", "gateway", "openai"] as const;
 export type AiOwnerProvider = typeof PROVIDERS[number];
 
 export interface RuntimeAiOwnerControl {
@@ -140,7 +140,7 @@ function optionalProvider(value: unknown): AiOwnerProvider | undefined {
 function optionalModel(value: unknown): string | undefined {
   if (value === undefined || value === null || value === "") return undefined;
   const model = String(value).trim();
-  if (!model || model.length > 200 || /[\r\n]/.test(model)) throw new Error("Invalid AI model id.");
+  if (!model || model.length > 350 || /[\r\n]/.test(model)) throw new Error("Invalid AI model id.");
   return model;
 }
 function cloneResource(resource: AiModelResource): AiModelResource {
