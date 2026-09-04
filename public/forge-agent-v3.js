@@ -262,7 +262,8 @@
           return request({ manuscriptId: "studio-workspace", bookId: selectedBook()?.id, chapterId: selectedChapter()?.id, sceneId: current.id, title: current.title || "Agent editorial analysis", text: current.content, roles: ["developmental", "continuity", "line", "copy", "proofreading"] });
         };
         break;
-      case "visual.image.generate": run = () => request({ prompt: goal, purpose: "illustration", size: "auto", quality: "auto" }); break;
+      case "cover.direction.propose": run = () => request({ bookId: book?.id, brief: goal }); break;
+      case "visual.image.generate": run = () => request({ prompt: goal, purpose: hasAny(lower, ["cover", "book jacket", "dust jacket"]) ? "cover-art" : "illustration", size: "auto", quality: "auto" }); break;
       case "promotion.campaign.propose": run = () => request({ bookId: book?.id, objective: goal, audience: promotionAudience(book), readerPromise: book?.description?.trim() || goal, channels: ["social", "author-site"], marketplace: chooseMarket(goal) }); break;
       case "production.export":
         run = async () => {
