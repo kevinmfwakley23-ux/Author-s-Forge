@@ -66,7 +66,8 @@
           <label><input id="ensemble-enabled" type="checkbox"> Enable coordinated model team</label>
           <label>Maximum parallel workers <input id="ensemble-workers" type="number" min="1" max="8" step="1"></label>
           <label>Minimum model/judge quality score <input id="ensemble-quality" type="number" min="70" max="100" step="1"></label>
-          <p class="muted">More workers can improve breadth and speed through parallelism, but may consume more quota/tokens. Forge falls back truthfully to fewer models when your policy or available providers require it.</p>
+          <label>Optional total ensemble budget (USD) <input id="ensemble-total-budget" type="number" min="0" step="0.001" placeholder="blank = use normal spend policy"></label>
+          <p class="muted">More workers can improve breadth and speed through parallelism, but may consume more quota/tokens. If you set a total budget, Forge conservatively divides it across workers, synthesis, and both judges. Free/local/no-spend models remain available under the same quality rules.</p>
           <button id="model-options-save" class="primary" type="button">Save Model Freedom settings</button>
         </section>
         <section>
@@ -99,6 +100,7 @@
       $("#ensemble-enabled").checked = options.ensembleEnabled !== false;
       $("#ensemble-workers").value = String(options.ensembleMaxWorkers ?? 3);
       $("#ensemble-quality").value = String(options.ensembleMinQualityScore ?? 80);
+      $("#ensemble-total-budget").value = options.ensembleMaxTotalEstimatedCostUsd === undefined ? "" : String(options.ensembleMaxTotalEstimatedCostUsd);
       renderModelOptions();
     } catch (error) { notify(error instanceof Error ? error.message : String(error)); }
   }
@@ -122,11 +124,13 @@
   async function saveOptions() {
     if (!snapshot) await loadOptions();
     try {
+      const rawBudget = $("#ensemble-total-budget")?.value?.trim() || "";
       const payload = {
         ...(snapshot?.options || {}),
         ensembleEnabled: Boolean($("#ensemble-enabled")?.checked),
         ensembleMaxWorkers: Number($("#ensemble-workers")?.value || 3),
         ensembleMinQualityScore: Number($("#ensemble-quality")?.value || 80),
+        ensembleMaxTotalEstimatedCostUsd: rawBudget === "" ? null : Number(rawBudget),
       };
       snapshot = await api(`${root}/model-options`, { method:"POST", body:JSON.stringify(payload) });
       renderModelOptions();
@@ -221,12 +225,16 @@
     const workers = ensemble.workers || [];
     const judges = ensemble.judges || [];
     const editor = ensemble.editorial || {};
-    host.innerHTML = `<article class="memory"><strong>${esc(ensemble.mode === "parallel" ? "Parallel model team" : "Single eligible model")} • ${esc(ensemble.uniqueModelsUsed?.length || 0)} real model${ensemble.uniqueModelsUsed?.length === 1 ? "" : "s"}</strong><p>${workers.map((worker) => `${esc(worker.actualProvider)}/${esc(worker.actualModel)} — quality ${esc(worker.qualityScore)}${worker.billingClass ? ` — ${esc(worker.billingClass)}` : ""}${worker.fallbackUsed ? " — fallback" : ""}`).join("<br>")}</p>${ensemble.synthesis ? `<p><b>Synthesis:</b> ${esc(ensemble.synthesis.provider)}/${esc(ensemble.synthesis.model)} • quality ${esc(ensemble.synthesis.qualityScore)}</p>` : ""}<p><b>Anti-drift:</b> ${judges.map((judge) => `${esc(judge.kind)} ${esc(judge.score)} ${judge.accepted ? "✓" : "✗"}`).join(" • ")}</p><p><b>Editing Office:</b> ${esc(editor.report?.findings?.length || 0)} findings • ${esc(editor.blockingFindings?.length || 0)} blocking</p><small>Pending proposal ${esc(result.proposal?.id || "")} • author approval and separate Apply required</small></article>`;
+    const budget = ensemble.budget || {};
+    const budgetText = budget.maxTotalEstimatedCostUsd === undefined
+      ? `${esc(budget.spendPolicy || "owner policy")}`
+      : `${esc(budget.spendPolicy)} • total cap $${esc(Number(budget.maxTotalEstimatedCostUsd).toFixed(4))} • per-call ceiling $${esc(Number(budget.perCallEstimatedCostCeilingUsd || 0).toFixed(4))}`;
+    host.innerHTML = `<article class="memory"><strong>${esc(ensemble.mode === "parallel" ? "Parallel model team" : "Single eligible model")} • ${esc(ensemble.uniqueModelsUsed?.length || 0)} real model${ensemble.uniqueModelsUsed?.length === 1 ? "" : "s"}</strong><p>${workers.map((worker) => `${esc(worker.actualProvider)}/${esc(worker.actualModel)} — quality ${esc(worker.qualityScore)}${worker.billingClass ? ` — ${esc(worker.billingClass)}` : ""}${worker.fallbackUsed ? " — fallback" : ""}`).join("<br>")}</p>${ensemble.synthesis ? `<p><b>Synthesis:</b> ${esc(ensemble.synthesis.provider)}/${esc(ensemble.synthesis.model)} • quality ${esc(ensemble.synthesis.qualityScore)}</p>` : ""}<p><b>Anti-drift:</b> ${judges.map((judge) => `${esc(judge.kind)} ${esc(judge.score)} ${judge.accepted ? "✓" : "✗"}`).join(" • ")}</p><p><b>Editing Office:</b> ${esc(editor.report?.findings?.length || 0)} findings • ${esc(editor.blockingFindings?.length || 0)} blocking</p><p><b>Spend guard:</b> ${budgetText}</p><small>Pending proposal ${esc(result.proposal?.id || "")} • author approval and separate Apply required</small></article>`;
     if ($("#ai-meta")) $("#ai-meta").textContent = `${ensemble.mode || "ensemble"} • ${ensemble.uniqueModelsUsed?.join(", ") || "model provenance recorded"} • anti-drift passed • candidate only`;
   }
   function renderEnsembleFailure(message) {
     const host = $("#ai-ensemble-status");
-    if (host) host.innerHTML = `<article class="memory"><strong>Multi-model candidate blocked</strong><p>${esc(message)}</p><small>Forge did not create or apply a manuscript proposal from a candidate that failed its quality gates.</small></article>`;
+    if (host) host.innerHTML = `<article class="memory"><strong>Multi-model candidate blocked</strong><p>${esc(message)}</p><small>Forge did not create or apply a manuscript proposal from a candidate that failed its quality or spend gates.</small></article>`;
   }
 
   function ensureUi() {
