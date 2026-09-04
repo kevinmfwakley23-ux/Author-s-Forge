@@ -3,13 +3,17 @@
   "use strict";
 
   const STORAGE_KEY = "forge-theme";
+  const projectId = new URLSearchParams(location.search).get("project") || localStorage.getItem("forge-project") || "forge-studio";
+  let coverPlansByBook = new Map();
+  let navObserver = null;
+
   const routeIcons = {
-    dashboard: "✦", manuscript: "▤", writing: "✒", architecture: "⌘", characters: "♔", world: "♜", research: "⌕",
+    dashboard: "✦", manuscript: "▤", writing: "✒", architecture: "⌘", "story-map": "⌁", characters: "♔", world: "♜", research: "⌕",
     editing: "⚒", voice: "❧", art: "▧", cover: "▥", marketing: "◖", publishing: "▣", genome: "◇", health: "✥",
     versions: "▱", settings: "⚙", governance: "♜",
   };
   const routeOrder = [
-    "dashboard", "manuscript", "writing", "architecture",
+    "dashboard", "manuscript", "writing", "architecture", "story-map",
     "characters", "world", "research", "genome",
     "editing", "voice", "health",
     "art", "cover",
@@ -52,14 +56,18 @@
 
   function ensureThemeToggle() {
     const host = document.querySelector(".top-actions") || document.querySelector(".topbar");
-    if (!host || document.getElementById("forge-theme-toggle")) return;
-    const button = document.createElement("button");
-    button.id = "forge-theme-toggle";
-    button.type = "button";
-    button.className = "forge-theme-toggle";
-    button.innerHTML = `<span class="theme-sun" aria-hidden="true">☀</span><span data-theme-label>Light</span><span class="theme-moon" aria-hidden="true">☾</span>`;
-    button.addEventListener("click", () => applyTheme(document.documentElement.dataset.forgeTheme === "dark" ? "light" : "dark"));
-    host.prepend(button);
+    if (!host) return null;
+    let button = document.getElementById("forge-theme-toggle");
+    if (!button) {
+      button = document.createElement("button");
+      button.id = "forge-theme-toggle";
+      button.type = "button";
+      button.className = "forge-theme-toggle";
+      button.innerHTML = `<span class="theme-sun" aria-hidden="true">☀</span><span data-theme-label></span><span class="theme-moon" aria-hidden="true">☾</span>`;
+      button.addEventListener("click", () => applyTheme(document.documentElement.dataset.forgeTheme === "dark" ? "light" : "dark"));
+      host.prepend(button);
+    }
+    return button;
   }
 
   function ensureRuntimeStyles() {
@@ -80,10 +88,20 @@
     document.head.append(style);
   }
 
+  function observeNavigation(nav) {
+    navObserver?.disconnect();
+    navObserver = new MutationObserver((mutations) => {
+      const routeAdded = mutations.some((mutation) => [...mutation.addedNodes].some((node) => node.nodeType === 1 && (node.matches?.("a[data-route]") || node.querySelector?.("a[data-route]"))));
+      if (routeAdded) decorateNavigation();
+    });
+    navObserver.observe(nav, { childList: true, subtree: true });
+  }
+
   function decorateNavigation() {
     const nav = document.querySelector(".sidebar nav");
-    if (!nav || nav.dataset.royalDecorated === "true") return;
-    nav.dataset.royalDecorated = "true";
+    if (!nav) return;
+    navObserver?.disconnect();
+    nav.querySelectorAll('.forge-nav-heading[data-forge-generated="true"]').forEach((heading) => heading.remove());
 
     const links = new Map([...nav.querySelectorAll("a[data-route]")].map((link) => [link.dataset.route, link]));
     const seriesLink = document.getElementById("open-series-engine");
@@ -99,11 +117,13 @@
       if (wingStarts.has(route)) {
         const heading = document.createElement("div");
         heading.className = "forge-nav-heading";
+        heading.dataset.forgeGenerated = "true";
         heading.textContent = wingStarts.get(route);
         link.before(heading);
       }
       link.dataset.icon = routeIcons[route] || "•";
     });
+    if (seriesLink) seriesLink.dataset.icon = "♚";
 
     const brand = document.querySelector(".brand");
     if (brand && !brand.querySelector(".brand-quill")) {
@@ -111,6 +131,8 @@
     }
     const tag = document.querySelector(".tag");
     if (tag) tag.textContent = "Shape stories. Forge legacies.";
+    nav.dataset.royalDecorated = "true";
+    observeNavigation(nav);
   }
 
   function createMasthead() {
@@ -136,9 +158,32 @@
     main.insertBefore(masthead, topbar);
   }
 
+  function coverPlanFor(bookId) {
+    return bookId ? coverPlansByBook.get(bookId) : undefined;
+  }
+
   function possibleCover(book) {
-    const candidates = [book?.coverUrl, book?.coverImage, book?.cover?.frontUrl, book?.cover?.imageUrl, book?.artwork?.coverUrl, book?.metadata?.coverUrl];
+    const persisted = coverPlanFor(book?.id);
+    const candidates = [persisted?.artworkUri, book?.coverUrl, book?.coverImage, book?.cover?.frontUrl, book?.cover?.imageUrl, book?.artwork?.coverUrl, book?.metadata?.coverUrl];
     return candidates.find((value) => typeof value === "string" && /^(https?:|data:|\/)/.test(value)) || "";
+  }
+
+  async function refreshProjectCovers() {
+    try {
+      const response = await fetch(`/api/projects/${encodeURIComponent(projectId)}`, { headers: { accept: "application/json" } });
+      if (!response.ok) return;
+      const project = await response.json();
+      const latest = new Map();
+      for (const plan of Array.isArray(project?.bookCoverPlans) ? project.bookCoverPlans : []) {
+        if (!plan?.bookId) continue;
+        const prior = latest.get(plan.bookId);
+        if (!prior || Number(plan.version || 0) >= Number(prior.version || 0)) latest.set(plan.bookId, plan);
+      }
+      coverPlansByBook = latest;
+      if (window.forgeWorkspaceState) renderShelf(window.forgeWorkspaceState);
+    } catch {
+      /* Covers are decorative; provider/project fetch errors must not block authoring. */
+    }
   }
 
   function generatedCover(book) {
@@ -195,7 +240,7 @@
       shelf.innerHTML = `<div class="forge-shelf-empty"><span aria-hidden="true">✒</span><strong>Your forged works will appear here.</strong><small>Create a book to begin the shelf.</small></div>`;
       return;
     }
-    shelf.innerHTML = books.slice(0, 7).map((book, index) => {
+    shelf.innerHTML = books.map((book, index) => {
       const title = String(book?.title || `Book ${index + 1}`);
       const cover = possibleCover(book);
       return `<article class="forge-book" title="${escapeHtml(title)}">${cover ? `<img src="${escapeHtml(cover)}" alt="${escapeHtml(title)} cover">` : generatedCover(book)}</article>`;
@@ -223,17 +268,23 @@
   }
 
   function enhance() {
+    ensureThemeToggle();
     applyTheme(currentTheme(), false);
     ensureRuntimeStyles();
     decorateNavigation();
     createMasthead();
-    ensureThemeToggle();
     addSidebarSeal();
     polishDashboard();
-    renderShelf(window.forgeWorkspaceState);
+    if (window.forgeWorkspaceState) renderShelf(window.forgeWorkspaceState);
+    refreshProjectCovers();
   }
 
-  window.addEventListener("forge:workspace-ready", (event) => renderShelf(event.detail || window.forgeWorkspaceState));
+  window.addEventListener("forge:workspace-ready", (event) => {
+    const workspace = event.detail || window.forgeWorkspaceState;
+    if (workspace) renderShelf(workspace);
+    refreshProjectCovers();
+  });
+  window.addEventListener("focus", refreshProjectCovers);
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", enhance, { once: true });
   else enhance();
 })();
