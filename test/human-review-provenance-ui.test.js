@@ -31,10 +31,10 @@ test("review invitation keeps the one-time credential in a server-issued URL fra
   assert.match(routes, /tokenShownOnce:\s*true/);
   assert.match(room, /created\.reviewUrl/);
   assert.doesNotMatch(room, /#token=\$\{/);
-  assert.match(reviewer, /location\.hash\.replace\(\/\^#\//,\s*""\)/);
-  assert.match(reviewer, /params\.get\("token"\)/);
-  assert.match(reviewer, /sessionStorage\.setItem\(tokenKey, token\)/);
-  assert.match(reviewer, /history\.replaceState\(null, "", `\$\{location\.pathname\}\$\{location\.search\}`\)/);
+  assert.ok(reviewer.includes('location.hash.replace(/^#/, "")'), "reviewer must parse credentials from the URL fragment");
+  assert.ok(reviewer.includes('params.get("token")'), "reviewer must read the one-time token from fragment parameters");
+  assert.ok(reviewer.includes('sessionStorage.setItem(tokenKey, token)'), "reviewer must move the token into session-only storage");
+  assert.ok(reviewer.includes('history.replaceState(null, "", `${location.pathname}${location.search}`)'), "reviewer must scrub the fragment from browser history");
   assert.doesNotMatch(reviewer, /localStorage\.setItem\([^)]*review-token/);
 });
 
