@@ -1,4 +1,4 @@
-export const CREATIVE_TOOL_REGISTRY_FORMAT_VERSION = 2 as const;
+export const CREATIVE_TOOL_REGISTRY_FORMAT_VERSION = 3 as const;
 
 export const CREATIVE_TOOL_CATEGORIES = ["research", "planning", "writing", "editing", "visual", "marketing", "production", "memory"] as const;
 export type CreativeToolCategory = typeof CREATIVE_TOOL_CATEGORIES[number];
@@ -125,6 +125,18 @@ const TOOL_DEFINITIONS: readonly CreativeToolDescriptor[] = Object.freeze([
     providerRequirement: "none",
     stateEffect: "none",
     requiredScope: ["project", "scene"],
+    authorCanReviewBeforeMutation: true,
+  }),
+  tool({
+    id: "cover.direction.propose",
+    title: "Generate Cover Studio direction candidate",
+    description: "Generate a reviewable Project Brain-grounded cover brief, back-cover copy and typography/composition direction without inventing production geometry or KDP readiness.",
+    category: "visual",
+    pathTemplate: "/api/projects/:projectId/agent/cover-direction",
+    approvalClass: "author-step",
+    providerRequirement: "configured-ai",
+    stateEffect: "candidate-response",
+    requiredScope: ["project", "book"],
     authorCanReviewBeforeMutation: true,
   }),
   tool({
