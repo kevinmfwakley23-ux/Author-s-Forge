@@ -46,6 +46,12 @@ test('Planner orders source grounding before writing and keeps evidence recordin
   ]);
 });
 
+test('Edit-only intent does not accidentally schedule new prose because the target is a scene', () => {
+  const plan = compileCreativeAgentPlan({ goal: 'Continuity edit this scene and proofread it.', mode: 'partner', scope: fullScope });
+  assert.deepEqual(plan.steps.map((step) => step.toolId), ['editing.analyze', 'memory.record-working']);
+  assert.equal(plan.steps.some((step) => step.toolId === 'writing.propose'), false);
+});
+
 test('Planner defaults an ordinary author goal to grounded proposal work rather than untracked generation', () => {
   const plan = compileCreativeAgentPlan({ goal: 'Make this better.', mode: 'co-pilot', scope: fullScope });
   assert.deepEqual(plan.steps.map((step) => step.toolId), ['project.context', 'writing.propose', 'memory.record-working']);
