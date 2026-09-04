@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Author's Forge — Reviewer Portal</title>
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/forge-royal-hardening.css">
+</head>
+<body>
+<main style="max-width:1200px;margin:0 auto;padding:24px">
+<header class="topbar"><div><div class="eyebrow">AUTHOR'S FORGE</div><h1>Reviewer Portal</h1><p id="reviewer-meta">Validating secure review access…</p></div><button id="review-refresh" type="button">Refresh manuscript</button></header>
+<div id="review-error" class="banner error" hidden role="alert"></div><div id="review-success" class="banner success" hidden></div>
+<section class="card"><h2>Shared manuscript</h2><p class="muted">Your role controls what you can submit. Comments and suggestions are durable review records; they do not directly alter the author's manuscript.</p><div class="row"><label>Book<select id="review-book"></select></label><label>Chapter<select id="review-chapter"></select></label><label>Scene<select id="review-scene"></select></label></div><textarea id="review-scene-content" class="editor" readonly aria-label="Shared scene content"></textarea><small id="review-scene-meta" class="muted"></small></section>
+<div class="grid">
+<section class="card"><h2>Comment</h2><p class="muted">Select text in the manuscript above to anchor the comment to an exact revision, or leave the selection empty for a scene-level comment.</p><textarea id="review-comment" placeholder="What should the author know?"></textarea><button id="submit-review-comment" class="primary" type="button">Submit comment</button><div id="review-comments" class="list"></div></section>
+<section class="card" id="review-suggestion-card"><h2>Tracked suggestion</h2><p class="muted">Edit the full scene candidate below. Forge records the source revision and will block application if the manuscript changes before the author approves it.</p><textarea id="review-replacement" class="editor"></textarea><textarea id="review-rationale" placeholder="Explain what you changed and why."></textarea><button id="submit-review-suggestion" class="primary" type="button">Submit tracked suggestion</button><div id="review-suggestions" class="list"></div></section>
+</div>
+</main>
+<script src="/forge-reviewer.js" defer></script>
+</body>
+</html>
