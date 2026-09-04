@@ -14,7 +14,6 @@ import android.net.http.SslError;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
-import android.provider.Settings;
 import android.view.Gravity;
 import android.view.ViewGroup;
 import android.webkit.CookieManager;
@@ -50,8 +49,8 @@ public final class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         preferences = getSharedPreferences(PREFS, MODE_PRIVATE);
         String initial = preferences.getString(PREF_ORIGIN, "");
-        if ((initial == null || initial.isBlank()) && !BuildConfig.FORGE_DEFAULT_URL.isBlank()) initial = BuildConfig.FORGE_DEFAULT_URL;
-        if (initial != null && !initial.isBlank()) {
+        if (isBlank(initial) && !isBlank(BuildConfig.FORGE_DEFAULT_URL)) initial = BuildConfig.FORGE_DEFAULT_URL;
+        if (!isBlank(initial)) {
             try {
                 configureAndLoad(initial);
                 return;
@@ -95,7 +94,7 @@ public final class MainActivity extends Activity {
         explanation.setPadding(0, 0, 0, dp(18));
         root.addView(explanation, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        if (error != null && !error.isBlank()) {
+        if (!isBlank(error)) {
             TextView errorView = new TextView(this);
             errorView.setText(error);
             errorView.setTextColor(Color.rgb(150, 25, 25));
@@ -244,9 +243,9 @@ public final class MainActivity extends Activity {
             Uri uri = Uri.parse(download.url);
             DownloadManager.Request request = new DownloadManager.Request(uri);
             String cookie = CookieManager.getInstance().getCookie(download.url);
-            if (cookie != null && !cookie.isBlank()) request.addRequestHeader("Cookie", cookie);
-            if (download.userAgent != null && !download.userAgent.isBlank()) request.addRequestHeader("User-Agent", download.userAgent);
-            if (download.mimeType != null && !download.mimeType.isBlank()) request.setMimeType(download.mimeType);
+            if (!isBlank(cookie)) request.addRequestHeader("Cookie", cookie);
+            if (!isBlank(download.userAgent)) request.addRequestHeader("User-Agent", download.userAgent);
+            if (!isBlank(download.mimeType)) request.setMimeType(download.mimeType);
             String filename = URLUtil.guessFileName(download.url, download.contentDisposition, download.mimeType);
             request.setTitle(filename);
             request.setDescription("Author's Forge export");
@@ -305,7 +304,7 @@ public final class MainActivity extends Activity {
         Uri uri = Uri.parse(value);
         String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase();
         String host = uri.getHost();
-        if (host == null || host.isBlank()) throw new IllegalArgumentException("Forge server URL must include a valid host.");
+        if (isBlank(host)) throw new IllegalArgumentException("Forge server URL must include a valid host.");
         if (!scheme.equals("https")) {
             if (!(BuildConfig.DEBUG && scheme.equals("http") && isPrivateDevelopmentHost(host))) {
                 throw new IllegalArgumentException("Production Author's Forge requires HTTPS. Cleartext HTTP is permitted only in debug builds on loopback/private development hosts.");
@@ -349,6 +348,10 @@ public final class MainActivity extends Activity {
             }
         }
         return false;
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 
     private int dp(int value) {
