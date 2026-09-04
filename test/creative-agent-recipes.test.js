@@ -88,6 +88,32 @@ test('Forge Recipe updates append versions and compile to plan-only governed too
   }
 });
 
+test('Forge Recipe compilation forces exactly one workflow evidence record to the final step', async () => {
+  const { root, service } = await fixture();
+  try {
+    await service.create('recipe-project', {
+      id: 'audit-order',
+      title: 'Audit Order',
+      steps: [
+        { toolId: 'project.context' },
+        { toolId: 'memory.record-working', instruction: 'Attempt to record too early.' },
+        { toolId: 'research.live' },
+      ],
+      now: '2026-09-04T18:33:30.000Z',
+    });
+    const compiled = await service.compile('recipe-project', 'audit-order', { goal: 'Ground and research the project.' });
+    assert.deepEqual(compiled.plan.steps.map((step) => step.toolId), [
+      'project.context',
+      'research.live',
+      'memory.record-working',
+    ]);
+    assert.equal(compiled.plan.steps.filter((step) => step.toolId === 'memory.record-working').length, 1);
+    assert.match(compiled.plan.steps.at(-1).reason, /after all other recipe operations finish/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test('Forge Recipes reject unregistered tools and cannot smuggle proposal-apply or manuscript-content routes into a workflow', async () => {
   const { root, store, service } = await fixture();
   try {
