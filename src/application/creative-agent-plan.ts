@@ -53,7 +53,11 @@ export function compileCreativeAgentPlan(input: CreativeAgentPlanInput): Creativ
 
   if (hasAny(lower, ["research", "source", "fact", "verify", "market", "niche", "history", "setting", "real world"])) requested.add("research.live");
   if (hasAny(lower, ["outline", "architecture", "plot", "story structure", "chapter plan", "plan the book", "premise"])) requested.add("architecture.generate");
-  const wantsWriting = hasAny(lower, ["write", "draft", "continue", "prose", "scene", "chapter", "manuscript", "rewrite", "compose"]);
+  const wantsWriting = hasAny(lower, [
+    "write", "draft", "continue", "prose", "manuscript", "rewrite", "compose",
+    "write the scene", "write this scene", "write a scene", "draft the scene", "draft this scene",
+    "write the chapter", "write this chapter", "write a chapter", "draft the chapter", "draft this chapter",
+  ]);
   const wantsEditing = hasAny(lower, ["edit", "revise", "revision", "polish", "critique", "continuity", "copyedit", "proofread", "proofreading"]);
   if (wantsWriting) {
     requested.add("project.context");
