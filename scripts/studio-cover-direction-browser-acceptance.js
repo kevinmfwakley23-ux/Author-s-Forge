@@ -104,6 +104,14 @@ async function main() {
     await page.waitForSelector("#cover-agent-panel");
     assert.equal(await page.locator("#cover-agent-apply").isDisabled(), true);
 
+    // Several real Studio extensions emit this shared refresh event without CustomEvent.detail.
+    // Prove the Workbench rehydrates from durable workspace state instead of losing the active book.
+    await page.evaluate(() => {
+      window.forgeWorkspaceState = undefined;
+      window.dispatchEvent(new Event("forge:workspace-ready"));
+    });
+    await page.waitForFunction((bookId) => window.forgeWorkspaceState?.books?.some((book) => book.id === bookId), BOOK_ID);
+
     const brief = "Create an elegant literary-thriller cover using the book's real premise. No awards, reviews, rankings, or sales claims.";
     await page.locator("#cover-agent-brief").fill(brief);
     await page.locator("#cover-agent-propose").click();
@@ -135,7 +143,7 @@ async function main() {
     assert.match(project.bookCoverPlans[0].frontPrompt, /Typography:/);
     assert.equal(project.bookCoverPlans[0].approvalStatus, "draft");
 
-    console.log("COVER DIRECTION BROWSER ACCEPTANCE PASSED: reviewable AI candidate + explicit apply + one authoritative cover-plan request + one durable plan.");
+    console.log("COVER DIRECTION BROWSER ACCEPTANCE PASSED: workspace refresh recovery + reviewable AI candidate + explicit apply + one authoritative cover-plan request + one durable plan.");
   } finally {
     if (browser) await browser.close().catch(() => {});
     server.kill("SIGTERM");
