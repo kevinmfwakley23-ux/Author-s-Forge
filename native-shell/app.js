@@ -9,10 +9,9 @@
   const saved = localStorage.getItem(STORAGE_KEY);
   if (saved) input.value = saved;
 
-  form.addEventListener("submit", async (event) => {
+  form.addEventListener("submit", (event) => {
     event.preventDefault();
     status.className = "status";
-    status.textContent = "Checking the real Forge gateway…";
 
     let target;
     try {
@@ -22,19 +21,14 @@
       return;
     }
 
-    const healthUrl = new URL("/healthz", target.origin);
-    try {
-      const response = await fetch(healthUrl, { method: "GET", cache: "no-store", credentials: "omit" });
-      if (!response.ok) throw new Error(`gateway returned HTTP ${response.status}`);
-      const payload = await response.json().catch(() => null);
-      if (!payload || payload.ok !== true) throw new Error("gateway health response was not valid");
-    } catch (error) {
-      setError(`Forge is not reachable at ${target.origin}. ${error instanceof Error ? error.message : String(error)}`);
-      return;
-    }
-
+    // A normal browser fetch from the Tauri asset origin to a remote Forge
+    // gateway can be blocked by WebView CORS before the request ever proves
+    // whether Forge is healthy. Navigation itself is the truthful transport:
+    // the real gateway owns authentication, login/bootstrap, HTTP errors, and
+    // project availability. Do not turn a CORS policy mismatch into a fake
+    // "server offline" status.
     localStorage.setItem(STORAGE_KEY, target.origin);
-    status.textContent = "Forge verified. Opening the workplace…";
+    status.textContent = "Opening the real Forge gateway…";
     window.location.assign(target.href);
   });
 
