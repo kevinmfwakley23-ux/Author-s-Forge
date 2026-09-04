@@ -2,9 +2,12 @@ import { randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { FileProjectStore } from "../infrastructure/file-project-store";
 import type { FileAiProposalStore } from "../infrastructure/file-ai-proposal-store";
+import type { FileAiModelPerformanceStore } from "../infrastructure/file-ai-model-performance-store";
+import { loadAiModelRuntimeOptions } from "../infrastructure/ai-model-options-runtime";
 import { AiWritingCoordinator, type AiWritingGenerator } from "./ai-writing-coordinator";
 import { AiWritingStudioService } from "./ai-writing-studio";
 import { runAiTextEnsemble, type AiTextEnsembleResult } from "./ai-ensemble";
+import { createAiEnsemblePerformanceTracker } from "./ai-ensemble-performance";
 import type { AiWritingTask } from "./ai-writing";
 import type { AiGenerationResult } from "../infrastructure/ai-provider";
 
@@ -16,9 +19,14 @@ export type StudioAiEnsembleRouteHandler = (req: IncomingMessage, res: ServerRes
  * Request-scoped ensemble coordinator. The final multi-model candidate still
  * travels through AiWritingStudioService, so Project Brain, voice drift,
  * character continuity, stale-scene protection, proposal review, and explicit
- * Apply remain the canonical manuscript boundary.
+ * Apply remain the canonical manuscript boundary. Real provider observations
+ * are captured separately for learned best-value recommendations.
  */
-export function createStudioAiEnsembleRoutes(store: FileProjectStore, proposalStore: FileAiProposalStore): StudioAiEnsembleRouteHandler {
+export function createStudioAiEnsembleRoutes(
+  store: FileProjectStore,
+  proposalStore: FileAiProposalStore,
+  performanceStore: FileAiModelPerformanceStore,
+): StudioAiEnsembleRouteHandler {
   return async (req, res, url, projectId) => {
     if (url.pathname !== `/api/projects/${projectId}/ai/ensemble-writing` || req.method !== "POST") return false;
     const input = await body(req);
@@ -28,18 +36,39 @@ export function createStudioAiEnsembleRoutes(store: FileProjectStore, proposalSt
     const sceneId = required(input.sceneId, "Scene id");
     const instruction = required(input.instruction, "Instruction");
     const proposalId = optional(input.proposalId) ?? `ensemble-proposal-${randomUUID()}`;
+    const runtimeOptions = loadAiModelRuntimeOptions();
+    const performance = createAiEnsemblePerformanceTracker({
+      projectId,
+      task,
+      store: performanceStore,
+      qualityFloor: runtimeOptions.ensembleMinQualityScore,
+    });
     let ensemble: AiTextEnsembleResult | undefined;
+    let performanceObservationCount = 0;
+    let performanceError: string | undefined;
 
     const generator: AiWritingGenerator = async (providerRequest): Promise<AiGenerationResult> => {
-      ensemble = await runAiTextEnsemble({
-        system: providerRequest.system,
-        user: providerRequest.user,
-        temperature: providerRequest.temperature,
-        maxOutputTokens: providerRequest.maxOutputTokens,
-        sourceText: extractExistingScene(providerRequest.user),
-        projectId,
-        title: `${task} ensemble candidate`,
-      });
+      try {
+        ensemble = await runAiTextEnsemble({
+          system: providerRequest.system,
+          user: providerRequest.user,
+          temperature: providerRequest.temperature,
+          maxOutputTokens: providerRequest.maxOutputTokens,
+          sourceText: extractExistingScene(providerRequest.user),
+          projectId,
+          title: `${task} ensemble candidate`,
+        }, {
+          generate: performance.generate,
+          options: runtimeOptions,
+        });
+      } finally {
+        try {
+          performanceObservationCount = (await performance.flush()).length;
+        } catch (error) {
+          performanceError = errorText(error);
+        }
+      }
+      if (!ensemble) throw new Error("Multi-model ensemble ended before producing execution metadata.");
       if (!ensemble.accepted) throw new Error(`Multi-model anti-drift gate blocked the candidate. ${ensemble.blockedReasons.join(" ")}`);
       const primary = ensemble.synthesis
         ? { provider: ensemble.synthesis.provider, model: ensemble.synthesis.model }
@@ -67,6 +96,12 @@ export function createStudioAiEnsembleRoutes(store: FileProjectStore, proposalSt
       contextBudget: generated.contextBudget,
       voiceDrift: generated.voiceDrift ?? null,
       characterContinuity: generated.characterContinuity,
+      performanceEvidence: {
+        recorded: performanceError === undefined,
+        observationCount: performanceObservationCount,
+        ensembleId: performance.ensembleId,
+        ...(performanceError ? { error: performanceError } : {}),
+      },
       authorControl: "Pending proposal only. Author review and separate Apply remain required.",
     });
     return true;
@@ -113,3 +148,4 @@ function json(res: ServerResponse, status: number, value: unknown): void {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" });
   res.end(JSON.stringify(value));
 }
+function errorText(error: unknown): string { return error instanceof Error ? error.message : String(error); }
