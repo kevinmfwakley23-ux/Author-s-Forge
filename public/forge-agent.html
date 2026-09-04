@@ -22,7 +22,7 @@
     .agent-note{padding:11px 13px;border-left:4px solid #9a793d;background:var(--forge-panel-soft,#faf8f2);border-radius:7px;font-size:.94rem}.agent-status{min-height:24px;font-weight:700}
     .agent-snapshot{display:grid;gap:9px}.agent-stat{display:flex;justify-content:space-between;gap:18px;padding-bottom:8px;border-bottom:1px solid var(--forge-border,#ddd)}
     .agent-plan{display:grid;gap:12px;margin-top:16px}.agent-step{border:1px solid var(--forge-border,#d8cfbf);border-radius:12px;padding:14px;background:var(--forge-panel,#fff)}.agent-step-head{display:flex;gap:12px;align-items:flex-start;justify-content:space-between}.agent-step h3{margin:0 0 4px;font-size:1.06rem}.agent-step p{margin:.3rem 0}.agent-badge{white-space:nowrap;border:1px solid currentColor;border-radius:999px;padding:3px 8px;font-size:.75rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}.agent-step button{margin-top:10px;min-height:42px;border:1px solid #20252b;border-radius:8px;background:#20252b;color:#fff;padding:8px 12px;font-weight:800;cursor:pointer}.agent-step button[disabled],.agent-actions button[disabled]{opacity:.55;cursor:not-allowed}.agent-result{white-space:pre-wrap;overflow-wrap:anywhere;max-height:300px;overflow:auto;margin-top:10px;padding:10px;border-radius:8px;background:#111827;color:#e5e7eb;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace}.agent-hidden{display:none!important}
-    .agent-truth{display:grid;gap:8px;margin:0;padding-left:20px}.agent-truth strong{font-weight:900}.agent-side-section{margin-top:24px;padding-top:20px;border-top:1px solid var(--forge-border,#d8cfbf)}.agent-recipe-controls{display:grid;gap:10px}.agent-mini-status{min-height:20px;font-size:.9rem;font-weight:700}.agent-group-run{margin-left:auto}
+    .agent-truth{display:grid;gap:8px;margin:0;padding-left:20px}.agent-truth strong{font-weight:900}.agent-side-section{margin-top:24px;padding-top:20px;border-top:1px solid var(--forge-border,#d8cfbf)}.agent-recipe-controls{display:grid;gap:10px}.agent-mini-status{min-height:20px;font-size:.9rem;font-weight:700}.agent-group-run{margin-left:auto}.agent-help{font-size:.82rem;font-weight:500;line-height:1.35}
     @media(max-width:800px){.agent-grid,.agent-row,.agent-row-three{grid-template-columns:1fr}.agent-shell{width:min(100% - 18px,1180px);padding-top:14px}.agent-card{padding:14px}.agent-step-head{display:grid}.agent-badge{justify-self:start}.agent-group-run{margin-left:0;width:100%}}
   </style>
 </head>
@@ -42,7 +42,7 @@
         <h2>Creative mission</h2>
         <div class="agent-note"><strong>Authority boundary:</strong> the server planner decides which registered tools belong in the plan. Provider-backed or state-affecting steps stay individually visible. Only steps explicitly classified read-only with no state effect may be run together after one author approval.</div>
         <form id="agent-form" class="agent-form">
-          <div class="agent-row">
+          <div class="agent-row-three">
             <label>Project ID
               <input id="agent-project" autocomplete="off" spellcheck="false" required>
             </label>
@@ -54,6 +54,13 @@
                 <option value="autonomous">Autonomous</option>
                 <option value="editor">Editor</option>
               </select>
+            </label>
+            <label>Planner
+              <select id="agent-planner">
+                <option value="deterministic">Deterministic · free/default</option>
+                <option value="ai">AI-enhanced · routed model</option>
+              </select>
+              <span class="muted agent-help">AI-enhanced planning follows your current spend/model policy and falls back visibly if unavailable or invalid.</span>
             </label>
           </div>
           <div class="agent-row-three">
@@ -117,6 +124,7 @@
           <h3>Agent rules</h3>
           <ul class="agent-truth">
             <li><strong>Server-planned.</strong> The browser asks Forge for the governed plan instead of inventing one locally.</li>
+            <li><strong>AI planning is optional.</strong> Deterministic planning costs no model tokens; AI-enhanced selections must pass strict registry validation and can fall back safely.</li>
             <li><strong>Source-backed research only.</strong> Live research refuses to run when its real provider boundary is unavailable.</li>
             <li><strong>Proposal, not takeover.</strong> Writing and Chapter Cards remain candidates until separate author review.</li>
             <li><strong>Safe groups are bounded.</strong> Only read-only/no-state-effect steps can share one approval, and the group stops on the first failure.</li>
