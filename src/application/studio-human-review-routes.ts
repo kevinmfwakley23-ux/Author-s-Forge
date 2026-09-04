@@ -3,7 +3,15 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import type { FileProjectStore } from "../infrastructure/file-project-store";
 import type { FileCreativeProvenanceStore } from "../infrastructure/file-creative-provenance-store";
 import type { FileHumanReviewStore } from "../infrastructure/file-human-review-store";
-import { humanReviewRole, reviewerPermissions, sceneContentSha256, type HumanReviewTarget } from "../domain/human-review";
+import {
+  humanReviewRole,
+  humanReviewScope,
+  reviewerCanAccessTarget,
+  reviewerPermissions,
+  sceneContentSha256,
+  type HumanReviewer,
+  type HumanReviewTarget,
+} from "../domain/human-review";
 import { getBook, getScene, saveSceneContent, validateStudioWorkspace } from "../domain/studio-workspace";
 
 export type StudioHumanReviewRouteHandler = (req: IncomingMessage, res: ServerResponse, url: URL, projectId: string) => Promise<boolean>;
@@ -26,13 +34,16 @@ export function createStudioHumanReviewRoutes(
     }
 
     if (url.pathname === `${root}/reviewers` && req.method === "POST") {
-      await requireProject(projects, projectId);
+      const project = await requireProject(projects, projectId);
       const input = await body(req);
+      const scope = humanReviewScope(input.scope);
+      if (scope.kind === "book") getBook(workspaceOf(project), scope.bookId);
       const created = await reviews.createReviewer({
         id: String(input.id ?? `reviewer-${randomUUID()}`),
         projectId,
         displayName: requiredText(input.displayName, "Reviewer display name", 160),
         role: humanReviewRole(input.role),
+        scope,
         now: optionalTimestamp(input.now),
       });
       const fragmentUrl = `/review.html?project=${encodeURIComponent(projectId)}#token=${encodeURIComponent(created.token)}`;
@@ -51,7 +62,7 @@ export function createStudioHumanReviewRoutes(
     if (url.pathname === `${root}/context` && req.method === "GET") {
       const project = await requireProject(projects, projectId);
       const reviewer = await authenticateReviewer(req, reviews, projectId);
-      const workspace = workspaceOf(project);
+      const workspace = workspaceForReviewer(project, reviewer);
       json(res, 200, { reviewer: publicReviewer(reviewer), permissions: reviewerPermissions(reviewer.role), workspace });
       return true;
     }
@@ -59,7 +70,7 @@ export function createStudioHumanReviewRoutes(
     if (url.pathname === `${root}/comments` && req.method === "GET") {
       await requireProject(projects, projectId);
       const reviewer = await authenticateReviewer(req, reviews, projectId);
-      const comments = (await reviews.listComments(projectId)).filter((item) => item.reviewerId === reviewer.id);
+      const comments = (await reviews.listComments(projectId)).filter((item) => item.reviewerId === reviewer.id && reviewerCanAccessTarget(reviewer, item.target));
       json(res, 200, { comments });
       return true;
     }
@@ -69,6 +80,7 @@ export function createStudioHumanReviewRoutes(
       const reviewer = await authenticateReviewer(req, reviews, projectId);
       const input = await body(req);
       const target = reviewTarget(input.target);
+      enforceReviewerTarget(reviewer, target);
       const scene = sceneFor(project, target);
       const currentHash = sceneContentSha256(scene.content);
       const rawSelection = input.selection;
@@ -102,7 +114,7 @@ export function createStudioHumanReviewRoutes(
     if (url.pathname === `${root}/suggestions` && req.method === "GET") {
       await requireProject(projects, projectId);
       const reviewer = await authenticateReviewer(req, reviews, projectId);
-      const suggestions = (await reviews.listSuggestions(projectId)).filter((item) => item.reviewerId === reviewer.id);
+      const suggestions = (await reviews.listSuggestions(projectId)).filter((item) => item.reviewerId === reviewer.id && reviewerCanAccessTarget(reviewer, item.target));
       json(res, 200, { suggestions });
       return true;
     }
@@ -113,6 +125,7 @@ export function createStudioHumanReviewRoutes(
       if (!reviewerPermissions(reviewer.role).suggest) throw new Error(`Review role "${reviewer.role}" can comment but cannot propose manuscript replacements.`);
       const input = await body(req);
       const target = reviewTarget(input.target);
+      enforceReviewerTarget(reviewer, target);
       const scene = sceneFor(project, target);
       const baseContentSha256 = String(input.baseContentSha256 ?? "").trim().toLowerCase();
       if (baseContentSha256 !== sceneContentSha256(scene.content)) throw new Error("Review suggestion is stale because the scene changed. Reload before proposing a replacement.");
@@ -194,13 +207,20 @@ export function createStudioHumanReviewRoutes(
   };
 }
 
-function publicReviewer(reviewer: { id: string; projectId: string; displayName: string; role: string; status: string; createdAt: string; revokedAt?: string }) {
-  return { id: reviewer.id, projectId: reviewer.projectId, displayName: reviewer.displayName, role: reviewer.role, status: reviewer.status, createdAt: reviewer.createdAt, ...(reviewer.revokedAt ? { revokedAt: reviewer.revokedAt } : {}) };
+function publicReviewer(reviewer: HumanReviewer) {
+  return { id: reviewer.id, projectId: reviewer.projectId, displayName: reviewer.displayName, role: reviewer.role, scope: reviewer.scope, status: reviewer.status, createdAt: reviewer.createdAt, ...(reviewer.revokedAt ? { revokedAt: reviewer.revokedAt } : {}) };
 }
 function reviewToken(req: IncomingMessage): string | undefined { const value = req.headers["x-forge-review-token"]; return Array.isArray(value) ? value[0]?.trim() : value?.trim(); }
 async function authenticateReviewer(req: IncomingMessage, reviews: FileHumanReviewStore, projectId: string) { const token = reviewToken(req); if (!token) throw new Error("A Forge review token is required."); return reviews.authenticate(projectId, token); }
 async function requireProject(projects: Pick<FileProjectStore, "load">, projectId: string) { const project = await projects.load(projectId); if (!project) throw new Error(`Project "${projectId}" not found.`); return project; }
 function workspaceOf(project: { studioWorkspace?: unknown }) { return project.studioWorkspace ? validateStudioWorkspace(project.studioWorkspace) : validateStudioWorkspace({ formatVersion: 1, activeBookId: null, books: [] }); }
+function workspaceForReviewer(project: { studioWorkspace?: unknown }, reviewer: HumanReviewer) {
+  const workspace = workspaceOf(project);
+  if (reviewer.scope.kind === "project") return workspace;
+  const book = getBook(workspace, reviewer.scope.bookId);
+  return validateStudioWorkspace({ ...workspace, activeBookId: book.id, books: [book] });
+}
+function enforceReviewerTarget(reviewer: HumanReviewer, target: HumanReviewTarget): void { if (!reviewerCanAccessTarget(reviewer, target)) throw new Error("Review target is outside this reviewer's assigned scope."); }
 function sceneFor(project: { studioWorkspace?: unknown }, target: HumanReviewTarget) { const workspace = workspaceOf(project); return getScene(getBook(workspace, target.bookId), target.chapterId, target.sceneId); }
 function reviewTarget(value: unknown): HumanReviewTarget { if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Review target is required."); const target = value as Record<string, unknown>; return { bookId: requiredText(target.bookId, "Review target book id", 256), chapterId: requiredText(target.chapterId, "Review target chapter id", 256), sceneId: requiredText(target.sceneId, "Review target scene id", 256) }; }
 function requiredText(value: unknown, label: string, max: number): string { const text = String(value ?? "").trim(); if (!text) throw new Error(`${label} is required.`); if (text.length > max) throw new Error(`${label} exceeds ${max} characters.`); return text; }
