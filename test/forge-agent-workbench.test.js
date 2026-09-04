@@ -113,7 +113,7 @@ test('Agent Workbench v3 is reachable from Studio and cached by the PWA shell', 
   const sw = fs.readFileSync('public/sw.js', 'utf8');
   assert.match(pwa, /open-agent-workbench/);
   assert.match(pwa, /forge-agent\.html/);
-  assert.match(sw, /authors-forge-shell-v20/);
+  assert.match(sw, /const CACHE = "authors-forge-shell-v\d+"/);
   assert.match(sw, /forge-agent\.html/);
   assert.match(sw, /forge-agent-v3\.js/);
   assert.match(sw, /forge-agent-routing\.js/);
