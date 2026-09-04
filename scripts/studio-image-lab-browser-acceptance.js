@@ -83,9 +83,12 @@ async function main() {
     const generationResponse = page.waitForResponse((response) => response.url().endsWith("/ai/image") && response.request().method() === "POST");
     await page.locator("#forge-image-generate").tap();
     const failed = await generationResponse;
+    const failedPayload = await failed.json().catch(() => ({}));
     assert.equal(failed.ok(), false, "Image generation without configured credentials must fail honestly after consent is recorded.");
-    await page.waitForFunction(() => /No real image provider is configured/i.test(document.querySelector("#forge-image-status")?.textContent || ""));
-    await page.waitForFunction(() => /Rights: author-owned/i.test(document.querySelector("#forge-image-history")?.textContent || ""));
+    assert.match(String(failedPayload.error || ""), /No real image provider is configured/i, `Unexpected Image Lab provider error: ${JSON.stringify(failedPayload)}`);
+    await page.waitForFunction(() => document.querySelector("#forge-image-generate")?.disabled === false);
+    assert.match(await page.locator("#forge-image-status").innerText(), /No real image provider is configured/i);
+    assert.match(await page.locator("#forge-image-history").innerText(), /Rights: author-owned/i);
     history = await (await fetch(`${base}/api/projects/${projectId}/ai/images`)).json();
     assert.equal(history.assets.length, 1, "failed provider must not fabricate a derivative asset");
     const sourceRecords = history.rightsRecords.filter((record) => record.artifactId === "pending-art");
