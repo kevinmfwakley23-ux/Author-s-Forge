@@ -46,6 +46,36 @@ test('Planner orders source grounding before writing and keeps evidence recordin
   ]);
 });
 
+test('Planner coordinates market, Chapter Card, visual and promotion capabilities through governed tools', () => {
+  const plan = compileCreativeAgentPlan({
+    goal: 'Research the KDP niche and keywords, create chapter cards, generate an illustration, and build a promotion campaign.',
+    mode: 'director',
+    scope: fullScope,
+  });
+  assert.deepEqual(plan.steps.map((step) => step.toolId), [
+    'market.kdp.research',
+    'story.chapter-cards.propose',
+    'visual.image.generate',
+    'promotion.campaign.propose',
+    'memory.record-working',
+  ]);
+  assert.equal(plan.steps.find((step) => step.toolId === 'market.kdp.research').providerRequirement, 'hosted-research');
+  assert.equal(plan.steps.find((step) => step.toolId === 'story.chapter-cards.propose').approvalClass, 'proposal');
+  assert.equal(plan.steps.find((step) => step.toolId === 'visual.image.generate').providerRequirement, 'configured-image');
+  assert.equal(plan.steps.find((step) => step.toolId === 'promotion.campaign.propose').stateEffect, 'campaign-draft');
+  assert.equal(plan.steps.slice(0, -1).every((step) => step.eligibleForApprovedRunGroup === false), true);
+});
+
+test('Planner blocks book-scoped campaign and Chapter Card work when the book target is missing', () => {
+  const plan = compileCreativeAgentPlan({
+    goal: 'Create chapter cards and a promotion campaign.',
+    mode: 'partner',
+    scope: { project: true },
+  });
+  assert.match(plan.steps.find((step) => step.toolId === 'story.chapter-cards.propose').blockedReason, /requires book scope/);
+  assert.match(plan.steps.find((step) => step.toolId === 'promotion.campaign.propose').blockedReason, /requires book scope/);
+});
+
 test('Edit-only intent does not accidentally schedule new prose because the target is a scene', () => {
   const plan = compileCreativeAgentPlan({ goal: 'Continuity edit this scene and proofread it.', mode: 'partner', scope: fullScope });
   assert.deepEqual(plan.steps.map((step) => step.toolId), ['editing.analyze', 'memory.record-working']);
