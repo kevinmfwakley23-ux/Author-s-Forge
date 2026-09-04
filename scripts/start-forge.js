@@ -20,9 +20,10 @@ const allServices = [
   { id: "journal", name: "Guided Journal", entry: "dist/guided-journal-server.js", portKey: "JOURNAL_PORT", port: process.env.JOURNAL_PORT || "4273" },
   { id: "workbooks", name: "Educational Workbooks", entry: "dist/educational-workbook-server.js", portKey: "WORKBOOK_PORT", port: process.env.WORKBOOK_PORT || "4373" },
   { id: "specialized", name: "Specialized Creation", entry: "dist/specialized-creation-server.js", portKey: "SPECIALIZED_PORT", port: process.env.SPECIALIZED_PORT || "4473" },
+  { id: "execution", name: "Execution Workplace", entry: "dist/execution-server.js", portKey: "EXECUTION_PORT", port: process.env.EXECUTION_PORT || "4573" },
 ];
 const services = only ? allServices.filter((service) => service.id === only) : allServices;
-if (only && services.length !== 1) throw new Error(`Unknown Forge office "${only}". Use studio, journal, workbooks, or specialized.`);
+if (only && services.length !== 1) throw new Error(`Unknown Forge office "${only}". Use studio, journal, workbooks, specialized, or execution.`);
 
 const seen = new Set();
 for (const service of services) {
