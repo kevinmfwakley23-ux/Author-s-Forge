@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: authors-forge
+    runtime: docker
+    plan: starter
+    healthCheckPath: /healthz
+    autoDeployTrigger: commit
+    envVars:
+      - key: FORGE_ACCESS_TOKEN
+        sync: false
+      - key: FORGE_DATA_DIR
+        value: /var/data/authors-forge
+      - key: FORGE_REQUIRE_HTTPS
+        value: "1"
+      - key: FORGE_SECURE_COOKIE
+        value: "1"
+    disk:
+      name: forge-data
+      mountPath: /var/data
+      sizeGB: 1
