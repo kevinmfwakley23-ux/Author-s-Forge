@@ -134,7 +134,8 @@ export class NftStoragePublisherService {
   private async uploadFile(jwt: string, name: string, bytes: Uint8Array, mime: string): Promise<string> {
     const form = new FormData();
     form.append("network", "public");
-    form.append("file", new Blob([bytes], { type: mime }), name);
+    const blobBytes = Uint8Array.from(bytes).buffer;
+    form.append("file", new Blob([blobBytes], { type: mime }), name);
     form.append("name", name);
     const group = this.environment.PINATA_GROUP_ID?.trim();
     if (group) form.append("group_id", group);
