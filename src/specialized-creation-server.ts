@@ -2,9 +2,11 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { randomUUID } from "node:crypto";
+import { FileBrandKitStore } from "./infrastructure/file-brand-kit-store";
 import { FileProjectStore } from "./infrastructure/file-project-store";
 import { FileSpecializedCreationStore } from "./infrastructure/file-specialized-creation-store";
 import { ProjectMemoryStore } from "./application/project-memory-store";
+import { createSpecializedBrandKitRoutes } from "./application/specialized-brand-kit-routes";
 import { SpecializedCreationOfficeService } from "./application/specialized-creation-office-service";
 import { SpecializedCreationScopedArtifactService } from "./application/specialized-creation-scoped-artifacts";
 import { handleSpecializedTcgAction } from "./application/specialized-creation-tcg-http";
@@ -21,6 +23,8 @@ const dataRoot=process.env.FORGE_DATA_DIR??join(process.cwd(),".forge-data");
 const publicRoot=join(process.cwd(),"public");
 const forgeProjects=new FileProjectStore(dataRoot);
 const specializedStore=new FileSpecializedCreationStore(join(dataRoot,"specialized-creation.json"));
+const brandKitStore=new FileBrandKitStore(join(dataRoot,"brand-kits.json"));
+const brandKitRoutes=createSpecializedBrandKitRoutes(brandKitStore,specializedStore);
 const scopedArtifacts=new SpecializedCreationScopedArtifactService(specializedStore);
 
 function json(res:ServerResponse,status:number,value:unknown):void{res.writeHead(status,{"content-type":"application/json; charset=utf-8","cache-control":"no-store","x-content-type-options":"nosniff"});res.end(JSON.stringify(value));}
@@ -38,7 +42,7 @@ async function persistMemory(project:ProjectState,memory:ProjectMemoryStore){con
 async function handleApi(req:IncomingMessage,res:ServerResponse,url:URL):Promise<boolean>{
   if(url.pathname==="/api/health"&&req.method==="GET"){json(res,200,{ok:true,service:"authors-forge-specialized-creation-office",modes:SPECIALIZED_CREATION_MODES,sharedDataRoot:dataRoot,mainStudioPort:Number(process.env.FORGE_STUDIO_PORT??4173),ai:aiStatus()});return true;}
   if(url.pathname==="/api/projects"&&req.method==="POST"){const input=await body(req);const project=createProject({id:required(input.id,"Project id"),title:required(input.title,"Project title")});await forgeProjects.create(project);json(res,201,project);return true;}
-  const forgeProjectId=projectIdFrom(url.pathname);if(!forgeProjectId)return false;const forgeProject=await forgeProjects.load(forgeProjectId);if(!forgeProject){json(res,404,{error:"Forge project not found."});return true;}const {office,memory}=await runtime(forgeProject);
+  const forgeProjectId=projectIdFrom(url.pathname);if(!forgeProjectId)return false;const forgeProject=await forgeProjects.load(forgeProjectId);if(!forgeProject){json(res,404,{error:"Forge project not found."});return true;}if(await brandKitRoutes(req,res,url,forgeProjectId))return true;const {office,memory}=await runtime(forgeProject);
   if(url.pathname===`/api/projects/${forgeProjectId}/specialized`&&req.method==="GET"){json(res,200,{project:forgeProject.metadata,items:await office.list(forgeProjectId),ai:aiStatus()});return true;}
   if(url.pathname===`/api/projects/${forgeProjectId}/specialized`&&req.method==="POST"){const input=await body(req);const created=await office.create({id:typeof input.id==="string"&&input.id.trim()?input.id.trim():`specialized-${randomUUID()}`,forgeProjectId,mode:mode(input.mode),title:required(input.title,"Title"),brief:required(input.brief,"Brief"),...(typeof input.audience==="string"&&input.audience.trim()?{audience:input.audience.trim()}: {})});await persistMemory(forgeProject,memory);json(res,201,created);return true;}
   const match=url.pathname.match(new RegExp(`^/api/projects/${forgeProjectId}/specialized/([^/]+)(?:/(.*))?$`));if(!match)return false;const id=decodeURIComponent(match[1]),tail=match[2]??"";const current=await office.get(forgeProjectId,id);if(!current){json(res,404,{error:"Specialized project not found."});return true;}
