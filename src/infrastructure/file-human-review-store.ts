@@ -15,6 +15,7 @@ import {
   type HumanReviewComment,
   type HumanReviewer,
   type HumanReviewRole,
+  type HumanReviewScope,
   type HumanReviewState,
   type HumanReviewSuggestion,
   type HumanReviewTarget,
@@ -48,7 +49,7 @@ export class FileHumanReviewStore {
     return this.state.reviewers.filter((item) => item.projectId === projectId).map(clone);
   }
 
-  async createReviewer(input: { id: string; projectId: string; displayName: string; role: HumanReviewRole; now?: string }): Promise<{ reviewer: HumanReviewer; token: string }> {
+  async createReviewer(input: { id: string; projectId: string; displayName: string; role: HumanReviewRole; scope?: HumanReviewScope; now?: string }): Promise<{ reviewer: HumanReviewer; token: string }> {
     await this.load();
     if (this.state.reviewers.some((item) => item.id === input.id)) throw new Error(`Reviewer "${input.id}" already exists.`);
     const created = createReviewer(input);
