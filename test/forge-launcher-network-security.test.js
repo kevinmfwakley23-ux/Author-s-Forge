@@ -74,7 +74,7 @@ test("LAN policy uses strong tokens and strips bootstrap credentials from redire
 });
 
 test("forge:android launcher denies anonymous LAN access and gates all offices behind one host cookie", { timeout: 45000 }, async () => {
-  const [studioPort, journalPort, workbookPort, specializedPort] = await uniquePorts(4);
+  const [studioPort, journalPort, workbookPort, specializedPort, nftPort] = await uniquePorts(5);
   const root = await mkdtemp(join(tmpdir(), "authors-forge-lan-security-"));
   const accessToken = "forge-test-access-token-1234567890";
   let output = "";
@@ -86,6 +86,7 @@ test("forge:android launcher denies anonymous LAN access and gates all offices b
       JOURNAL_PORT: String(journalPort),
       WORKBOOK_PORT: String(workbookPort),
       SPECIALIZED_PORT: String(specializedPort),
+      NFT_PORT: String(nftPort),
       FORGE_ACCESS_TOKEN: accessToken,
       FORGE_DATA_DIR: join(root, "data"),
       FORGE_BACKUP_DIR: join(root, "backups"),
@@ -98,6 +99,7 @@ test("forge:android launcher denies anonymous LAN access and gates all offices b
   try {
     const studioBase = `http://127.0.0.1:${studioPort}`;
     const journalBase = `http://127.0.0.1:${journalPort}`;
+    const nftBase = `http://127.0.0.1:${nftPort}`;
 
     const anonymous = await eventually(async () => {
       const response = await fetch(`${studioBase}/api/health`, { redirect: "manual" });
@@ -144,7 +146,18 @@ test("forge:android launcher denies anonymous LAN access and gates all offices b
     assert.equal(journalHealth.ok, true);
     assert.equal(journalHealth.service, "authors-forge-guided-journal-office");
 
+    const nftHealth = await eventually(async () => {
+      const response = await fetch(`${nftBase}/api/health`, { headers: { cookie } });
+      assert.equal(response.status, 200);
+      return response.json();
+    });
+    assert.equal(nftHealth.ok, true);
+    assert.equal(nftHealth.service, "authors-forge-nft-creation-office");
+    const nftAnonymous = await fetch(`${nftBase}/api/health`, { redirect: "manual" });
+    assert.equal(nftAnonymous.status, 401);
+
     assert.match(output, /Protected LAN mode is active/);
+    assert.match(output, /NFT Creation/);
     assert.match(output, /Open this URL first on your device/);
   } finally {
     if (child.exitCode === null) child.kill("SIGTERM");
