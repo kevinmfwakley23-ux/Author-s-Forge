@@ -69,6 +69,7 @@ jobs:
       - run: node --check scripts/studio-series-browser-acceptance.js
       - run: node --check scripts/studio-manuscript-import-browser-acceptance.js
       - run: node --check scripts/studio-image-lab-browser-acceptance.js
+      - run: node --check scripts/studio-cover-direction-browser-acceptance.js
       - run: node --check scripts/studio-author-craft-browser-acceptance.js
       - run: bash -n scripts/termux-forge.sh
 
