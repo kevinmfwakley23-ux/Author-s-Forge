@@ -124,11 +124,12 @@ export function applyAiModelRuntimeOptions(options: AiModelRuntimeOptions, env: 
   if (trusted.length) env.AI_TRUSTED_NO_SPEND_MODELS = trusted.join(",");
   else delete env.AI_TRUSTED_NO_SPEND_MODELS;
 
+  const trustedSet = new Set(trusted);
   const currentExplicit = parseExplicitResources(env.AI_MODEL_RESOURCES_JSON);
   const withoutPriorExplicit = currentExplicit.filter((item) => !previous.explicitResourceKeys.includes(explicitKey(item)));
   const explicitExtras = options.additionalModels
     .filter((item) => item.billingClass !== undefined)
-    .map((item) => ({ provider: item.provider, model: item.model, billingClass: item.billingClass }));
+    .map((item) => ({ provider: item.provider, model: item.model, billingClass: effectiveOwnerBillingClass(item, trustedSet) }));
   const explicit = mergeExplicitResources(withoutPriorExplicit, explicitExtras);
   if (explicit.length) env.AI_MODEL_RESOURCES_JSON = JSON.stringify(explicit);
   else delete env.AI_MODEL_RESOURCES_JSON;
@@ -149,6 +150,13 @@ export function modelOptionKey(provider: AiModelOptionProvider, model: string): 
   return `${provider}/${model}`.toLowerCase();
 }
 
+function effectiveOwnerBillingClass(item: AiAdditionalModelOption, trusted: ReadonlySet<string>): AiBillingClass {
+  const declared = item.billingClass ?? "unknown";
+  const noSpendClass = declared === "free" || declared === "subscription" || declared === "local";
+  const providerKnownLocal = item.provider === "ollama" || item.provider === "kings";
+  if (noSpendClass && !providerKnownLocal && !trusted.has(modelOptionKey(item.provider, item.model))) return "unknown";
+  return declared;
+}
 function emptyAppliedState(): AppliedOptionsState {
   return {
     extrasByProvider: Object.freeze(Object.fromEntries(AI_MODEL_OPTION_PROVIDERS.map((provider) => [provider, Object.freeze([])])) as Record<AiModelOptionProvider, readonly string[]>),
