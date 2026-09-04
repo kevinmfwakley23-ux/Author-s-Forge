@@ -1,8 +1,9 @@
-const CACHE = "authors-forge-hosted-shell-v2";
+const CACHE = "authors-forge-hosted-shell-v3";
 const SHELL = [
   "/",
   "/index.html",
   "/series.html",
+  "/review.html",
   "/styles.css",
   "/forge-royal-hardening.css",
   "/app.js",
@@ -20,6 +21,8 @@ const SHELL = [
   "/forge-series.js",
   "/forge-image-lab.js",
   "/forge-recipes.js",
+  "/forge-review-room.js",
+  "/forge-reviewer.js",
   "/forge-royal-ui.js",
   "/forge-pwa.js",
   "/forge-hosted-client.js",
@@ -73,6 +76,7 @@ self.addEventListener("fetch", (event) => {
         if (exact) return exact;
         const shellPath = await caches.match(url.pathname);
         if (shellPath) return shellPath;
+        if (url.pathname === "/review.html") return caches.match("/review.html");
         if (url.pathname.startsWith("/journal/")) return (await caches.match("/journal/")) || caches.match("/index.html");
         if (url.pathname.startsWith("/workbooks/")) return (await caches.match("/workbooks/")) || caches.match("/index.html");
         if (url.pathname.startsWith("/specialized/")) return (await caches.match("/specialized/")) || caches.match("/index.html");
