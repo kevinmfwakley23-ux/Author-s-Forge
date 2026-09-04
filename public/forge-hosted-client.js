@@ -65,10 +65,16 @@
     return url.href;
   }
 
+  function isSameOriginUrl(raw) {
+    try { return new URL(raw, location.href).origin === location.origin; }
+    catch { return false; }
+  }
+
   function rewriteAnchor(anchor) {
     if (!(anchor instanceof HTMLAnchorElement) || !anchor.hasAttribute("href")) return;
     const mapped = remapForgeUrl(anchor.href);
     if (mapped && mapped !== anchor.href) anchor.href = mapped;
+    if (isPlayStation5 && isSameOriginUrl(anchor.href)) anchor.removeAttribute("target");
   }
 
   function rewriteAnchors(root = document) {
@@ -79,7 +85,12 @@
   const nativeOpen = window.open?.bind(window);
   if (nativeOpen) {
     window.open = function forgeHostedWindowOpen(url, ...rest) {
-      return nativeOpen(remapForgeUrl(String(url || "")), ...rest);
+      const mapped = remapForgeUrl(String(url || ""));
+      if (isPlayStation5 && isSameOriginUrl(mapped)) {
+        location.assign(mapped);
+        return window;
+      }
+      return nativeOpen(mapped, ...rest);
     };
   }
 
