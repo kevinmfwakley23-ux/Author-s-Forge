@@ -93,7 +93,7 @@ export class ForgeCore {
     const projectStoreAvailable = this.projectStore !== undefined;
     const modelCount = this.ai.listResources().length;
     const aiConfigured = modelCount > 0;
-    const checks = [memoryAvailable ? "memory-store" : "memory-store-missing", aiRoutingAvailable ? "ai-routing" : "ai-routing-missing", aiConfigured ? "configured-models" : "no-configured-models", projectStoreAvailable ? "durable-project-store" : "durable-project-store-unbound", this.execution ? "governed-execution" : "governed-execution-unbound", "context-pipeline", "portable-memory-snapshot", "durable-routing-state", "durable-project-snapshot"];
+    const checks = [memoryAvailable ? "memory-store" : "memory-store-missing", aiRoutingAvailable ? "ai-routing" : "ai-routing-missing", aiConfigured ? "configured-models" : "no-configured-models", projectStoreAvailable ? "durable-project-store" : "durable-project-store-unbound", "context-pipeline", "portable-memory-snapshot", "durable-routing-state", "durable-project-snapshot"];
     return { formatVersion: FORGE_CORE_FORMAT_VERSION, ready: memoryAvailable && aiRoutingAvailable && aiConfigured && projectStoreAvailable, memoryAvailable, aiRoutingAvailable, aiConfigured, projectStoreAvailable, modelCount, checks };
   }
 
