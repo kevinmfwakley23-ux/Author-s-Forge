@@ -36,6 +36,7 @@ export function createStudioAiEnsembleRoutes(
     const sceneId = required(input.sceneId, "Scene id");
     const instruction = required(input.instruction, "Instruction");
     const proposalId = optional(input.proposalId) ?? `ensemble-proposal-${randomUUID()}`;
+    const existingContent = await currentSceneContent(store, projectId, bookId, chapterId, sceneId);
     const runtimeOptions = loadAiModelRuntimeOptions();
     const performance = createAiEnsemblePerformanceTracker({
       projectId,
@@ -85,6 +86,7 @@ export function createStudioAiEnsembleRoutes(
       sceneId,
       task,
       instruction,
+      existingContent,
       proposalId,
       ...(input.sceneCardSha256 ? { sceneCardSha256: required(input.sceneCardSha256, "Scene Card SHA-256") } : {}),
       ...(input.context && typeof input.context === "object" && !Array.isArray(input.context) ? { context: input.context as never } : {}),
@@ -106,6 +108,24 @@ export function createStudioAiEnsembleRoutes(
     });
     return true;
   };
+}
+
+async function currentSceneContent(
+  store: Pick<FileProjectStore, "load">,
+  projectId: string,
+  bookId: string,
+  chapterId: string,
+  sceneId: string,
+): Promise<string> {
+  const project = await store.load(projectId);
+  if (!project) throw new Error(`Project "${projectId}" not found.`);
+  const book = project.studioWorkspace?.books.find((candidate) => candidate.id === bookId);
+  if (!book) throw new Error(`Book "${bookId}" not found.`);
+  const chapter = book.chapters.find((candidate) => candidate.id === chapterId);
+  if (!chapter) throw new Error(`Chapter "${chapterId}" not found.`);
+  const scene = chapter.scenes.find((candidate) => candidate.id === sceneId);
+  if (!scene) throw new Error(`Scene "${sceneId}" not found.`);
+  return scene.content;
 }
 
 function extractExistingScene(user: string): string | undefined {
