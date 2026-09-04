@@ -74,6 +74,10 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
   if (!forgeProjectId) return false;
   const forgeProject = await projects.load(forgeProjectId);
   if (!forgeProject) { json(res, 404, { error: "Forge project not found." }); return true; }
+  if (url.pathname === `/api/projects/${forgeProjectId}` && req.method === "GET") {
+    json(res, 200, forgeProject);
+    return true;
+  }
 
   if (url.pathname === `/api/projects/${forgeProjectId}/nft` && req.method === "GET") {
     json(res, 200, { project: forgeProject.metadata, collections: await office.list(forgeProjectId), ai: aiStatus() });
