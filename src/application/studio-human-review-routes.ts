@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { FileProjectStore } from "../infrastructure/file-project-store";
+import type { FileCreativeProvenanceStore } from "../infrastructure/file-creative-provenance-store";
 import type { FileHumanReviewStore } from "../infrastructure/file-human-review-store";
 import { humanReviewRole, reviewerPermissions, sceneContentSha256, type HumanReviewTarget } from "../domain/human-review";
 import { getBook, getScene, saveSceneContent, validateStudioWorkspace } from "../domain/studio-workspace";
@@ -10,6 +11,7 @@ export type StudioHumanReviewRouteHandler = (req: IncomingMessage, res: ServerRe
 export function createStudioHumanReviewRoutes(
   projects: Pick<FileProjectStore, "load" | "save">,
   reviews: FileHumanReviewStore,
+  provenance?: FileCreativeProvenanceStore,
 ): StudioHumanReviewRouteHandler {
   return async (req, res, url, projectId) => {
     const root = `/api/projects/${projectId}/human-review`;
@@ -144,13 +146,47 @@ export function createStudioHumanReviewRoutes(
       if (sceneContentSha256(scene.content) !== suggestion.baseContentSha256 && scene.content !== suggestion.replacementContent) {
         throw new Error(`Review suggestion "${suggestion.id}" is stale because the target scene changed after the reviewer proposed it.`);
       }
+      const now = optionalTimestamp(input.now) ?? new Date().toISOString();
       if (scene.content !== suggestion.replacementContent) {
-        const now = optionalTimestamp(input.now) ?? new Date().toISOString();
         const updatedWorkspace = saveSceneContent(workspace, suggestion.target.bookId, suggestion.target.chapterId, suggestion.target.sceneId, suggestion.replacementContent, now);
         await projects.save({ ...project, studioWorkspace: updatedWorkspace, metadata: { ...project.metadata, updatedAt: now } } as never);
       }
-      const applied = suggestion.status === "applied" ? suggestion : await reviews.markApplied(projectId, suggestion.id, optionalTimestamp(input.now));
-      json(res, 200, { suggestion: applied, applied: true });
+      if (provenance) {
+        const provenanceId = `human-review-apply-${suggestion.id}`;
+        const existing = (await provenance.list(projectId)).find((record) => record.id === provenanceId);
+        if (!existing) {
+          const reviewer = (await reviews.listReviewers(projectId)).find((item) => item.id === suggestion.reviewerId);
+          await provenance.append({
+            id: provenanceId,
+            projectId,
+            action: "applied",
+            sourceType: "human-edited",
+            actor: { kind: "human", role: "author" },
+            asset: {
+              kind: "scene",
+              id: suggestion.target.sceneId,
+              bookId: suggestion.target.bookId,
+              chapterId: suggestion.target.chapterId,
+              sceneId: suggestion.target.sceneId,
+              mediaType: "text/plain",
+            },
+            humanOversight: "author-reviewed",
+            createdAt: now,
+            beforeSha256: suggestion.baseContentSha256,
+            afterSha256: sceneContentSha256(suggestion.replacementContent),
+            ingredients: [{ kind: "scene", id: suggestion.target.sceneId, bookId: suggestion.target.bookId, chapterId: suggestion.target.chapterId, sceneId: suggestion.target.sceneId, mediaType: "text/plain" }],
+            details: {
+              reviewSuggestionId: suggestion.id,
+              reviewerId: suggestion.reviewerId,
+              reviewerRole: reviewer?.role ?? "unknown",
+              reviewerName: reviewer?.displayName ?? "unknown",
+              rationale: suggestion.rationale,
+            },
+          });
+        }
+      }
+      const applied = await reviews.markApplied(projectId, suggestion.id, now);
+      json(res, 200, { suggestion: applied, applied: true, provenanceRecorded: Boolean(provenance) });
       return true;
     }
 
