@@ -38,6 +38,7 @@ const serviceDefinitions = [
   { id: "journal", name: "Guided Journal", entry: "dist/guided-journal-server.js", portKey: "JOURNAL_PORT" },
   { id: "workbooks", name: "Educational Workbooks", entry: "dist/educational-workbook-server.js", portKey: "WORKBOOK_PORT" },
   { id: "specialized", name: "Specialized Creation", entry: "dist/specialized-creation-server.js", portKey: "SPECIALIZED_PORT" },
+  { id: "execution", name: "Execution Workplace", entry: "dist/execution-server.js", portKey: "EXECUTION_PORT" },
 ];
 
 const children = [];
@@ -340,7 +341,7 @@ async function main() {
   });
   gateway.listen(publicPort, publicHost, () => {
     console.log(`[Forge Web] Author's Forge is listening on ${publicHost}:${publicPort}`);
-    console.log("[Forge Web] One origin serves Studio /, Guided Journal /journal/, Workbooks /workbooks/, and Specialized Creation /specialized/.");
+    console.log("[Forge Web] One origin serves Studio /, Guided Journal /journal/, Workbooks /workbooks/, Specialized Creation /specialized/, and Governed Execution /execution/.");
     console.log("[Forge Web] Persistent state directory:", process.env.FORGE_DATA_DIR || join(process.cwd(), ".forge-data"));
     if (isLoopbackHost(publicHost) && !configuredToken) console.log(`[Forge Web] Local bootstrap: http://${publicHost}:${publicPort}/?access=${encodeURIComponent(accessToken)}`);
     else console.log("[Forge Web] Open the hosted URL and enter the configured FORGE_ACCESS_TOKEN once per browser session.");
