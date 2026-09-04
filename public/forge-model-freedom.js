@@ -83,14 +83,18 @@
       </div>
       <hr><h4>Available model pool</h4><div id="model-option-list" class="list"><p class="muted">Loading model options…</p></div>
       <details><summary>Configured runtime resources</summary><div id="model-resource-list" class="list"></div></details>
+      <hr><div class="row"><div><h4>Best-value evidence</h4><p class="muted">Forge learns from real ensemble outcomes only. These scores are advisory and never change your provider order, pins, or spend policy automatically.</p></div><button id="model-performance-refresh" type="button">Refresh evidence</button></div>
+      <div id="model-performance-list" class="list"><p class="muted">No performance evidence loaded yet.</p></div>
       <details><summary>Quality protection</summary><p>Parallel workers → synthesis when multiple real models survive → continuity anti-drift judge + voice anti-drift judge in parallel → all 10 Editing Office roles → pending proposal → author review → separate Apply with stale-scene protection.</p></details>`;
     settings.appendChild(card);
-    $("#model-options-refresh")?.addEventListener("click", loadOptions);
+    $("#model-options-refresh")?.addEventListener("click", () => { void loadOptions(); void loadPerformance(); });
     $("#model-options-save")?.addEventListener("click", saveOptions);
     $("#model-catalog-load")?.addEventListener("click", loadCatalog);
     $("#model-option-add")?.addEventListener("click", addModel);
     $("#model-option-list")?.addEventListener("click", handleModelListAction);
+    $("#model-performance-refresh")?.addEventListener("click", loadPerformance);
     void loadOptions();
+    void loadPerformance();
   }
 
   async function loadOptions() {
@@ -119,6 +123,28 @@
     const resourceHost = $("#model-resource-list");
     const resources = snapshot.resources || [];
     if (resourceHost) resourceHost.innerHTML = resources.length ? resources.map((resource) => `<article class="memory"><strong>${esc(resource.provider)} / ${esc(resource.model)}</strong><small>${esc(resource.billingClass || "unknown billing")} • ${resource.healthy === false ? "unhealthy" : "eligible when policy/capabilities allow"}</small></article>`).join("") : '<p class="muted">No configured AI resources detected.</p>';
+  }
+
+  async function loadPerformance() {
+    const host = $("#model-performance-list");
+    if (!host) return;
+    try {
+      const result = await api(`${root}/model-performance?minimumSamples=3`);
+      const aggregates = Array.isArray(result.aggregates) ? result.aggregates : [];
+      if (!aggregates.length) {
+        host.innerHTML = '<p class="muted">No real ensemble observations yet. Run Multi-Model Forge to begin collecting evidence; Forge will not invent benchmark scores.</p>';
+        return;
+      }
+      host.innerHTML = aggregates.map((item, index) => {
+        const enough = item.recommendationEvidence === "usable";
+        const value = enough && item.bestValueScore !== undefined ? `best-value ${Number(item.bestValueScore).toFixed(2)}` : "more evidence required";
+        const quality = item.averageQualityScore === undefined ? "quality n/a" : `quality ${Number(item.averageQualityScore).toFixed(1)}`;
+        const latency = item.averageCandidateLatencyMs === undefined ? "candidate latency n/a" : `candidate ${Math.round(item.averageCandidateLatencyMs)} ms`;
+        return `<article class="memory"><strong>${enough && index === 0 ? "Evidence leader • " : ""}${esc(item.provider)} / ${esc(item.model)}</strong><p>${esc(value)} • pass ${(Number(item.passRate || 0) * 100).toFixed(0)}% • ${esc(quality)} • ${esc(latency)}</p><small>${esc(item.billingClass || "unknown billing")} • ${esc(item.samples)} observation${item.samples === 1 ? "" : "s"} • ${enough ? "advisory recommendation evidence available" : `minimum ${esc(result.minimumSamples)} observations required`}</small></article>`;
+      }).join("");
+    } catch (error) {
+      host.innerHTML = `<p class="muted">Performance evidence unavailable: ${esc(error instanceof Error ? error.message : String(error))}</p>`;
+    }
   }
 
   async function saveOptions() {
@@ -215,7 +241,10 @@
     } catch (error) {
       renderEnsembleFailure(error instanceof Error ? error.message : String(error));
       notify(error instanceof Error ? error.message : String(error));
-    } finally { if (button) button.disabled = false; }
+    } finally {
+      if (button) button.disabled = false;
+      void loadPerformance();
+    }
   }
 
   function renderEnsembleResult(result) {
@@ -226,15 +255,19 @@
     const judges = ensemble.judges || [];
     const editor = ensemble.editorial || {};
     const budget = ensemble.budget || {};
+    const evidence = result.performanceEvidence || {};
     const budgetText = budget.maxTotalEstimatedCostUsd === undefined
       ? `${esc(budget.spendPolicy || "owner policy")}`
       : `${esc(budget.spendPolicy)} • total cap $${esc(Number(budget.maxTotalEstimatedCostUsd).toFixed(4))} • per-call ceiling $${esc(Number(budget.perCallEstimatedCostCeilingUsd || 0).toFixed(4))}`;
-    host.innerHTML = `<article class="memory"><strong>${esc(ensemble.mode === "parallel" ? "Parallel model team" : "Single eligible model")} • ${esc(ensemble.uniqueModelsUsed?.length || 0)} real model${ensemble.uniqueModelsUsed?.length === 1 ? "" : "s"}</strong><p>${workers.map((worker) => `${esc(worker.actualProvider)}/${esc(worker.actualModel)} — quality ${esc(worker.qualityScore)}${worker.billingClass ? ` — ${esc(worker.billingClass)}` : ""}${worker.fallbackUsed ? " — fallback" : ""}`).join("<br>")}</p>${ensemble.synthesis ? `<p><b>Synthesis:</b> ${esc(ensemble.synthesis.provider)}/${esc(ensemble.synthesis.model)} • quality ${esc(ensemble.synthesis.qualityScore)}</p>` : ""}<p><b>Anti-drift:</b> ${judges.map((judge) => `${esc(judge.kind)} ${esc(judge.score)} ${judge.accepted ? "✓" : "✗"}`).join(" • ")}</p><p><b>Editing Office:</b> ${esc(editor.report?.findings?.length || 0)} findings • ${esc(editor.blockingFindings?.length || 0)} blocking</p><p><b>Spend guard:</b> ${budgetText}</p><small>Pending proposal ${esc(result.proposal?.id || "")} • author approval and separate Apply required</small></article>`;
+    const evidenceText = evidence.recorded === false
+      ? `performance evidence NOT persisted: ${esc(evidence.error || "unknown storage failure")}`
+      : `${esc(evidence.observationCount || 0)} performance observation${evidence.observationCount === 1 ? "" : "s"} persisted`;
+    host.innerHTML = `<article class="memory"><strong>${esc(ensemble.mode === "parallel" ? "Parallel model team" : "Single eligible model")} • ${esc(ensemble.uniqueModelsUsed?.length || 0)} real model${ensemble.uniqueModelsUsed?.length === 1 ? "" : "s"}</strong><p>${workers.map((worker) => `${esc(worker.actualProvider)}/${esc(worker.actualModel)} — quality ${esc(worker.qualityScore)}${worker.billingClass ? ` — ${esc(worker.billingClass)}` : ""}${worker.fallbackUsed ? " — fallback" : ""}`).join("<br>")}</p>${ensemble.synthesis ? `<p><b>Synthesis:</b> ${esc(ensemble.synthesis.provider)}/${esc(ensemble.synthesis.model)} • quality ${esc(ensemble.synthesis.qualityScore)}</p>` : ""}<p><b>Anti-drift:</b> ${judges.map((judge) => `${esc(judge.kind)} ${esc(judge.score)} ${judge.accepted ? "✓" : "✗"}`).join(" • ")}</p><p><b>Editing Office:</b> ${esc(editor.report?.findings?.length || 0)} findings • ${esc(editor.blockingFindings?.length || 0)} blocking</p><p><b>Spend guard:</b> ${budgetText}</p><p><b>Learning evidence:</b> ${evidenceText}</p><small>Pending proposal ${esc(result.proposal?.id || "")} • author approval and separate Apply required</small></article>`;
     if ($("#ai-meta")) $("#ai-meta").textContent = `${ensemble.mode || "ensemble"} • ${ensemble.uniqueModelsUsed?.join(", ") || "model provenance recorded"} • anti-drift passed • candidate only`;
   }
   function renderEnsembleFailure(message) {
     const host = $("#ai-ensemble-status");
-    if (host) host.innerHTML = `<article class="memory"><strong>Multi-model candidate blocked</strong><p>${esc(message)}</p><small>Forge did not create or apply a manuscript proposal from a candidate that failed its quality or spend gates.</small></article>`;
+    if (host) host.innerHTML = `<article class="memory"><strong>Multi-model candidate blocked</strong><p>${esc(message)}</p><small>Forge did not create or apply a manuscript proposal from a candidate that failed its quality or spend gates. Any attributable real model attempts are still eligible for performance evidence.</small></article>`;
   }
 
   function ensureUi() {
