@@ -76,6 +76,39 @@ The Agent Workbench intentionally **does not** call `/ai/draft` for its writing 
 
 It also intentionally does not call the proposal review/apply endpoints. Accepting and applying candidate prose remains a separate author decision in the existing AI proposal workplace.
 
+## Creative Tool Registry — implemented in this block
+
+The second slice of this branch adds a server-owned typed capability registry instead of letting future agents discover their abilities from UI code.
+
+`src/application/creative-tool-registry.ts` classifies each currently exposed Agent Workbench capability by:
+
+- stable tool id;
+- category;
+- title and description;
+- HTTP method and project-scoped path template;
+- approval class;
+- provider requirement (`none`, `configured-ai`, or `hosted-research`);
+- state effect;
+- required project/book/chapter/scene scope;
+- author-reviewability;
+- explicit invariants that the registered tool may not directly change canon or manuscript text.
+
+The registry validator refuses tool definitions whose paths target proposal-apply or direct manuscript-content mutation boundaries.
+
+`GET /api/projects/:projectId/agent/tools` exposes the registry as **discovery-only** metadata. It does not add a second executor. Every discovered operation still executes through its existing Forge route and therefore inherits the real provider, Project Brain, proposal, persistence and author-control boundary already implemented for that capability.
+
+The initial registered tools are:
+
+1. `project.context`
+2. `research.live`
+3. `architecture.generate`
+4. `writing.propose`
+5. `editing.analyze`
+6. `production.export`
+7. `memory.record-working`
+
+This moves Forge toward the same useful discoverable-tool idea seen in modern agent systems while retaining stronger authoring-specific authority metadata than a generic tool list normally provides.
+
 ## Mode behavior
 
 This first pass turns collaboration mode into orchestration policy rather than prompt decoration:
@@ -126,22 +159,26 @@ This keeps the workbench UI available as part of the existing installable Forge 
 - PWA navigation and shell caching include the workbench;
 - the client script parses as JavaScript.
 
+`test/creative-tool-registry.test.js` verifies registry ids, scope, provider classification, state effects, proposal-only writing behavior, unsafe-path exclusion and project-id routing.
+
+`scripts/studio-agent-workbench-browser-acceptance.js` now also requires the running Studio server to expose the seven-tool discovery registry before it proceeds through the Android-sized Agent Workbench acceptance path.
+
 ## Competitive advantage target
 
 This block is meant to establish a Forge-specific advantage rather than merely reach parity:
 
-**one goal → visible governed plan → Project Brain grounding → real provider/tool operations → durable proposals/evidence/artifacts → explicit author decisions**
+**one goal → visible governed plan → Project Brain grounding → discoverable governed tools → real provider/tool operations → durable proposals/evidence/artifacts → explicit author decisions**
 
 That connects capabilities competitors often split across writing assistants, research tools, design tools, production tools and automation platforms.
 
 ## Next engineering blocks
 
-1. Add a server-side typed **Creative Tool Registry** so every Forge office can register callable operations, schemas, capability requirements, approval class and artifact destination without ad-hoc client routing.
-2. Add a governed **agent planner** that can propose tool plans from natural language through the shared Forge AI trunk, with strict schema validation and deterministic policy checks before any execution.
-3. Add **bounded run groups** for safe/read-only steps while retaining one-shot approvals for manuscript/canon/publishing mutations.
-4. Add model/resource visibility and per-mission routing preferences backed by the existing broker rather than direct provider calls.
-5. Extend the registry across Image Lab, Cover Studio, Story Map/Chapter Cards, marketing and the specialized offices so one mission can coordinate text + image + production assets.
-6. Add browser/mobile acceptance for the full workbench path using real project fixtures and honest provider-unavailable behavior.
+1. Add a governed **agent planner** that can propose typed tool plans from natural language through the shared Forge AI trunk, with strict schema validation against the Creative Tool Registry before any execution.
+2. Add **bounded run groups** for safe/read-only steps while retaining one-shot approvals for manuscript/canon/publishing mutations.
+3. Add model/resource visibility and per-mission routing preferences backed by the existing broker rather than direct provider calls.
+4. Extend the registry across Image Lab, Cover Studio, Story Map/Chapter Cards, marketing and the specialized offices so one mission can coordinate text + image + production assets.
+5. Move the current Agent Workbench's operation endpoint resolution onto registry descriptors so client routing is discovery-backed rather than duplicated.
+6. Add live-provider acceptance for proposal generation where secrets are intentionally available, while preserving deterministic provider-unavailable tests for ordinary CI.
 7. Run exact-head `npm run verify`; merge only the SHA that actually passes the repository's strongest gate.
 
 ## Permanent rule
