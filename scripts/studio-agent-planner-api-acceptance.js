@@ -108,10 +108,44 @@ async function main() {
     assert.equal(crossSurface.plan.steps.find((step) => step.toolId === "visual.image.generate").providerRequirement, "configured-image");
     assert.equal(crossSurface.plan.steps.find((step) => step.toolId === "promotion.campaign.propose").eligibleForApprovedRunGroup, false);
 
+    const createdRecipe = await api(base, `/api/projects/${PROJECT_ID}/agent/recipes`, "POST", {
+      id: "launch-recipe",
+      title: "Launch Recipe",
+      description: "Research, visualize, and prepare a launch campaign.",
+      steps: [
+        { toolId: "market.kdp.research", instruction: "Gather current market evidence." },
+        { toolId: "visual.image.generate", instruction: "Generate a reviewable visual." },
+        { toolId: "promotion.campaign.propose", instruction: "Prepare draft campaign assets." },
+      ],
+    });
+    assert.equal(createdRecipe.authority, "author-defined-workflow");
+    assert.equal(createdRecipe.recipe.version, 1);
+
+    const recipeList = await api(base, `/api/projects/${PROJECT_ID}/agent/recipes`);
+    assert.equal(recipeList.authority, "author-defined-workflow");
+    assert.deepEqual(recipeList.recipes.map((recipe) => recipe.id), ["launch-recipe"]);
+
+    const recipePlan = await api(base, `/api/projects/${PROJECT_ID}/agent/recipes/launch-recipe/plan`, "POST", {
+      goal: "Prepare this book's launch kit.",
+      bookId: BOOK_ID,
+      chapterId: CHAPTER_ID,
+      sceneId: SCENE_ID,
+    });
+    assert.equal(recipePlan.authority, "plan-only");
+    assert.deepEqual(recipePlan.plan.steps.map((step) => step.toolId), [
+      "market.kdp.research",
+      "visual.image.generate",
+      "promotion.campaign.propose",
+      "memory.record-working",
+    ]);
+    assert.equal(recipePlan.plan.steps.find((step) => step.toolId === "promotion.campaign.propose").eligibleForApprovedRunGroup, false);
+    const projectWithRecipe = await api(base, `/api/projects/${PROJECT_ID}`);
+    assert.ok(projectWithRecipe.memories.some((memory) => memory.relevanceTags?.includes("agent-recipe:launch-recipe")));
+
     const missingScopeResponse = await api(base, `/api/projects/${PROJECT_ID}/agent/plan`, "POST", { goal: "Draft the next scene." });
     assert.match(missingScopeResponse.plan.steps.find((step) => step.toolId === "writing.propose").blockedReason, /requires chapter, scene scope/);
 
-    console.log("FORGE AGENT PLANNER API ACCEPTANCE PASSED: 11-tool registry + cross-surface planning + persisted-mode Editor block + bounded Autonomous grouping + missing-scope honesty.");
+    console.log("FORGE AGENT PLANNER API ACCEPTANCE PASSED: 11-tool registry + cross-surface planning + durable Forge Recipes + persisted-mode Editor block + bounded Autonomous grouping + missing-scope honesty.");
   } finally {
     server.kill("SIGTERM");
     await new Promise((resolve) => server.exitCode !== null ? resolve() : server.once("exit", resolve));
