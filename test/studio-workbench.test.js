@@ -8,6 +8,7 @@ const command = fs.readFileSync('public/forge-command-center.js', 'utf8');
 const workbench = fs.readFileSync('public/forge-workbench.js', 'utf8');
 const server = fs.readFileSync('src/studio-server.ts', 'utf8');
 const creativeAgentRoutes = fs.readFileSync('src/application/studio-creative-agent-routes.ts', 'utf8');
+const coverDirectionService = fs.readFileSync('src/application/studio-cover-direction.ts', 'utf8');
 const imageLabRoutes = fs.readFileSync('src/application/studio-image-lab-routes.ts', 'utf8');
 const publishingPromotionRoutes = fs.readFileSync('src/application/studio-publishing-promotion-routes.ts', 'utf8');
 
@@ -40,7 +41,9 @@ test('Cover Studio exposes real AI creative direction without bypassing author a
   assert.match(workbench, /Apply candidate to cover fields/);
   assert.match(workbench, /Spine text remains title\/author controlled by Cover Studio/);
   assert.match(creativeAgentRoutes, /coverDirection\.propose/);
-  assert.match(creativeAgentRoutes, /authorApprovalRequired/);
+  assert.match(coverDirectionService, /authorApprovalRequired:\s*true/);
+  assert.match(coverDirectionService, /persisted:\s*false/);
+  assert.match(coverDirectionService, /productionGeometryRequired:\s*true/);
   assert.match(publishingPromotionRoutes, /createStudioCreativeAgentRoutes/);
   assert.match(publishingPromotionRoutes, /await creativeAgent\(req, res, url, projectId\)/);
 });
