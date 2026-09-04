@@ -3,11 +3,6 @@ import { constrainResourcesForOwnerPin, refreshPersistedAiOwnerControl } from ".
 
 type SupportedProvider = "omniroute" | "9router" | "kings" | "openai" | "ollama" | "groq" | "mistral" | "gemini" | "anthropic" | "openrouter";
 
-/**
- * Provider discovery must not invent model-specific context windows, output
- * ceilings, vision/tool/reasoning support, or long-context status. Those vary
- * by concrete model and belong in explicit resource metadata when known.
- */
 const BASE_CAPABILITIES: Readonly<Record<SupportedProvider, AiModelCapabilities>> = {
   omniroute: { creativeWriting: true, instructionFollowing: true },
   "9router": { creativeWriting: true, instructionFollowing: true },
@@ -21,14 +16,10 @@ const BASE_CAPABILITIES: Readonly<Record<SupportedProvider, AiModelCapabilities>
   openrouter: { creativeWriting: true, instructionFollowing: true },
 };
 
-/**
- * Billing defaults fail closed. Routers can traverse subscription, free, and
- * metered downstream providers, so a router endpoint is not assumed no-spend.
- * Owners may explicitly set *_BILLING_CLASS or trust individual no-spend models.
- */
 const DEFAULT_BILLING: Readonly<Record<SupportedProvider, AiBillingClass>> = {
   ollama: "local",
-  kings: "local",
+  // K.I.N.G.S. may be local, LAN-hosted, or backed by paid gateways. Never infer free/local from its name.
+  kings: "unknown",
   omniroute: "gateway-managed",
   "9router": "gateway-managed",
   openai: "metered",
@@ -43,7 +34,6 @@ const BOOLEAN_CAPABILITIES = ["reasoning", "vision", "streaming", "toolCalls", "
 const NUMERIC_CAPABILITIES = ["contextWindow", "maxOutputTokens"] as const;
 const BILLING_CLASSES: readonly AiBillingClass[] = ["local", "subscription", "free", "metered", "gateway-managed", "unknown"];
 
-/** Build the canonical broker resource registry from real runtime configuration only. */
 export function discoverConfiguredAiModelResources(env: NodeJS.ProcessEnv = process.env): AiModelResource[] {
   const ownerControl = refreshPersistedAiOwnerControl(env);
   const resources: AiModelResource[] = [];
@@ -52,27 +42,20 @@ export function discoverConfiguredAiModelResources(env: NodeJS.ProcessEnv = proc
     const pinnedModel = env.AI_PINNED_PROVIDER === provider ? env.AI_PINNED_MODEL?.trim() : undefined;
     const uniqueModels = [...new Set([...(pinnedModel ? [pinnedModel] : []), ...candidateModels].map((model) => model.trim()).filter(Boolean))];
     const billingClass = billingClassFromEnv(env[`${prefix}_BILLING_CLASS`], DEFAULT_BILLING[provider], prefix);
-    for (const model of uniqueModels) resources.push(withProviderMetrics({
-      provider,
-      model,
-      configured: true,
-      healthy: true,
-      billingClass,
-      capabilities: { ...BASE_CAPABILITIES[provider] },
-    }, env, prefix, uniqueModels.length === 1));
+    for (const model of uniqueModels) resources.push(withProviderMetrics({ provider, model, configured: true, healthy: true, billingClass, capabilities: { ...BASE_CAPABILITIES[provider] } }, env, prefix, uniqueModels.length === 1));
   };
 
-  // Preserve the established provider registration order so existing routing
-  // remains stable. New providers extend the pool without silently reshuffling
-  // otherwise equal candidates; owner preference is handled by broker scoring.
-  // OmniRoute explicitly documents "auto" as a valid zero-config router model.
-  // 9Router does not: it requires a concrete model/combo from /v1/models, so
-  // Forge must never invent a generic auto resource for it.
+  const kingsTextEndpoint = kingsResponsesEndpoint(env);
+  // ai-provider's legacy bridge reads KINGS_AI_ENDPOINT. Only rewrite it when a text-generation endpoint has been explicitly established.
+  if (kingsTextEndpoint) env.KINGS_AI_ENDPOINT = kingsTextEndpoint;
+
   addProvider("omniroute", Boolean(env.OMNIROUTE_BASE_URL?.trim()), models(env.OMNIROUTE_MODELS, env.OMNIROUTE_MODEL, "auto"), "OMNIROUTE");
   addProvider("9router", Boolean(env.ROUTER9_BASE_URL?.trim()), models(env.ROUTER9_MODELS, env.ROUTER9_MODEL), "ROUTER9");
   addProvider("openai", Boolean(env.OPENAI_API_KEY?.trim()), models(env.OPENAI_MODELS, env.OPENAI_MODEL), "OPENAI");
   addProvider("ollama", Boolean(env.OLLAMA_BASE_URL?.trim()), models(env.OLLAMA_MODELS, env.OLLAMA_MODEL), "OLLAMA");
-  addProvider("kings", Boolean(env.KINGS_AI_ENDPOINT?.trim()), models(env.KINGS_AI_MODELS, env.KINGS_AI_MODEL), "KINGS_AI");
+  // The K.I.N.G.S. owner/coding-machine URL (normally :8787) is an orchestrator API, not a Responses endpoint.
+  // It must not create a generic text-model resource. Use KINGS_AI_RESPONSES_URL for a real compatible endpoint.
+  addProvider("kings", Boolean(kingsTextEndpoint), models(env.KINGS_AI_MODELS, env.KINGS_AI_MODEL), "KINGS_AI");
   addProvider("groq", Boolean(env.GROQ_API_KEY?.trim()), models(env.GROQ_MODELS, env.GROQ_MODEL), "GROQ");
   addProvider("mistral", Boolean(env.MISTRAL_API_KEY?.trim()), models(env.MISTRAL_MODELS, env.MISTRAL_MODEL), "MISTRAL");
   addProvider("gemini", Boolean(env.GEMINI_API_KEY?.trim()), models(env.GEMINI_MODELS, env.GEMINI_MODEL), "GEMINI");
@@ -83,6 +66,13 @@ export function discoverConfiguredAiModelResources(env: NodeJS.ProcessEnv = proc
   const byKey = new Map(resources.map((resource) => [`${resource.provider}::${resource.model}`, resource]));
   for (const resource of overrides) byKey.set(`${resource.provider}::${resource.model}`, resource);
   return constrainResourcesForOwnerPin([...byKey.values()], ownerControl);
+}
+
+function kingsResponsesEndpoint(env: NodeJS.ProcessEnv): string | undefined {
+  const explicit = env.KINGS_AI_RESPONSES_URL?.trim();
+  if (explicit) return explicit;
+  const legacy = env.KINGS_AI_ENDPOINT?.trim();
+  return legacy && /\/(?:v1\/)?responses\/?$/i.test(legacy) ? legacy : undefined;
 }
 
 function models(list: string | undefined, single: string | undefined, fallback?: string): string[] {
@@ -101,22 +91,13 @@ function withProviderMetrics(resource: AiModelResource, env: NodeJS.ProcessEnv, 
   const rawReset = applySharedQuota ? env[`${prefix}_QUOTA_RESET_AT`] : undefined;
   if (rawReset?.trim() && !validTimestamp(rawReset)) throw new Error(`${prefix}_QUOTA_RESET_AT must be a valid timestamp.`);
   const quotaResetAt = rawReset?.trim();
-  return {
-    ...resource,
-    ...(quotaLimit !== undefined ? { quotaLimit } : {}),
-    ...(usedTokens !== undefined ? { usedTokens } : {}),
-    ...(remainingQuota !== undefined ? { remainingQuota } : {}),
-    ...(quotaResetAt ? { quotaResetAt } : {}),
-    ...(estimatedInputCostPerMillion !== undefined ? { estimatedInputCostPerMillion } : {}),
-    ...(estimatedOutputCostPerMillion !== undefined ? { estimatedOutputCostPerMillion } : {}),
-  };
+  return { ...resource, ...(quotaLimit !== undefined ? { quotaLimit } : {}), ...(usedTokens !== undefined ? { usedTokens } : {}), ...(remainingQuota !== undefined ? { remainingQuota } : {}), ...(quotaResetAt ? { quotaResetAt } : {}), ...(estimatedInputCostPerMillion !== undefined ? { estimatedInputCostPerMillion } : {}), ...(estimatedOutputCostPerMillion !== undefined ? { estimatedOutputCostPerMillion } : {}) };
 }
 
 function parseExplicitResources(raw: string | undefined, env: NodeJS.ProcessEnv): AiModelResource[] {
   if (!raw?.trim()) return [];
   let parsed: unknown;
-  try { parsed = JSON.parse(raw); }
-  catch { throw new Error("AI_MODEL_RESOURCES_JSON must be valid JSON."); }
+  try { parsed = JSON.parse(raw); } catch { throw new Error("AI_MODEL_RESOURCES_JSON must be valid JSON."); }
   if (!Array.isArray(parsed)) throw new Error("AI_MODEL_RESOURCES_JSON must be a JSON array.");
   return parsed.map((entry, index) => {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw new Error(`AI model resource ${index + 1} must be an object.`);
@@ -127,24 +108,7 @@ function parseExplicitResources(raw: string | undefined, env: NodeJS.ProcessEnv)
     if (value.healthy !== undefined && typeof value.healthy !== "boolean") throw new Error(`AI model resource ${provider}/${model} healthy must be boolean.`);
     const quotaResetAt = optionalTimestamp(value.quotaResetAt, `AI model resource ${provider}/${model} quotaResetAt`);
     const cooldownUntil = optionalTimestamp(value.cooldownUntil, `AI model resource ${provider}/${model} cooldownUntil`);
-    const resource: AiModelResource = {
-      provider,
-      model,
-      configured: true,
-      healthy: value.healthy !== false,
-      billingClass: parseBillingClass(value.billingClass, DEFAULT_BILLING[provider], `AI model resource ${provider}/${model}`),
-      capabilities: parseCapabilities(value.capabilities, provider, model),
-      ...optionalNumberField(value, "estimatedInputCostPerMillion"),
-      ...optionalNumberField(value, "estimatedOutputCostPerMillion"),
-      ...optionalNumberField(value, "remainingQuota"),
-      ...optionalNumberField(value, "usedTokens"),
-      ...optionalNumberField(value, "quotaLimit"),
-      ...optionalNumberField(value, "latencyMs"),
-      ...optionalNumberField(value, "consecutiveFailures"),
-      ...(quotaResetAt ? { quotaResetAt } : {}),
-      ...(cooldownUntil ? { cooldownUntil } : {}),
-    };
-    return resource;
+    return { provider, model, configured: true, healthy: value.healthy !== false, billingClass: parseBillingClass(value.billingClass, DEFAULT_BILLING[provider], `AI model resource ${provider}/${model}`), capabilities: parseCapabilities(value.capabilities, provider, model), ...optionalNumberField(value, "estimatedInputCostPerMillion"), ...optionalNumberField(value, "estimatedOutputCostPerMillion"), ...optionalNumberField(value, "remainingQuota"), ...optionalNumberField(value, "usedTokens"), ...optionalNumberField(value, "quotaLimit"), ...optionalNumberField(value, "latencyMs"), ...optionalNumberField(value, "consecutiveFailures"), ...(quotaResetAt ? { quotaResetAt } : {}), ...(cooldownUntil ? { cooldownUntil } : {}) } as AiModelResource;
   });
 }
 
@@ -155,18 +119,8 @@ function parseCapabilities(raw: unknown, provider: SupportedProvider, model: str
   const allowed = new Set<string>([...BOOLEAN_CAPABILITIES, ...NUMERIC_CAPABILITIES]);
   for (const key of Object.keys(value)) if (!allowed.has(key)) throw new Error(`AI model resource ${provider}/${model} has unsupported capability "${key}".`);
   const capabilities: Record<string, boolean | number> = { ...BASE_CAPABILITIES[provider] };
-  for (const key of BOOLEAN_CAPABILITIES) {
-    const candidate = value[key];
-    if (candidate === undefined) continue;
-    if (typeof candidate !== "boolean") throw new Error(`AI model resource ${provider}/${model} capability ${key} must be boolean.`);
-    capabilities[key] = candidate;
-  }
-  for (const key of NUMERIC_CAPABILITIES) {
-    const candidate = value[key];
-    if (candidate === undefined) continue;
-    if (typeof candidate !== "number" || !Number.isFinite(candidate) || candidate <= 0) throw new Error(`AI model resource ${provider}/${model} capability ${key} must be a positive finite number.`);
-    capabilities[key] = candidate;
-  }
+  for (const key of BOOLEAN_CAPABILITIES) { const candidate = value[key]; if (candidate === undefined) continue; if (typeof candidate !== "boolean") throw new Error(`AI model resource ${provider}/${model} capability ${key} must be boolean.`); capabilities[key] = candidate; }
+  for (const key of NUMERIC_CAPABILITIES) { const candidate = value[key]; if (candidate === undefined) continue; if (typeof candidate !== "number" || !Number.isFinite(candidate) || candidate <= 0) throw new Error(`AI model resource ${provider}/${model} capability ${key} must be a positive finite number.`); capabilities[key] = candidate; }
   return capabilities as AiModelCapabilities;
 }
 
@@ -174,7 +128,7 @@ function providerConfigured(provider: SupportedProvider, env: NodeJS.ProcessEnv)
   switch (provider) {
     case "omniroute": return Boolean(env.OMNIROUTE_BASE_URL?.trim());
     case "9router": return Boolean(env.ROUTER9_BASE_URL?.trim());
-    case "kings": return Boolean(env.KINGS_AI_ENDPOINT?.trim());
+    case "kings": return Boolean(kingsResponsesEndpoint(env));
     case "openai": return Boolean(env.OPENAI_API_KEY?.trim());
     case "ollama": return Boolean(env.OLLAMA_BASE_URL?.trim());
     case "groq": return Boolean(env.GROQ_API_KEY?.trim());
@@ -185,37 +139,12 @@ function providerConfigured(provider: SupportedProvider, env: NodeJS.ProcessEnv)
   }
 }
 
-function supportedProvider(value: unknown, index: number): SupportedProvider {
-  const provider = typeof value === "string" ? value.trim().toLowerCase() : "";
-  const supported: readonly SupportedProvider[] = ["omniroute", "9router", "kings", "openai", "ollama", "groq", "mistral", "gemini", "anthropic", "openrouter"];
-  if (supported.includes(provider as SupportedProvider)) return provider as SupportedProvider;
-  throw new Error(`AI model resource ${index + 1} has unsupported provider "${provider}".`);
-}
-
-function billingClassFromEnv(value: string | undefined, fallback: AiBillingClass, prefix: string): AiBillingClass {
-  return parseBillingClass(value, fallback, `${prefix}_BILLING_CLASS`);
-}
-function parseBillingClass(value: unknown, fallback: AiBillingClass, label: string): AiBillingClass {
-  if (value === undefined || value === null || value === "") return fallback;
-  const normalized = String(value).trim().toLowerCase() as AiBillingClass;
-  if (!BILLING_CLASSES.includes(normalized)) throw new Error(`${label} must be one of ${BILLING_CLASSES.join(", ")}.`);
-  return normalized;
-}
-function optionalNumberField(value: Record<string, unknown>, key: keyof AiModelResource): Partial<AiModelResource> {
-  const raw = value[key as string];
-  if (raw === undefined) return {};
-  if (typeof raw !== "number" || !Number.isFinite(raw) || raw < 0) throw new Error(`AI model resource ${String(key)} must be a non-negative finite number.`);
-  return { [key]: raw } as Partial<AiModelResource>;
-}
-function optionalTimestamp(value: unknown, label: string): string | undefined {
-  if (value === undefined) return undefined;
-  if (typeof value !== "string" || !validTimestamp(value)) throw new Error(`${label} must be a valid timestamp.`);
-  return value.trim();
-}
-function requiredString(value: unknown, label: string): string {
-  if (typeof value !== "string" || !value.trim()) throw new Error(`${label} is required.`);
-  return value.trim();
-}
+function supportedProvider(value: unknown, index: number): SupportedProvider { const provider = typeof value === "string" ? value.trim().toLowerCase() : ""; const supported: readonly SupportedProvider[] = ["omniroute", "9router", "kings", "openai", "ollama", "groq", "mistral", "gemini", "anthropic", "openrouter"]; if (supported.includes(provider as SupportedProvider)) return provider as SupportedProvider; throw new Error(`AI model resource ${index + 1} has unsupported provider "${provider}".`); }
+function billingClassFromEnv(value: string | undefined, fallback: AiBillingClass, prefix: string): AiBillingClass { return parseBillingClass(value, fallback, `${prefix}_BILLING_CLASS`); }
+function parseBillingClass(value: unknown, fallback: AiBillingClass, label: string): AiBillingClass { if (value === undefined || value === null || value === "") return fallback; const normalized = String(value).trim().toLowerCase() as AiBillingClass; if (!BILLING_CLASSES.includes(normalized)) throw new Error(`${label} must be one of ${BILLING_CLASSES.join(", ")}.`); return normalized; }
+function optionalNumberField(value: Record<string, unknown>, key: keyof AiModelResource): Partial<AiModelResource> { const raw = value[key as string]; if (raw === undefined) return {}; if (typeof raw !== "number" || !Number.isFinite(raw) || raw < 0) throw new Error(`AI model resource ${String(key)} must be a non-negative finite number.`); return { [key]: raw } as Partial<AiModelResource>; }
+function optionalTimestamp(value: unknown, label: string): string | undefined { if (value === undefined) return undefined; if (typeof value !== "string" || !validTimestamp(value)) throw new Error(`${label} must be a valid timestamp.`); return value.trim(); }
+function requiredString(value: unknown, label: string): string { if (typeof value !== "string" || !value.trim()) throw new Error(`${label} is required.`); return value.trim(); }
 function positive(value: string | undefined): number | undefined { const parsed = Number(value); return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined; }
 function nonnegative(value: string | undefined): number | undefined { const parsed = Number(value); return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined; }
 function validTimestamp(value: string | undefined): boolean { return Boolean(value?.trim() && Number.isFinite(Date.parse(value))); }
