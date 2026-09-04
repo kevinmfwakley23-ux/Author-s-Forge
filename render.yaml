@@ -2,7 +2,7 @@ services:
   - type: web
     name: authors-forge
     runtime: docker
-    plan: starter
+    plan: 0.5c-512mb
     healthCheckPath: /healthz
     autoDeployTrigger: commit
     envVars:
