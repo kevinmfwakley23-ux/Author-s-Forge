@@ -65,8 +65,11 @@ export function discoverConfiguredAiModelResources(env: NodeJS.ProcessEnv = proc
   // Preserve the established provider registration order so existing routing
   // remains stable. New providers extend the pool without silently reshuffling
   // otherwise equal candidates; owner preference is handled by broker scoring.
+  // OmniRoute explicitly documents "auto" as a valid zero-config router model.
+  // 9Router does not: it requires a concrete model/combo from /v1/models, so
+  // Forge must never invent a generic auto resource for it.
   addProvider("omniroute", Boolean(env.OMNIROUTE_BASE_URL?.trim()), models(env.OMNIROUTE_MODELS, env.OMNIROUTE_MODEL, "auto"), "OMNIROUTE");
-  addProvider("9router", Boolean(env.ROUTER9_BASE_URL?.trim()), models(env.ROUTER9_MODELS, env.ROUTER9_MODEL, "auto"), "ROUTER9");
+  addProvider("9router", Boolean(env.ROUTER9_BASE_URL?.trim()), models(env.ROUTER9_MODELS, env.ROUTER9_MODEL), "ROUTER9");
   addProvider("openai", Boolean(env.OPENAI_API_KEY?.trim()), models(env.OPENAI_MODELS, env.OPENAI_MODEL), "OPENAI");
   addProvider("ollama", Boolean(env.OLLAMA_BASE_URL?.trim()), models(env.OLLAMA_MODELS, env.OLLAMA_MODEL), "OLLAMA");
   addProvider("kings", Boolean(env.KINGS_AI_ENDPOINT?.trim()), models(env.KINGS_AI_MODELS, env.KINGS_AI_MODEL), "KINGS_AI");
