@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#111315">
+  <title>Design & Motion Offices · Author's Forge</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/forge-royal-hardening.css" data-forge-royal-hardening>
+  <link rel="stylesheet" href="/forge-media-studio.css">
+</head>
+<body class="media-body">
+  <main class="media-shell">
+    <header class="media-top">
+      <div>
+        <div class="eyebrow">AUTHOR'S FORGE · DESIGN & MOTION WING</div>
+        <h1>Design & Motion Offices</h1>
+        <p>Build calendars, advertisements, daily planners, memes, animated GIFs, and stop-motion videos inside the same Forge project. Outputs are real browser-generated files; unsupported formats fail honestly instead of being simulated.</p>
+      </div>
+      <div class="media-actions">
+        <a id="media-back" href="/">← Main Studio</a>
+        <button id="media-theme" type="button">Light / Dark</button>
+        <button id="media-refresh" type="button">Refresh project</button>
+      </div>
+    </header>
+
+    <div id="media-status" class="media-status" role="status" aria-live="polite"></div>
+
+    <section class="media-capabilities" aria-label="Design and motion offices">
+      <article class="media-capability"><strong>Calendar Office</strong><small>Monthly layouts, dated notes, print-ready image output.</small></article>
+      <article class="media-capability"><strong>Advertisement Office</strong><small>Social, display, story/reel, and print ad presets with editable CTA.</small></article>
+      <article class="media-capability"><strong>Daily Planner Office</strong><small>Priorities, schedule, tasks, notes, and reusable dated layouts.</small></article>
+      <article class="media-capability"><strong>Meme Office</strong><small>Static image memes with top/bottom captions and imported visuals.</small></article>
+      <article class="media-capability"><strong>GIF Office</strong><small>Frame timeline with a native GIF89a encoder and loop export.</small></article>
+      <article class="media-capability"><strong>Stop-Motion Office</strong><small>Frame-by-frame timing and real MediaRecorder video export.</small></article>
+    </section>
+
+    <section class="media-grid">
+      <aside class="media-stack media-left">
+        <article class="media-card">
+          <h2>Project</h2>
+          <form id="media-project-form" class="media-form">
+            <label>Forge project ID<input id="media-project" required pattern="[A-Za-z0-9_-]+" autocomplete="off"></label>
+            <label>Creation title<input id="media-title" maxlength="160" value="New Forge Design"></label>
+          </form>
+          <div class="media-row"><button id="media-save" class="primary" type="button">Save to Project Brain</button><button id="media-load" type="button">Load latest</button></div>
+          <p class="media-muted">Saved designs are working creative memory, not story canon. Large local image uploads are never silently embedded into Project Brain.</p>
+        </article>
+
+        <article class="media-card">
+          <h2>Choose office</h2>
+          <div id="media-modes" class="media-mode-list">
+            <button type="button" data-mode="calendar">▦ Calendar Office</button>
+            <button type="button" data-mode="advertisement">◩ Advertisement Office</button>
+            <button type="button" data-mode="daily-planner">▤ Daily Planner Office</button>
+            <button type="button" data-mode="meme">☺ Meme Office</button>
+            <button type="button" data-mode="gif">◫ GIF Office</button>
+            <button type="button" data-mode="stop-motion">▶ Stop-Motion Video Office</button>
+          </div>
+        </article>
+
+        <article class="media-card">
+          <div class="media-section-title"><h2>Design controls</h2><span id="media-size-pill" class="media-pill"></span></div>
+          <form id="media-controls" class="media-form"></form>
+        </article>
+      </aside>
+
+      <section class="media-stack">
+        <article class="media-card">
+          <div class="media-section-title"><div><h2 id="media-office-title">Calendar Office</h2><p id="media-office-note" class="media-muted"></p></div><div class="media-row"><button id="media-undo" type="button">Reset mode</button><button id="media-print" type="button">Print / Save PDF</button></div></div>
+          <div class="media-canvas-wrap"><canvas id="media-canvas" width="1200" height="1500" aria-label="Forge design preview"></canvas></div>
+        </article>
+
+        <article id="media-timeline-card" class="media-card" hidden>
+          <div class="media-section-title"><div><h2>Frame timeline</h2><p class="media-muted">Each frame is explicit and editable. Duration is stored per frame.</p></div><button id="media-add-frame" class="primary" type="button">Add frame</button></div>
+          <div id="media-frame-list" class="media-frame-list"></div>
+          <div class="media-row"><button id="media-play" type="button">Preview animation</button><button id="media-duplicate-frame" type="button">Duplicate selected</button><button id="media-delete-frame" type="button">Delete selected</button></div>
+        </article>
+      </section>
+
+      <aside class="media-stack media-right">
+        <article class="media-card">
+          <h2>Export</h2>
+          <div class="media-export-grid">
+            <button id="media-export-png" class="primary" type="button">PNG</button>
+            <button id="media-export-jpeg" type="button">JPEG</button>
+            <button id="media-export-gif" type="button">Animated GIF</button>
+            <button id="media-export-video" type="button">Stop-motion video</button>
+            <button id="media-export-json" type="button">Project JSON</button>
+            <button id="media-copy-size" type="button">Copy dimensions</button>
+          </div>
+          <p id="media-export-note" class="media-note">Static modes export PNG/JPEG and can print to PDF. GIF and video buttons become active only in the appropriate motion offices.</p>
+        </article>
+
+        <article class="media-card">
+          <h2>Background visual</h2>
+          <form class="media-form">
+            <label>Image URL<input id="media-image-url" type="url" placeholder="https://…"></label>
+            <label>Or upload for this design session<input id="media-image-file" type="file" accept="image/*"></label>
+            <div class="media-row"><button id="media-use-image" type="button">Apply visual</button><button id="media-clear-image" type="button">Clear visual</button></div>
+          </form>
+          <p class="media-muted">URL references can be saved with the project. Local uploads are kept in the browser session unless small enough for safe working-memory storage.</p>
+        </article>
+
+        <article class="media-card">
+          <h2>Project Brain evidence</h2>
+          <div id="media-memory-summary" class="media-project-memory">No Design & Motion save loaded yet.</div>
+        </article>
+
+        <article class="media-card">
+          <h2>Production truth</h2>
+          <ul class="media-muted">
+            <li>PNG/JPEG are rendered from the actual canvas.</li>
+            <li>GIF uses a native GIF89a file encoder.</li>
+            <li>Stop-motion uses browser MediaRecorder; the file type is chosen only from formats the browser reports as supported.</li>
+            <li>Print invokes the browser's real print/PDF workflow.</li>
+            <li>No design is published or scheduled externally without a separate integration and author action.</li>
+          </ul>
+        </article>
+      </aside>
+    </section>
+  </main>
+
+  <script src="/forge-media-studio.js" defer></script>
+  <script src="/forge-pwa.js" defer></script>
+</body>
+</html>
