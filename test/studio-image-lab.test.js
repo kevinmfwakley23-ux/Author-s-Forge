@@ -198,16 +198,18 @@ test("Image Lab refuses fake or mismatched provider image bytes instead of persi
   assert.equal(persisted.illustrationAssetLibrary?.assets.length ?? 0, 0, "invalid provider bytes must not create an illustration asset library entry");
   assert.equal(persisted.assetRightsRegistry?.records.length ?? 0, 0, "invalid provider bytes must not create generation provenance");
 
+  const mismatchedBytes = Buffer.from(PNG_BASE64, "base64");
+  mismatchedBytes[mismatchedBytes.length - 1] ^= 0x01;
   const mismatch = new StudioImageLabService(store, async () => Object.freeze({
     provider: "openai",
     model: "gpt-image-2",
     mimeType: "image/png",
     bytesBase64: PNG_BASE64,
-    dataUri: `data:image/png;base64,${Buffer.from(PNG_BASE64, "base64").toString("base64").replace(/A$/, "B")}`,
+    dataUri: `data:image/png;base64,${mismatchedBytes.toString("base64")}`,
     size: "1024x1024",
     quality: "medium",
   }));
-  await assert.rejects(() => mismatch.generate({ projectId: "project-1", prompt: "mismatched provider image" }));
+  await assert.rejects(() => mismatch.generate({ projectId: "project-1", prompt: "mismatched provider image" }), /does not match the returned image data URI/);
   const afterMismatch = await store.load("project-1");
   assert.equal(afterMismatch.illustrationAssetLibrary?.assets.length ?? 0, 0, "mismatched provider payloads must not persist artwork");
   assert.equal(afterMismatch.assetRightsRegistry?.records.length ?? 0, 0, "mismatched provider payloads must not persist generation provenance");
