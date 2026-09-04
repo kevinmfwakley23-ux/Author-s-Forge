@@ -1,4 +1,4 @@
-const CACHE = "authors-forge-shell-v14";
+const CACHE = "authors-forge-shell-v15";
 const SHELL = [
   "/",
   "/index.html",
