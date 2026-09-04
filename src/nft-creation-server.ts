@@ -2,9 +2,12 @@ import { randomUUID } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
+import { createNftAdvancedRoutes } from "./application/nft-advanced-routes";
 import { attachAuthorNftArtwork } from "./application/nft-author-artwork";
 import { NftCreationOfficeService, type NftAiProposalKind } from "./application/nft-creation-office";
 import { NftMarketIntelligenceService } from "./application/nft-market-intelligence";
+import { NftSeriesDirectorService } from "./application/nft-series-director";
+import { NftStoragePublisherService } from "./application/nft-storage-publisher";
 import { createProject } from "./domain/project";
 import {
   NFT_COLLECTION_TYPES,
@@ -18,6 +21,7 @@ import {
 } from "./domain/nft-creation";
 import { discoverConfiguredAiModelResources } from "./infrastructure/ai-model-resources";
 import { FileNftCreationStore } from "./infrastructure/file-nft-creation-store";
+import { FileNftSeriesStore } from "./infrastructure/file-nft-series-store";
 import { FileProjectStore } from "./infrastructure/file-project-store";
 import { createForgeStudioRuntime } from "./infrastructure/forge-studio-runtime";
 import type { ImageGenerationQuality, ImageGenerationSize } from "./infrastructure/image-provider";
@@ -27,11 +31,14 @@ const host = process.env.HOST ?? "127.0.0.1";
 const dataRoot = process.env.FORGE_DATA_DIR ?? join(process.cwd(), ".forge-data");
 const publicRoot = join(process.cwd(), "public");
 const runtime = createForgeStudioRuntime(dataRoot);
-// createForgeStudioRuntime composes this exact concrete adapter in production.
 const projects = runtime.projectStore as FileProjectStore;
 const nftStore = new FileNftCreationStore(join(dataRoot, "nft-creation.json"));
+const nftSeriesStore = new FileNftSeriesStore(join(dataRoot, "nft-series.json"));
 const office = new NftCreationOfficeService(nftStore, projects);
 const market = new NftMarketIntelligenceService(projects);
+const series = new NftSeriesDirectorService(nftSeriesStore, nftStore, projects);
+const storage = new NftStoragePublisherService(projects);
+const advancedRoutes = createNftAdvancedRoutes(series, nftStore, storage);
 
 function json(res: ServerResponse, status: number, value: unknown): void {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" });
@@ -62,7 +69,18 @@ function aiStatus() {
 
 async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): Promise<boolean> {
   if (url.pathname === "/api/health" && req.method === "GET") {
-    json(res, 200, { ok: true, service: "authors-forge-nft-creation-office", tokenStandards: NFT_TOKEN_STANDARDS, collectionTypes: NFT_COLLECTION_TYPES, storageModes: NFT_STORAGE_MODES, sharedDataRoot: dataRoot, mainStudioPort: Number(process.env.FORGE_STUDIO_PORT ?? 4173), ai: aiStatus() });
+    json(res, 200, {
+      ok: true,
+      service: "authors-forge-nft-creation-office",
+      tokenStandards: NFT_TOKEN_STANDARDS,
+      collectionTypes: NFT_COLLECTION_TYPES,
+      storageModes: NFT_STORAGE_MODES,
+      sharedDataRoot: dataRoot,
+      mainStudioPort: Number(process.env.FORGE_STUDIO_PORT ?? 4173),
+      ai: aiStatus(),
+      externalStorage: { pinataPublicIpfsConfigured: Boolean(process.env.PINATA_JWT?.trim()) },
+      minting: { walletSigningConfigured: false, note: "Forge does not claim on-chain deployment or minting without an explicitly wallet-authorized verified transaction adapter." },
+    });
     return true;
   }
   if (url.pathname === "/api/projects" && req.method === "POST") {
@@ -80,6 +98,7 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
     json(res, 200, forgeProject);
     return true;
   }
+  if (await advancedRoutes(req, res, url, forgeProjectId)) return true;
 
   if (url.pathname === `/api/projects/${forgeProjectId}/nft` && req.method === "GET") {
     json(res, 200, { project: forgeProject.metadata, collections: await office.list(forgeProjectId), ai: aiStatus() });
