@@ -11,7 +11,8 @@ async function text(path) { return readFile(join(root, path), "utf8"); }
 
 for (const path of ["public/forge-review-room.js", "public/forge-reviewer.js", "public/forge-provenance.js", "public/forge-pwa.js", "public/sw.js", "public/sw-hosted.js"]) {
   test(`${path} parses as JavaScript`, async () => {
-    assert.doesNotThrow(() => new vm.Script(await text(path), { filename: path }));
+    const source = await text(path);
+    assert.doesNotThrow(() => new vm.Script(source, { filename: path }));
   });
 }
 
