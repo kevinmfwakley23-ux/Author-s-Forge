@@ -1,0 +1,10 @@
+node_modules
+dist
+.forge-build
+.forge-data
+.git
+.github
+*.log
+coverage
+playwright-report
+test-results
