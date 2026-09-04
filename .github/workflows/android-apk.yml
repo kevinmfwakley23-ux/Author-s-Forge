@@ -1,0 +1,80 @@
+name: Android APK
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "android/**"
+      - ".github/workflows/android-apk.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    env:
+      FORGE_PUBLIC_URL: ${{ vars.FORGE_PUBLIC_URL }}
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Gradle 8.13
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: "8.13"
+
+      - name: Install Android SDK 36
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-36" "build-tools;35.0.0"
+
+      - name: Build installable debug APK
+        shell: bash
+        run: |
+          gradle -p android :app:assembleDebug --no-daemon -PFORGE_DEFAULT_URL="${FORGE_PUBLIC_URL:-}"
+          test -s android/app/build/outputs/apk/debug/app-debug.apk
+          "${ANDROID_HOME}/build-tools/35.0.0/aapt" dump badging android/app/build/outputs/apk/debug/app-debug.apk | grep "package: name='com.authorsforge.app.debug'"
+
+      - name: Upload direct-install debug APK
+        uses: actions/upload-artifact@v7
+        with:
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          archive: false
+          retention-days: 14
+
+      - name: Decode release signing key
+        if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' && env.ANDROID_KEYSTORE_PASSWORD != '' && env.ANDROID_KEY_ALIAS != '' && env.ANDROID_KEY_PASSWORD != '' }}
+        shell: bash
+        run: |
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/authors-forge-release.jks"
+          chmod 600 "$RUNNER_TEMP/authors-forge-release.jks"
+
+      - name: Build stable signed release APK
+        if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' && env.ANDROID_KEYSTORE_PASSWORD != '' && env.ANDROID_KEY_ALIAS != '' && env.ANDROID_KEY_PASSWORD != '' }}
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/authors-forge-release.jks
+        run: |
+          gradle -p android :app:assembleRelease --no-daemon -PFORGE_DEFAULT_URL="${FORGE_PUBLIC_URL:-}"
+          test -s android/app/build/outputs/apk/release/app-release.apk
+          "${ANDROID_HOME}/build-tools/35.0.0/apksigner" verify --verbose --print-certs android/app/build/outputs/apk/release/app-release.apk
+
+      - name: Upload stable signed release APK
+        if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' && env.ANDROID_KEYSTORE_PASSWORD != '' && env.ANDROID_KEY_ALIAS != '' && env.ANDROID_KEY_PASSWORD != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          path: android/app/build/outputs/apk/release/app-release.apk
+          archive: false
+          retention-days: 30
