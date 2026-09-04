@@ -28,6 +28,7 @@ jobs:
       - run: node --check public/app.js
       - run: node --check public/forge-command-center.js
       - run: node --check public/forge-workbench.js
+      - run: node --check public/forge-agent.js
       - run: node --check public/forge-ai-proposals.js
       - run: node --check public/forge-editing-proposals.js
       - run: node --check public/forge-story-map.js
@@ -50,6 +51,7 @@ jobs:
       - run: node --check scripts/forge-network-security.js
       - run: node --check scripts/start-forge.js
       - run: node --check scripts/forge-offices-browser-acceptance.js
+      - run: node --check scripts/studio-agent-workbench-browser-acceptance.js
       - run: node --check scripts/studio-architecture-browser-acceptance.js
       - run: node --check scripts/studio-scene-card-browser-acceptance.js
       - run: node --check scripts/studio-series-browser-acceptance.js
