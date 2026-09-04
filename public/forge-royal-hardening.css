@@ -1,0 +1,101 @@
+:root{
+  --forge-faint:#665d50;
+}
+:root[data-forge-theme="dark"]{
+  --forge-faint:#b8aa95;
+  --forge-gold-deep:#d5b06c;
+}
+
+/* Gold remains the accent; primary action copy stays high-contrast. */
+.primary,.forge-office-link{
+  color:#1b140b!important;
+  background:linear-gradient(180deg,#c59a50,#a87834)!important;
+}
+.primary:hover,.forge-office-link:hover{
+  color:#151009!important;
+  background:linear-gradient(180deg,#d0a85d,#b17f38)!important;
+}
+
+/* Android/phone shell: keep the full Forge reachable without a page-long sidebar. */
+@media(max-width:760px){
+  body{display:block;min-width:0}
+  .sidebar{
+    position:sticky;
+    top:0;
+    z-index:100;
+    width:100%;
+    height:auto;
+    max-height:none;
+    display:grid;
+    grid-template-columns:auto minmax(0,1fr);
+    grid-template-areas:"brand nav";
+    align-items:center;
+    gap:10px;
+    padding:max(8px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) 8px max(10px,env(safe-area-inset-left));
+    overflow:visible;
+    border-right:0;
+    border-bottom:1px solid rgba(212,168,94,.38);
+  }
+  .brand{
+    grid-area:brand;
+    min-height:44px;
+    width:auto;
+    margin:0;
+    padding:5px 10px;
+    display:flex;
+    flex-direction:row;
+    justify-content:flex-start;
+    gap:5px;
+    border-radius:10px;
+    white-space:nowrap;
+  }
+  .brand-quill{font-size:22px;transform:rotate(-8deg)}
+  .brand-word{font-size:10px;margin-top:0}
+  .brand strong{font-size:13px;letter-spacing:.1em}
+  .brand-rule,.tag,.forge-nav-heading,.forge-sidebar-seal,.local-status{display:none!important}
+  .sidebar nav{
+    grid-area:nav;
+    display:flex!important;
+    gap:6px;
+    min-width:0;
+    width:100%;
+    overflow-x:auto;
+    overflow-y:hidden;
+    overscroll-behavior-x:contain;
+    scroll-snap-type:x proximity;
+    scrollbar-width:thin;
+    padding:2px 1px 4px;
+  }
+  .sidebar nav a{
+    flex:0 0 auto;
+    min-height:44px;
+    padding:8px 12px 8px 35px;
+    white-space:nowrap;
+    scroll-snap-align:start;
+    transform:none!important;
+  }
+  .sidebar nav a.active::after{left:2px;top:auto;bottom:-2px;width:auto;height:2px;right:2px}
+  main{
+    margin-left:0;
+    width:100%;
+    padding:14px max(14px,env(safe-area-inset-right)) max(48px,calc(env(safe-area-inset-bottom) + 26px)) max(14px,env(safe-area-inset-left));
+    overflow-x:hidden;
+  }
+  .topbar{margin-bottom:14px}
+  button,.top-actions button,.forge-office-link{min-height:44px}
+  select,input,textarea{font-size:16px;min-height:44px}
+  .editor{min-height:54vh;font-size:16px}
+  .forge-book-shelf{justify-content:flex-start;overscroll-behavior-x:contain}
+}
+
+@media(max-width:480px){
+  .sidebar{grid-template-columns:1fr;grid-template-areas:"brand" "nav";gap:5px}
+  .brand{justify-self:start;min-height:38px;padding-block:3px}
+  .sidebar nav a{min-height:44px}
+  .top-actions,.row{min-width:0}
+  .top-actions button,.forge-theme-toggle{flex:1 1 auto}
+  .row>button,.row>a{flex:1 1 140px}
+  .hero{padding:18px 15px}
+  .forge-current-project .hero-actions{display:grid!important}
+  .forge-current-project .hero-actions button{width:100%}
+}
