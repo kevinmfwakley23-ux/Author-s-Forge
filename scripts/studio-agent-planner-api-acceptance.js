@@ -65,12 +65,13 @@ async function main() {
 
     const registry = await api(base, `/api/projects/${PROJECT_ID}/agent/tools`);
     assert.equal(registry.authority, "discovery-only");
-    assert.equal(registry.formatVersion, 2);
-    assert.equal(registry.tools.length, 11);
+    assert.equal(registry.formatVersion, 3);
+    assert.equal(registry.tools.length, 12);
     assert.equal(registry.tools.find((tool) => tool.id === "writing.propose").stateEffect, "proposal-ledger");
     assert.equal(registry.tools.find((tool) => tool.id === "visual.image.generate").providerRequirement, "configured-image");
     assert.equal(registry.tools.find((tool) => tool.id === "market.kdp.research").stateEffect, "market-intelligence");
     assert.equal(registry.tools.find((tool) => tool.id === "promotion.campaign.propose").stateEffect, "campaign-draft");
+    assert.equal(registry.tools.find((tool) => tool.id === "cover.direction.propose").stateEffect, "candidate-response");
 
     await api(base, `/api/projects/${PROJECT_ID}/collaboration`, "POST", { mode: "editor" });
     const editorPlanResponse = await api(base, `/api/projects/${PROJECT_ID}/agent/plan`, "POST", {
@@ -151,7 +152,7 @@ async function main() {
     const missingScopeResponse = await api(base, `/api/projects/${PROJECT_ID}/agent/plan`, "POST", { goal: "Draft the next scene." });
     assert.match(missingScopeResponse.plan.steps.find((step) => step.toolId === "writing.propose").blockedReason, /requires chapter, scene scope/);
 
-    console.log("FORGE AGENT PLANNER API ACCEPTANCE PASSED: 11-tool registry + deterministic default + truthful AI fallback + durable Forge Recipes + Editor block + bounded Autonomous grouping + missing-scope honesty.");
+    console.log("FORGE AGENT PLANNER API ACCEPTANCE PASSED: 12-tool registry v3 + deterministic default + truthful AI fallback + durable Forge Recipes + Editor block + bounded Autonomous grouping + missing-scope honesty.");
   } finally {
     server.kill("SIGTERM");
     await new Promise((resolve) => server.exitCode !== null ? resolve() : server.once("exit", resolve));
