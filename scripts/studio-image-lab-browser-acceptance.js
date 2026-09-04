@@ -13,6 +13,8 @@ const { createIllustrationAsset } = require("../dist/domain/illustration-asset-l
 const HOST = "127.0.0.1";
 const PORT = 6700 + Math.floor(Math.random() * 100);
 const projectId = `image-lab-browser-${Date.now()}`;
+const VALID_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl5ZVQAAAAASUVORK5CYII=";
+const VALID_PNG_DATA_URI = `data:image/png;base64,${VALID_PNG_BASE64}`;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function waitForHttp(url, timeout = 12000) { const start = Date.now(); while (Date.now() - start < timeout) { try { if ((await fetch(url)).ok) return; } catch {} await sleep(100); } throw new Error(`Timed out waiting for ${url}`); }
 async function stop(server) { if (!server || server.exitCode !== null) return; server.kill("SIGTERM"); await Promise.race([new Promise((resolve) => server.once("exit", resolve)), sleep(2500)]); if (server.exitCode === null) server.kill("SIGKILL"); }
@@ -24,7 +26,7 @@ async function seed(dataDir) {
   workspace = addWorkspaceChapter(workspace, "book-1", { id: "chapter-1", number: 1, title: "Opening", now: "2026-09-01T20:01:00.000Z" });
   workspace = addWorkspaceScene(workspace, "book-1", "chapter-1", { id: "scene-1", number: 1, title: "Forest", now: "2026-09-01T20:02:00.000Z" });
   let project = withProjectStudioWorkspace(createProject({ id: projectId, title: "Image Lab Browser Acceptance", now: "2026-09-01T20:00:00.000Z" }), workspace, "2026-09-01T20:02:00.000Z");
-  const pending = createIllustrationAsset({ id: "pending-art", projectId, bookId: "book-1", chapterId: "chapter-1", sceneId: "scene-1", characterId: "unassigned-character", locationId: "unassigned-location", prompt: "Seeded pending forest artwork", references: [], style: "watercolor", generationSettings: { provider: "test-fixture" }, approvalStatus: "pending", assetUri: "data:image/png;base64,QUJDRA==", now: "2026-09-01T20:03:00.000Z" });
+  const pending = createIllustrationAsset({ id: "pending-art", projectId, bookId: "book-1", chapterId: "chapter-1", sceneId: "scene-1", characterId: "unassigned-character", locationId: "unassigned-location", prompt: "Seeded pending forest artwork", references: [], style: "watercolor", generationSettings: { provider: "test-fixture" }, approvalStatus: "pending", assetUri: VALID_PNG_DATA_URI, now: "2026-09-01T20:03:00.000Z" });
   project = withProjectIllustrationAssetLibrary(project, { formatVersion: 1, projectId, assets: [pending], characterDesignLocks: [] }, "2026-09-01T20:03:00.000Z");
   await store.create(project);
 }
@@ -98,7 +100,7 @@ async function main() {
     assert.match(await page.locator("#fcc-command").inputValue(), /open writing/);
 
     await context.close();
-    console.log("STUDIO IMAGE LAB BROWSER ACCEPTANCE PASSED: separate creative approval + rights declaration + explicit external-processing consent + durable failed-provider audit + Android fit + live voice transcript capture.");
+    console.log("STUDIO IMAGE LAB BROWSER ACCEPTANCE PASSED: valid stored source bytes + separate creative approval + rights declaration + explicit external-processing consent + durable failed-provider audit + Android fit + live voice transcript capture.");
   } finally {
     if (browser) await browser.close().catch(() => {});
     await stop(server).catch(() => {});
