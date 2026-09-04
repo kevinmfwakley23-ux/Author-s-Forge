@@ -22,10 +22,17 @@ test("Studio PWA loads governed human review and provenance extensions", async (
   assert.match(source, /loadExtension\("provenance","\/forge-provenance\.js"\)/);
 });
 
-test("review invitation moves credential from URL fragment to session-only storage", async () => {
-  const reviewer = await text("public/forge-reviewer.js");
+test("review invitation keeps the one-time credential in a server-issued URL fragment and reviewer moves it to session-only storage", async () => {
+  const routes = await text("src/application/studio-human-review-routes.ts");
   const room = await text("public/forge-review-room.js");
-  assert.match(room, /#token=/);
+  const reviewer = await text("public/forge-reviewer.js");
+  assert.match(routes, /\/review\.html\?project=\$\{encodeURIComponent\(projectId\)\}#token=\$\{encodeURIComponent\(created\.token\)\}/);
+  assert.match(routes, /reviewUrl:\s*fragmentUrl/);
+  assert.match(routes, /tokenShownOnce:\s*true/);
+  assert.match(room, /created\.reviewUrl/);
+  assert.doesNotMatch(room, /#token=\$\{/);
+  assert.match(reviewer, /location\.hash\.replace\(\/\^#\//,\s*""\)/);
+  assert.match(reviewer, /params\.get\("token"\)/);
   assert.match(reviewer, /sessionStorage\.setItem\(tokenKey, token\)/);
   assert.match(reviewer, /history\.replaceState\(null, "", `\$\{location\.pathname\}\$\{location\.search\}`\)/);
   assert.doesNotMatch(reviewer, /localStorage\.setItem\([^)]*review-token/);
