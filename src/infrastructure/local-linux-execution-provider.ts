@@ -87,6 +87,8 @@ async function executeVector(command: ForgeExecutionCommand, cwd: string, maxOut
     let stdout = Buffer.alloc(0);
     let stderr = Buffer.alloc(0);
     let outputExceeded = false;
+    let closed = false;
+    let killTimer: NodeJS.Timeout | undefined;
     const collect = (current: Buffer, chunk: Buffer): Buffer => {
       if (current.length >= maxOutputBytes) { outputExceeded = true; return current; }
       const remaining = maxOutputBytes - current.length;
@@ -99,12 +101,19 @@ async function executeVector(command: ForgeExecutionCommand, cwd: string, maxOut
     const timer = setTimeout(() => {
       timedOut = true;
       child.kill("SIGTERM");
-      setTimeout(() => { if (!child.killed) child.kill("SIGKILL"); }, 1_000).unref();
+      killTimer = setTimeout(() => { if (!closed) child.kill("SIGKILL"); }, 1_000);
+      killTimer.unref();
     }, timeoutMs);
     timer.unref();
-    child.once("error", (error) => { clearTimeout(timer); reject(error); });
-    child.once("close", (code, signal) => {
+    child.once("error", (error) => {
       clearTimeout(timer);
+      if (killTimer) clearTimeout(killTimer);
+      reject(error);
+    });
+    child.once("close", (code, signal) => {
+      closed = true;
+      clearTimeout(timer);
+      if (killTimer) clearTimeout(killTimer);
       const suffix = [timedOut ? `Command timed out after ${command.timeoutSeconds ?? 120}s.` : "", outputExceeded ? `Output truncated at ${maxOutputBytes} bytes.` : "", signal ? `Process signal: ${signal}.` : ""].filter(Boolean).join(" ");
       const stderrText = `${stderr.toString("utf8")}${suffix ? `${stderr.length ? "\n" : ""}${suffix}` : ""}`;
       resolveResult({
