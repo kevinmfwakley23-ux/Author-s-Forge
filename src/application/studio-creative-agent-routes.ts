@@ -3,6 +3,7 @@ import { resolveAiCollaborationPolicy } from "../domain/ai-collaboration";
 import { createStudioWorkspace, validateStudioWorkspace } from "../domain/studio-workspace";
 import type { FileProjectStore } from "../infrastructure/file-project-store";
 import { compileCreativeAgentPlan } from "./creative-agent-plan";
+import { compileCreativeAgentPlanWithAi } from "./creative-agent-ai-planner";
 import { CreativeAgentRecipeService, type CreativeAgentRecipeStep } from "./creative-agent-recipes";
 import { creativeToolRegistrySnapshot } from "./creative-tool-registry";
 
@@ -41,23 +42,45 @@ export function createStudioCreativeAgentRoutes(store: FileProjectStore): Studio
       const sceneId = optionalId(input.sceneId);
       const scene = chapter && sceneId ? chapter.scenes.find((candidate) => candidate.id === sceneId) : undefined;
       const collaboration = resolveAiCollaborationPolicy(project.aiCollaborationPolicy);
-      const plan = compileCreativeAgentPlan({
+      const plannerRequested = plannerMode(input.planner);
+      const planInput = {
         goal: requiredText(input.goal, "Creative agent goal"),
         mode: collaboration.mode,
         scope: {
-          project: true,
+          project: true as const,
           book: Boolean(book),
           chapter: Boolean(chapter),
           scene: Boolean(scene),
           sceneHasContent: Boolean(scene?.content.trim()),
         },
-      });
+      };
+
+      if (plannerRequested === "ai") {
+        const planned = await compileCreativeAgentPlanWithAi(project, planInput);
+        json(res, 200, {
+          projectId,
+          target: { bookId: book?.id ?? null, chapterId: chapter?.id ?? null, sceneId: scene?.id ?? null },
+          plan: planned.plan,
+          plannerRequested,
+          plannerUsed: planned.plannerUsed,
+          ...(planned.provider ? { plannerProvider: planned.provider, plannerModel: planned.model } : {}),
+          ...(planned.requestId ? { plannerRequestId: planned.requestId } : {}),
+          ...(planned.fallbackReason ? { plannerFallbackReason: planned.fallbackReason } : {}),
+          authority: "plan-only",
+          executionRule: "AI-enhanced planning may select only registered tools and never executes them. Invalid/provider-unavailable plans fall back visibly to Forge's deterministic planner.",
+        });
+        return true;
+      }
+
+      const plan = compileCreativeAgentPlan(planInput);
       json(res, 200, {
         projectId,
         target: { bookId: book?.id ?? null, chapterId: chapter?.id ?? null, sceneId: scene?.id ?? null },
         plan,
+        plannerRequested,
+        plannerUsed: "deterministic",
         authority: "plan-only",
-        executionRule: "Planning never executes a tool. Every step must pass its registered Forge boundary and approval policy separately.",
+        executionRule: "Deterministic planning is provider-free and never executes a tool. Every step must pass its registered Forge boundary and approval policy separately.",
       });
       return true;
     }
@@ -103,6 +126,8 @@ export function createStudioCreativeAgentRoutes(store: FileProjectStore): Studio
       json(res, 200, {
         projectId,
         ...compiled,
+        plannerRequested: "recipe",
+        plannerUsed: "recipe",
         authority: "plan-only",
         executionRule: "Compiling a Forge Recipe never executes its tools. Each step retains the registered provider, state, scope and approval boundary.",
       });
@@ -154,6 +179,12 @@ function recipeSteps(value: unknown): readonly CreativeAgentRecipeStep[] {
       ...(instruction ? { instruction } : {}),
     };
   });
+}
+
+function plannerMode(value: unknown): "deterministic" | "ai" {
+  if (value === undefined || value === null || value === "" || value === "deterministic") return "deterministic";
+  if (value === "ai") return "ai";
+  throw new Error("Creative agent planner must be deterministic or ai.");
 }
 
 function requiredText(value: unknown, label: string): string {
