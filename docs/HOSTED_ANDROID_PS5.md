@@ -69,18 +69,30 @@ The volume is not optional for real work. Without persistent storage, a disposab
 
 ## Render deployment
 
-`render.yaml` defines one Docker web service with a persistent disk and HTTPS-aware access cookie handling.
+The root `render.yaml` is the single infrastructure source of truth for the hosted K.I.N.G.S. ecosystem. A single Render Blueprint provisions:
 
-1. Push/merge the release commit you want Render to deploy.
-2. In Render, create a Blueprint from this GitHub repository.
-3. When Render prompts for `FORGE_ACCESS_TOKEN`, enter a private value of at least 24 characters that you can enter on your devices.
-4. Add only the AI/research/image provider environment variables you actually intend to use. Forge must continue to report unavailable providers honestly when credentials are absent.
-5. Let the service deploy and verify `/healthz` reports `ok: true`.
-6. Open the service's HTTPS address and sign in with the Forge access token.
+- `kings-ai-router` as a private Node service built from `kevinmfwakley23-ux/-KINGS-AI`;
+- `authors-forge` as the public Docker web service with a persistent disk;
+- `kings-collectors-kingdom` as the public Node web service with a persistent disk.
 
-The Blueprint mounts persistent storage at `/var/data` and points `FORGE_DATA_DIR` at `/var/data/authors-forge`.
+Collector's Kingdom receives the K.I.N.G.S. router's private `host:port` and generated bearer token through Render `fromService` references. The shared router token is generated inside Render and is not committed to Git or copied through browser JavaScript.
 
-Do not replace the persistent disk with ephemeral container storage for production author work.
+### Deploy without a ChatGPT Render connection
+
+1. Make sure the latest `main` checks are green for Author's Forge, K.I.N.G.S. AI, and Collector's Kingdom.
+2. Sign in to the Render dashboard directly.
+3. Choose **New + → Blueprint**.
+4. Select the GitHub repository `kevinmfwakley23-ux/Author-s-Forge`.
+5. Keep the Blueprint path as the repository-root `render.yaml`.
+6. Review the three resources Render discovers: `kings-ai-router`, `authors-forge`, and `kings-collectors-kingdom`.
+7. When prompted for `FORGE_ACCESS_TOKEN`, enter a private value of at least 24 characters that you can enter on your own devices.
+8. Deploy the Blueprint.
+9. Verify Author's Forge `/healthz` and Collector's Kingdom `/health` return successful health responses.
+10. Open the generated Author's Forge HTTPS address and sign in with the Forge access token.
+
+The Blueprint mounts Forge persistence at `/var/data/authors-forge` and Kingdom persistence at `/var/data/kings-collectors-kingdom`. Do not replace either persistent disk with ephemeral container storage for production work.
+
+K.I.N.G.S. provider endpoints and credentials remain a separate runtime configuration boundary. The router service can deploy before OmniRoute/9Router credentials are added, but real routed AI requests require an externally reachable configured provider. Never describe a green `/health` response as proof that an external provider is reachable.
 
 ## Android — no Termux
 
