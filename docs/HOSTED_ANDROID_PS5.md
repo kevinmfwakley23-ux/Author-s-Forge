@@ -69,30 +69,36 @@ The volume is not optional for real work. Without persistent storage, a disposab
 
 ## Render deployment
 
-The root `render.yaml` is the single infrastructure source of truth for the hosted K.I.N.G.S. ecosystem. A single Render Blueprint provisions:
+The root `render.yaml` is the single infrastructure source of truth for the hosted K.I.N.G.S. ecosystem. A single Render Blueprint provisions four resources:
 
-- `kings-ai-router` as a private Node service built from `kevinmfwakley23-ux/-KINGS-AI`;
-- `authors-forge` as the public Docker web service with a persistent disk;
-- `kings-collectors-kingdom` as the public Node web service with a persistent disk.
+- `omniroute` as a private pinned-image service (`diegosouzapw/omniroute:3.8.50`) with a persistent `/app/data` disk, generated runtime secrets, and the `auto` virtual model available to K.I.N.G.S.;
+- `kings-ai-router` as a private Node service built from `kevinmfwakley23-ux/-KINGS-AI` and connected to OmniRoute only over Render's private network;
+- `authors-forge` as the public Docker web service with a persistent disk and a private authenticated K.I.N.G.S. Responses connection;
+- `kings-collectors-kingdom` as the public Node web service with a persistent disk and a private authenticated K.I.N.G.S. app-router connection.
 
-Collector's Kingdom receives the K.I.N.G.S. router's private `host:port` and generated bearer token through Render `fromService` references. The shared router token is generated inside Render and is not committed to Git or copied through browser JavaScript.
+Render generates the K.I.N.G.S. router bearer token inside the deployment. Forge and Collector's Kingdom receive that same secret with `fromService` references, and each app receives the router's private `host:port` rather than a public AI URL. The shared token is never committed to Git or copied into browser JavaScript.
+
+The Render-only Forge launcher converts `KINGS_AI_HOSTPORT=<private-host>:<port>` into the already-supported `KINGS_AI_RESPONSES_URL=http://<private-host>:<port>/v1/responses` before the five office processes start. Local Forge, Android PWA, and normal non-Render launch paths are unchanged.
+
+OmniRoute is deliberately private. K.I.N.G.S. receives its Render `host:port`, derives the OpenAI-compatible `/v1` base URL, and registers the provider only because the private endpoint is explicitly configured. This prevents a green K.I.N.G.S. process from falsely advertising a localhost-only provider.
 
 ### Deploy without a ChatGPT Render connection
 
 1. Make sure the latest `main` checks are green for Author's Forge, K.I.N.G.S. AI, and Collector's Kingdom.
 2. Sign in to the Render dashboard directly.
-3. Choose **New + → Blueprint**.
-4. Select the GitHub repository `kevinmfwakley23-ux/Author-s-Forge`.
-5. Keep the Blueprint path as the repository-root `render.yaml`.
-6. Review the three resources Render discovers: `kings-ai-router`, `authors-forge`, and `kings-collectors-kingdom`.
-7. When prompted for `FORGE_ACCESS_TOKEN`, enter a private value of at least 24 characters that you can enter on your own devices.
+3. Open the **Deploy to Render** button in the Author's Forge README, or choose **New + → Blueprint** manually.
+4. If creating manually, select `kevinmfwakley23-ux/Author-s-Forge` and keep the Blueprint path as the repository-root `render.yaml`.
+5. Review the four resources Render discovers: `omniroute`, `kings-ai-router`, `authors-forge`, and `kings-collectors-kingdom`.
+6. When prompted for `FORGE_ACCESS_TOKEN`, enter a private value of at least 24 characters that you can enter on your own devices.
+7. Review the paid compute and persistent-disk charges before approving creation. Forge and Kingdom require persistent disks; OmniRoute uses the `1c-2g` private-service plan in the Blueprint because its container is substantially heavier than the routing shim.
 8. Deploy the Blueprint.
 9. Verify Author's Forge `/healthz` and Collector's Kingdom `/health` return successful health responses.
-10. Open the generated Author's Forge HTTPS address and sign in with the Forge access token.
+10. Verify a real Collector's Kingdom Keeper request and a real Forge K.I.N.G.S.-backed text request complete before calling the AI chain operational.
+11. Open the generated Author's Forge HTTPS address, sign in with the Forge access token, create/save/reload a real project, and only then install the Android PWA from that HTTPS origin.
 
-The Blueprint mounts Forge persistence at `/var/data/authors-forge` and Kingdom persistence at `/var/data/kings-collectors-kingdom`. Do not replace either persistent disk with ephemeral container storage for production work.
+The Blueprint mounts OmniRoute persistence at `/app/data`, Forge persistence at `/var/data/authors-forge`, and Kingdom persistence at `/var/data/kings-collectors-kingdom`. Do not replace these persistent disks with ephemeral container storage and call the deployment production-ready.
 
-K.I.N.G.S. provider endpoints and credentials remain a separate runtime configuration boundary. The router service can deploy before OmniRoute/9Router credentials are added, but real routed AI requests require an externally reachable configured provider. Never describe a green `/health` response as proof that an external provider is reachable.
+A successful `/health` response proves only that the relevant process is alive. The deployment lane is not considered AI-operational until K.I.N.G.S. completes a real routed provider request through the private OmniRoute service.
 
 ## Android — no Termux
 
@@ -165,7 +171,12 @@ FORGE_ACCESS_TOKEN=<private 24+ character token>
 FORGE_DATA_DIR=<persistent mounted directory>
 FORGE_REQUIRE_HTTPS=1
 FORGE_SECURE_COOKIE=1
+KINGS_AI_HOSTPORT=<render-private-kings-host:port>
+KINGS_AI_API_KEY=<render-generated-kings-router-token>
+KINGS_AI_MODEL=auto
 ```
+
+`KINGS_AI_HOSTPORT` is a Render deployment convenience. The Render-only launcher turns it into the normal Forge `KINGS_AI_RESPONSES_URL` before starting the production office processes. Provider secrets remain server-side.
 
 Provider variables remain the same as the normal Forge runtime. Configure only real providers and real credentials.
 
@@ -176,7 +187,9 @@ The universal hosted lane is complete only after:
 1. hosted gateway regression/integration tests pass;
 2. `npm run test:browser:hosted` passes on the exact release head;
 3. the normal Forge source/unit/browser/mobile verification remains green;
-4. the hosted service deploys over HTTPS with persistent storage;
-5. at least one real Android/Chromebook/iOS/desktop client completes login, save/reload, office navigation, and artifact retrieval against that deployment.
+4. the Render Blueprint passes schema and cross-service reference validation;
+5. the hosted services deploy over HTTPS/private networking with persistent storage;
+6. K.I.N.G.S. completes a real provider-backed request through private OmniRoute;
+7. at least one real Android/Chromebook/iOS/desktop client completes login, save/reload, office navigation, and artifact retrieval against that deployment.
 
 PS5 is tracked separately: Forge's compatibility architecture can be complete while direct PS5 consumer access remains **blocked by the lack of a supported user-launchable web/app entry surface**. Do not relabel that external platform limitation as an Author's Forge implementation success.
