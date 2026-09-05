@@ -18,8 +18,19 @@
   function selectedElement(){const s=state();return s?.surface?.elements?.find(element=>element.id===s.selectedElementId)||null;}
   function syncSemantics(){const s=state(),svg=$("#composition-svg");if(!s||!svg)return;svg.querySelectorAll("[data-element]").forEach(node=>{node.setAttribute("role","button");node.setAttribute("aria-pressed",String(node.dataset.element===s.selectedElementId));node.setAttribute("aria-keyshortcuts","Enter Space ArrowUp ArrowDown ArrowLeft ArrowRight");});drawResizeHandle();}
 
+  function clientToSvg(clientX,clientY){const svg=$("#composition-svg"),point=svg.createSVGPoint();point.x=clientX;point.y=clientY;return point.matrixTransform(svg.getScreenCTM().inverse());}
+  function resolvePointerElement(event){
+    const s=state(),direct=event.target.closest?.("[data-element]");
+    if(direct){const id=direct.dataset.element,element=s?.surface?.elements?.find(item=>item.id===id);if(id&&element)return{id,element};}
+    if(!s?.surface?.elements?.length)return null;
+    const point=clientToSvg(event.clientX,event.clientY),x=point.x/96,y=point.y/96;
+    const element=[...s.surface.elements]
+      .filter(item=>item.metadata?.hidden!==true&&x>=item.box.x&&x<=item.box.x+item.box.width&&y>=item.box.y&&y<=item.box.y+item.box.height)
+      .sort((a,b)=>b.zIndex-a.zIndex)[0];
+    return element?{id:element.id,element}:null;
+  }
   function selectThroughLayer(id){const button=[...document.querySelectorAll("[data-element-select]")].find(candidate=>candidate.dataset.elementSelect===id);button?.click();queueRefresh();}
-  function selectCanvasElement(event){if(event.target.closest?.("[data-resize-handle]"))return;const node=event.target.closest?.("[data-element]");if(!node)return;const id=node.dataset.element;if(id&&state()?.selectedElementId!==id)selectThroughLayer(id);}
+  function selectCanvasElement(event){if(event.target.closest?.("[data-resize-handle]"))return;const resolved=resolvePointerElement(event);if(!resolved)return;const {id}=resolved;if(id&&state()?.selectedElementId!==id)selectThroughLayer(id);}
   function nudgeElement(event,id){const s=state(),element=s?.surface?.elements?.find(item=>item.id===id);if(!element||element.locked)return;const step=event.shiftKey?0.01:0.05,form=$("#element-form");if(!form)return;let x=Number(form.elements.x.value),y=Number(form.elements.y.value);if(event.key==="ArrowLeft")x=Math.max(0,x-step);if(event.key==="ArrowRight")x+=step;if(event.key==="ArrowUp")y=Math.max(0,y-step);if(event.key==="ArrowDown")y+=step;form.elements.x.value=x.toFixed(2);form.elements.y.value=y.toFixed(2);form.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));queueRefresh();}
 
   function drawResizeHandle(){
@@ -50,16 +61,14 @@
     handle.setAttribute("aria-label",`Resize ${element.role||element.kind}`);
   }
 
-  function clientToSvg(clientX,clientY){const svg=$("#composition-svg"),point=svg.createSVGPoint();point.x=clientX;point.y=clientY;return point.matrixTransform(svg.getScreenCTM().inverse());}
   function beginResize(event){const handle=event.target.closest?.("[data-resize-handle]");if(!handle)return;const element=selectedElement(),form=$("#element-form");if(!element||!form)return;const point=clientToSvg(event.clientX,event.clientY);resizeSession={id:element.id,startX:point.x,startY:point.y,width:element.box.width,height:element.box.height,pointerId:event.pointerId};event.preventDefault();event.stopPropagation();window.addEventListener("pointermove",moveResize,{passive:false});window.addEventListener("pointerup",endResize,{once:true});window.addEventListener("pointercancel",endResize,{once:true});}
   function moveResize(event){if(!resizeSession||event.pointerId!==resizeSession.pointerId)return;const point=clientToSvg(event.clientX,event.clientY),form=$("#element-form");if(!form)return;const width=Math.max(0.1,resizeSession.width+(point.x-resizeSession.startX)/96),height=Math.max(0.1,resizeSession.height+(point.y-resizeSession.startY)/96);form.elements.width.value=width.toFixed(2);form.elements.height.value=height.toFixed(2);event.preventDefault();}
   function endResize(event){if(!resizeSession||event.pointerId!==resizeSession.pointerId)return;window.removeEventListener("pointermove",moveResize);const form=$("#element-form");resizeSession=null;form?.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));queueRefresh();}
 
   function beginMove(event){
     if(event.target.closest?.("[data-resize-handle]"))return;
-    const node=event.target.closest?.("[data-element]");if(!node)return;
-    const id=node.dataset.element,s=state(),element=s?.surface?.elements?.find(item=>item.id===id),form=$("#element-form");
-    if(!id||!element||element.locked||!form)return;
+    const resolved=resolvePointerElement(event),s=state(),form=$("#element-form");if(!resolved||!s||!form)return;
+    const {id,element}=resolved;if(element.locked)return;
     if(s.selectedElementId!==id)selectThroughLayer(id);
     const point=clientToSvg(event.clientX,event.clientY);
     moveSession={id,startX:point.x,startY:point.y,x:element.box.x,y:element.box.y,pointerId:event.pointerId,moved:false};
@@ -75,12 +84,7 @@
     form.elements.x.value=x.toFixed(3);form.elements.y.value=y.toFixed(3);moveSession.moved=true;
     form.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));queueRefresh();event.preventDefault();
   }
-  function endMove(event){
-    if(!moveSession||event.pointerId!==moveSession.pointerId)return;
-    window.removeEventListener("pointermove",moveElement);
-    const moved=moveSession.moved;moveSession=null;
-    if(moved)queueRefresh();
-  }
+  function endMove(event){if(!moveSession||event.pointerId!==moveSession.pointerId)return;window.removeEventListener("pointermove",moveElement);const moved=moveSession.moved;moveSession=null;if(moved)queueRefresh();}
 
   function keyboard(event){const elementNode=event.target.closest?.("[data-element]"),handle=event.target.closest?.("[data-resize-handle]");if(handle&&["ArrowRight","ArrowDown","ArrowLeft","ArrowUp"].includes(event.key)){event.preventDefault();const form=$("#element-form");if(!form)return;const delta=event.shiftKey?0.01:0.05;if(event.key==="ArrowRight")form.elements.width.value=(Math.max(.1,Number(form.elements.width.value)+delta)).toFixed(2);if(event.key==="ArrowLeft")form.elements.width.value=(Math.max(.1,Number(form.elements.width.value)-delta)).toFixed(2);if(event.key==="ArrowDown")form.elements.height.value=(Math.max(.1,Number(form.elements.height.value)+delta)).toFixed(2);if(event.key==="ArrowUp")form.elements.height.value=(Math.max(.1,Number(form.elements.height.value)-delta)).toFixed(2);form.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));queueRefresh();return;}if(!elementNode)return;const id=elementNode.dataset.element;if(event.key==="Enter"||event.key===" "){event.preventDefault();selectThroughLayer(id);return;}if(["ArrowRight","ArrowDown","ArrowLeft","ArrowUp"].includes(event.key)){event.preventDefault();if(state()?.selectedElementId!==id){selectThroughLayer(id);return;}nudgeElement(event,id);}}
 
