@@ -10,7 +10,10 @@
 
   let snapshot = { kits: [], activeBrandKitId: null, activeBrandKit: null };
   let selectedId = null;
-  let creating = true;
+  // Start in selection mode so a persisted active/first kit reopens after reload.
+  // An empty project still renders the create form because no selected kit exists,
+  // while the explicit New Kit action switches creating back to true.
+  let creating = false;
 
   async function api(path, init = {}) {
     const response = await fetch(path, {
