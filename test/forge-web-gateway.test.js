@@ -62,6 +62,7 @@ test("hosted route resolver keeps all Forge offices on one public origin", () =>
   });
   assert.equal(resolveHostedRoute("/workbooks/api/projects/book-1").serviceId, "workbooks");
   assert.equal(resolveHostedRoute("/specialized/api/projects/book-1").serviceId, "specialized");
+  assert.equal(resolveHostedRoute("/nft/api/projects/book-1/nft").serviceId, "nft");
 });
 
 test("hosted reviewer bypass is least privilege and cannot reach author-control routes", () => {
@@ -203,6 +204,16 @@ test("hosted Forge gateway performs real login and serves Studio plus prefixed o
   const specialized = await fetch(`${base}/specialized/`, { headers: authHeaders });
   assert.equal(specialized.status, 200);
 
+  const nft = await fetch(`${base}/nft/`, { headers: authHeaders });
+  assert.equal(nft.status, 200);
+  const nftHtml = await nft.text();
+  assert.match(nftHtml, /\/nft\/nft-creation\.css/);
+  assert.match(nftHtml, /forge-hosted-client\.js/);
+
+  const nftCss = await fetch(`${base}/nft/nft-creation.css`, { headers: authHeaders });
+  assert.equal(nftCss.status, 200);
+  assert.match(String(nftCss.headers.get("content-type")), /text\/css/);
+
   const consoleBridge = await fetch(`${base}/forge-hosted-client.js`, { headers: authHeaders });
   assert.equal(consoleBridge.status, 200);
   const consoleBridgeSource = await consoleBridge.text();
@@ -219,6 +230,6 @@ test("hosted Forge gateway performs real login and serves Studio plus prefixed o
   const hostedWorkerSource = await hostedWorker.text();
   assert.match(hostedWorkerSource, /ROOT_API/);
   assert.match(hostedWorkerSource, /OFFICE_API/);
-  assert.match(hostedWorkerSource, /journal\|workbooks\|specialized/);
+  assert.match(hostedWorkerSource, /journal\|workbooks\|specialized\|nft/);
   assert.match(hostedWorkerSource, /isProjectStateRequest\(url\)/);
 });

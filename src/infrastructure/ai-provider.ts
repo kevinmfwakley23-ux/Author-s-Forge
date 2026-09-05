@@ -10,6 +10,7 @@ import type { AiCostRoutingMode } from "../application/ai-cost-routing-policy";
 import { assertForgeOutputQuality, buildForgeQualityContract, type ForgeOutputQualityReport } from "../application/forge-quality-contract";
 import { discoverConfiguredAiModelResources, discoverConfiguredAiProviderQuotas } from "./ai-model-resources";
 import { generateWithKingsAi } from "./kings-ai-bridge";
+import { providerFetch } from "./provider-transport";
 import { resolveOpenAiCompatibleGatewayModel } from "./openai-compatible-gateways";
 
 export interface AiTokenUsage {

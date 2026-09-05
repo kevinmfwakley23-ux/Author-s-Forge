@@ -1,12 +1,13 @@
 (() => {
   "use strict";
 
-  const OFFICE_PREFIXES = ["/journal", "/workbooks", "/specialized"];
+  const OFFICE_PREFIXES = ["/journal", "/workbooks", "/specialized", "/nft"];
   const PORT_PATHS = Object.freeze({
     "4173": "/",
     "4273": "/journal/",
     "4373": "/workbooks/",
     "4473": "/specialized/",
+    "4573": "/nft/",
   });
 
   const pathname = location.pathname || "/";

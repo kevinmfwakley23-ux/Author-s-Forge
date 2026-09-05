@@ -2,6 +2,7 @@ const HOSTED_OFFICES = Object.freeze([
   Object.freeze({ id: "journal", prefix: "/journal" }),
   Object.freeze({ id: "workbooks", prefix: "/workbooks" }),
   Object.freeze({ id: "specialized", prefix: "/specialized" }),
+  Object.freeze({ id: "nft", prefix: "/nft" }),
 ]);
 
 const PUBLIC_REVIEW_ASSETS = Object.freeze([

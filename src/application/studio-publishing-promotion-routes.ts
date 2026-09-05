@@ -13,6 +13,7 @@ import { createStudioAiModelPerformanceRoutes } from "./studio-ai-model-performa
 import { createStudioArchitectureAiRoutes } from "./studio-architecture-ai-routes";
 import { createStudioAuthorCraftRoutes } from "./studio-author-craft-routes";
 import { createStudioChapterCardWorkflowRoutes } from "./studio-chapter-card-workflow-routes";
+import { createStudioCreativeAgentRoutes } from "./studio-creative-agent-routes";
 import { createStudioForgeRecipeRoutes } from "./studio-forge-recipe-routes";
 import { createStudioHumanReviewRoutes } from "./studio-human-review-routes";
 import { createStudioImageLabRoutes } from "./studio-image-lab-routes";
@@ -52,6 +53,7 @@ export function createStudioPublishingPromotionRoutes(store: FileProjectStore): 
   const storyArchitecture = createStudioStoryArchitectureRoutes(store);
   const architectureAi = createStudioArchitectureAiRoutes(store);
   const authorCraft = createStudioAuthorCraftRoutes(store);
+  const creativeAgent = createStudioCreativeAgentRoutes(store);
   const forgeRecipes = createStudioForgeRecipeRoutes(store, recipeStore, sharedProposalStore);
   const humanReview = createStudioHumanReviewRoutes(store, reviewStore, provenanceStore);
   const provenance = createStudioProvenanceRoutes(store, provenanceStore);
@@ -74,6 +76,7 @@ export function createStudioPublishingPromotionRoutes(store: FileProjectStore): 
     if (await storyArchitecture(req, res, url, projectId)) return true;
     if (await architectureAi(req, res, url, projectId)) return true;
     if (await authorCraft(req, res, url, projectId)) return true;
+    if (await creativeAgent(req, res, url, projectId)) return true;
     if (await forgeRecipes(req, res, url, projectId)) return true;
     if (await humanReview(req, res, url, projectId)) return true;
     if (await provenance(req, res, url, projectId)) return true;

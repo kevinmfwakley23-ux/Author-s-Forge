@@ -38,6 +38,7 @@ const serviceDefinitions = [
   { id: "journal", name: "Guided Journal", entry: "dist/guided-journal-server.js", portKey: "JOURNAL_PORT" },
   { id: "workbooks", name: "Educational Workbooks", entry: "dist/educational-workbook-server.js", portKey: "WORKBOOK_PORT" },
   { id: "specialized", name: "Specialized Creation", entry: "dist/specialized-creation-server.js", portKey: "SPECIALIZED_PORT" },
+  { id: "nft", name: "NFT Creation", entry: "dist/nft-creation-server.js", portKey: "NFT_PORT" },
 ];
 
 const children = [];

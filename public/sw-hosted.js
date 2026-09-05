@@ -33,10 +33,15 @@ const SHELL = [
   "/manifest.webmanifest",
   "/icon.svg",
   "/icon-192.svg",
-  "/icon-512.svg"
-];
+  "/icon-512.svg",
+  "/forge-agent.html",
+  "/forge-media-studio.html",
+  "/forge-media-studio.css",
+  "/forge-agent-v3.js",
+  "/forge-agent-routing.js",
+  "/forge-media-studio.js"];
 
-const OFFICE_API = /^\/(?:journal|workbooks|specialized)\/api(?:\/|$)/;
+const OFFICE_API = /^\/(?:journal|workbooks|specialized|nft)\/api(?:\/|$)/;
 const ROOT_API = /^\/api(?:\/|$)/;
 
 function isProjectStateRequest(url) {
@@ -83,6 +88,7 @@ self.addEventListener("fetch", (event) => {
         if (url.pathname.startsWith("/journal/")) return (await caches.match("/journal/")) || caches.match("/index.html");
         if (url.pathname.startsWith("/workbooks/")) return (await caches.match("/workbooks/")) || caches.match("/index.html");
         if (url.pathname.startsWith("/specialized/")) return (await caches.match("/specialized/")) || caches.match("/index.html");
+        if (url.pathname.startsWith("/nft/")) return (await caches.match("/nft/")) || caches.match("/index.html");
         return caches.match("/index.html");
       })
   );
