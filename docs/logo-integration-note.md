@@ -1,0 +1,1 @@
+The exact uploaded K.I.N.G.S. Author's Forge artwork is the canonical brand image for all strategic UI placement. No redesign is authorized.
