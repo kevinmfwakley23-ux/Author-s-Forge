@@ -68,7 +68,7 @@ test('offline shell never treats API responses as cacheable project state', () =
 });
 
 test('responsive UI has Chromebook and phone layout breakpoints', () => {
-  assert.match(styles, /@media\(max-width:1000px\)/);
+  assert.match(styles, /@media\(max-width:1100px\)/);
   assert.match(styles, /@media\(max-width:650px\)/);
   assert.match(styles, /grid-template-columns:1fr/);
   assert.match(index, /viewport-fit=cover/);
