@@ -1,1 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192" role="img" aria-label="Author's Forge"><rect width="192" height="192" rx="40" fill="#20252b"/><path d="M42 54h108v20H62v24h74v20H62v20h88v20H42z" fill="#f4f1eb"/><path d="M42 42h108v8H42z" fill="#b28a52"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192" role="img" aria-label="Author's Forge">
+  <rect width="192" height="192" fill="#20252b"/>
+  <circle cx="96" cy="96" r="76" fill="#161a1f" stroke="#d4ad63" stroke-width="7"/>
+  <circle cx="96" cy="96" r="65" fill="none" stroke="#f4f1eb" stroke-opacity=".22" stroke-width="2"/>
+  <path d="M60 56h83v20H83v25h49v19H83v42H60V56z" fill="#d4ad63"/>
+  <path d="M64 47l13 9 19-16 19 16 13-9 7 17H57z" fill="#f4f1eb" opacity=".92"/>
+</svg>
