@@ -8,17 +8,47 @@ export interface KingsAiBridgeConfig {
 }
 
 /**
+ * Resolve the explicit K.I.N.G.S. Responses route used by Forge.
+ *
+ * A normal URL must already point at /responses or /v1/responses so the owner
+ * runtime can never be mistaken for a generic text endpoint. Render private
+ * services expose an internal `host:port` value rather than a URL; that exact
+ * form is accepted and expanded to `http://host:port/v1/responses`.
+ */
+export function resolveKingsAiResponsesEndpoint(value: string): string {
+  const raw = value.trim().replace(/\/+$/, "");
+  if (!raw) throw new Error("KINGS_AI_RESPONSES_URL is required when K.I.N.G.S. is selected as a text provider.");
+
+  if (/^https?:\/\//i.test(raw)) {
+    let parsed: URL;
+    try {
+      parsed = new URL(raw);
+    } catch {
+      throw new Error("KINGS_AI_RESPONSES_URL must be a valid HTTP(S) URL or private host:port value.");
+    }
+    if (!/^https?:$/.test(parsed.protocol) || !parsed.hostname || parsed.username || parsed.password || parsed.search || parsed.hash) {
+      throw new Error("KINGS_AI_RESPONSES_URL must be a clean HTTP(S) Responses endpoint without credentials, query parameters, or fragments.");
+    }
+    if (!/\/(?:v1\/)?responses$/i.test(parsed.pathname.replace(/\/+$/, ""))) {
+      throw new Error("K.I.N.G.S. text generation requires an explicit Responses-compatible /responses endpoint. The K.I.N.G.S. owner/coding-machine root is not a generic text-generation API.");
+    }
+    return raw;
+  }
+
+  const hostPort = parsePrivateHostPort(raw);
+  if (hostPort) return `http://${hostPort}/v1/responses`;
+
+  throw new Error("K.I.N.G.S. text generation requires an explicit Responses-compatible /responses endpoint or a private host:port service address. The K.I.N.G.S. owner/coding-machine root is not a generic text-generation API.");
+}
+
+/**
  * Optional text-generation bridge for a K.I.N.G.S. deployment that explicitly
  * exposes an OpenAI-Responses-compatible endpoint. The normal K.I.N.G.S. owner
  * runtime (:8787) is an orchestrator API and is intentionally NOT treated as
  * this protocol unless a real /responses route is deployed.
  */
 export async function generateWithKingsAi(config: KingsAiBridgeConfig, request: AiGenerationRequest): Promise<AiGenerationResult> {
-  const endpoint = config.endpoint.trim().replace(/\/+$/, "");
-  if (!endpoint) throw new Error("KINGS_AI_RESPONSES_URL is required when K.I.N.G.S. is selected as a text provider.");
-  if (!/\/(?:v1\/)?responses$/i.test(endpoint)) {
-    throw new Error("K.I.N.G.S. text generation requires an explicit Responses-compatible /responses endpoint. The K.I.N.G.S. owner/coding-machine root is not a generic text-generation API.");
-  }
+  const endpoint = resolveKingsAiResponsesEndpoint(config.endpoint);
   const model = config.model?.trim() || process.env.KINGS_AI_MODEL?.trim();
   if (!model) throw new Error("KINGS_AI_MODEL is required when K.I.N.G.S. is selected.");
 
@@ -53,6 +83,26 @@ export async function generateWithKingsAi(config: KingsAiBridgeConfig, request: 
   if (!text) throw new Error("K.I.N.G.S. returned no generated text.");
   const usage = extractUsage(payload);
   return { provider: "kings", model, text, requestId: typeof payload.id === "string" ? payload.id : undefined, ...(usage ? { usage } : {}) };
+}
+
+function parsePrivateHostPort(value: string): string | undefined {
+  if (!value || /[\s/?#@]/.test(value)) return undefined;
+  const separator = value.lastIndexOf(":");
+  if (separator < 1 || separator === value.length - 1) return undefined;
+
+  const host = value.slice(0, separator);
+  const portText = value.slice(separator + 1);
+  if (!/^\d{1,5}$/.test(portText)) return undefined;
+  const port = Number(portText);
+  if (!Number.isInteger(port) || port < 1 || port > 65_535) return undefined;
+
+  if (host.startsWith("[") || host.endsWith("]")) {
+    if (!/^\[[0-9a-f:]+\]$/i.test(host)) return undefined;
+  } else if (!/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/i.test(host) || host.includes("..")) {
+    return undefined;
+  }
+
+  return `${host}:${port}`;
 }
 
 function readTimeout(value: string | undefined): number | undefined {
