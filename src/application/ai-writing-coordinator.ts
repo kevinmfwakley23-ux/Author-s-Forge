@@ -2,9 +2,17 @@ import { AiWritingService, type AiWritingCandidateAssessor, type AiWritingReques
 import type { AiProposal, AiProposalStore, ProposalReviewDecision } from "./ai-proposal-store";
 import { FileAiProposalStore } from "../infrastructure/file-ai-proposal-store";
 import { generateText, type AiGenerationResult } from "../infrastructure/ai-provider";
+import { aiMissionRoutingGenerationFields, type AiMissionRoutingPreference } from "./ai-mission-routing";
 import { createHash } from "node:crypto";
 
-export type AiWritingGenerator = (request: { system: string; user: string; temperature?: number; maxOutputTokens?: number }) => Promise<AiGenerationResult>;
+export type AiWritingGenerator = (request: {
+  system: string;
+  user: string;
+  temperature?: number;
+  maxOutputTokens?: number;
+  preferProvider?: string;
+  preferModel?: string;
+}) => Promise<AiGenerationResult>;
 
 /** Durable application boundary for real Studio writing assistance. */
 export class AiWritingCoordinator {
@@ -14,7 +22,11 @@ export class AiWritingCoordinator {
     this.generator = generator;
   }
 
-  async generate(request: AiWritingRequest, assessCandidate?: AiWritingCandidateAssessor): Promise<AiWritingResult> {
+  async generate(
+    request: AiWritingRequest,
+    assessCandidate?: AiWritingCandidateAssessor,
+    routingPreference?: AiMissionRoutingPreference,
+  ): Promise<AiWritingResult> {
     const proposals = await this.durableStore.load();
     const service = new AiWritingService({
       generate: async (providerRequest) => {
@@ -28,6 +40,7 @@ export class AiWritingCoordinator {
           ].join("\n\n"),
           temperature: 0.7,
           maxOutputTokens: 5000,
+          ...aiMissionRoutingGenerationFields(routingPreference),
         });
         return result.text;
       },
