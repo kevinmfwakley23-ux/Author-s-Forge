@@ -1,23 +1,44 @@
 #!/usr/bin/env node
 const assert = require("node:assert/strict");
 const { spawn } = require("node:child_process");
+const net = require("node:net");
 const { mkdtemp, rm } = require("node:fs/promises");
 const { tmpdir } = require("node:os");
 const { join } = require("node:path");
 const { chromium } = require("@playwright/test");
 
 const HOST = "127.0.0.1";
-const PORT = 5960 + Math.floor(Math.random() * 120);
 const PROJECT_ID = "cover-direction-browser";
 const BOOK_ID = "cover-book";
 
-async function waitForHttp(url, timeoutMs = 12000) {
+function freePort() {
+  return new Promise((resolve, reject) => {
+    const listener = net.createServer();
+    listener.unref();
+    listener.once("error", reject);
+    listener.listen(0, HOST, () => {
+      const address = listener.address();
+      if (!address || typeof address === "string") {
+        listener.close();
+        reject(new Error("Could not allocate a cover-direction browser acceptance port."));
+        return;
+      }
+      const port = address.port;
+      listener.close((error) => error ? reject(error) : resolve(port));
+    });
+  });
+}
+
+async function waitForHttp(url, server, output, timeoutMs = 12000) {
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
+    if (server.exitCode !== null) {
+      throw new Error(`Studio server exited before becoming healthy (code ${server.exitCode}).\n${output()}`);
+    }
     try { if ((await fetch(url)).ok) return; } catch {}
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
-  throw new Error(`Timed out waiting for ${url}`);
+  throw new Error(`Timed out waiting for ${url}.\nStudio output:\n${output()}`);
 }
 
 async function api(base, path, method = "GET", payload) {
@@ -33,11 +54,12 @@ async function api(base, path, method = "GET", payload) {
 
 async function main() {
   const dataDir = await mkdtemp(join(tmpdir(), "forge-cover-direction-"));
+  const port = await freePort();
   const server = spawn(process.execPath, ["dist/studio-server.js"], {
     env: {
       ...process.env,
       HOST,
-      PORT: String(PORT),
+      PORT: String(port),
       FORGE_DATA_DIR: dataDir,
       OPENAI_API_KEY: "",
       OPENAI_MODEL: "",
@@ -49,10 +71,14 @@ async function main() {
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
+  let serverOutput = "";
+  server.stdout.on("data", (chunk) => { serverOutput += String(chunk); });
+  server.stderr.on("data", (chunk) => { serverOutput += String(chunk); });
+  const output = () => serverOutput.slice(-32_000);
   let browser;
   try {
-    const base = `http://${HOST}:${PORT}`;
-    await waitForHttp(`${base}/api/health`);
+    const base = `http://${HOST}:${port}`;
+    await waitForHttp(`${base}/api/health`, server, output);
     await api(base, "/api/projects", "POST", { id: PROJECT_ID, title: "Cover Direction Browser Acceptance" });
     await api(base, `/api/projects/${PROJECT_ID}/workspace/books`, "POST", {
       id: BOOK_ID,
