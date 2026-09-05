@@ -98,6 +98,23 @@ async function main() {
     const sharedStore = JSON.parse(await readFile(join(dataDir, "brand-kits.json"), "utf8"));
     assert.ok(sharedStore.kits.some((item) => item.id === kit.id && item.forgeProjectId === PROJECT_ID), "Main Studio must persist into the same brand-kits.json source used by Specialized Creation.");
 
+    const alternate = await api(base, `/api/projects/${PROJECT_ID}/brand-kits`, "POST", {
+      name: "Alternate Campaign Identity",
+      description: "Acceptance-only secondary brand for deterministic selection testing.",
+      colors: [{ id: "alt-primary", label: "Alternate Gold", value: "#c49a4a", role: "primary" }],
+      fonts: [{ id: "alt-body", label: "Alternate Body", family: "Arial", role: "body", weights: [400] }],
+      assets: [],
+      voice: { traits: ["direct"], preferredPhrases: [], avoidedPhrases: [] },
+      guidelines: ["Acceptance-only alternate brand."],
+      restrictions: { enforceColors: true, enforceFonts: true, requireApprovedBrandAssets: false, lockedElementRoles: ["brand"] },
+    });
+    const tiedAt = new Date(Date.now() + 1000).toISOString();
+    await api(base, `/api/projects/${PROJECT_ID}/brand-kits/active`, "POST", { brandKitId: kit.id, now: tiedAt });
+    await api(base, `/api/projects/${PROJECT_ID}/brand-kits/active`, "POST", { brandKitId: alternate.id, now: tiedAt });
+    const tiedSelection = await api(base, `/api/projects/${PROJECT_ID}/brand-kits/active`);
+    assert.equal(tiedSelection.activeBrandKitId, alternate.id, "When timestamps tie, the latest appended author selection must win deterministically.");
+    await api(base, `/api/projects/${PROJECT_ID}/brand-kits/active`, "POST", { brandKitId: kit.id, now: new Date(Date.parse(tiedAt) + 1).toISOString() });
+
     await page.locator("#brand-guidelines").fill(`${await page.locator("#brand-guidelines").inputValue()}\nUse the same primary gold in approved flyer and cover proposals.`);
     const updateResponsePromise = page.waitForResponse((response) => response.url().endsWith(`/api/projects/${PROJECT_ID}/brand-kits/${kit.id}`) && response.request().method() === "PUT");
     await page.locator("#brand-save").click();
@@ -119,8 +136,13 @@ async function main() {
 
     const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
     const mobilePage = await mobile.newPage();
-    await mobilePage.goto(`${base}/?project=${PROJECT_ID}#brand`, { waitUntil: "networkidle" });
-    await mobilePage.waitForFunction(() => document.querySelector("#brand-kit-form"));
+    await mobilePage.goto(`${base}/?project=${PROJECT_ID}#dashboard`, { waitUntil: "networkidle" });
+    await mobilePage.waitForFunction(() => document.querySelector('[data-route="brand"]') && document.querySelector("#brand-kit-form"));
+    await mobilePage.locator('[data-route="brand"]').click();
+    await mobilePage.waitForFunction(() => {
+      const section = document.querySelector("#brand");
+      return section && !section.hidden && section.getAttribute("aria-hidden") !== "true";
+    });
     const selectKit = mobilePage.locator(`[data-brand-id="${kit.id}"]`);
     const kitBox = await selectKit.boundingBox();
     assert.ok(kitBox && kitBox.height >= 40, "Brand Kit selection must remain touch-usable on Android-sized viewports.");
@@ -130,7 +152,7 @@ async function main() {
     assert.ok(overflow.body <= overflow.viewport + 1 && overflow.doc <= overflow.viewport + 1, `Brand Studio mobile shell overflows: ${JSON.stringify(overflow)}`);
     await mobile.close();
 
-    console.log("PROJECT BRAND STUDIO BROWSER ACCEPTANCE PASSED: shared Brand Kit store + colors/fonts/assets/voice/guidelines + authoritative active Project Memory + live browser contract + update/restart persistence + Android fit/touch.");
+    console.log("PROJECT BRAND STUDIO BROWSER ACCEPTANCE PASSED: shared Brand Kit store + colors/fonts/assets/voice/guidelines + authoritative deterministic active Project Memory + live browser contract + update/restart persistence + real Android route fit/touch.");
   } finally {
     if (browser) await browser.close().catch(() => {});
     app.kill("SIGTERM");
