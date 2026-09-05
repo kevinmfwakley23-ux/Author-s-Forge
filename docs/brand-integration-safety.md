@@ -1,0 +1,1 @@
+Official logo integration must not alter provider routing, author project state, or Android package identity.
