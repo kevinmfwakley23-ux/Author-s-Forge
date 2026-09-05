@@ -1,5 +1,6 @@
 name: Converge Hosted Runtime
 
+# One-time release convergence helper. Remove before final merge.
 on:
   push:
     branches:
@@ -33,9 +34,6 @@ jobs:
             git status --short >&2
             exit 1
           fi
-          # GitHub Actions correctly refuses to rewrite workflow definitions with
-          # the ordinary contents token. Preserve this branch's workflow files;
-          # the application merge is what this one-time job is responsible for.
           git restore --source=HEAD --staged --worktree .github/workflows
           python - <<'PY'
           import json
