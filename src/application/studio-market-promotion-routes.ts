@@ -4,7 +4,9 @@ import type { MarketingCampaign } from "../domain/marketing-campaign";
 import { createPromotionReadinessReport } from "../domain/promotion-readiness";
 import type { PromotionPerformanceMetrics, PromotionPerformanceSource } from "../domain/promotion-performance";
 import { FileProjectStore } from "../infrastructure/file-project-store";
+import { generateText } from "../infrastructure/ai-provider";
 import { OpenAiWebKdpMarketIntelligenceProvider } from "../infrastructure/openai-kdp-market-intelligence-provider";
+import { aiMissionRoutingGenerationFields, parseAiMissionRoutingPreference } from "./ai-mission-routing";
 import { StudioKdpMarketResearchService } from "./studio-kdp-market-research";
 import { StudioMarketingCampaignService } from "./studio-marketing-campaign";
 import { StudioPromotionPerformanceService } from "./studio-promotion-performance";
@@ -16,7 +18,6 @@ export type StudioMarketPromotionRouteHandler = (req: IncomingMessage, res: Serv
 export function createStudioMarketPromotionRoutes(store: FileProjectStore): StudioMarketPromotionRouteHandler {
   const publishing = new StudioPublishingMetadataService(store);
   const campaigns = new StudioMarketingCampaignService(store);
-  const promotionPlanner = new StudioPromotionPlannerService(store);
   const promotionPerformance = new StudioPromotionPerformanceService(store);
 
   return async (req, res, url, projectId) => {
@@ -73,6 +74,14 @@ export function createStudioMarketPromotionRoutes(store: FileProjectStore): Stud
     }
     if (url.pathname === `${root}/promotion/generate` && req.method === "POST") {
       const input = await body(req);
+      const routingPreference = parseAiMissionRoutingPreference(input.routingPreference);
+      const promotionPlanner = new StudioPromotionPlannerService(
+        store,
+        (request) => generateText({
+          ...request,
+          ...aiMissionRoutingGenerationFields(routingPreference),
+        }),
+      );
       respond(res, 201, await promotionPlanner.generateCampaign(projectId, {
         bookId: required(input.bookId, "Book id"),
         objective: required(input.objective, "Promotion objective"),

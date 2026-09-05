@@ -1,15 +1,53 @@
-/* Agent Workbench AI routing controls over the existing Forge owner AI-control boundary. */
+/* Agent Workbench AI routing controls over Forge owner policy plus ephemeral mission preferences. */
 (() => {
   "use strict";
 
-  const PROVIDERS = ["omniroute", "9router", "kings", "ollama", "groq", "mistral", "gemini", "anthropic", "openrouter", "openai"];
+  const PROVIDERS = ["omniroute", "9router", "kings", "ollama", "groq", "mistral", "gemini", "anthropic", "openrouter", "gateway", "openai"];
+  const MISSION_ROUTED_PATHS = [
+    /\/agent\/plan$/,
+    /\/agent\/recipes\/[^/]+\/plan$/,
+    /\/ai\/architecture$/,
+    /\/story-map\/chapter-card-workflow\/generate$/,
+    /\/ai\/writing\/generate$/,
+    /\/agent\/cover-direction$/,
+    /\/promotion\/generate$/,
+  ];
   const $ = (selector, root = document) => root.querySelector(selector);
+  let snapshot = null;
+  let missionPreference = null;
 
   function projectId() {
     const field = $("#agent-project");
     const value = field?.value?.trim() || new URLSearchParams(location.search).get("project") || localStorage.getItem("forge-project") || "forge-studio";
     if (!/^[A-Za-z0-9_-]+$/.test(value)) throw new Error("Project ID may contain only letters, numbers, hyphens, and underscores.");
     return value;
+  }
+
+  function installMissionFetchBoundary() {
+    if (window.__forgeMissionRoutingFetchInstalled) return;
+    const nativeFetch = window.fetch.bind(window);
+    window.fetch = (input, init = {}) => {
+      try {
+        const method = String(init.method || (typeof Request !== "undefined" && input instanceof Request ? input.method : "GET")).toUpperCase();
+        const target = typeof input === "string" || input instanceof URL
+          ? new URL(input, location.href)
+          : new URL(input.url, location.href);
+        const carriesMissionRoute = target.origin === location.origin && method === "POST" && MISSION_ROUTED_PATHS.some((pattern) => pattern.test(target.pathname));
+        if (missionPreference && carriesMissionRoute && typeof init.body === "string") {
+          const body = JSON.parse(init.body);
+          if (body && typeof body === "object" && !Array.isArray(body) && body.routingPreference === undefined) {
+            return nativeFetch(input, {
+              ...init,
+              body: JSON.stringify({ ...body, routingPreference: missionPreference }),
+            });
+          }
+        }
+      } catch {
+        // Never block an ordinary Forge request because optional mission routing could not be attached.
+      }
+      return nativeFetch(input, init);
+    };
+    window.__forgeMissionRoutingFetchInstalled = true;
   }
 
   async function api(path, options = {}) {
@@ -46,7 +84,7 @@
     section.style.marginTop = "24px";
 
     const heading = node("h3", "AI resources & routing");
-    const intro = node("p", "See the real providers/models Forge can use and explicitly control the owner routing policy. Nothing changes until you press an apply button.", "muted");
+    const intro = node("p", "See the real providers/models Forge can use. Owner policy changes are global; mission routing is temporary and affects only this Agent mission. Neither bypasses spend, quota, capability, health, quality, or fallback rules.", "muted");
 
     const summary = node("div", "Loading AI routing truth…", "agent-snapshot");
     summary.id = "agent-routing-summary";
@@ -74,14 +112,14 @@
     capLabel.append(cap);
 
     const policyActions = node("div", undefined, "agent-actions");
-    const applyPolicy = node("button", "Apply routing policy", "agent-secondary");
+    const applyPolicy = node("button", "Apply owner routing policy", "agent-secondary");
     applyPolicy.id = "agent-apply-routing-policy"; applyPolicy.type = "button";
     policyActions.append(applyPolicy);
 
     const providerRow = node("div", undefined, "agent-row");
     const providerLabel = node("label", "Provider");
     const provider = document.createElement("select"); provider.id = "agent-provider";
-    for (const item of PROVIDERS) addOption(provider, item, item === "9router" ? "9Router" : item === "kings" ? "K.I.N.G.S." : item);
+    for (const item of PROVIDERS) addOption(provider, item, item === "9router" ? "9Router" : item === "kings" ? "K.I.N.G.S." : item === "gateway" ? "OpenAI-compatible gateway" : item);
     providerLabel.append(provider);
     const modelLabel = node("label", "Model");
     const model = document.createElement("select"); model.id = "agent-model";
@@ -91,9 +129,11 @@
 
     const modelActions = node("div", undefined, "agent-actions");
     const loadCatalog = node("button", "Load live model catalog", "agent-secondary"); loadCatalog.id = "agent-load-catalog"; loadCatalog.type = "button";
-    const pin = node("button", "Pin selected model", "agent-primary"); pin.id = "agent-pin-model"; pin.type = "button"; pin.disabled = true;
-    const clear = node("button", "Clear model pin", "agent-secondary"); clear.id = "agent-clear-model-pin"; clear.type = "button";
-    modelActions.append(loadCatalog, pin, clear);
+    const useMission = node("button", "Use selection for this mission", "agent-primary"); useMission.id = "agent-use-mission-route"; useMission.type = "button";
+    const clearMission = node("button", "Clear mission route", "agent-secondary"); clearMission.id = "agent-clear-mission-route"; clearMission.type = "button";
+    const pin = node("button", "Pin selected model globally", "agent-secondary"); pin.id = "agent-pin-model"; pin.type = "button"; pin.disabled = true;
+    const clear = node("button", "Clear global model pin", "agent-secondary"); clear.id = "agent-clear-model-pin"; clear.type = "button";
+    modelActions.append(loadCatalog, useMission, clearMission, pin, clear);
 
     const status = node("div", "", "agent-status"); status.id = "agent-routing-status"; status.setAttribute("role", "status"); status.setAttribute("aria-live", "polite");
     const resources = node("div"); resources.id = "agent-routing-resources";
@@ -105,11 +145,16 @@
     return section;
   }
 
-  let snapshot = null;
-
   function setStatus(message) {
     const target = $("#agent-routing-status");
     if (target) target.textContent = message;
+  }
+
+  function missionRouteLabel() {
+    if (!missionPreference) return "Automatic / owner policy";
+    return missionPreference.preferModel
+      ? `${missionPreference.preferProvider} / ${missionPreference.preferModel}`
+      : `${missionPreference.preferProvider} / automatic model`;
   }
 
   function renderTruth(value) {
@@ -125,7 +170,8 @@
       ["Configured providers", String(providers.size)],
       ["Spend policy", String(control.spendPolicy || "unknown")],
       ["Routing mode", String(control.routingMode || "unknown")],
-      ["Pinned route", control.pinnedProvider && control.pinnedModel ? `${control.pinnedProvider} / ${control.pinnedModel}` : "Automatic"],
+      ["Global pinned route", control.pinnedProvider && control.pinnedModel ? `${control.pinnedProvider} / ${control.pinnedModel}` : "Automatic"],
+      ["This mission", missionRouteLabel()],
     ];
     for (const [label, valueText] of rows) {
       const row = node("div", undefined, "agent-stat");
@@ -213,24 +259,39 @@
     setStatus("Applying explicit owner AI routing policy…");
     const value = await api(`/api/projects/${encodeURIComponent(projectId())}/ai/control`, { method: "POST", body: JSON.stringify(payload) });
     renderTruth(value);
-    setStatus("Routing policy applied. Future provider-backed Forge work will use the updated policy.");
+    setStatus("Owner routing policy applied. Future provider-backed Forge work will use the updated global policy.");
+  }
+
+  function useMissionRoute() {
+    const provider = $("#agent-provider")?.value;
+    const model = $("#agent-model")?.value?.trim();
+    if (!PROVIDERS.includes(provider)) throw new Error("Choose a valid provider first.");
+    missionPreference = Object.freeze({ preferProvider: provider, ...(model ? { preferModel: model } : {}) });
+    if (snapshot) renderTruth(snapshot);
+    setStatus(`Mission route set to ${missionRouteLabel()}. Owner-wide routing policy was not changed.`);
+  }
+
+  function clearMissionRoute() {
+    missionPreference = null;
+    if (snapshot) renderTruth(snapshot);
+    setStatus("Mission route cleared. This mission returned to owner policy-driven routing.");
   }
 
   async function pinModel() {
     const provider = $("#agent-provider")?.value;
     const model = $("#agent-model")?.value?.trim();
     if (!PROVIDERS.includes(provider) || !model) throw new Error("Load a catalog and choose a model first.");
-    setStatus(`Pinning Forge AI routing to ${provider} / ${model}…`);
+    setStatus(`Pinning Forge AI routing globally to ${provider} / ${model}…`);
     const value = await api(`/api/projects/${encodeURIComponent(projectId())}/ai/control`, {
       method: "POST",
       body: JSON.stringify({ pinnedProvider: provider, pinnedModel: model }),
     });
     renderTruth(value);
-    setStatus(`Model pin applied: ${provider} / ${model}.`);
+    setStatus(`Global model pin applied: ${provider} / ${model}.`);
   }
 
   async function clearPin() {
-    setStatus("Clearing explicit model pin…");
+    setStatus("Clearing global model pin…");
     const value = await api(`/api/projects/${encodeURIComponent(projectId())}/ai/control`, {
       method: "POST",
       body: JSON.stringify({ pinnedProvider: null, pinnedModel: null }),
@@ -238,7 +299,7 @@
     renderTruth(value);
     const select = $("#agent-model"); if (select) select.replaceChildren(new Option("Load provider catalog first", ""));
     const button = $("#agent-pin-model"); if (button) button.disabled = true;
-    setStatus("Model pin cleared. Forge returned to policy-driven provider/model selection.");
+    setStatus("Global model pin cleared. Forge returned to policy-driven provider/model selection.");
   }
 
   function guarded(fn) {
@@ -249,9 +310,12 @@
   }
 
   function wire() {
+    installMissionFetchBoundary();
     if (!buildPanel()) return;
     $("#agent-load-catalog")?.addEventListener("click", guarded(loadCatalog));
     $("#agent-apply-routing-policy")?.addEventListener("click", guarded(applyPolicy));
+    $("#agent-use-mission-route")?.addEventListener("click", guarded(useMissionRoute));
+    $("#agent-clear-mission-route")?.addEventListener("click", guarded(clearMissionRoute));
     $("#agent-pin-model")?.addEventListener("click", guarded(pinModel));
     $("#agent-clear-model-pin")?.addEventListener("click", guarded(clearPin));
     $("#agent-model")?.addEventListener("change", (event) => { const button = $("#agent-pin-model"); if (button) button.disabled = !event.currentTarget.value; });
@@ -259,7 +323,14 @@
       const select = $("#agent-model"); if (select) select.replaceChildren(new Option("Load provider catalog first", ""));
       const button = $("#agent-pin-model"); if (button) button.disabled = true;
     });
-    $("#agent-project")?.addEventListener("change", guarded(refresh));
+    $("#agent-project")?.addEventListener("change", guarded(async () => {
+      missionPreference = null;
+      await refresh();
+    }));
+    window.ForgeAgentMissionRouting = Object.freeze({
+      getPreference: () => missionPreference ? { ...missionPreference } : null,
+      clear: clearMissionRoute,
+    });
     refresh().catch((error) => setStatus(error instanceof Error ? error.message : String(error)));
   }
 

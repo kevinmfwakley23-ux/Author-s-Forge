@@ -2,9 +2,17 @@ import { AiWritingService, type AiWritingCandidateAssessor, type AiWritingReques
 import type { AiProposal, AiProposalStore, ProposalReviewDecision } from "./ai-proposal-store";
 import { FileAiProposalStore } from "../infrastructure/file-ai-proposal-store";
 import { generateText, type AiGenerationResult } from "../infrastructure/ai-provider";
+import { aiMissionRoutingGenerationFields } from "./ai-mission-routing";
 import { createHash } from "node:crypto";
 
-export type AiWritingGenerator = (request: { system: string; user: string; temperature?: number; maxOutputTokens?: number }) => Promise<AiGenerationResult>;
+export type AiWritingGenerator = (request: {
+  system: string;
+  user: string;
+  temperature?: number;
+  maxOutputTokens?: number;
+  preferProvider?: string;
+  preferModel?: string;
+}) => Promise<AiGenerationResult>;
 
 /** Durable application boundary for real Studio writing assistance. */
 export class AiWritingCoordinator {
@@ -14,7 +22,11 @@ export class AiWritingCoordinator {
     this.generator = generator;
   }
 
-  async generate(request: AiWritingRequest, assessCandidate?: AiWritingCandidateAssessor): Promise<AiWritingResult> {
+  async generate(
+    request: AiWritingRequest,
+    assessCandidate?: AiWritingCandidateAssessor,
+  ): Promise<AiWritingResult> {
+    const { routingPreference, ...durableRequest } = request;
     const proposals = await this.durableStore.load();
     const service = new AiWritingService({
       generate: async (providerRequest) => {
@@ -28,11 +40,15 @@ export class AiWritingCoordinator {
           ].join("\n\n"),
           temperature: 0.7,
           maxOutputTokens: 5000,
+          ...aiMissionRoutingGenerationFields(routingPreference),
         });
         return result.text;
       },
     }, proposals, assessCandidate);
-    const result = await service.generate({ ...request, baseContentSha256: request.baseContentSha256 ?? sha256(request.existingContent) });
+    const result = await service.generate({
+      ...durableRequest,
+      baseContentSha256: durableRequest.baseContentSha256 ?? sha256(durableRequest.existingContent),
+    });
     await this.durableStore.save();
     return result;
   }

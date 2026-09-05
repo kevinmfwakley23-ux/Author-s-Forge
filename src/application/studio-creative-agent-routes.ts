@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { resolveAiCollaborationPolicy } from "../domain/ai-collaboration";
 import { createStudioWorkspace, validateStudioWorkspace } from "../domain/studio-workspace";
 import type { FileProjectStore } from "../infrastructure/file-project-store";
+import { parseAiMissionRoutingPreference } from "./ai-mission-routing";
 import { compileCreativeAgentPlan } from "./creative-agent-plan";
 import { compileCreativeAgentPlanWithAi } from "./creative-agent-ai-planner";
 import { CreativeAgentRecipeService, type CreativeAgentRecipeStep } from "./creative-agent-recipes";
@@ -40,6 +41,7 @@ export function createStudioCreativeAgentRoutes(store: FileProjectStore): Studio
       json(res, 200, await coverDirection.propose(projectId, {
         bookId: requiredText(input.bookId, "Book id"),
         brief: requiredText(input.brief, "Cover direction brief"),
+        routingPreference: parseAiMissionRoutingPreference(input.routingPreference),
       }));
       return true;
     }
@@ -55,6 +57,7 @@ export function createStudioCreativeAgentRoutes(store: FileProjectStore): Studio
       const scene = chapter && sceneId ? chapter.scenes.find((candidate) => candidate.id === sceneId) : undefined;
       const collaboration = resolveAiCollaborationPolicy(project.aiCollaborationPolicy);
       const plannerRequested = plannerMode(input.planner);
+      const routingPreference = parseAiMissionRoutingPreference(input.routingPreference);
       const planInput = {
         goal: requiredText(input.goal, "Creative agent goal"),
         mode: collaboration.mode,
@@ -65,6 +68,7 @@ export function createStudioCreativeAgentRoutes(store: FileProjectStore): Studio
           scene: Boolean(scene),
           sceneHasContent: Boolean(scene?.content.trim()),
         },
+        ...(routingPreference ? { routingPreference } : {}),
       };
 
       if (plannerRequested === "ai") {
@@ -79,7 +83,7 @@ export function createStudioCreativeAgentRoutes(store: FileProjectStore): Studio
           ...(planned.requestId ? { plannerRequestId: planned.requestId } : {}),
           ...(planned.fallbackReason ? { plannerFallbackReason: planned.fallbackReason } : {}),
           authority: "plan-only",
-          executionRule: "AI-enhanced planning may select only registered tools and never executes them. Invalid/provider-unavailable plans fall back visibly to Forge's deterministic planner.",
+          executionRule: "AI-enhanced planning may select only registered tools and never executes them. A mission route is a broker preference only; owner spend, capability, health, quota, quality, and fallback gates remain authoritative.",
         });
         return true;
       }
@@ -92,7 +96,7 @@ export function createStudioCreativeAgentRoutes(store: FileProjectStore): Studio
         plannerRequested,
         plannerUsed: "deterministic",
         authority: "plan-only",
-        executionRule: "Deterministic planning is provider-free and never executes a tool. Every step must pass its registered Forge boundary and approval policy separately.",
+        executionRule: "Deterministic planning is provider-free and never executes a tool. A captured mission route applies only when later provider-backed steps execute through their real Forge boundaries.",
       });
       return true;
     }
@@ -135,13 +139,15 @@ export function createStudioCreativeAgentRoutes(store: FileProjectStore): Studio
         ...(chapterId ? { chapterId } : {}),
         ...(sceneId ? { sceneId } : {}),
       });
+      const routingPreference = parseAiMissionRoutingPreference(input.routingPreference);
       json(res, 200, {
         projectId,
         ...compiled,
+        plan: routingPreference ? { ...compiled.plan, routingPreference } : compiled.plan,
         plannerRequested: "recipe",
         plannerUsed: "recipe",
         authority: "plan-only",
-        executionRule: "Compiling a Forge Recipe never executes its tools. Each step retains the registered provider, state, scope and approval boundary.",
+        executionRule: "Compiling a Forge Recipe never executes its tools. An optional mission route is captured on this compiled plan and remains subordinate to each real provider/state/approval boundary.",
       });
       return true;
     }

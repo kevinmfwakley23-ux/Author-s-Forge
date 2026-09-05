@@ -17,6 +17,7 @@ test('AI-enhanced planner accepts only registered tool selections then recompile
     goal: 'Research the market, create an illustration, and prepare a launch campaign.',
     mode: 'partner',
     scope: fullScope,
+    routingPreference: { preferProvider: 'openrouter', preferModel: 'author-choice/model-a' },
   }, async (request) => {
     captured = request;
     return result(JSON.stringify({ steps: [
@@ -33,6 +34,9 @@ test('AI-enhanced planner accepts only registered tool selections then recompile
   assert.equal(captured.task, 'tool-use');
   assert.equal(captured.temperature, 0);
   assert.equal(captured.context.projectId, 'ai-planner-project');
+  assert.equal(captured.preferProvider, 'openrouter');
+  assert.equal(captured.preferModel, 'author-choice/model-a');
+  assert.deepEqual(planned.plan.routingPreference, { preferProvider: 'openrouter', preferModel: 'author-choice/model-a' });
   assert.match(captured.system, /planning only/i);
   assert.match(captured.system, /Select only tool ids supplied/i);
   assert.deepEqual(planned.plan.steps.map((step) => step.toolId), [

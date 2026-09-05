@@ -87,7 +87,7 @@ test('bounded run groups execute only registry-approved read-only no-state-effec
   assert.match(source, /Proposal, artifact, provider-backed state changes, and memory steps still require individual approval/);
 });
 
-test('Agent Workbench exposes the existing real Forge AI resource, catalog, pinning and spend-policy controls', () => {
+test('Agent Workbench exposes real Forge AI resources plus separate mission and owner routing controls', () => {
   const html = fs.readFileSync('public/forge-agent.html', 'utf8');
   const routing = fs.readFileSync('public/forge-agent-routing.js', 'utf8');
   assert.match(html, /forge-agent-routing\.js/);
@@ -99,9 +99,12 @@ test('Agent Workbench exposes the existing real Forge AI resource, catalog, pinn
   assert.match(routing, /economy/);
   assert.match(routing, /balanced/);
   assert.match(routing, /quality/);
-  assert.match(routing, /Pin selected model/);
-  assert.match(routing, /Clear model pin/);
-  for (const provider of ['omniroute', '9router', 'kings', 'ollama', 'groq', 'mistral', 'gemini', 'anthropic', 'openrouter', 'openai']) {
+  assert.match(routing, /Use selection for this mission/);
+  assert.match(routing, /Clear mission route/);
+  assert.match(routing, /Pin selected model globally/);
+  assert.match(routing, /Clear global model pin/);
+  assert.match(routing, /Owner-wide routing policy was not changed/);
+  for (const provider of ['omniroute', '9router', 'kings', 'ollama', 'groq', 'mistral', 'gemini', 'anthropic', 'openrouter', 'gateway', 'openai']) {
     assert.ok(routing.includes(`"${provider}"`), `missing Agent provider option ${provider}`);
   }
   assert.doesNotMatch(routing, /api[_-]?key/i, 'Agent routing UI must never expose or request provider secrets');

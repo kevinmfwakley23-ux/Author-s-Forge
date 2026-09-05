@@ -1,5 +1,6 @@
 import type { ProjectState } from "../domain/project";
 import { generateProjectText, type AiGenerationResult, type ProjectAiGenerationRequest } from "../infrastructure/ai-provider";
+import { aiMissionRoutingGenerationFields } from "./ai-mission-routing";
 import { ProjectMemoryStore } from "./project-memory-store";
 import {
   compileCreativeAgentPlan,
@@ -80,6 +81,7 @@ export async function compileCreativeAgentPlanWithAi(
       temperature: 0,
       maxOutputTokens: 2500,
       requiresInstructionFollowing: true,
+      ...aiMissionRoutingGenerationFields(input.routingPreference),
     });
 
     const selections = parseSelections(result.text);
