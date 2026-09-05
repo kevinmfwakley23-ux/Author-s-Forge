@@ -120,19 +120,57 @@ async function main() {
     const page = await desktop.newPage();
     page.on('dialog', (dialog) => dialog.accept());
     await page.goto(`${base}/?project=${projectId}#architecture`, { waitUntil: 'networkidle' });
+
+    await page.waitForFunction(() => document.querySelector('#story-template-select option[value="builtin-three-act"]'));
+    const initialTemplateCount = await page.locator('#story-template-select option').count();
+    assert.ok(initialTemplateCount >= 7, 'Architecture UI must expose no-template plus a useful built-in template library.');
+    await page.locator('#story-template-select').selectOption('builtin-three-act');
+    assert.equal(await page.locator('#story-template-install').isEnabled(), true, 'Built-in template must offer an editable project-copy path.');
+    assert.match(await page.locator('#story-template-meta').innerText(), /Three-Act Story.*built-in/s);
+
+    const installResponsePromise = page.waitForResponse((response) => response.url().endsWith(`/api/projects/${projectId}/story-architecture/templates/install`) && response.request().method() === 'POST');
+    await page.locator('#story-template-install').click();
+    const installResponse = await installResponsePromise;
+    assert.equal(installResponse.ok(), true);
+    const installedTemplate = await installResponse.json();
+    await page.waitForFunction((id) => document.querySelector('#story-template-select')?.value === id, installedTemplate.id);
+    assert.equal(installedTemplate.version, 1);
+    assert.equal(installedTemplate.source.kind, 'installed-copy');
+    assert.equal(await page.locator('#story-template-save').isEnabled(), true);
+
+    const guidanceBefore = await page.locator('#story-template-guidance').inputValue();
+    await page.locator('#story-template-guidance').fill(`${guidanceBefore}\nMidpoint pressure must force a consequential parent choice.`);
+    const updateTemplateResponsePromise = page.waitForResponse((response) => response.url().endsWith(`/api/projects/${projectId}/story-architecture/templates/${installedTemplate.id}`) && response.request().method() === 'PUT');
+    await page.locator('#story-template-save').click();
+    const updateTemplateResponse = await updateTemplateResponsePromise;
+    assert.equal(updateTemplateResponse.ok(), true);
+    const updatedTemplate = await updateTemplateResponse.json();
+    assert.equal(updatedTemplate.version, 2);
+    assert.ok(updatedTemplate.guidance.some((item) => /Midpoint pressure/i.test(item)));
+    await page.waitForFunction((id) => document.querySelector('#story-template-select')?.value === id, updatedTemplate.id);
+
     await page.locator('#arch-idea').fill('A parent searches for the truth behind a disappearance while the city is cut off from outside help. Preserve established project canon and separate facts from assumptions.');
     await page.locator('#arch-kind').selectOption('psychological-thriller');
     await page.locator('#arch-target').fill('2');
-    const generateResponse = page.waitForResponse((response) => response.url().endsWith(`/api/projects/${projectId}/story-architecture/generate`) && response.request().method() === 'POST');
+    const generateResponsePromise = page.waitForResponse((response) => response.url().endsWith(`/api/projects/${projectId}/story-architecture/generate`) && response.request().method() === 'POST');
     await page.locator('#arch-run').click();
-    assert.equal((await generateResponse).ok(), true);
+    const generateResponse = await generateResponsePromise;
+    assert.equal(generateResponse.ok(), true);
+    const generatedPayload = await generateResponse.json();
+    assert.equal(generatedPayload.candidate.template.id, updatedTemplate.id);
+    assert.equal(generatedPayload.candidate.template.version, 2);
+    assert.equal(generatedPayload.candidate.template.sourceKind, 'installed-copy');
     await page.waitForFunction(() => document.querySelector('#story-architecture-premise')?.value.includes('winter storm'));
     assert.match(await page.locator('#story-architecture-status').innerText(), /unapproved|not approved/i);
+    assert.match(await page.locator('#story-architecture-status').innerText(), /Three-Act Story v2/i);
+    assert.match(await page.locator('#arch-result').innerText(), /Template guidance: Three-Act Story/);
     assert.match(await page.locator('#arch-result').innerText(), /Canon candidates \(not Project Brain canon\)/i);
 
     const snapshot = await api(base, `/api/projects/${projectId}/story-architecture`);
     assert.equal(snapshot.candidates.length, 1);
     assert.equal(snapshot.candidates[0].approved, false);
+    assert.equal(snapshot.candidates[0].template.id, updatedTemplate.id);
+    assert.equal(snapshot.candidates[0].template.version, 2);
     const candidateId = snapshot.candidates[0].id;
 
     const approveResponse = page.waitForResponse((response) => response.url().endsWith(`/story-architecture/candidates/${candidateId}/approve`) && response.request().method() === 'POST');
@@ -150,6 +188,8 @@ async function main() {
     await page.waitForFunction(() => document.querySelector('#chapter-card-workflow-brief')?.value.includes('APPROVED STORY ARCHITECTURE'));
     assert.equal(await page.locator('#chapter-card-workflow-target').inputValue(), '2');
     assert.match(await page.locator('#chapter-card-workflow-events').inputValue(), /last road closes/i);
+    assert.match(await page.locator('#chapter-card-workflow-brief').inputValue(), /Structure template provenance: Three-Act Story/);
+    assert.match(await page.locator('#chapter-card-workflow-brief').inputValue(), /v2/);
 
     const revokeResponse = page.waitForResponse((response) => response.url().endsWith(`/story-architecture/candidates/${candidateId}/revoke`) && response.request().method() === 'POST');
     await page.locator('#story-architecture-revoke').click();
@@ -174,14 +214,37 @@ async function main() {
     assert.match(system, /winter storm isolates the mountain city/i, 'durable Project Brain canon must reach architecture provider context');
     assert.match(user, /TARGET CHAPTERS: 2/);
     assert.match(user, /psychological-thriller/);
+    assert.match(user, /AUTHOR-SELECTED STORY STRUCTURE TEMPLATE: Three-Act Story/);
+    assert.match(user, new RegExp(`id ${updatedTemplate.id}, version 2`));
+    assert.match(user, /Midpoint pressure must force a consequential parent choice/);
+
+    await page.locator('#story-template-new').click();
+    await page.locator('#story-template-title').fill('Browser Custom Structure');
+    await page.locator('#story-template-kinds').fill('thriller');
+    await page.locator('#story-template-description').fill('A browser-created reusable structure proving the author template path.');
+    await page.locator('#story-template-guidance').fill('Keep the central choice visible.\nMake each reversal change the available options.');
+    await page.locator('#story-template-beats').fill(JSON.stringify([
+      { label: 'Pressure', purpose: 'Force the protagonist to choose between safety and truth.' },
+      { label: 'Consequence', purpose: 'Make the chosen path permanently alter the investigation.' },
+    ], null, 2));
+    const createTemplateResponsePromise = page.waitForResponse((response) => response.url().endsWith(`/api/projects/${projectId}/story-architecture/templates`) && response.request().method() === 'POST');
+    await page.locator('#story-template-save').click();
+    const createTemplateResponse = await createTemplateResponsePromise;
+    assert.equal(createTemplateResponse.ok(), true);
+    const customTemplate = await createTemplateResponse.json();
+    assert.equal(customTemplate.source.kind, 'author');
+    await page.waitForFunction((id) => document.querySelector('#story-template-select')?.value === id, customTemplate.id);
+    assert.match(await page.locator('#story-template-meta').innerText(), /Browser Custom Structure/);
 
     const after = await api(base, `/api/projects/${projectId}/workspace`);
-    assert.equal(after.books.length, 0, 'architecture approval/seed/revoke must not create manuscript structure');
+    assert.equal(after.books.length, 0, 'architecture approval/seed/revoke/template work must not create manuscript structure');
     const project = await api(base, `/api/projects/${projectId}`);
-    assert.equal(project.memories.filter((memory) => memory.class === 'story-canon').length, 1, 'architecture approval must not promote canon candidates');
+    assert.equal(project.memories.filter((memory) => memory.class === 'story-canon').length, 1, 'architecture approval/template work must not promote planning into authoritative canon');
+    assert.ok(project.memories.filter((memory) => memory.relevanceTags?.includes('story-architecture-template')).length >= 3, 'project template lifecycle must leave durable append-only evidence');
 
     await page.reload({ waitUntil: 'networkidle' });
     await page.waitForFunction(() => /Approved exact architecture/i.test(document.querySelector('#story-architecture-status')?.textContent || ''));
+    assert.match(await page.locator('#arch-result').innerText(), /Three-Act Story/);
     await desktop.close();
 
     const mobile = await browser.newContext({ viewport: { width: 412, height: 915 }, isMobile: true, hasTouch: true });
@@ -191,11 +254,13 @@ async function main() {
     assert.ok(box && box.width > 0 && box.height >= 40, 'architecture downstream action must remain touch-usable on Android-sized viewport');
     const revokeBox = await mobilePage.locator('#story-architecture-revoke').boundingBox();
     assert.ok(revokeBox && revokeBox.width > 0 && revokeBox.height >= 40, 'architecture revoke action must remain touch-usable on Android-sized viewport');
+    const templateSelectBox = await mobilePage.locator('#story-template-select').boundingBox();
+    assert.ok(templateSelectBox && templateSelectBox.width > 0 && templateSelectBox.height >= 40, 'story template selector must remain touch-usable on Android-sized viewport');
     const overflow = await mobilePage.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     assert.ok(overflow <= 2, `architecture view must not horizontally overflow Android viewport (overflow=${overflow})`);
     await mobile.close();
 
-    console.log('STORY ARCHITECTURE BROWSER ACCEPTANCE PASSED: real provider + durable structured candidate + exact approval/revocation + restart persistence + approved Chapter Card seed + no manuscript/canon mutation + Android touch/fit.');
+    console.log('STORY ARCHITECTURE BROWSER ACCEPTANCE PASSED: real provider + durable structured candidate + exact approval/revocation + versioned built-in/project/custom templates + exact template provenance + restart persistence + approved Chapter Card seed + no manuscript/canon mutation + Android touch/fit.');
   } finally {
     if (browser) await browser.close().catch(() => {});
     await stopApp(app);
