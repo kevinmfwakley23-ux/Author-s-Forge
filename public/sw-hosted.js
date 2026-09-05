@@ -1,4 +1,4 @@
-const CACHE = "authors-forge-hosted-shell-v6";
+const CACHE = "authors-forge-hosted-shell-v7";
 const SHELL = [
   "/",
   "/index.html",
@@ -34,6 +34,9 @@ const SHELL = [
   "/icon.svg",
   "/icon-192.svg",
   "/icon-512.svg",
+  "/icon-192.png",
+  "/icon-512.png",
+  "/icon-maskable-512.png",
   "/forge-agent.html",
   "/forge-media-studio.html",
   "/forge-media-studio.css",

@@ -16,6 +16,15 @@
   background:linear-gradient(180deg,#d0a85d,#b17f38)!important;
 }
 
+/* Tablet shell: once navigation stacks, no decorative edge or child surface may widen the document. */
+@media(max-width:1100px){
+  html,body{width:100%;max-width:100%;overflow-x:hidden}
+  .sidebar,main{width:100%;max-width:100%;min-width:0}
+  main{overflow-x:hidden}
+  .forge-masthead,.topbar,.view{max-width:100%;min-width:0}
+  .sidebar nav a.active{transform:none}
+}
+
 /* Android/phone shell: keep the full Forge reachable without a page-long sidebar. */
 @media(max-width:760px){
   body{display:block;min-width:0}

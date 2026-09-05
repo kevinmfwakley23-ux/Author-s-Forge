@@ -55,7 +55,7 @@ test('Design & Motion Offices are wired into the royal PWA launcher and offline 
   assert.match(pwa, /open-design-motion/);
   assert.match(pwa, /forge-media-studio\.html/);
   assert.match(pwa, /Design & Motion Offices/);
-  assert.match(sw, /authors-forge-shell-v21/);
+  assert.match(sw, /authors-forge-shell-v22/);
   assert.match(sw, /forge-media-studio\.html/);
   assert.match(sw, /forge-media-studio\.css/);
   assert.match(sw, /forge-media-studio\.js/);

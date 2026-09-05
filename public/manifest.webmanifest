@@ -1,31 +1,71 @@
 {
+  "id": "/",
   "name": "Author's Forge",
   "short_name": "Forge",
   "description": "Author's Forge — local-first authoring, AI writing, editing, illustration, production, and publishing studio.",
-  "start_url": "/?project=forge-studio",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone"],
   "orientation": "any",
   "background_color": "#f4f1eb",
   "theme_color": "#20252b",
+  "categories": ["books", "education", "productivity"],
+  "prefer_related_applications": false,
   "icons": [
     {
-      "src": "/icon-192.svg",
+      "src": "/icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "/icon-512.svg",
+      "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Agent Workbench",
+      "short_name": "Agent",
+      "description": "Open the governed Creative Agent Workbench for the active Forge project.",
+      "url": "/forge-agent.html",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Design & Motion",
+      "short_name": "Design",
+      "description": "Open Design & Motion for the active Forge project.",
+      "url": "/forge-media-studio.html",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Series Engine",
+      "short_name": "Series",
+      "description": "Open Series Engine for the active Forge project.",
+      "url": "/series.html",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Writing Desk",
+      "short_name": "Write",
+      "description": "Open the Writing Desk for the active Forge project.",
+      "url": "/#writing",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]
 }

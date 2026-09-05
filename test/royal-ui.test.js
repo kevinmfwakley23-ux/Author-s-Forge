@@ -78,7 +78,7 @@ test("Android royal UI uses touch-safe compact navigation, safe areas, and zoom-
   const hardening = read("public/forge-royal-hardening.css");
   assert.match(ui, /querySelectorAll\("a\[data-route\]"\)/);
   assert.doesNotMatch(ui, /remove\(\).*data-route|\.hidden\s*=\s*true/);
-  assert.match(css, /@media\(max-width:1000px\)/);
+  assert.match(css, /@media\(max-width:1100px\)/);
   assert.match(css, /prefers-reduced-motion/);
   assert.match(hardening, /@media\(max-width:760px\)/);
   assert.match(hardening, /position:sticky/);
