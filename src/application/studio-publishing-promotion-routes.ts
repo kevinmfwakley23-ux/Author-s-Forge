@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { FileProjectStore } from "../infrastructure/file-project-store";
 import { FileAiProposalStore } from "../infrastructure/file-ai-proposal-store";
 import { FileAiModelPerformanceStore } from "../infrastructure/file-ai-model-performance-store";
+import { FileBrandKitStore } from "../infrastructure/file-brand-kit-store";
 import { FileCreativeProvenanceStore } from "../infrastructure/file-creative-provenance-store";
 import { FileForgeRecipeStore } from "../infrastructure/file-forge-recipe-store";
 import { FileHumanReviewStore } from "../infrastructure/file-human-review-store";
@@ -12,6 +13,7 @@ import { createStudioAiModelOptionsRoutes } from "./studio-ai-model-options-rout
 import { createStudioAiModelPerformanceRoutes } from "./studio-ai-model-performance-routes";
 import { createStudioArchitectureAiRoutes } from "./studio-architecture-ai-routes";
 import { createStudioAuthorCraftRoutes } from "./studio-author-craft-routes";
+import { createStudioBrandKitRoutes } from "./studio-brand-kit-routes";
 import { createStudioChapterCardWorkflowRoutes } from "./studio-chapter-card-workflow-routes";
 import { createStudioCreativeAgentRoutes } from "./studio-creative-agent-routes";
 import { createStudioForgeRecipeRoutes } from "./studio-forge-recipe-routes";
@@ -33,17 +35,18 @@ export type StudioPublishingPromotionRouteHandler = (req: IncomingMessage, res: 
 /**
  * Modular Studio extension boundary. Historical name is retained to avoid
  * destabilizing the server entrypoint while architecture planning, author-craft,
- * model freedom, generic AI gateways, governed multi-model writing,
- * evidence-based model performance, reusable Forge Recipes, governed human
- * review, creative provenance, Chapter Card, Scene Card, manuscript intake,
- * Series, Story Map, research, image, publishing, market and promotion routes
- * remain independently testable.
+ * project Brand Kit governance, model freedom, generic AI gateways, governed
+ * multi-model writing, evidence-based model performance, reusable Forge Recipes,
+ * governed human review, creative provenance, Chapter Card, Scene Card,
+ * manuscript intake, Series, Story Map, research, image, publishing, market and
+ * promotion routes remain independently testable.
  */
 export function createStudioPublishingPromotionRoutes(store: FileProjectStore): StudioPublishingPromotionRouteHandler {
   const dataRoot = process.env.FORGE_DATA_DIR ?? join(process.cwd(), ".forge-data");
   const recipeStore = new FileForgeRecipeStore(join(dataRoot, "forge-recipes.json"));
   const reviewStore = new FileHumanReviewStore(join(dataRoot, "human-reviews.json"));
   const provenanceStore = new FileCreativeProvenanceStore(join(dataRoot, "creative-provenance.json"));
+  const brandKitStore = new FileBrandKitStore(join(dataRoot, "brand-kits.json"));
   const sharedProposalStore = new FileAiProposalStore(join(dataRoot, "ai-proposals.json"));
   const performanceStore = new FileAiModelPerformanceStore(join(dataRoot, "ai-model-performance.json"));
   const gatewayRoutes = createStudioAiGatewayRoutes(store);
@@ -53,6 +56,7 @@ export function createStudioPublishingPromotionRoutes(store: FileProjectStore): 
   const storyArchitecture = createStudioStoryArchitectureRoutes(store);
   const architectureAi = createStudioArchitectureAiRoutes(store);
   const authorCraft = createStudioAuthorCraftRoutes(store);
+  const brandKits = createStudioBrandKitRoutes(store, brandKitStore);
   const creativeAgent = createStudioCreativeAgentRoutes(store);
   const forgeRecipes = createStudioForgeRecipeRoutes(store, recipeStore, sharedProposalStore);
   const humanReview = createStudioHumanReviewRoutes(store, reviewStore, provenanceStore);
@@ -76,6 +80,7 @@ export function createStudioPublishingPromotionRoutes(store: FileProjectStore): 
     if (await storyArchitecture(req, res, url, projectId)) return true;
     if (await architectureAi(req, res, url, projectId)) return true;
     if (await authorCraft(req, res, url, projectId)) return true;
+    if (await brandKits(req, res, url, projectId)) return true;
     if (await creativeAgent(req, res, url, projectId)) return true;
     if (await forgeRecipes(req, res, url, projectId)) return true;
     if (await humanReview(req, res, url, projectId)) return true;
