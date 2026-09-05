@@ -99,6 +99,7 @@ async function main() {
     assert.match(await page.locator(".agent-group-run").innerText(), /2 safe read-only steps/);
     await page.locator(".agent-group-run").tap();
     await page.waitForFunction(() => document.querySelector('[data-tool-id="project.context"] button')?.textContent === "Completed" && document.querySelector('[data-tool-id="editing.analyze"] button')?.textContent === "Completed");
+    await page.waitForFunction(() => /no unapproved state-changing step ran automatically/i.test(document.querySelector("#agent-status")?.textContent || ""));
     assert.equal(await page.locator('[data-tool-id="writing.propose"] button').isEnabled(), true, "writing should still require its own author approval");
     assert.notEqual(await page.locator('[data-tool-id="writing.propose"] button').innerText(), "Completed");
     const autonomousStatus = await page.locator("#agent-status").innerText();
