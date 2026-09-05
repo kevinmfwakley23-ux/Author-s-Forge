@@ -24,4 +24,7 @@
   if(!document.querySelector('script[data-forge-extension="brand-kit"]')){
     const script=document.createElement("script");script.src="/specialized-brand-kit.js";script.defer=true;script.dataset.forgeExtension="brand-kit";document.head.appendChild(script);
   }
+  if(!document.querySelector('script[data-forge-extension="design-templates"]')){
+    const script=document.createElement("script");script.src="/specialized-design-templates.js";script.defer=true;script.dataset.forgeExtension="design-templates";document.head.appendChild(script);
+  }
 })();
