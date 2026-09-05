@@ -225,9 +225,13 @@ function createBrandSelectionMemory(projectId: string, kit: BrandKit, now: strin
 
 function activeBrandSelection(project: ProjectState): { brandKitId?: string; record: MemoryRecord } | undefined {
   const record = project.memories
-    .filter((memory) => memory.stateKey === ACTIVE_BRAND_STATE_KEY && memory.relevanceTags.includes(BRAND_SELECTION_TAG))
-    .slice()
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || b.createdAt.localeCompare(a.createdAt))[0];
+    .map((memory, index) => ({ memory, index }))
+    .filter(({ memory }) => memory.stateKey === ACTIVE_BRAND_STATE_KEY && memory.relevanceTags.includes(BRAND_SELECTION_TAG))
+    .sort((a, b) =>
+      b.memory.updatedAt.localeCompare(a.memory.updatedAt) ||
+      b.memory.createdAt.localeCompare(a.memory.createdAt) ||
+      b.index - a.index,
+    )[0]?.memory;
   if (!record) return undefined;
   return {
     ...(record.stateValue && record.stateValue !== NO_ACTIVE_BRAND ? { brandKitId: record.stateValue } : {}),
