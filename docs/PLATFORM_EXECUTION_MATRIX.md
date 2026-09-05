@@ -20,7 +20,7 @@ No platform may be marked supported merely because a static screen opens. A supp
 | Chromebook | Installable Android app where Google Play is supported; installable PWA/hosted lane everywhere; optional Linux lane | ChromeOS Linux/Crostini, Git, Docker/Podman where available, SSH, Codespaces | Do not require Linux or Termux for normal use. Android support depends on the Chromebook model/policy. |
 | Android phone/tablet | Native APK/AAB target + hosted PWA fallback | optional Termux bridge, remote sandbox/Codespaces/SSH; no Termux requirement | End-user app must launch directly. Heavy arbitrary coding execution should prefer governed remote/local sandbox adapters rather than pretending every Android device is a full Linux workstation. |
 | iPhone/iPad | Native iOS App Store/TestFlight target + hosted web fallback | remote sandbox/Codespaces/SSH via Forge services | iOS packaging requires macOS/Xcode and Apple signing. Do not claim local arbitrary process execution that iOS does not permit. |
-| PS5 | Hosted single-origin web lane adapted to the system web view | remote sandbox/Codespaces/GitHub through Forge backend | No native PS5 package is claimed. Console access is a client surface to a hosted Forge runtime. |
+| PS5 | **Experimental compatibility only.** Forge retains a hosted single-origin client hardened for a `PlayStation 5` WebKit user agent, but PS5 does not provide a normal dedicated browser app that users can launch to an arbitrary Forge URL. | If an authorized PlayStation surface can reach Forge, computation remains on the hosted Forge backend. | **No native PS5 package is claimed and no direct consumer PS5 launch path is currently marked supported.** A real PlayStation app would require Sony-authorized SDK/distribution access; hosted compatibility becomes usable only when an actual PS5 web surface can open the Forge URL. |
 | Other browser-capable devices | Hosted responsive web/PWA lane | governed remote execution adapters | Browser support does not imply local shell access. |
 
 ## Coding environment adapters
@@ -68,7 +68,13 @@ A native wrapper that merely opens a screen is not completion. Platform release 
 - Android: signed APK for direct testing/distribution and AAB for Google Play.
 - iOS/iPadOS: signed IPA/TestFlight/App Store build from macOS/Xcode.
 - Chromebook: Android package on Play-enabled devices plus installable PWA fallback; Linux package is optional power-user support.
-- PS5: HTTPS hosted Forge gateway; no fake native-console package.
+- PS5: no direct consumer distribution claim. Keep the HTTPS hosted compatibility client ready for a Sony-authorized or otherwise genuinely accessible web surface; a native PlayStation release requires Sony's authorized SDK/distribution program.
+
+## Hosted universal-access release gate
+
+`npm run test:browser:hosted` starts the real single-origin hosted Forge gateway and exercises it as a restricted console-style client. The gate must prove authentication, real project creation/reload, Studio plus every separately hosted production office, same-origin navigation, active-project preservation, office API remapping, no-popup navigation, and operation without depending on service-worker support.
+
+This automated gate proves the Forge hosted architecture. It does **not** create a user-accessible PS5 browser or substitute for physical-device acceptance.
 
 ## Acceptance standard
 
