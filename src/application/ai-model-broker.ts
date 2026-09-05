@@ -24,6 +24,16 @@ export interface AiModelCapabilities {
   readonly longContext?: boolean;
 }
 
+/** Provider/account quota shared by every model in the same quota scope. */
+export interface AiProviderQuota {
+  readonly scope: string;
+  readonly provider?: string;
+  readonly quotaLimit?: number;
+  readonly usedTokens?: number;
+  readonly remainingQuota?: number;
+  readonly quotaResetAt?: string;
+}
+
 export interface AiModelResource {
   readonly provider: string;
   readonly model: string;
@@ -33,10 +43,13 @@ export interface AiModelResource {
   readonly billingClass?: AiBillingClass;
   readonly estimatedInputCostPerMillion?: number;
   readonly estimatedOutputCostPerMillion?: number;
+  /** Optional model-specific quota. Provider-wide quotas belong in AiProviderQuota. */
   readonly remainingQuota?: number;
   readonly usedTokens?: number;
   readonly quotaLimit?: number;
   readonly quotaResetAt?: string;
+  /** Links this model to one shared provider/account quota pool. */
+  readonly quotaScope?: string;
   readonly cooldownUntil?: string;
   readonly consecutiveFailures?: number;
   readonly latencyMs?: number;
@@ -86,25 +99,53 @@ export interface AiRoutingTelemetry {
  *
  * Unknown model limits remain unknown. A configured provider is rejected for a
  * capacity requirement only when Forge has real metadata proving that the
- * resource is too small. Spend policy is deliberately opt-in at this reusable
- * layer: the live Forge runtime supplies its owner-selected policy explicitly.
+ * resource is too small. Provider/account quotas are represented separately
+ * from models so one shared allowance cannot be accidentally multiplied by the
+ * number of configured models.
  */
 export class AiModelBroker {
   private resources: AiModelResource[] = [];
+  private readonly quotaPools = new Map<string, AiProviderQuota>();
+  private readonly baselineUsedByResource = new Map<string, number>();
+  private readonly telemetryTokensByResource = new Map<string, number>();
 
   setResources(resources: readonly AiModelResource[]): void {
     this.resources = resources.filter((resource) => resource.configured).map(cloneResource);
+    this.baselineUsedByResource.clear();
+    const liveKeys = new Set<string>();
+    for (const resource of this.resources) {
+      const key = resourceKey(resource.provider, resource.model);
+      liveKeys.add(key);
+      this.baselineUsedByResource.set(key, initialResourceUsedTokens(resource));
+    }
+    for (const key of [...this.telemetryTokensByResource.keys()]) {
+      if (!liveKeys.has(key)) this.telemetryTokensByResource.delete(key);
+    }
+  }
+
+  setProviderQuotas(quotas: readonly AiProviderQuota[]): void {
+    this.quotaPools.clear();
+    for (const quota of quotas) {
+      const scope = quota.scope.trim();
+      if (!scope) throw new Error("AI provider quota scope cannot be blank.");
+      this.quotaPools.set(scope, cloneProviderQuota({ ...quota, scope }));
+    }
+  }
+
+  listProviderQuotas(): AiProviderQuota[] {
+    return [...this.quotaPools.values()].map((quota) => this.effectiveProviderQuota(quota)).map(cloneProviderQuota);
   }
 
   applyRoutingTelemetry(telemetry: readonly AiRoutingTelemetry[]): void {
-    const byKey = new Map(telemetry.map((item) => [`${item.provider}::${item.model}`, item]));
+    const byKey = new Map(telemetry.map((item) => [resourceKey(item.provider, item.model), item]));
+    for (const [key, item] of byKey) this.telemetryTokensByResource.set(key, Math.max(0, item.totalTokens));
     this.resources = this.resources.map((resource) => {
-      const current = byKey.get(`${resource.provider}::${resource.model}`);
+      const current = byKey.get(resourceKey(resource.provider, resource.model));
       if (!current) return resource;
       return {
         ...resource,
         consecutiveFailures: current.consecutiveFailures,
-        usedTokens: Math.max(resource.usedTokens ?? 0, current.totalTokens),
+        usedTokens: Math.max(initialResourceUsedTokens(resource), current.totalTokens),
         latencyMs: current.lastLatencyMs,
         cooldownUntil: current.cooldownUntil,
       };
@@ -191,13 +232,12 @@ export class AiModelBroker {
       resource.estimatedOutputCostPerMillion > request.maxOutputCostPerMillion
     ) return false;
 
-    const remaining = this.remainingQuota(resource);
-    if (remaining !== undefined && remaining <= 0) return false;
-    if (remaining !== undefined && estimatedRequestTokens > 0) {
-      const quotaBase = resource.quotaLimit ?? remaining;
-      const safetyReserve = Math.ceil(quotaBase * safetyFraction);
-      if (remaining - estimatedRequestTokens < safetyReserve) return false;
-    }
+    const modelRemaining = modelRemainingQuota(resource);
+    if (!quotaAllows(modelRemaining, resource.quotaLimit, estimatedRequestTokens, safetyFraction)) return false;
+
+    const providerQuota = this.providerQuotaFor(resource);
+    if (providerQuota && !quotaAllows(providerQuota.remainingQuota, providerQuota.quotaLimit, estimatedRequestTokens, safetyFraction)) return false;
+
     return true;
   }
 
@@ -231,7 +271,9 @@ export class AiModelBroker {
     let score = 0;
     const reasons: string[] = [];
     const capabilities = resource.capabilities;
-    const remaining = this.remainingQuota(resource);
+    const modelRemaining = modelRemainingQuota(resource);
+    const providerQuota = this.providerQuotaFor(resource);
+    const remaining = minimumDefined(modelRemaining, providerQuota?.remainingQuota);
 
     if (resource.provider === request.preferProvider) {
       score += 100;
@@ -279,9 +321,12 @@ export class AiModelBroker {
       score += 10;
       reasons.push(`quota available (${remaining.toLocaleString()} tokens)`);
       if (estimatedRequestTokens > 0) reasons.push("input + output quota reserve protected");
-      if (resource.quotaLimit && resource.quotaLimit > 0) {
-        score += Math.min(30, Math.round((remaining / resource.quotaLimit) * 30));
-      }
+    }
+    if (providerQuota?.remainingQuota !== undefined) reasons.push(`shared provider quota ${providerQuota.scope}`);
+
+    const scoringLimit = minimumDefined(resource.quotaLimit, providerQuota?.quotaLimit);
+    if (remaining !== undefined && scoringLimit !== undefined && scoringLimit > 0) {
+      score += Math.min(30, Math.round((remaining / scoringLimit) * 30));
     }
 
     if (resource.estimatedInputCostPerMillion !== undefined) {
@@ -330,17 +375,33 @@ export class AiModelBroker {
     return { resource: cloneResource(resource), score, reasons };
   }
 
-  private remainingQuota(resource: AiModelResource): number | undefined {
-    const computed =
-      resource.quotaLimit !== undefined && resource.usedTokens !== undefined
-        ? Math.max(0, resource.quotaLimit - resource.usedTokens)
-        : undefined;
-    if (resource.remainingQuota !== undefined && computed !== undefined) {
-      return Math.min(Math.max(0, resource.remainingQuota), computed);
-    }
-    if (computed !== undefined) return computed;
-    if (resource.remainingQuota !== undefined) return Math.max(0, resource.remainingQuota);
-    return undefined;
+  private providerQuotaFor(resource: AiModelResource): AiProviderQuota | undefined {
+    if (!resource.quotaScope) return undefined;
+    const quota = this.quotaPools.get(resource.quotaScope);
+    return quota ? this.effectiveProviderQuota(quota) : undefined;
+  }
+
+  private effectiveProviderQuota(quota: AiProviderQuota): AiProviderQuota {
+    const runtimeTokens = this.resources
+      .filter((resource) => resource.quotaScope === quota.scope)
+      .reduce((sum, resource) => {
+        const key = resourceKey(resource.provider, resource.model);
+        const total = this.telemetryTokensByResource.get(key) ?? this.baselineUsedByResource.get(key) ?? 0;
+        const baseline = this.baselineUsedByResource.get(key) ?? 0;
+        return sum + Math.max(0, total - baseline);
+      }, 0);
+
+    const baselineUsed = providerBaselineUsedTokens(quota);
+    const effectiveUsed = baselineUsed + runtimeTokens;
+    const fromLimit = quota.quotaLimit !== undefined ? Math.max(0, quota.quotaLimit - effectiveUsed) : undefined;
+    const fromRemaining = quota.remainingQuota !== undefined ? Math.max(0, quota.remainingQuota - runtimeTokens) : undefined;
+    const remainingQuota = minimumDefined(fromLimit, fromRemaining);
+
+    return {
+      ...quota,
+      usedTokens: effectiveUsed,
+      ...(remainingQuota !== undefined ? { remainingQuota } : {}),
+    };
   }
 }
 
@@ -351,8 +412,45 @@ export function estimateResourceRequestCost(resource: AiModelResource, inputToke
   return (Math.max(0, inputTokens) / 1_000_000) * (inputRate ?? 0) + (Math.max(0, outputTokens) / 1_000_000) * (outputRate ?? 0);
 }
 
+function modelRemainingQuota(resource: AiModelResource): number | undefined {
+  const computed =
+    resource.quotaLimit !== undefined && resource.usedTokens !== undefined
+      ? Math.max(0, resource.quotaLimit - resource.usedTokens)
+      : undefined;
+  return minimumDefined(resource.remainingQuota !== undefined ? Math.max(0, resource.remainingQuota) : undefined, computed);
+}
+
+function quotaAllows(remaining: number | undefined, limit: number | undefined, requestTokens: number, safetyFraction: number): boolean {
+  if (remaining === undefined) return true;
+  if (remaining <= 0) return false;
+  if (requestTokens <= 0) return true;
+  const quotaBase = limit ?? remaining;
+  const safetyReserve = Math.ceil(quotaBase * safetyFraction);
+  return remaining - requestTokens >= safetyReserve;
+}
+
+function initialResourceUsedTokens(resource: AiModelResource): number {
+  if (resource.usedTokens !== undefined) return Math.max(0, resource.usedTokens);
+  if (resource.quotaLimit !== undefined && resource.remainingQuota !== undefined) {
+    return Math.max(0, resource.quotaLimit - Math.min(resource.quotaLimit, resource.remainingQuota));
+  }
+  return 0;
+}
+
+function providerBaselineUsedTokens(quota: AiProviderQuota): number {
+  if (quota.usedTokens !== undefined) return Math.max(0, quota.usedTokens);
+  if (quota.quotaLimit !== undefined && quota.remainingQuota !== undefined) {
+    return Math.max(0, quota.quotaLimit - Math.min(quota.quotaLimit, quota.remainingQuota));
+  }
+  return 0;
+}
+
 function cloneResource(resource: AiModelResource): AiModelResource {
   return { ...resource, capabilities: { ...resource.capabilities } };
+}
+
+function cloneProviderQuota(quota: AiProviderQuota): AiProviderQuota {
+  return { ...quota };
 }
 
 function clampSafetyFraction(value: number): number {
@@ -361,4 +459,14 @@ function clampSafetyFraction(value: number): number {
 
 function unique(values: readonly string[]): string[] {
   return [...new Set(values)];
+}
+
+function minimumDefined(a: number | undefined, b: number | undefined): number | undefined {
+  if (a === undefined) return b;
+  if (b === undefined) return a;
+  return Math.min(a, b);
+}
+
+function resourceKey(provider: string, model: string): string {
+  return `${provider}::${model}`;
 }

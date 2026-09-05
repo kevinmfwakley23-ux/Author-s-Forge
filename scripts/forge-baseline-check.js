@@ -20,14 +20,25 @@ const required = [
   "dist/guided-journal-server.js",
   "dist/educational-workbook-server.js",
   "dist/specialized-creation-server.js",
+  "dist/nft-creation-server.js",
+  "dist/application/nft-series-director.js",
+  "dist/application/nft-storage-publisher.js",
   "scripts/start-forge.js",
   "scripts/forge-offices-browser-acceptance.js",
   "scripts/studio-image-lab-browser-acceptance.js",
+  "scripts/studio-media-studio-browser-acceptance.js",
+  "scripts/nft-creation-browser-acceptance.js",
+  "scripts/nft-production-director-browser-acceptance.js",
   "public/index.html",
   "public/forge-image-lab.js",
+  "public/forge-media-studio.html",
+  "public/forge-media-studio.js",
   "public/guided-journal.html",
   "public/educational-workbooks.html",
   "public/specialized-creation.html",
+  "public/nft-creation.html",
+  "public/nft-creation.js",
+  "public/nft-production-director.js",
   "public/manifest.webmanifest",
   "public/sw.js",
 ];
@@ -42,5 +53,5 @@ if (missing.length) {
 }
 
 console.log("FORGE BASELINE CHECK PASSED");
-console.log("Canonical Studio + durable Image Lab, Guided Journal, Educational Workbook, Specialized Creation, and unified launcher surfaces are present.");
+console.log("Canonical Studio + Image Lab, Design & Motion, Guided Journal, Educational Workbooks, Specialized Creation, NFT Creation/Production Director, and unified launcher surfaces are present.");
 console.log("Next: npm run verify");

@@ -25,6 +25,8 @@ export const STUDIO_IMAGE_PURPOSES = ["illustration", "character-reference", "lo
 export const STUDIO_IMAGE_SIZES: readonly ImageGenerationSize[] = ["1024x1024", "1536x1024", "1024x1536", "2048x2048", "2048x1152", "auto"];
 export const STUDIO_IMAGE_QUALITIES: readonly ImageGenerationQuality[] = ["low", "medium", "high", "auto"];
 const MAX_INLINE_REFERENCE_BYTES = 5 * 1024 * 1024;
+const MAX_INLINE_GENERATED_BYTES = 64 * 1024 * 1024;
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 export interface StudioImageRightsDeclarationInput {
   readonly rightsBasis: AssetRightsBasis;
@@ -109,8 +111,8 @@ export class StudioImageLabService {
       sourceAsset = library.assets.find((asset) => asset.id === sourceAssetId);
       if (!sourceAsset) throw new Error(`Source illustration asset "${sourceAssetId}" not found.`);
       if (sourceAsset.approvalStatus === "rejected") throw new Error("Rejected artwork cannot be used as an edit source.");
-      requireInlineImage(sourceAsset.assetUri, "Stored source artwork");
-      referenceImages = [{ dataUri: sourceAsset.assetUri, label: sourceAsset.prompt.slice(0, 120) }];
+      const sourceData = requireInlineImage(sourceAsset.assetUri, "Stored source artwork");
+      referenceImages = [{ dataUri: sourceData, label: sourceAsset.prompt.slice(0, 120) }];
       if (input.referenceRights) {
         sourceDeclaration = rightsDeclaration(projectId, sourceAsset.id, input.referenceRights, now, sourceAsset.prompt, sourceProvenanceKind(input.referenceRights.rightsBasis));
         rights = appendAssetRightsRecord(rights, sourceDeclaration);
@@ -196,6 +198,11 @@ export class StudioImageLabService {
       quality,
       referenceImages,
     });
+    if (result.mimeType !== "image/png") throw new Error(`Generated image provider returned unsupported MIME type "${result.mimeType}".`);
+    const generatedData = requireInlineImage(result.dataUri, "Generated image output", MAX_INLINE_GENERATED_BYTES);
+    const generatedBase64 = generatedData.slice(generatedData.indexOf(",") + 1);
+    const resultBase64 = canonicalBase64(result.bytesBase64, "Generated image byte payload");
+    if (resultBase64 !== generatedBase64) throw new Error("Generated image byte payload does not match the returned image data URI.");
 
     // Image providers can take long enough for the author or another office to save newer
     // project state. Merge the completed image into the latest durable project instead of
@@ -225,7 +232,7 @@ export class StudioImageLabService {
       style,
       generationSettings: { purpose, size, quality, provider: result.provider, model: result.model },
       approvalStatus: "pending",
-      assetUri: result.dataUri,
+      assetUri: generatedData,
       reusedFromAssetId: persistedSourceAsset?.id,
       now,
     });
@@ -254,7 +261,7 @@ export class StudioImageLabService {
     let saved = withProjectIllustrationAssetLibrary(latestProject, library, now);
     saved = withProjectAssetRightsRegistry(saved, rights, now);
     await this.store.save(saved);
-    return Object.freeze({ project: saved, asset, ...(persistedSourceAsset ? { sourceAsset: persistedSourceAsset } : {}), assetProvenance, ...(sourceDeclaration ? { sourceDeclaration } : {}), ...(processingConsent ? { processingConsent } : {}), provider: result.provider, model: result.model, ...(result.requestId ? { requestId: result.requestId } : {}), url: result.dataUri });
+    return Object.freeze({ project: saved, asset, ...(persistedSourceAsset ? { sourceAsset: persistedSourceAsset } : {}), assetProvenance, ...(sourceDeclaration ? { sourceDeclaration } : {}), ...(processingConsent ? { processingConsent } : {}), provider: result.provider, model: result.model, ...(result.requestId ? { requestId: result.requestId } : {}), url: generatedData });
   }
 
   async declareRights(input: { projectId: string; assetId: string; declaration: StudioImageRightsDeclarationInput; now?: string }): Promise<{ project: ProjectState; record: AssetRightsRecord }> {
@@ -346,15 +353,53 @@ function activeContext(project: ProjectState): { bookId: string; chapterId: stri
   if (!book || !chapter || !scene) throw new Error("Create a book, chapter, and scene before generating project artwork.");
   return { bookId: book.id, chapterId: chapter.id, sceneId: scene.id, characterId: project.characters?.[0]?.id ?? "unassigned-character" };
 }
-function requireInlineImage(value: string, label: string): string {
+function requireInlineImage(value: string, label: string, maxBytes = MAX_INLINE_REFERENCE_BYTES): string {
   if (typeof value !== "string") throw new Error(`${label} must be an inline PNG, JPEG, or WebP image.`);
   const match = value.match(/^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/]+={0,2})$/i);
   if (!match) throw new Error(`${label} must be an inline PNG, JPEG, or WebP image.`);
-  const bytes = Buffer.from(match[2], "base64");
+  const mime = match[1].toLowerCase() as "png" | "jpeg" | "webp";
+  const canonical = canonicalBase64(match[2], label);
+  const bytes = Buffer.from(canonical, "base64");
+  if (bytes.byteLength > maxBytes) throw new Error(`${label} exceeds the ${Math.floor(maxBytes / 1024 / 1024)} MiB Studio image limit.`);
+  assertImageSignature(bytes, mime, label);
+  return `data:image/${mime};base64,${canonical}`;
+}
+function canonicalBase64(value: string, label: string): string {
+  if (typeof value !== "string" || !value || value.length % 4 === 1) throw new Error(`${label} contains invalid base64 data.`);
+  const bytes = Buffer.from(value, "base64");
   if (!bytes.byteLength) throw new Error(`${label} is empty.`);
-  if (bytes.byteLength > MAX_INLINE_REFERENCE_BYTES) throw new Error(`${label} exceeds the 5 MiB Studio upload limit.`);
-  if (bytes.toString("base64").replace(/=+$/, "") !== match[2].replace(/=+$/, "")) throw new Error(`${label} contains invalid base64 data.`);
-  return value;
+  const canonical = bytes.toString("base64");
+  if (canonical.replace(/=+$/, "") !== value.replace(/=+$/, "")) throw new Error(`${label} contains invalid base64 data.`);
+  return canonical;
+}
+function assertImageSignature(bytes: Buffer, mime: "png" | "jpeg" | "webp", label: string): void {
+  if (mime === "png") {
+    if (bytes.length < 33 || !bytes.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE)) throw new Error(`${label} is not a valid PNG byte stream.`);
+    if (bytes.readUInt32BE(8) !== 13 || bytes.toString("ascii", 12, 16) !== "IHDR") throw new Error(`${label} is not a valid PNG byte stream.`);
+    let offset = 8;
+    let sawIend = false;
+    while (offset + 12 <= bytes.length) {
+      const length = bytes.readUInt32BE(offset);
+      const typeStart = offset + 4;
+      const next = offset + 12 + length;
+      if (next > bytes.length) throw new Error(`${label} contains a truncated PNG chunk.`);
+      const type = bytes.toString("ascii", typeStart, typeStart + 4);
+      if (type === "IEND") {
+        if (length !== 0 || next !== bytes.length) throw new Error(`${label} contains an invalid PNG IEND chunk.`);
+        sawIend = true;
+        break;
+      }
+      offset = next;
+    }
+    if (!sawIend) throw new Error(`${label} is missing the PNG IEND chunk.`);
+    return;
+  }
+  if (mime === "jpeg") {
+    if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8 || bytes[bytes.length - 2] !== 0xff || bytes[bytes.length - 1] !== 0xd9) throw new Error(`${label} is not a valid JPEG byte stream.`);
+    return;
+  }
+  if (bytes.length < 12 || bytes.toString("ascii", 0, 4) !== "RIFF" || bytes.toString("ascii", 8, 12) !== "WEBP") throw new Error(`${label} is not a valid WebP byte stream.`);
+  if (bytes.readUInt32LE(4) + 8 > bytes.length) throw new Error(`${label} contains a truncated WebP byte stream.`);
 }
 function requiredId(value: string, label: string): string { if (typeof value !== "string" || !value.trim() || value !== value.trim() || !/^[A-Za-z0-9_-]+$/.test(value)) throw new Error(`${label} is invalid.`); return value; }
 function optionalId(value: string | undefined): string | undefined { return value === undefined || !value.trim() ? undefined : requiredId(value, "Optional id"); }
