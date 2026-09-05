@@ -6,7 +6,7 @@
   "scripts": {
     "runtime:check": "node scripts/require-node24.js",
     "preinstall": "node scripts/require-node24.js",
-    "prebuild": "node scripts/require-node24.js",
+    "prebuild": "node scripts/require-node24.js && node scripts/generate-launcher-icons.js",
     "build": "node scripts/build-forge.js",
     "test": "npm run build && node --test test/*.test.js",
     "check": "npm run build && npm test",
