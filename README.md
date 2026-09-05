@@ -1,299 +1,182 @@
-# Author's Forge
+# K.I.N.G.S. Author's Forge
 
-**Author's Forge** is a local-first AI authoring and publishing workplace for taking a project from idea → structured book → canon and characters → writing and editing → illustration and cover → production → market research and promotion → delivery and recovery.
+**KNOWLEDGE • INVESTIGATION • NARRATIVE • GENERATION • SYSTEM**
 
-This repository is the working product, not a mission gallery. The canonical product contract remains [`AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md`](AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md).
+K.I.N.G.S. Author's Forge is a local-first AI authoring and publishing workplace for taking a project from idea → structured book → canon and characters → writing and editing → illustration and cover → production → market research and promotion → delivery and recovery.
+
+> **Canonical architecture status:** The architecture rules in this README are owner-approved and locked. If an older note, test, branch, environment example, or temporary implementation conflicts with them, this README wins unless the owner explicitly changes the architecture.
+
+The product contract remains [`AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md`](AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md). Detailed build history remains in [`docs/BUILD_HISTORY.md`](docs/BUILD_HISTORY.md).
+
+## Architecture Gospel — LOCKED
+
+### K.I.N.G.S. is the brand
+
+The full product identity is **K.I.N.G.S. AUTHOR'S FORGE**. "Author's Forge" and "Forge" are acceptable conversational short names, but K.I.N.G.S. must remain visible in primary UI identity and installable-app identity.
+
+K.I.N.G.S. always means:
+
+**KNOWLEDGE • INVESTIGATION • NARRATIVE • GENERATION • SYSTEM**
+
+The acronym must not be redefined by an individual K.I.N.G.S. application.
+
+### Forge owns its own full brain
+
+K.I.N.G.S. Author's Forge is a standalone intelligent application. Normal Forge AI work must **not require the separate K.I.N.G.S. AI application to be online**.
+
+Forge owns its own full application brain using the same K.I.N.G.S. Brain Core DNA:
+
+- Project Brain and authoritative project state;
+- salient context assembly and token optimization;
+- provider/model registry and model broker;
+- OmniRoute integration;
+- 9Router integration;
+- additional authorized direct providers;
+- provider/model health, cooldown, retry and failover;
+- quota, cost, quality, latency and reliability policy;
+- governed research and provenance;
+- tool authorization;
+- verification, evidence, recovery and durable state;
+- Forge-specific agents, prompts, schemas and workflows.
+
+Every Forge office uses the same Forge Brain/trunk. Individual offices may specialize prompts and workflows, but they must not create competing provider routers or isolated brains. See [`docs/FORGE_AI_TRUNK_ROUTING_CONTRACT.md`](docs/FORGE_AI_TRUNK_ROUTING_CONTRACT.md).
+
+### Shared Brain Core, independent applications
+
+K.I.N.G.S. AI, K.I.N.G.S. Author's Forge, and K.I.N.G.S. Collector's Kingdom should share reusable K.I.N.G.S. Brain Core modules/contracts where practical so fixes and improvements propagate without copy/paste drift.
+
+They remain independent applications with their own runtime state, domain memory, provider configuration, quotas, policies and specialized workers.
+
+### Provider policy
+
+Forge should route work to the strongest appropriate configured resource under owner policy. OmniRoute and 9Router are first-class routing options, followed by other authorized configured providers according to capability, quality, availability, cost, quota, reliability and latency.
+
+Local Ollama models are supported as **last-resort/offline/local fallback**. Ollama is not the architectural center of Forge and an Ollama-only test must not redefine normal Forge production architecture.
+
+The current Forge trunk supports configured provider families including OmniRoute-compatible gateways, 9Router-compatible gateways, OpenAI, Groq, Mistral, Gemini, Anthropic, OpenRouter, local Ollama models, and an optional K.I.N.G.S. Responses-compatible endpoint. A provider name existing in code is not proof that it is configured or live.
+
+### Relationship to K.I.N.G.S. AI
+
+The separate K.I.N.G.S. AI application is the master general-purpose engineering/building system. Forge may optionally use K.I.N.G.S. AI for software-engineering missions, cross-app orchestration, or explicitly configured model access.
+
+That connection is **optional support**, not a required dependency for ordinary Forge writing, editing, research, planning, image, production or publishing AI workloads.
+
+### No fake completion
+
+Architecture documentation is not implementation proof. The permanent engineering sequence is:
+
+**Requirement → existing-code audit → correct integration point → build → integrate → unit test → integration test → end-to-end test → real-world proof → complete.**
+
+A file existing, a successful compile, or a printed `SUCCESS` line does not by itself make a feature complete.
 
 ## Chief Engineering Standard
 
-Author's Forge is built under one permanent rule: **real working code only**.
+**Real working code only.** Production behavior must never present fake AI responses, canned provider answers, fabricated research, simulated success states, placeholder buttons, fake persistence, fake downloads, fabricated image assets, swallowed provider failures, or silent author-state mutation as finished capability.
 
-### No fake-ass code rule
+Mocks and test doubles belong only in clearly identified tests. Missing credentials/providers must fail honestly without destroying the author's work.
 
-**No fake-ass code.** If Forge says a feature is built, it must be real, workable, usable, connected to the actual application/state boundary, and verifiable through the real product path.
+## Current implementation truth
 
-Production behavior must not use or present any of the following as finished capability:
+Forge already contains substantial independent-brain infrastructure. Its shared AI trunk connects Project Brain/context optimization to the Forge Core Model Broker and real configured providers with health, cooldown, shared quota, usage accounting, timeout-safe transport and failover. This architecture should be extended rather than replaced.
 
-- fake AI responses, canned provider answers, fabricated research, or simulated success states;
-- placeholder buttons, dead navigation, demo-only routes, fake persistence, or fake downloads;
-- fake image generation or fabricated art assets;
-- fake publishing readiness, market statistics, sales claims, campaign performance, or KDP compliance claims;
-- swallowed provider/storage errors that look like success;
-- silent canon changes, silent manuscript rewrites, or AI self-approval;
-- test weakening or test deletion merely to make CI green.
+The application also contains durable manuscript/canon/character state, author-controlled AI proposals, editing, research, production, image/cover work, publishing preparation, recovery, specialized creation offices, guided journals, educational workbooks and responsive mobile/PWA surfaces. Historical verified detail belongs in build history and current CI/PR evidence rather than being duplicated as a stale wall in this README.
 
-Mocks and test doubles are permitted only inside clearly identified automated tests. They are never a production fallback and never count as proof that an unavailable provider works.
-
-When a real credential, provider, dependency, browser capability, or external service is missing, Forge must fail honestly, preserve the author's work, and explain what is unavailable.
-
-## Current Product State — September 2, 2026
-
-The cumulative build is now a substantial usable application with durable local project state and separate first-class author workplaces. Recent integration work has brought the following onto the current production line:
-
-- hardened **Project Brain** memory, provenance, point-in-time retrieval, lifecycle attribution, state-conflict detection, context budgeting, retrieval diagnostics, and evaluation;
-- durable **project / book / chapter / scene** manuscript structure;
-- durable author-controlled **Story Architecture**, durable **Story Map** scene planning/plotlines, first-class **Chapter Cards**, first-class approved **Scene Cards**, **Writing Desk**, and governed AI writing proposals;
-- durable **Series Engine** state for multi-book shared canon, membership/order, and cross-book timeline planning;
-- structured **Character Bible** with temporal state and continuity evidence;
-- **World, canon, timeline, relationship, voice, research, decision, and production memory**;
-- **Author Voice Memory** and provider-facing voice preservation / drift evidence;
-- **Intelligent Editing**, Craft Lens findings, durable rewrite proposals, deterministic review diffs, and explicit author approval/apply boundaries;
-- durable **book version capture, compare, branch, merge, rollback, project packages, backup vault, and recovery**;
-- **Publishing metadata**, edition-scoped readiness, current KDP-oriented validation, KDP preflight history, real DOCX/PDF/EPUB production paths, and cover planning;
-- live **KDP market research / keyword / niche evidence** plus a source-backed general **Live Research** office using a real hosted web-search provider when configured;
-- a provenance-aware **Knowledge Gap Radar** whose outputs remain research hypotheses until source-backed research succeeds;
-- durable **Promotion campaigns**, author-gated publication state, and observed promotion-performance records without inventing attribution;
-- a durable **Studio Image Lab** with real provider execution, generation/editing, source preservation, derivative lineage, persistent pending assets, and explicit approve/reject review;
-- a separate **Guided Journal Office** with durable prompt libraries, generated editions, real PDF interiors, and production-derived cover geometry;
-- a separate **Educational Workbook Office** with durable activity banks, AI proposals, reproducible editions, real PDF output, three-tier differentiation packs, teacher guides, weighted rubrics, and performance-assessment evidence;
-- a separate **Specialized Creation Office** for exactly six modes: comic books, greeting cards, birthday cards, invitations, flyers, and trading-card-game cards, including durable structured documents and real production artifacts where supported;
-- a responsive **PWA / Chromebook / Android web surface** with service-worker shell caching that deliberately does not treat browser cache as durable project state.
-
-Do not use a hard-coded PR number or branch name in this README as an engineering resume checkpoint. **Current `main`, current open pull requests, and exact-head verification status are the resume authority.** Historical lane details belong in build history, engineering handoffs, and GitHub PR history.
-
-## Start Forge
+## Start K.I.N.G.S. Author's Forge
 
 Requirements:
 
-- Node.js **24 LTS**. The validated runtime lane is Node 24; unsupported and end-of-life Node majors are rejected rather than silently treated as supported;
+- Node.js **24 LTS** (`.nvmrc` is authoritative);
 - npm;
-- Chromium only if you want to run the browser-acceptance suite locally;
-- real provider credentials only for the AI/research/image capabilities you intend to use.
-
-On Chromebook/Linux with `nvm`, the repository's `.nvmrc` is the runtime authority:
+- Chromium/WebKit only for the applicable browser acceptance suites;
+- real provider credentials/endpoints only for capabilities you intend to use.
 
 ```bash
 nvm install 24
 nvm use 24
-node --version
-```
-
-Install and launch the complete local workplace:
-
-```bash
-git pull origin main
 npm ci
 npm run forge
 ```
 
-`npm ci` installs exactly from `package-lock.json`, and the Forge install/build lifecycle verifies Node 24 before presenting the environment as supported. `npm run forge` builds Forge and launches all four workplaces together:
+Main workplaces:
 
-| Workplace | Default local URL | Purpose |
-| --- | --- | --- |
-| Main Studio | `http://127.0.0.1:4173` | Books, Series Engine, writing, Brain, editing, image/cover, publishing, market research, promotion, recovery |
-| Guided Journal | `http://127.0.0.1:4273` | Guided-journal libraries, editions, interiors, production |
-| Educational Workbooks | `http://127.0.0.1:4373` | Activities, AI proposals, editions, differentiation, rubrics, assessment |
-| Specialized Creation | `http://127.0.0.1:4473` | Comics, cards, invitations, flyers, TCG cards |
+| Workplace | Default local URL |
+| --- | --- |
+| Main Studio | `http://127.0.0.1:4173` |
+| Guided Journal | `http://127.0.0.1:4273` |
+| Educational Workbooks | `http://127.0.0.1:4373` |
+| Specialized Creation | `http://127.0.0.1:4473` |
 
-You can also launch an individual workplace:
-
-```bash
-npm run studio
-npm run studio:journal
-npm run studio:workbooks
-npm run studio:specialized
-```
-
-### Chromebook / Android access
-
-To expose the complete Forge workplace from the Chromebook/Linux container or Android/Termux device to another browser on the same trusted network:
+For trusted LAN/Android browser access:
 
 ```bash
 npm run forge:android
 ```
 
-Non-loopback mode is access-gated. The four real Forge office processes stay bound to loopback; the launcher exposes only protected proxy ports. On startup it prints a one-time bootstrap URL in this form:
+The current Android target is the responsive installable web/PWA application; this repository does not claim a native Forge APK unless a verified native packaging milestone later establishes one.
 
-```text
-http://<device-ip>:4173/?access=<generated-token>
-```
+## AI routing configuration
 
-Open that exact URL first. Forge immediately removes the access token from the browser address bar and stores an `HttpOnly`, `SameSite=Strict` host cookie. That same cookie authorizes the other Forge office ports (`4273`, `4373`, `4473`) on the same host. Anonymous or incorrect-token requests receive `401` and do not reach project APIs.
-
-You may supply your own launcher token with `FORGE_ACCESS_TOKEN`; it must contain at least 24 characters. If it is omitted, Forge generates a strong random token for the current launcher run. The supported individual Android commands (`studio:android`, `studio:journal:android`, `studio:workbooks:android`, and `studio:specialized:android`) use the same protected boundary.
-
-For Termux, install the validated LTS runtime rather than the current-release Node package:
+Forge discovers only genuinely configured providers. Common routing variables include:
 
 ```bash
-pkg install nodejs-lts npm
-bash scripts/termux-forge.sh
+OMNIROUTE_BASE_URL="..."
+OMNIROUTE_MODELS="..."
+
+ROUTER9_BASE_URL="..."
+ROUTER9_MODELS="..."
+
+# Optional additional providers
+OPENAI_API_KEY="..."
+OPENAI_MODELS="..."
+GROQ_API_KEY="..."
+MISTRAL_API_KEY="..."
+GEMINI_API_KEY="..."
+ANTHROPIC_API_KEY="..."
+OPENROUTER_API_KEY="..."
+
+# Last-resort/local fallback
+OLLAMA_BASE_URL="http://127.0.0.1:11434"
+OLLAMA_MODELS="..."
+
+# Soft owner/provider preference; hard capability and safety rules still win.
+AI_PROVIDER_ORDER="omniroute,9router,openai,groq,mistral,gemini,anthropic,openrouter,ollama"
 ```
 
-The Termux launcher verifies Node 24 before installation/build, generates or reuses the access token, and prints the correct bootstrap URL for the phone. If the incompatible `nodejs` current-release package is already installed, the launcher fails clearly and tells you how to switch rather than silently running an unvalidated Node major. For another trusted LAN device, replace `127.0.0.1` in the printed URL with the host device's LAN IP.
+Do not commit credentials.
 
-The access gate protects Forge from casual/anonymous LAN access; it does **not** turn plain local HTTP into encrypted transport. Use LAN exposure only on a network you trust. For untrusted or remote networks, use a properly authenticated encrypted tunnel or HTTPS reverse proxy rather than exposing these ports directly.
+## Verification
 
-Forge's Android target is currently the responsive installable web/PWA application. This repository does **not** claim to ship a native Android APK.
-
-## Real AI Provider Configuration
-
-Forge discovers only providers that are actually configured. It does not register imaginary capacity when no provider exists.
-
-Common production environment variables include:
+Core gates:
 
 ```bash
-# OpenAI text / shared provider pool
-export OPENAI_API_KEY="..."
-export OPENAI_MODEL="..."
-# Optional comma-separated model pool
-export OPENAI_MODELS="model-a,model-b"
-
-# Local Ollama
-export OLLAMA_BASE_URL="http://127.0.0.1:11434"
-export OLLAMA_MODEL="..."
-# Optional comma-separated model pool
-export OLLAMA_MODELS="model-a,model-b"
-
-# Optional OpenAI-compatible routers
-export OMNIROUTE_BASE_URL="..."
-export OMNIROUTE_MODEL="..."
-export ROUTER9_BASE_URL="..."
-export ROUTER9_MODEL="..."
-
-# Optional routing preference
-export AI_PROVIDER_ORDER="openai,ollama"
-```
-
-Current-market KDP research uses a real hosted web-search path and requires a configured OpenAI research model (`OPENAI_MARKET_RESEARCH_MODEL` or the configured `OPENAI_MODEL`) plus the real API key.
-
-Image generation/editing also requires a real image-capable provider configuration. If it is unavailable, Image Lab returns a visible failure and does not fabricate an asset.
-
-Do not commit credentials to this repository.
-
-## Main Studio Workflow
-
-The current Main Studio exposes the real application surfaces for:
-
-1. Dashboard and natural-language / dictated Command Center;
-2. manuscript book/chapter/scene binder;
-3. Series Engine for multi-book shared canon, membership/order and cross-book timeline;
-4. Writing Desk and durable AI proposals;
-5. Story Architecture;
-6. Story Map and first-class Chapter Cards / Scene Cards;
-7. Character Bible;
-8. World & Canon;
-9. Research;
-10. Editing Room;
-11. Author Voice;
-12. Illustration Studio / Image Lab;
-13. Cover Studio;
-14. Marketing / Promotion;
-15. Production & Publish;
-16. Book Genome;
-17. Project Health;
-18. Versions & Recovery;
-19. Provider & Settings;
-20. Author Control / governance.
-
-AI output remains candidate material until the applicable author-review boundary says otherwise. Research remains evidence/working knowledge until deliberately promoted. Publishing or promotion state is not permission for Forge to bypass external retailer submission, account, or preview systems.
-
-## Specialized Offices
-
-### Guided Journal Office — port 4273
-
-Built as a separate office rather than being mixed into Specialized Creation. It supports durable prompt libraries, category-aware generation, repeat protection, response-page styles, real PDF interiors, AI prompt proposals with author approval, and production-derived cover planning.
-
-### Educational Workbook Office — port 4373
-
-Supports durable author activity libraries, grade/subject/type/difficulty metadata, answer-truth validation, AI activity proposals, deterministic editions, real PDF generation, answer keys, support/core/extension differentiation packs, teacher-guide PDF production, weighted rubrics, alternate evidence modes, and durable performance assessments.
-
-Standards identifiers and learner-support tiers are evidence/authoring metadata; Forge does not silently convert them into certification, diagnosis, placement, eligibility, or claims about a learner's worth or ability.
-
-### Specialized Creation Office — port 4473
-
-The canonical modes are only:
-
-- comic books;
-- greeting cards;
-- birthday cards;
-- invitations;
-- flyers;
-- trading-card-game cards.
-
-The office preserves durable project/document revisions, production profiles, artifact lineage, AI proposal/review boundaries, TCG framework and playtest structures, comic panel/lettering semantics, folded-card imposition, duplex TCG sheets, and real SVG/PDF/PNG/JPEG/CBZ/JSON/CSV output paths where the selected workflow supports them.
-
-## Publishing, Market Research, and Promotion Truth
-
-Forge may prepare publishing metadata, production files, preflight evidence, keyword/niche evidence, campaign drafts, and observed post-launch metrics. It must not invent:
-
-- retailer sales or revenue from BSR/review/rating proxies;
-- campaign impressions, clicks, spend, orders, revenue, or attribution that were not observed;
-- market-source URLs that were not actually returned by the research provider;
-- KDP readiness when required production evidence is absent;
-- external publication simply because a local asset is marked ready.
-
-Research recommendations cannot silently overwrite publishing keywords. Promotion assets remain draft/reviewable until explicit author action.
-
-## Durable State and Recovery
-
-The server-side Forge data boundary is the source of truth. Browser local storage/cache is not the project database.
-
-Forge currently supports:
-
-- file-backed project persistence;
-- project-scoped memory and manuscript state;
-- structured versions and rollback checkpoints;
-- integrity-checked portable project packages;
-- local backup vault creation, preview, restore, and deletion;
-- author-approved restore with rollback evidence;
-- PWA shell caching while excluding `/api/` project state from durable browser caching.
-
-Back up important projects before major upgrades or migrations.
-
-## Build and Verification
-
-Core commands:
-
-```bash
-npm run runtime:check
 npm run build
 npm test
-npm run baseline
-npm run completion
+npm run test:ai:hermetic
 npm run verify
 ```
 
-`npm run verify` is the strongest repository-level gate. It runs the build, all regression tests, baseline/completion checks, complete desktop browser acceptance, and Android/mobile acceptance. CI, canonical verification, and release packaging all select Node from `.nvmrc` and use lockfile-exact `npm ci` installation.
-
-Browser setup if running acceptance locally for the first time:
+Live provider certification is separate from hermetic routing tests:
 
 ```bash
-npm run browser:install
+npm run test:ai:live:omniroute
+npm run test:ai:live:9router
+npm run test:ai:live:ollama
+npm run test:ai:live:kings
 ```
 
-Canonical CI follows the same principle: a green source/unit test is evidence, not blanket proof. Major capabilities are expected to be reachable from the real UI, use durable state, survive restart where applicable, return real artifacts/errors, and pass the strongest available browser/mobile acceptance.
+A live-provider test only proves the provider/path it actually executed.
 
-## Engineering Coordination
+## Canonical references
 
-GitHub `main` is shared truth. Before starting a coherent engineering block, every lane/device should inspect current `main`, open pull requests, and the latest verification state.
+- [`docs/KINGS_FAMILY_ARCHITECTURE_GOSPEL.md`](docs/KINGS_FAMILY_ARCHITECTURE_GOSPEL.md) — expanded locked family architecture.
+- [`docs/FORGE_AI_TRUNK_ROUTING_CONTRACT.md`](docs/FORGE_AI_TRUNK_ROUTING_CONTRACT.md) — mandatory Forge Brain/model routing contract.
+- [`AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md`](AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md) — product contract.
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — architecture overview.
+- [`docs/AUTHORS_FORGE_CANONICAL_ARCHITECTURE.md`](docs/AUTHORS_FORGE_CANONICAL_ARCHITECTURE.md) — architecture detail.
+- [`docs/BUILD_HISTORY.md`](docs/BUILD_HISTORY.md) — historical verified capability record.
 
-Parallel engineering is allowed, but duplicate ownership of the same coherent implementation block is not. Reconcile against current code instead of rebuilding a feature that another lane already merged.
+## Definition of complete
 
-For merge-critical production work:
+K.I.N.G.S. Author's Forge is complete only when a real author can reliably carry a project through the intended author journey using real durable state, real provider boundaries, explicit author authority, truthful failures, verified production artifacts and the strongest applicable desktop/mobile acceptance paths.
 
-1. inspect current implementation before editing;
-2. make the smallest coherent real fix or feature;
-3. add/strengthen regression coverage;
-4. run the exact-head verification gate;
-5. merge only the SHA that actually passed;
-6. update current documentation and move to the next real usability gap.
-
-Historical mission-by-mission details belong in [`docs/BUILD_HISTORY.md`](docs/BUILD_HISTORY.md), engineering handoff documents, and GitHub PR history rather than in a stale wall of status text at the top of this README.
-
-## Important Architecture References
-
-- [`AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md`](AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md) — canonical product contract.
-- [`ARCHITECTURE.md`](ARCHITECTURE.md) — high-level architecture.
-- [`docs/AUTHORS_FORGE_CANONICAL_ARCHITECTURE.md`](docs/AUTHORS_FORGE_CANONICAL_ARCHITECTURE.md) — canonical architecture detail.
-- [`docs/BUILD_HISTORY.md`](docs/BUILD_HISTORY.md) — historical capability/build record.
-- [`docs/FORGE_AI_TRUNK_ROUTING_CONTRACT.md`](docs/FORGE_AI_TRUNK_ROUTING_CONTRACT.md) — shared AI routing contract.
-- [`docs/MISSION-059-SPECIALIZED-CREATION-OFFICE.md`](docs/MISSION-059-SPECIALIZED-CREATION-OFFICE.md) — Specialized Creation contract.
-- [`docs/EDUCATIONAL_WORKBOOK_OFFICE.md`](docs/EDUCATIONAL_WORKBOOK_OFFICE.md) — Educational Workbook contract.
-
-## Definition of Complete
-
-Author's Forge is not considered complete merely because a completion script reports 100% or because a collection of tests is green.
-
-The product is complete only when a real author can reliably create or restore a project and carry it through the intended author journey—concept, architecture, canon, characters, research, manuscript, editing, visual work, cover, production, market/promotion preparation, publishing readiness, delivery audit, and recovery—using real durable state, real provider boundaries, explicit author authority, truthful failures, and verified Chromebook/Android operation.
-
-Until every user-facing gap meets that standard, engineering continues.
+Until that standard is met, engineering continues.
