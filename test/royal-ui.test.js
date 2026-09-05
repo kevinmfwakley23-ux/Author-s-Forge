@@ -97,3 +97,22 @@ test("royal text and primary actions use high-contrast hardening tokens", () => 
   assert.match(hardening, /--forge-gold-deep:#d5b06c/);
   assert.match(hardening, /color:#1b140b!important/);
 });
+
+test("K.I.N.G.S. Author's Forge branding and family brain gospel cannot silently drift", () => {
+  const ui = read("public/forge-royal-ui.js");
+  const manifest = JSON.parse(read("public/manifest.webmanifest"));
+  const readme = read("README.md");
+  const gospel = read("docs/KINGS_FAMILY_ARCHITECTURE_GOSPEL.md");
+  const definition = "KNOWLEDGE • INVESTIGATION • NARRATIVE • GENERATION • SYSTEM";
+
+  assert.match(ui, /K\.I\.N\.G\.S\. AUTHOR'S FORGE/);
+  assert.match(ui, new RegExp(definition));
+  assert.equal(manifest.name, "K.I.N.G.S. Author's Forge");
+  assert.match(manifest.description, new RegExp(definition));
+  assert.match(readme, /Architecture Gospel — LOCKED/);
+  assert.match(readme, /does \*\*not require the separate K\.I\.N\.G\.S\. AI application to be online\*\*/);
+  assert.match(readme, /last-resort\/offline\/local fallback/);
+  assert.match(gospel, new RegExp(definition));
+  assert.match(gospel, /OmniRoute integration/);
+  assert.match(gospel, /9Router integration/);
+});
