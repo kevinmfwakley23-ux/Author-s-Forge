@@ -52,7 +52,10 @@ export async function generateWithKingsAi(config: KingsAiBridgeConfig, request: 
   const model = config.model?.trim() || process.env.KINGS_AI_MODEL?.trim();
   if (!model) throw new Error("KINGS_AI_MODEL is required when K.I.N.G.S. is selected.");
 
-  const headers: Record<string, string> = { "content-type": "application/json" };
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+    "x-kings-app-id": "authors.forge",
+  };
   const apiKey = config.apiKey?.trim() || process.env.KINGS_AI_API_KEY?.trim();
   if (apiKey) headers.authorization = `Bearer ${apiKey}`;
 
