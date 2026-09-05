@@ -1,5 +1,40 @@
 services:
   - type: pserv
+    name: omniroute
+    runtime: image
+    plan: 1c-2g
+    image:
+      url: docker.io/diegosouzapw/omniroute:3.8.50
+    maxShutdownDelaySeconds: 40
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOSTNAME
+        value: 0.0.0.0
+      - key: PORT
+        value: "10000"
+      - key: DATA_DIR
+        value: /app/data
+      - key: OMNIROUTE_MEMORY_MB
+        value: "1024"
+      - key: REQUIRE_API_KEY
+        value: "false"
+      - key: APP_LOG_TO_FILE
+        value: "true"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: API_KEY_SECRET
+        generateValue: true
+      - key: STORAGE_ENCRYPTION_KEY
+        generateValue: true
+      - key: INITIAL_PASSWORD
+        generateValue: true
+    disk:
+      name: omniroute-data
+      mountPath: /app/data
+      sizeGB: 1
+
+  - type: pserv
     name: kings-ai-router
     runtime: node
     repo: https://github.com/kevinmfwakley23-ux/-KINGS-AI
@@ -18,7 +53,14 @@ services:
       - key: KINGS_APP_ROUTER_TOKEN
         generateValue: true
       - key: KINGS_APP_ROUTER_PROVIDER_ORDER
-        value: omniroute,9router
+        value: omniroute
+      - key: KINGS_OMNIROUTE_HOSTPORT
+        fromService:
+          type: pserv
+          name: omniroute
+          property: hostport
+      - key: KINGS_OMNIROUTE_MODELS
+        value: auto
 
   - type: web
     name: authors-forge
@@ -26,6 +68,7 @@ services:
     repo: https://github.com/kevinmfwakley23-ux/Author-s-Forge
     branch: main
     plan: 0.5c-512mb
+    dockerCommand: node scripts/start-forge-web-render.js
     healthCheckPath: /healthz
     autoDeployTrigger: checksPass
     envVars:
@@ -37,6 +80,20 @@ services:
         value: "1"
       - key: FORGE_SECURE_COOKIE
         value: "1"
+      - key: KINGS_AI_HOSTPORT
+        fromService:
+          type: pserv
+          name: kings-ai-router
+          property: hostport
+      - key: KINGS_AI_API_KEY
+        fromService:
+          type: pserv
+          name: kings-ai-router
+          envVarKey: KINGS_APP_ROUTER_TOKEN
+      - key: KINGS_AI_MODEL
+        value: auto
+      - key: KINGS_AI_TIMEOUT_MS
+        value: "70000"
     disk:
       name: forge-data
       mountPath: /var/data
