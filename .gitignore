@@ -1,4 +1,9 @@
 node_modules/
 .forge-build/
+src-tauri/gen/
+src-tauri/target/
+*.jks
+*.keystore
+keystore.properties
 *.log
 .DS_Store
