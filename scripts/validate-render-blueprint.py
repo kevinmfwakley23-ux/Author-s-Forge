@@ -67,16 +67,29 @@ def main() -> None:
             source_name = source.get("name")
             if source_name not in service_by_name:
                 fail(f"{service['name']}.{env_var.get('key')} references unknown service {source_name!r}")
+            source_service = service_by_name[source_name]
             expected_type = source.get("type")
-            actual_type = service_by_name[source_name].get("type")
+            actual_type = source_service.get("type")
             if expected_type and actual_type != expected_type:
                 fail(
                     f"{service['name']}.{env_var.get('key')} expects {source_name!r} "
                     f"to be type {expected_type!r}, found {actual_type!r}"
                 )
+            source_env_key = source.get("envVarKey")
+            if source_env_key:
+                source_keys = {
+                    candidate.get("key")
+                    for candidate in source_service.get("envVars", []) or []
+                    if isinstance(candidate, dict)
+                }
+                if source_env_key not in source_keys:
+                    fail(
+                        f"{service['name']}.{env_var.get('key')} references missing environment "
+                        f"key {source_env_key!r} on {source_name!r}"
+                    )
 
     names = set(service_by_name)
-    required = {"kings-ai-router", "authors-forge", "kings-collectors-kingdom"}
+    required = {"omniroute", "kings-ai-router", "authors-forge", "kings-collectors-kingdom"}
     missing = sorted(required - names)
     if missing:
         fail(f"ecosystem blueprint is missing required services: {', '.join(missing)}")
