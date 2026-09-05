@@ -2,6 +2,7 @@ import type { AiProposal, AiProposalKind, AiProposalTarget } from "./ai-proposal
 import type { AiProposalStore } from "./ai-proposal-store";
 import type { VoiceDriftReport } from "../domain/author-voice-memory";
 import type { CharacterContinuityEvidence } from "../domain/character-continuity-evidence";
+import type { AiMissionRoutingPreference } from "./ai-mission-routing";
 
 export const AI_WRITING_FORMAT_VERSION = 1 as const;
 
@@ -21,6 +22,8 @@ export interface AiWritingRequest {
   readonly proposalId: string;
   readonly baseContentSha256?: string;
   readonly now?: string;
+  /** Request-only broker preference. It is never persisted into proposal/manuscript state. */
+  readonly routingPreference?: AiMissionRoutingPreference;
 }
 
 export interface AiWritingProviderRequest {
