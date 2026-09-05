@@ -1,0 +1,1 @@
+Primary placements: Studio royal masthead/sidebar identity; native gateway launch surface; PWA/install icons; offline shell cache. Secondary placements must avoid cluttering author workspaces.
