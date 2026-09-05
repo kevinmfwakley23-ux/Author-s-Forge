@@ -125,7 +125,10 @@ async function main() {
       page.waitForNavigation({ waitUntil: "networkidle" }),
       page.locator('button[type="submit"]').tap(),
     ]);
-    assert.equal(page.url(), `${base}/`, "Hosted WebKit login must return to the authenticated Forge root.");
+    const authenticatedUrl = new URL(page.url());
+    assert.equal(authenticatedUrl.origin, base, "Hosted WebKit login must remain on the Forge origin.");
+    assert.equal(authenticatedUrl.pathname, "/", "Hosted WebKit login must return to the Forge root path.");
+    assert.equal(authenticatedUrl.hash, "#dashboard", "Hosted WebKit login must open the Forge dashboard.");
 
     const cookies = await context.cookies(base);
     const accessCookie = cookies.find((cookie) => cookie.name === "forge_access");
