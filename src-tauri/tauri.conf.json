@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Author's Forge",
+  "productName": "K.I.N.G.S. Author's Forge",
   "version": "0.1.0",
   "identifier": "com.authorsforge.app",
   "build": {
@@ -10,7 +10,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Author's Forge",
+        "title": "K.I.N.G.S. Author's Forge",
         "width": 1440,
         "height": 960,
         "minWidth": 360,
@@ -27,7 +27,7 @@
     "active": true,
     "targets": "all",
     "category": "Productivity",
-    "shortDescription": "AI creativity, authoring and publishing workplace",
-    "longDescription": "Author's Forge is a governed AI creativity, authoring, publishing and production workplace with durable project state and cross-platform access."
+    "shortDescription": "K.I.N.G.S. AI creativity, authoring and publishing workplace",
+    "longDescription": "K.I.N.G.S. Author's Forge is a governed AI creativity, authoring, publishing and production workplace with durable project state and cross-platform access."
   }
 }
