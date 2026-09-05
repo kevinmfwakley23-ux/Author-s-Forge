@@ -1,5 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { FileProjectStore } from "../infrastructure/file-project-store";
+import { generateProjectText } from "../infrastructure/ai-provider";
+import { aiMissionRoutingGenerationFields, parseAiMissionRoutingPreference } from "./ai-mission-routing";
 import { StudioChapterCardWorkflowService, type ChapterCardPlanGenerator } from "./studio-chapter-card-workflow";
 
 export type StudioChapterCardWorkflowRouteHandler = (req: IncomingMessage, res: ServerResponse, url: URL, projectId: string) => Promise<boolean>;
@@ -17,7 +19,14 @@ export function createStudioChapterCardWorkflowRoutes(
     }
     if (url.pathname === `${root}/generate` && req.method === "POST") {
       const input = await body(req);
-      json(res, 201, await service.generateChapterCards(projectId, {
+      const routingPreference = parseAiMissionRoutingPreference(input.routingPreference);
+      const routedGenerator: ChapterCardPlanGenerator = async (request) =>
+        (generator ?? generateProjectText)({
+          ...request,
+          ...aiMissionRoutingGenerationFields(routingPreference),
+        });
+      const routedService = new StudioChapterCardWorkflowService(projects, routedGenerator);
+      json(res, 201, await routedService.generateChapterCards(projectId, {
         bookId: requiredString(input.bookId, "bookId"),
         description: requiredString(input.description, "description"),
         events: optionalStringArray(input.events, "events"),
