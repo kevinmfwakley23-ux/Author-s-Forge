@@ -25,7 +25,7 @@ jobs:
         run: npm ci
       - name: Verify runtime contract
         run: npm run runtime:check
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium webkit
       - name: Run strongest Forge verification gate
         run: npm run verify
