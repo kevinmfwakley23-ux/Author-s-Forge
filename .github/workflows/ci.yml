@@ -68,6 +68,8 @@ jobs:
       - run: node --check scripts/forge-network-security.js
       - run: node --check scripts/start-forge.js
       - run: node --check scripts/start-forge-web.js
+      - run: node --check scripts/forge-render-private-network.js
+      - run: node --check scripts/start-forge-web-render.js
       - run: node --check scripts/forge-platform-doctor.js
       - run: node --check scripts/forge-sandbox.js
       - run: node --check scripts/forge-codespaces.js
