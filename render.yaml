@@ -37,6 +37,22 @@ services:
         value: "1"
       - key: FORGE_SECURE_COOKIE
         value: "1"
+      - key: KINGS_AI_RESPONSES_URL
+        fromService:
+          type: pserv
+          name: kings-ai-router
+          property: hostport
+      - key: KINGS_AI_API_KEY
+        fromService:
+          type: pserv
+          name: kings-ai-router
+          envVarKey: KINGS_APP_ROUTER_TOKEN
+      - key: KINGS_AI_MODEL
+        value: auto
+      - key: KINGS_AI_BILLING_CLASS
+        value: gateway-managed
+      - key: KINGS_AI_TIMEOUT_MS
+        value: "65000"
     disk:
       name: forge-data
       mountPath: /var/data
