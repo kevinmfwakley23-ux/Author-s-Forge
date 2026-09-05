@@ -33,6 +33,10 @@ jobs:
             git status --short >&2
             exit 1
           fi
+          # GitHub Actions correctly refuses to rewrite workflow definitions with
+          # the ordinary contents token. Preserve this branch's workflow files;
+          # the application merge is what this one-time job is responsible for.
+          git restore --source=HEAD --staged --worktree .github/workflows
           python - <<'PY'
           import json
           import re
@@ -42,8 +46,6 @@ jobs:
           def main_file(path):
               return subprocess.check_output(["git", "show", f"origin/main:{path}"], text=True)
 
-          # Preserve the hosted branch's generic gateway support while restoring
-          # the Creative Agent branch's shared provider transport and quotas.
           path = Path('src/infrastructure/ai-provider.ts')
           text = path.read_text()
           text = text.replace(
@@ -64,8 +66,6 @@ jobs:
               text = text.replace(anchor, insertion + anchor)
           path.write_text(text)
 
-          # Preserve hosted URL/service-worker behavior while restoring the newly
-          # merged Agent Workbench, Design & Motion, and NFT launcher entries.
           path = Path('public/forge-pwa.js')
           text = path.read_text()
           if 'function ensureAgentNavigation()' not in text:
@@ -85,21 +85,16 @@ jobs:
           )
           path.write_text(text)
 
-          # Use main's full browser contract (Agent/Cover/Media/NFT included), then
-          # layer the hosted runtime operator commands back in.
           merged_package = json.loads(Path('package.json').read_text())
           package = json.loads(main_file('package.json'))
-          hosted_scripts = [
+          for key in (
               'forge:web', 'forge:web:prepared', 'forge:doctor', 'forge:doctor:json',
               'forge:sandbox', 'forge:codespaces', 'forge:ssh'
-          ]
-          for key in hosted_scripts:
+          ):
               if key in merged_package.get('scripts', {}):
                   package['scripts'][key] = merged_package['scripts'][key]
           Path('package.json').write_text(json.dumps(package, indent=2) + '\n')
 
-          # Restore Creative Agent routing into the richer hosted Studio extension
-          # composition instead of dropping either side's route modules.
           path = Path('src/application/studio-publishing-promotion-routes.ts')
           text = path.read_text()
           if 'createStudioCreativeAgentRoutes' not in text:
@@ -117,7 +112,6 @@ jobs:
               )
           path.write_text(text)
 
-          # Union main's new PWA assets into both local and hosted offline shells.
           main_sw = main_file('public/sw.js')
           shell_match = re.search(r'const SHELL = \[(.*?)\];', main_sw, re.S)
           main_assets = re.findall(r'"(/[^"]+)"', shell_match.group(1) if shell_match else '')
@@ -136,7 +130,6 @@ jobs:
                   sw = body + insertion + sw[end:]
               sw_path.write_text(sw)
           PY
-          git rm .github/workflows/converge-hosted-runtime.yml
       - name: Install
         run: npm ci
       - name: Build
