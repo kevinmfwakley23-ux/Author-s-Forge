@@ -1,14 +1,27 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { join } from "node:path";
 import { FileProjectStore } from "../infrastructure/file-project-store";
+import { FileAiProposalStore } from "../infrastructure/file-ai-proposal-store";
+import { FileAiModelPerformanceStore } from "../infrastructure/file-ai-model-performance-store";
+import { FileCreativeProvenanceStore } from "../infrastructure/file-creative-provenance-store";
+import { FileForgeRecipeStore } from "../infrastructure/file-forge-recipe-store";
+import { FileHumanReviewStore } from "../infrastructure/file-human-review-store";
+import { createStudioAiEnsembleRoutes } from "./studio-ai-ensemble-routes";
+import { createStudioAiGatewayRoutes } from "./studio-ai-gateway-routes";
+import { createStudioAiModelOptionsRoutes } from "./studio-ai-model-options-routes";
+import { createStudioAiModelPerformanceRoutes } from "./studio-ai-model-performance-routes";
 import { createStudioArchitectureAiRoutes } from "./studio-architecture-ai-routes";
 import { createStudioAuthorCraftRoutes } from "./studio-author-craft-routes";
 import { createStudioChapterCardWorkflowRoutes } from "./studio-chapter-card-workflow-routes";
 import { createStudioCreativeAgentRoutes } from "./studio-creative-agent-routes";
+import { createStudioForgeRecipeRoutes } from "./studio-forge-recipe-routes";
+import { createStudioHumanReviewRoutes } from "./studio-human-review-routes";
 import { createStudioImageLabRoutes } from "./studio-image-lab-routes";
 import { createStudioKnowledgeGapRoutes } from "./studio-knowledge-gap-routes";
 import { createStudioLiveResearchRoutes } from "./studio-live-research-routes";
 import { createStudioManuscriptImportRoutes } from "./studio-manuscript-import-routes";
 import { createStudioMarketPromotionRoutes } from "./studio-market-promotion-routes";
+import { createStudioProvenanceRoutes } from "./studio-provenance-routes";
 import { createStudioPublishingRoutes } from "./studio-publishing-routes";
 import { createStudioSceneCardWorkflowRoutes } from "./studio-scene-card-workflow-routes";
 import { createStudioSeriesRoutes } from "./studio-series-routes";
@@ -20,15 +33,30 @@ export type StudioPublishingPromotionRouteHandler = (req: IncomingMessage, res: 
 /**
  * Modular Studio extension boundary. Historical name is retained to avoid
  * destabilizing the server entrypoint while architecture planning, author-craft,
- * agent discovery, Chapter Card, Scene Card, manuscript intake, Series, Story Map,
- * research, image, publishing, market and promotion routes remain independently
- * implemented and testable.
+ * model freedom, generic AI gateways, governed multi-model writing,
+ * evidence-based model performance, reusable Forge Recipes, governed human
+ * review, creative provenance, Chapter Card, Scene Card, manuscript intake,
+ * Series, Story Map, research, image, publishing, market and promotion routes
+ * remain independently testable.
  */
 export function createStudioPublishingPromotionRoutes(store: FileProjectStore): StudioPublishingPromotionRouteHandler {
+  const dataRoot = process.env.FORGE_DATA_DIR ?? join(process.cwd(), ".forge-data");
+  const recipeStore = new FileForgeRecipeStore(join(dataRoot, "forge-recipes.json"));
+  const reviewStore = new FileHumanReviewStore(join(dataRoot, "human-reviews.json"));
+  const provenanceStore = new FileCreativeProvenanceStore(join(dataRoot, "creative-provenance.json"));
+  const sharedProposalStore = new FileAiProposalStore(join(dataRoot, "ai-proposals.json"));
+  const performanceStore = new FileAiModelPerformanceStore(join(dataRoot, "ai-model-performance.json"));
+  const gatewayRoutes = createStudioAiGatewayRoutes(store);
+  const modelOptions = createStudioAiModelOptionsRoutes(store);
+  const modelPerformance = createStudioAiModelPerformanceRoutes(store, performanceStore);
+  const ensembleWriting = createStudioAiEnsembleRoutes(store, sharedProposalStore, performanceStore);
   const storyArchitecture = createStudioStoryArchitectureRoutes(store);
   const architectureAi = createStudioArchitectureAiRoutes(store);
   const authorCraft = createStudioAuthorCraftRoutes(store);
   const creativeAgent = createStudioCreativeAgentRoutes(store);
+  const forgeRecipes = createStudioForgeRecipeRoutes(store, recipeStore, sharedProposalStore);
+  const humanReview = createStudioHumanReviewRoutes(store, reviewStore, provenanceStore);
+  const provenance = createStudioProvenanceRoutes(store, provenanceStore);
   const chapterCards = createStudioChapterCardWorkflowRoutes(store);
   const sceneCards = createStudioSceneCardWorkflowRoutes(store);
   const manuscriptImport = createStudioManuscriptImportRoutes(store);
@@ -41,10 +69,17 @@ export function createStudioPublishingPromotionRoutes(store: FileProjectStore): 
   const marketPromotion = createStudioMarketPromotionRoutes(store);
 
   return async (req, res, url, projectId) => {
+    if (await gatewayRoutes(req, res, url, projectId)) return true;
+    if (await modelOptions(req, res, url, projectId)) return true;
+    if (await modelPerformance(req, res, url, projectId)) return true;
+    if (await ensembleWriting(req, res, url, projectId)) return true;
     if (await storyArchitecture(req, res, url, projectId)) return true;
     if (await architectureAi(req, res, url, projectId)) return true;
     if (await authorCraft(req, res, url, projectId)) return true;
     if (await creativeAgent(req, res, url, projectId)) return true;
+    if (await forgeRecipes(req, res, url, projectId)) return true;
+    if (await humanReview(req, res, url, projectId)) return true;
+    if (await provenance(req, res, url, projectId)) return true;
     if (await chapterCards(req, res, url, projectId)) return true;
     if (await sceneCards(req, res, url, projectId)) return true;
     if (await manuscriptImport(req, res, url, projectId)) return true;

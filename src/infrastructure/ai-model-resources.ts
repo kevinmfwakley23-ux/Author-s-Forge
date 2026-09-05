@@ -1,5 +1,6 @@
 import type { AiBillingClass, AiModelCapabilities, AiModelResource, AiProviderQuota } from "../application/ai-model-broker";
 import { constrainResourcesForOwnerPin, refreshPersistedAiOwnerControl } from "./ai-owner-control-runtime";
+import { discoverOpenAiCompatibleGatewayResources } from "./openai-compatible-gateways";
 
 type SupportedProvider = "omniroute" | "9router" | "kings" | "openai" | "ollama" | "groq" | "mistral" | "gemini" | "anthropic" | "openrouter";
 
@@ -70,6 +71,11 @@ export function discoverConfiguredAiModelResources(env: NodeJS.ProcessEnv = proc
   addProvider("gemini", Boolean(env.GEMINI_API_KEY?.trim()), models(env.GEMINI_MODELS, env.GEMINI_MODEL), "GEMINI");
   addProvider("anthropic", Boolean(env.ANTHROPIC_API_KEY?.trim()), models(env.ANTHROPIC_MODELS, env.ANTHROPIC_MODEL), "ANTHROPIC");
   addProvider("openrouter", Boolean(env.OPENROUTER_API_KEY?.trim()), models(env.OPENROUTER_MODELS, env.OPENROUTER_MODEL), "OPENROUTER");
+
+  // Generic OpenAI-compatible gateways are durable registry entries. Their
+  // credential values stay in environment secrets and are never copied into
+  // the project/model resource ledger.
+  resources.push(...discoverOpenAiCompatibleGatewayResources(env));
 
   const overrides = parseExplicitResources(env.AI_MODEL_RESOURCES_JSON, env);
   const byKey = new Map(resources.map((resource) => [`${resource.provider}::${resource.model}`, resource]));

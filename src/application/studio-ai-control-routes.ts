@@ -7,9 +7,9 @@ import { aiConfiguredProviderQuotas, aiConfiguredResources, aiRoutingTelemetry }
 import type { FileProjectStore } from "../infrastructure/file-project-store";
 import { providerFetch, readAiProviderTimeoutMs } from "../infrastructure/provider-transport";
 
-const PROVIDERS = ["omniroute", "9router", "kings", "ollama", "groq", "mistral", "gemini", "anthropic", "openrouter", "openai"] as const;
+const PROVIDERS = ["omniroute", "9router", "kings", "ollama", "groq", "mistral", "gemini", "anthropic", "openrouter", "gateway", "openai"] as const;
 type Provider = typeof PROVIDERS[number];
-const MODEL_PREFIX: Readonly<Record<Provider, string>> = {
+const MODEL_PREFIX: Readonly<Partial<Record<Provider, string>>> = {
   omniroute: "OMNIROUTE", "9router": "ROUTER9", kings: "KINGS_AI", ollama: "OLLAMA", groq: "GROQ",
   mistral: "MISTRAL", gemini: "GEMINI", anthropic: "ANTHROPIC", openrouter: "OPENROUTER", openai: "OPENAI",
 };
@@ -29,6 +29,7 @@ const dataRoot = process.env.FORGE_DATA_DIR?.trim() || join(process.cwd(), ".for
 const controlPath = join(dataRoot, "ai-runtime-control.json");
 const baselineModels = new Map<string, string | undefined>();
 for (const prefix of Object.values(MODEL_PREFIX)) {
+  if (!prefix) continue;
   baselineModels.set(`${prefix}_MODEL`, process.env[`${prefix}_MODEL`]);
   baselineModels.set(`${prefix}_MODELS`, process.env[`${prefix}_MODELS`]);
 }
@@ -72,7 +73,7 @@ function snapshot() {
     providerQuotas: aiConfiguredProviderQuotas(),
     telemetry: aiRoutingTelemetry(),
     policyExplanation: current.spendPolicy === "no-paid-tokens"
-      ? "Metered, unknown, and gateway-managed resources are blocked unless their billing class is explicitly configured as local, subscription, or free."
+      ? "Metered, unknown, and gateway-managed resources are blocked unless the owner explicitly classifies or trusts the exact route as no-spend. Local/free/subscription resources remain eligible under normal capability, health, and quota gates."
       : current.spendPolicy === "budgeted"
         ? "Paid/unknown resources require known price metadata and must stay within the configured per-request cap."
         : "All configured resources may be used; normal cost-conscious routing still applies.",
@@ -84,7 +85,7 @@ function defaultControl(): AiOwnerControl {
     formatVersion: 1,
     spendPolicy: "no-paid-tokens",
     routingMode: "economy",
-    providerOrder: ["omniroute", "9router", "kings", "ollama", "groq", "mistral", "gemini", "anthropic", "openrouter", "openai"],
+    providerOrder: ["omniroute", "9router", "kings", "ollama", "groq", "mistral", "gemini", "anthropic", "openrouter", "gateway", "openai"],
     updatedAt: new Date().toISOString(),
   };
 }
@@ -117,9 +118,16 @@ function applyControl(control: AiOwnerControl): void {
     else process.env[key] = value;
   }
   if (control.pinnedProvider && control.pinnedModel) {
+    process.env.AI_PINNED_PROVIDER = control.pinnedProvider;
+    process.env.AI_PINNED_MODEL = control.pinnedModel;
     const prefix = MODEL_PREFIX[control.pinnedProvider];
-    process.env[`${prefix}_MODEL`] = control.pinnedModel;
-    process.env[`${prefix}_MODELS`] = control.pinnedModel;
+    if (prefix) {
+      process.env[`${prefix}_MODEL`] = control.pinnedModel;
+      process.env[`${prefix}_MODELS`] = control.pinnedModel;
+    }
+  } else {
+    delete process.env.AI_PINNED_PROVIDER;
+    delete process.env.AI_PINNED_MODEL;
   }
 }
 function orderedProviders(control: AiOwnerControl): Provider[] {
@@ -131,8 +139,9 @@ function validateControl(input: Record<string, unknown>, previous: AiOwnerContro
   const spendPolicy = spendPolicyValue(input.spendPolicy ?? previous.spendPolicy);
   const routingMode = routingModeValue(input.routingMode ?? previous.routingMode);
   const providerOrder = input.providerOrder === undefined ? previous.providerOrder : providerOrderValue(input.providerOrder);
-  const pinnedProvider = optionalProvider(input.pinnedProvider);
-  const pinnedModel = optionalModel(input.pinnedModel);
+  const pinFieldsSupplied = Object.prototype.hasOwnProperty.call(input, "pinnedProvider") || Object.prototype.hasOwnProperty.call(input, "pinnedModel");
+  const pinnedProvider = pinFieldsSupplied ? optionalProvider(input.pinnedProvider) : previous.pinnedProvider;
+  const pinnedModel = pinFieldsSupplied ? optionalModel(input.pinnedModel) : previous.pinnedModel;
   if ((pinnedProvider === undefined) !== (pinnedModel === undefined)) throw new Error("Pinned provider and pinned model must be set or cleared together.");
   const rawCap = input.maxEstimatedRequestCostUsd;
   let maxEstimatedRequestCostUsd: number | undefined;
@@ -147,7 +156,7 @@ function validateControl(input: Record<string, unknown>, previous: AiOwnerContro
     spendPolicy,
     routingMode,
     providerOrder,
-    ...(pinnedProvider ? { pinnedProvider, pinnedModel } : {}),
+    ...(pinnedProvider && pinnedModel ? { pinnedProvider, pinnedModel } : {}),
     ...(maxEstimatedRequestCostUsd === undefined ? {} : { maxEstimatedRequestCostUsd }),
     updatedAt: new Date().toISOString(),
   };
@@ -168,6 +177,10 @@ async function providerCatalog(provider: Provider): Promise<{ provider: Provider
     case "kings": {
       const models = aiConfiguredResources().filter((resource) => resource.provider === "kings").map((resource) => ({ id: resource.model, billingClass: resource.billingClass, capabilities: resource.capabilities }));
       return { provider, models, source: "configured K.I.N.G.S. resources", fetchedAt };
+    }
+    case "gateway": {
+      const models = aiConfiguredResources().filter((resource) => resource.provider === "gateway").map((resource) => ({ id: resource.model, billingClass: resource.billingClass, capabilities: resource.capabilities }));
+      return { provider, models, source: "registered OpenAI-compatible gateways", fetchedAt };
     }
   }
 }
@@ -269,7 +282,7 @@ function optionalProvider(value: unknown): Provider | undefined {
 function optionalModel(value: unknown): string | undefined {
   if (value === undefined || value === null || value === "") return undefined;
   const model = String(value).trim();
-  if (!model || model.length > 200 || /[\r\n]/.test(model)) throw new Error("Invalid AI model id.");
+  if (!model || model.length > 350 || /[\r\n]/.test(model)) throw new Error("Invalid AI model id.");
   return model;
 }
 function providerOrderValue(value: unknown): Provider[] {

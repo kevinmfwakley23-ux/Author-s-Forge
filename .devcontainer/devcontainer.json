@@ -1,0 +1,27 @@
+{
+  "name": "Author's Forge",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-24-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/rust:1": {
+      "version": "stable"
+    },
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest",
+      "moby": true
+    }
+  },
+  "postCreateCommand": "npm ci && node scripts/forge-platform-doctor.js",
+  "forwardPorts": [4173, 4273, 4373, 4473, 4573],
+  "portsAttributes": {
+    "4173": { "label": "Forge Main Studio", "onAutoForward": "notify" },
+    "4273": { "label": "Forge Guided Journal", "onAutoForward": "silent" },
+    "4373": { "label": "Forge Educational Workbooks", "onAutoForward": "silent" },
+    "4473": { "label": "Forge Specialized Creation", "onAutoForward": "silent" },
+    "4573": { "label": "Forge Hosted Gateway", "onAutoForward": "notify" }
+  },
+  "remoteUser": "node",
+  "containerEnv": {
+    "FORGE_ENVIRONMENT": "devcontainer"
+  }
+}

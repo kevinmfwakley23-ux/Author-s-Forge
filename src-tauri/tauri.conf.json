@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Author's Forge",
+  "version": "0.1.0",
+  "identifier": "com.authorsforge.app",
+  "build": {
+    "frontendDist": "../native-shell"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Author's Forge",
+        "width": 1440,
+        "height": 960,
+        "minWidth": 360,
+        "minHeight": 640,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https: http://127.0.0.1:* http://localhost:*; navigate-to https: http://127.0.0.1:* http://localhost:*"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "Productivity",
+    "shortDescription": "AI creativity, authoring and publishing workplace",
+    "longDescription": "Author's Forge is a governed AI creativity, authoring, publishing and production workplace with durable project state and cross-platform access."
+  }
+}

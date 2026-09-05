@@ -22,7 +22,8 @@ test('PWA shell has a platform-neutral install manifest and live lifecycle entry
   for (const icon of manifest.icons) assert.equal(typeof icon.src, 'string');
   assert.match(index, /manifest\.webmanifest/);
   assert.match(index, /forge-pwa\.js/, 'Main Studio must actually load the PWA lifecycle it claims to ship');
-  assert.match(pwa, /serviceWorker\.register\("\/sw\.js"/);
+  assert.match(pwa, /hostedMode\(\)\?"\/sw-hosted\.js":"\/sw\.js"/);
+  assert.match(pwa, /serviceWorker\.register\(script/);
 });
 
 test('Series Engine is discoverable from the live Studio PWA and travels in the offline shell', () => {

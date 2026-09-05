@@ -21,4 +21,7 @@
     }
     return result;
   };
+  if(!document.querySelector('script[data-forge-extension="brand-kit"]')){
+    const script=document.createElement("script");script.src="/specialized-brand-kit.js";script.defer=true;script.dataset.forgeExtension="brand-kit";document.head.appendChild(script);
+  }
 })();

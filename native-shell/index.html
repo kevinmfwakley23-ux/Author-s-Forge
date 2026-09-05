@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#15130f" />
+  <title>Author's Forge</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="shell">
+    <section class="crest" aria-label="Author's Forge">
+      <div class="crown" aria-hidden="true">♛</div>
+      <p class="eyebrow">AUTHOR'S</p>
+      <h1>FORGE</h1>
+      <p class="subtitle">Native gateway to your creative workplace</p>
+    </section>
+
+    <section class="card" aria-labelledby="connect-title">
+      <h2 id="connect-title">Open your Forge</h2>
+      <p>Enter the HTTPS address of your hosted Author's Forge. For local desktop development, <code>http://127.0.0.1:4573</code> is also allowed.</p>
+      <form id="connect-form" novalidate>
+        <label for="forge-url">Forge address</label>
+        <input id="forge-url" name="forge-url" type="url" inputmode="url" autocomplete="url" placeholder="https://forge.example.com/?access=…" required />
+        <button type="submit">Enter the Forge</button>
+      </form>
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+      <div class="facts">
+        <p><strong>No Termux required.</strong> This native client is the application surface.</p>
+        <p><strong>No fake offline mode.</strong> If the configured Forge runtime cannot be reached, the app says so and keeps the saved address for retry.</p>
+      </div>
+    </section>
+
+    <section class="card compact">
+      <h2>Platform modes</h2>
+      <ul>
+        <li>Android / iPhone / iPad: native client → authenticated hosted Forge runtime.</li>
+        <li>Windows / macOS / Linux: native client now; bundled local-runtime sidecar is the desktop standalone target.</li>
+        <li>Chromebook: Android package where supported, plus installable web/PWA and optional Linux power-user lane.</li>
+        <li>PS5: hosted console web lane; no fake native PlayStation package.</li>
+      </ul>
+    </section>
+  </main>
+  <script src="app.js" defer></script>
+</body>
+</html>

@@ -3,8 +3,7 @@ const SHELL = [
   "/",
   "/index.html",
   "/series.html",
-  "/forge-agent.html",
-  "/forge-media-studio.html",
+  "/review.html",
   "/styles.css",
   "/forge-royal-hardening.css",
   "/forge-media-studio.css",
@@ -25,13 +24,20 @@ const SHELL = [
   "/forge-manuscript-import.js",
   "/forge-series.js",
   "/forge-image-lab.js",
+  "/forge-ai-gateways.js",
+  "/forge-model-freedom.js",
+  "/forge-recipes.js",
+  "/forge-review-room.js",
+  "/forge-reviewer.js",
+  "/forge-provenance.js",
   "/forge-royal-ui.js",
   "/forge-pwa.js",
   "/manifest.webmanifest",
   "/icon.svg",
   "/icon-192.svg",
-  "/icon-512.svg"
-];
+  "/icon-512.svg",
+  "/forge-agent.html",
+  "/forge-media-studio.html"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -65,6 +71,7 @@ self.addEventListener("fetch", (event) => {
         if (exact) return exact;
         const shellPath = await caches.match(url.pathname);
         if (shellPath) return shellPath;
+        if (url.pathname === "/review.html") return caches.match("/review.html");
         return caches.match("/index.html");
       })
   );
