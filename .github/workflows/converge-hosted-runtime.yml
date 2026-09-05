@@ -33,6 +33,28 @@ jobs:
             git status --short >&2
             exit 1
           fi
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/infrastructure/ai-provider.ts')
+          text = path.read_text()
+          text = text.replace(
+              'import { discoverConfiguredAiModelResources } from "./ai-model-resources";',
+              'import { discoverConfiguredAiModelResources, discoverConfiguredAiProviderQuotas } from "./ai-model-resources";'
+          )
+          if 'import { providerFetch } from "./provider-transport";' not in text:
+              anchor = 'import { generateWithKingsAi } from "./kings-ai-bridge";'
+              text = text.replace(anchor, anchor + '\nimport { providerFetch } from "./provider-transport";')
+          if 'const providerQuotas = discoverConfiguredAiProviderQuotas(process.env);' not in text:
+              text = text.replace(
+                  '  const resources = discoverConfiguredAiModelResources(process.env);\n  liveBroker.setResources(resources);',
+                  '  const resources = discoverConfiguredAiModelResources(process.env);\n  const providerQuotas = discoverConfiguredAiProviderQuotas(process.env);\n  liveBroker.setResources(resources);\n  liveBroker.setProviderQuotas(providerQuotas);'
+              )
+          if 'export function aiConfiguredProviderQuotas()' not in text:
+              anchor = 'type ProviderName = AiGenerationResult["provider"];'
+              insertion = '/** Effective provider/account quotas after all routed model usage is aggregated. */\nexport function aiConfiguredProviderQuotas() {\n  refreshLiveBroker();\n  return liveBroker.listProviderQuotas();\n}\n\n'
+              text = text.replace(anchor, insertion + anchor)
+          path.write_text(text)
+          PY
           git rm .github/workflows/converge-hosted-runtime.yml
       - name: Install
         run: npm ci
