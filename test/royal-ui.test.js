@@ -110,7 +110,7 @@ test("K.I.N.G.S. Author's Forge branding and family brain gospel cannot silently
   assert.equal(manifest.name, "K.I.N.G.S. Author's Forge");
   assert.match(manifest.description, new RegExp(definition));
   assert.match(readme, /Architecture Gospel — LOCKED/);
-  assert.match(readme, /does \*\*not require the separate K\.I\.N\.G\.S\. AI application to be online\*\*/);
+  assert.match(readme, /must \*\*not require the separate K\.I\.N\.G\.S\. AI application to be online\*\*/);
   assert.match(readme, /last-resort\/offline\/local fallback/);
   assert.match(gospel, new RegExp(definition));
   assert.match(gospel, /OmniRoute integration/);
