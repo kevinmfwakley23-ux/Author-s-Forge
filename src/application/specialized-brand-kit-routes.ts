@@ -1,8 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { join } from "node:path";
 import { createBrandKit, auditBrandCompliance, proposeBrandApplication, validateBrandKit, type BrandKit } from "../domain/brand-kit";
 import type { FileBrandKitStore } from "../infrastructure/file-brand-kit-store";
 import type { FileSpecializedCreationStore } from "../infrastructure/file-specialized-creation-store";
+import { FileSpecializedDesignTemplateStore } from "../infrastructure/file-specialized-design-template-store";
+import { createSpecializedDesignTemplateRoutes } from "./specialized-design-template-routes";
 import {
   CREATIVE_TARGET_PRESETS,
   createMultiTargetReflowProposal,
@@ -12,8 +15,22 @@ import {
 
 export type SpecializedBrandKitRouteHandler = (req: IncomingMessage, res: ServerResponse, url: URL, forgeProjectId: string) => Promise<boolean>;
 
-export function createSpecializedBrandKitRoutes(brandKits: FileBrandKitStore, specialized: FileSpecializedCreationStore): SpecializedBrandKitRouteHandler {
+export function createSpecializedBrandKitRoutes(
+  brandKits: FileBrandKitStore,
+  specialized: FileSpecializedCreationStore,
+  designTemplates: FileSpecializedDesignTemplateStore = new FileSpecializedDesignTemplateStore(
+    join(process.env.FORGE_DATA_DIR ?? join(process.cwd(), ".forge-data"), "specialized-design-templates.json"),
+  ),
+): SpecializedBrandKitRouteHandler {
+  const designTemplateRoutes = createSpecializedDesignTemplateRoutes(
+    designTemplates,
+    specialized,
+    brandKits,
+  );
+
   return async (req, res, url, forgeProjectId) => {
+    if (await designTemplateRoutes(req, res, url, forgeProjectId)) return true;
+
     const root = `/api/projects/${forgeProjectId}/brand-kits`;
 
     if (url.pathname === root && req.method === "GET") {
