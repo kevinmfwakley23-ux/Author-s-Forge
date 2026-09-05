@@ -1,11 +1,13 @@
-# Author's Forge — Native Android Package
+# K.I.N.G.S. Author's Forge — Native Android Package
 
 ## Status
 
-Author's Forge has two Android delivery lanes:
+K.I.N.G.S. Author's Forge has two Android delivery lanes:
 
 1. **Installed PWA** — the hosted HTTPS Forge can be installed from Chromium as an app-style home-screen/launcher application.
 2. **Tauri 2 native APK** — the repository's existing `native-shell/` and `src-tauri/` code are packaged into a real Android application. The native shell is a secure gateway to a real hosted Forge runtime; it does not embed or fake the Node.js backend on the phone.
+
+The stable Android application identifier is **`com.authorsforge.app`**. Visible product branding may evolve, but changing this identifier would create a different Android application identity and must not happen casually after real APK distribution.
 
 The native APK lane is intentionally separate from the old Termux/LAN development route. An end user does not need Node, npm, Git, Termux, or a repository checkout on the Android device.
 
