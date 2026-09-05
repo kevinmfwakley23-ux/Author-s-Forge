@@ -140,6 +140,8 @@ async function main() {
     await page.locator('#nft-series-qa').tap();
     await page.waitForFunction(() => /"readyForSeriesLaunch": true/.test(document.querySelector('#nft-series-output')?.textContent || ''));
     assert.match(await page.locator('#nft-series-output').textContent(), /"collectionCount": 2/);
+    const qaButton = await page.locator('#nft-series-qa').boundingBox();
+    assert.ok(qaButton && qaButton.height >= 40, `Series QA control is too small for touch: ${JSON.stringify(qaButton)}`);
 
     const provenanceDownloadPromise = page.waitForEvent('download');
     await page.locator('#nft-series-provenance').tap();
@@ -175,8 +177,6 @@ async function main() {
     assert.ok((project.memories || []).some((memory) => memory.relevanceTags?.includes('nft-series')), 'series state should be recorded in Project Brain');
     assert.equal((project.memories || []).filter((memory) => memory.relevanceTags?.includes('pinata')).length, 0, 'dry-run storage planning must not fabricate a verified publication memory');
 
-    const qaButton = await page.locator('#nft-series-qa').boundingBox();
-    assert.ok(qaButton && qaButton.height >= 40, `Series QA control is too small for touch: ${JSON.stringify(qaButton)}`);
     console.log('NFT PRODUCTION DIRECTOR BROWSER ACCEPTANCE PASSED: Android-safe Series/Set Director + cross-collection QA + provenance download + honest Market Signal failure + IPFS dry-run with publishing disabled when unconfigured.');
     await context.close();
   } finally {
