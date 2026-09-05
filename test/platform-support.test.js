@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const manifest = JSON.parse(fs.readFileSync('public/manifest.webmanifest', 'utf8'));
 const serviceWorker = fs.readFileSync('public/sw.js', 'utf8');
 const pwa = fs.readFileSync('public/forge-pwa.js', 'utf8');
+const launcherIcon = fs.readFileSync('public/icon-192.svg', 'utf8');
 const series = fs.readFileSync('public/series.html', 'utf8');
 const styles = fs.readFileSync('public/styles.css', 'utf8');
 const index = fs.readFileSync('public/index.html', 'utf8');
@@ -12,18 +13,32 @@ const platformContract = fs.readFileSync('docs/PLATFORM_SUPPORT.md', 'utf8');
 
 test('PWA shell has a platform-neutral install manifest and live lifecycle entrypoint', () => {
   assert.equal(manifest.name, "Author's Forge");
+  assert.equal(manifest.id, '/');
   assert.equal(manifest.display, 'standalone');
   assert.equal(manifest.orientation, 'any');
   assert.equal(manifest.start_url, '/?project=forge-studio');
+  assert.equal(manifest.prefer_related_applications, false);
   assert.ok(Array.isArray(manifest.icons) && manifest.icons.length >= 2);
   const iconSizes = new Set(manifest.icons.map((icon) => icon.sizes));
   assert.ok(iconSizes.has('192x192'), 'manifest must expose a 192x192 install icon');
   assert.ok(iconSizes.has('512x512'), 'manifest must expose a 512x512 install icon');
   for (const icon of manifest.icons) assert.equal(typeof icon.src, 'string');
+  assert.ok(Array.isArray(manifest.shortcuts) && manifest.shortcuts.length >= 4, 'installed Forge must expose Android launcher shortcuts');
   assert.match(index, /manifest\.webmanifest/);
   assert.match(index, /forge-pwa\.js/, 'Main Studio must actually load the PWA lifecycle it claims to ship');
   assert.match(pwa, /hostedMode\(\)\?"\/sw-hosted\.js":"\/sw\.js"/);
   assert.match(pwa, /serviceWorker\.register\(script/);
+});
+
+test('Android install experience is a real round launcher rather than a browser-only instruction', () => {
+  assert.match(pwa, /forge-android-install-fab/);
+  assert.match(pwa, /width:68px;height:68px;border-radius:999px/);
+  assert.match(pwa, /Install Author's Forge on this Android device/);
+  assert.match(pwa, /beforeinstallprompt/);
+  assert.match(pwa, /appinstalled/);
+  assert.match(pwa, /Add to Home screen/);
+  assert.match(launcherIcon, /<circle/);
+  assert.match(launcherIcon, /#d4ad63/);
 });
 
 test('Series Engine is discoverable from the live Studio PWA and travels in the offline shell', () => {
