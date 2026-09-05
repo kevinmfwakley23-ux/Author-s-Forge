@@ -8,6 +8,11 @@ import {
   instantiateSpecializedDesignTemplate,
   type SpecializedDesignTemplateCandidate,
 } from "../domain/specialized-design-template";
+import {
+  builtInSpecializedDesignTemplates,
+  findBuiltInSpecializedDesignTemplate,
+  installBuiltInSpecializedDesignTemplate,
+} from "../domain/specialized-design-template-catalog";
 import type { FileBrandKitStore } from "../infrastructure/file-brand-kit-store";
 import type { FileSpecializedCreationStore } from "../infrastructure/file-specialized-creation-store";
 import type { FileSpecializedDesignTemplateStore } from "../infrastructure/file-specialized-design-template-store";
@@ -28,7 +33,10 @@ export function createSpecializedDesignTemplateRoutes(
     const root = `/api/projects/${forgeProjectId}/design-templates`;
 
     if (url.pathname === root && req.method === "GET") {
-      json(res, 200, { templates: await templates.list(forgeProjectId) });
+      json(res, 200, {
+        builtIn: builtInSpecializedDesignTemplates(),
+        templates: await templates.list(forgeProjectId),
+      });
       return true;
     }
 
@@ -74,6 +82,35 @@ export function createSpecializedDesignTemplateRoutes(
       json(res, 201, {
         template: saved,
         detachedAssetSlots: countDetachedAssetSlots(saved.document),
+      });
+      return true;
+    }
+
+    const installMatch = url.pathname.match(
+      new RegExp(`^${escapeRegex(root)}/built-in/([^/]+)/install$`),
+    );
+    if (installMatch && req.method === "POST") {
+      const builtInId = decodeURIComponent(installMatch[1]);
+      if (!findBuiltInSpecializedDesignTemplate(builtInId)) {
+        throw new Error(`Built-in Specialized design template "${builtInId}" not found.`);
+      }
+      const input = await body(req);
+      const installed = installBuiltInSpecializedDesignTemplate({
+        forgeProjectId,
+        builtInTemplateId: builtInId,
+        ...(optional(input.title) ? { title: optional(input.title) } : {}),
+        ...(optional(input.now) ? { now: optional(input.now) } : {}),
+      });
+      const saved = await templates.create(installed);
+      json(res, 201, {
+        template: saved,
+        source: {
+          builtInTemplateId: builtInId,
+          builtInTemplateVersion: saved.source.sourceTemplateVersion,
+        },
+        persisted: true,
+        nextStep:
+          "The starter template is now an independent project-scoped copy. Customize it or use it to create review-first Specialized Creation candidates without changing the Forge built-in source.",
       });
       return true;
     }
