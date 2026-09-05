@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import type { FileProjectStore } from "../infrastructure/file-project-store";
 import { generateProjectText, type AiGenerationResult, type ProjectAiGenerationRequest } from "../infrastructure/ai-provider";
 import { assertAiCollaborationCapability } from "../domain/ai-collaboration";
+import { aiMissionRoutingGenerationFields, parseAiMissionRoutingPreference, type AiMissionRoutingPreference } from "./ai-mission-routing";
 import { ProjectMemoryStore } from "./project-memory-store";
 
 export type StudioArchitectureGenerator = (request: ProjectAiGenerationRequest) => Promise<AiGenerationResult>;
@@ -12,6 +13,7 @@ export interface StudioArchitecturePlanInput {
   readonly idea: string;
   readonly kind?: string;
   readonly targetChapters?: number;
+  readonly routingPreference?: AiMissionRoutingPreference;
 }
 
 /**
@@ -80,6 +82,7 @@ export class StudioArchitectureAiService {
       requiresInstructionFollowing: true,
       temperature: 0.4,
       maxOutputTokens: 8000,
+      ...aiMissionRoutingGenerationFields(input.routingPreference),
     });
 
     return Object.freeze({
@@ -104,6 +107,7 @@ export function createStudioArchitectureAiRoutes(
       idea: String(input.idea ?? ""),
       kind: input.kind === undefined ? undefined : String(input.kind),
       targetChapters: input.targetChapters === undefined ? undefined : Number(input.targetChapters),
+      routingPreference: parseAiMissionRoutingPreference(input.routingPreference),
     });
     json(res, 200, result);
     return true;
