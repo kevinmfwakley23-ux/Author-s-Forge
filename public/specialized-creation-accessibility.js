@@ -16,7 +16,30 @@
   function applyZoom(){const svg=$("#composition-svg");if(!svg)return;const baseWidth=Number(svg.dataset.baseDisplayWidth||svg.getAttribute("width")||600),baseHeight=Number(svg.dataset.baseDisplayHeight||svg.getAttribute("height")||800);svg.dataset.baseDisplayWidth=String(baseWidth);svg.dataset.baseDisplayHeight=String(baseHeight);svg.style.width=`${Math.max(1,baseWidth*zoom)}px`;svg.style.height=`${Math.max(1,baseHeight*zoom)}px`;svg.style.maxWidth="none";const output=$("#sc-zoom-status");if(output)output.value=`${Math.round(zoom*100)}%`;document.querySelectorAll("#sc-view-tools [data-zoom]").forEach(button=>button.setAttribute("aria-pressed",String(Math.abs(Number(button.dataset.zoom)-zoom)<0.001)));}
 
   function selectedElement(){const s=state();return s?.surface?.elements?.find(element=>element.id===s.selectedElementId)||null;}
-  function syncSemantics(){const s=state(),svg=$("#composition-svg");if(!s||!svg)return;svg.querySelectorAll("[data-element]").forEach(node=>{node.setAttribute("role","button");node.setAttribute("aria-pressed",String(node.dataset.element===s.selectedElementId));node.setAttribute("aria-keyshortcuts","Enter Space ArrowUp ArrowDown ArrowLeft ArrowRight");});drawResizeHandle();}
+  function ensureHitTargets(){
+    const s=state(),svg=$("#composition-svg");if(!s?.surface||!svg)return;
+    const byId=new Map(s.surface.elements.map(element=>[element.id,element]));
+    svg.querySelectorAll("[data-element]").forEach(node=>{
+      const element=byId.get(node.dataset.element);if(!element)return;
+      let hit=node.querySelector(":scope > [data-hit-target]");
+      if(!hit){
+        hit=document.createElementNS("http://www.w3.org/2000/svg","rect");
+        hit.setAttribute("data-hit-target","true");
+        hit.setAttribute("fill","transparent");
+        hit.setAttribute("stroke","none");
+        hit.setAttribute("pointer-events","all");
+        hit.style.cursor=element.locked?"default":"move";
+        node.insertBefore(hit,node.firstChild);
+      }
+      const scale=96;
+      hit.setAttribute("x",String(element.box.x*scale));
+      hit.setAttribute("y",String(element.box.y*scale));
+      hit.setAttribute("width",String(Math.max(1,element.box.width*scale)));
+      hit.setAttribute("height",String(Math.max(1,element.box.height*scale)));
+      hit.style.cursor=element.locked?"default":"move";
+    });
+  }
+  function syncSemantics(){const s=state(),svg=$("#composition-svg");if(!s||!svg)return;ensureHitTargets();svg.querySelectorAll("[data-element]").forEach(node=>{node.setAttribute("role","button");node.setAttribute("aria-pressed",String(node.dataset.element===s.selectedElementId));node.setAttribute("aria-keyshortcuts","Enter Space ArrowUp ArrowDown ArrowLeft ArrowRight");});drawResizeHandle();}
 
   function clientToSvg(clientX,clientY){const svg=$("#composition-svg"),point=svg.createSVGPoint();point.x=clientX;point.y=clientY;return point.matrixTransform(svg.getScreenCTM().inverse());}
   function resolvePointerElement(event){
