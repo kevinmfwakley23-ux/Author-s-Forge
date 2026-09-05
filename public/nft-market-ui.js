@@ -4,17 +4,17 @@
   const projectInput = document.querySelector('#nft-project-id');
   const collectionList = document.querySelector('#nft-collection-list');
   const status = document.querySelector('#nft-status');
-  if (!strategy || !projectInput || !collectionList || !status || document.querySelector('#nft-market-panel')) return;
+  if (!strategy || !projectInput || !collectionList || !status || document.querySelector('#nft-strategy-market-panel')) return;
 
   const panel = document.createElement('article');
-  panel.id = 'nft-market-panel';
+  panel.id = 'nft-strategy-market-panel';
   panel.className = 'nft-panel';
-  panel.innerHTML = `<div class="nft-row"><div class="grow"><h3>Market Signal Lab · live source-backed research</h3><p class="nft-muted">Research current public audience, marketplace, comparable-category, launch, reveal, and collector-communication signals before finalizing positioning. This is evidence—not a demand, price, or investment forecast. Hosted web research runs only when your Forge AI control explicitly permits its cost.</p></div><span class="nft-pill">working evidence</span></div><form id="nft-market-form" class="nft-form"><div class="nft-two"><label>Collection<select id="nft-market-collection" required></select></label><label>Focus<input name="focus" placeholder="e.g. original fantasy art collectors, Base drops, reveal strategy"></label></div><button class="primary" type="submit">Research current market signals</button></form><div id="nft-market-output" class="nft-list" style="margin-top:12px"><p class="nft-muted">No market research run yet.</p></div>`;
+  panel.innerHTML = `<div class="nft-row"><div class="grow"><h3>Market Signal Lab · live source-backed research</h3><p class="nft-muted">Research current public audience, marketplace, comparable-category, launch, reveal, and collector-communication signals before finalizing positioning. This is evidence—not a demand, price, or investment forecast. Hosted web research runs only when your Forge AI control explicitly permits its cost.</p></div><span class="nft-pill">working evidence</span></div><form id="nft-strategy-market-form" class="nft-form"><div class="nft-two"><label>Collection<select id="nft-strategy-market-collection" required></select></label><label>Focus<input name="focus" placeholder="e.g. original fantasy art collectors, Base drops, reveal strategy"></label></div><button class="primary" type="submit">Research current market signals</button></form><div id="nft-strategy-market-output" class="nft-list" style="margin-top:12px"><p class="nft-muted">No market research run yet.</p></div>`;
   strategy.append(panel);
 
-  const form = panel.querySelector('#nft-market-form');
-  const select = panel.querySelector('#nft-market-collection');
-  const output = panel.querySelector('#nft-market-output');
+  const form = panel.querySelector('#nft-strategy-market-form');
+  const select = panel.querySelector('#nft-strategy-market-collection');
+  const output = panel.querySelector('#nft-strategy-market-output');
   function esc(value) { return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[char])); }
   function projectId() { const id = projectInput.value.trim() || new URLSearchParams(location.search).get('project') || localStorage.getItem('forge-project') || ''; if (!/^[A-Za-z0-9_-]+$/.test(id)) throw new Error('Open a valid Forge project first.'); return id; }
   function refreshCollections() {
