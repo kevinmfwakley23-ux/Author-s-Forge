@@ -114,6 +114,7 @@ async function main() {
       isMobile: true,
       hasTouch: true,
       userAgent: IOS_SAFARI_UA,
+      serviceWorkers: "block",
     });
     const page = await context.newPage();
 
@@ -121,25 +122,35 @@ async function main() {
     assert.equal(denied?.status(), 401, "Hosted Forge must require authentication in WebKit too.");
     await page.locator("#token").fill(ACCESS_TOKEN);
     await Promise.all([
-      page.waitForURL(`${base}/`),
+      page.waitForURL(`${base}/`, { waitUntil: "networkidle" }),
       page.locator('button[type="submit"]').tap(),
     ]);
 
-    const created = await page.evaluate(async ({ id }) => {
-      const response = await fetch("/api/projects", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ id, title: "Hosted WebKit mobile acceptance" }),
-      });
-      return { ok: response.ok, status: response.status, body: await response.text() };
-    }, { id: PROJECT_ID });
-    assert.equal(created.ok, true, `Project creation through hosted WebKit Studio failed (${created.status}): ${created.body}`);
+    const cookies = await context.cookies(base);
+    assert.ok(cookies.some((cookie) => cookie.name && cookie.value), "Hosted WebKit login must establish an authenticated browser-session cookie.");
+
+    // BrowserContext.request shares the authenticated browser context's cookies. Use it for
+    // deterministic project setup immediately after the 303 login redirect, then prove normal
+    // in-page fetch behavior on every hosted office below after WebKit has settled the document.
+    const createdResponse = await context.request.post(`${base}/api/projects`, {
+      data: { id: PROJECT_ID, title: "Hosted WebKit mobile acceptance" },
+      headers: { accept: "application/json" },
+    });
+    const createdBody = await createdResponse.text();
+    assert.equal(createdResponse.ok(), true, `Project creation through authenticated hosted WebKit context failed (${createdResponse.status()}): ${createdBody}`);
 
     await page.goto(`${base}/?project=${encodeURIComponent(PROJECT_ID)}#dashboard`, { waitUntil: "networkidle" });
     await page.waitForSelector("#forge-office-launcher");
     assert.equal(await page.evaluate(() => document.documentElement.classList.contains("forge-hosted")), true);
     assert.equal(await page.evaluate(() => document.documentElement.classList.contains("forge-console")), false);
     await assertNoHorizontalOverflow(page, "Hosted Studio");
+
+    const studioHealth = await page.evaluate(async () => {
+      const response = await fetch("/api/health", { headers: { accept: "application/json" } });
+      return { ok: response.ok, status: response.status, url: response.url };
+    });
+    assert.equal(studioHealth.ok, true, `Hosted Studio in-page WebKit fetch must work after login (HTTP ${studioHealth.status}).`);
+    assert.equal(new URL(studioHealth.url).origin, base);
 
     const projectTitle = page.locator("#project-title");
     await projectTitle.waitFor();
@@ -178,7 +189,7 @@ async function main() {
     await assertNoHorizontalOverflow(page, "Reloaded hosted Studio");
 
     await context.close();
-    console.log("HOSTED WEBKIT MOBILE ACCEPTANCE PASSED: authenticated iPhone-sized WebKit + durable project + Studio/Journal/Workbooks/Specialized/NFT single-origin routing + touch targets + API remapping + no horizontal overflow.");
+    console.log("HOSTED WEBKIT MOBILE ACCEPTANCE PASSED: authenticated iPhone-sized WebKit + durable project + Studio/Journal/Workbooks/Specialized/NFT single-origin routing + touch targets + in-page API remapping + no horizontal overflow.");
   } finally {
     if (browser) await browser.close().catch(() => {});
     await stop(launcher).catch(() => {});
