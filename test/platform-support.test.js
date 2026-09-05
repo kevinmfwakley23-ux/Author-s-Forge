@@ -16,7 +16,7 @@ test('PWA shell has a platform-neutral install manifest and live lifecycle entry
   assert.equal(manifest.id, '/');
   assert.equal(manifest.display, 'standalone');
   assert.equal(manifest.orientation, 'any');
-  assert.equal(manifest.start_url, '/?project=forge-studio');
+  assert.equal(manifest.start_url, '/', 'launcher must reopen Forge without forcing a different project than the last active project');
   assert.equal(manifest.prefer_related_applications, false);
   assert.ok(Array.isArray(manifest.icons) && manifest.icons.length >= 3);
   const iconSizes = new Set(manifest.icons.map((icon) => icon.sizes));
@@ -32,6 +32,7 @@ test('PWA shell has a platform-neutral install manifest and live lifecycle entry
     assert.deepEqual([...fs.readFileSync(file).subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10], `${file} must be a real PNG`);
   }
   assert.ok(Array.isArray(manifest.shortcuts) && manifest.shortcuts.length >= 4, 'installed Forge must expose Android launcher shortcuts');
+  assert.deepEqual(manifest.shortcuts.map((shortcut) => shortcut.url), ['/forge-agent.html', '/forge-media-studio.html', '/series.html', '/#writing'], 'launcher shortcuts must work on both local and hosted Forge and preserve the active project');
   assert.match(index, /manifest\.webmanifest/);
   assert.match(index, /forge-pwa\.js/, 'Main Studio must actually load the PWA lifecycle it claims to ship');
   assert.match(pwa, /hostedMode\(\)\?"\/sw-hosted\.js":"\/sw\.js"/);
