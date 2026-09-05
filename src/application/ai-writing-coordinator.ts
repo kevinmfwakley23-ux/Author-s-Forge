@@ -2,7 +2,7 @@ import { AiWritingService, type AiWritingCandidateAssessor, type AiWritingReques
 import type { AiProposal, AiProposalStore, ProposalReviewDecision } from "./ai-proposal-store";
 import { FileAiProposalStore } from "../infrastructure/file-ai-proposal-store";
 import { generateText, type AiGenerationResult } from "../infrastructure/ai-provider";
-import { aiMissionRoutingGenerationFields, type AiMissionRoutingPreference } from "./ai-mission-routing";
+import { aiMissionRoutingGenerationFields } from "./ai-mission-routing";
 import { createHash } from "node:crypto";
 
 export type AiWritingGenerator = (request: {
@@ -25,8 +25,8 @@ export class AiWritingCoordinator {
   async generate(
     request: AiWritingRequest,
     assessCandidate?: AiWritingCandidateAssessor,
-    routingPreference?: AiMissionRoutingPreference,
   ): Promise<AiWritingResult> {
+    const { routingPreference, ...durableRequest } = request;
     const proposals = await this.durableStore.load();
     const service = new AiWritingService({
       generate: async (providerRequest) => {
@@ -45,7 +45,10 @@ export class AiWritingCoordinator {
         return result.text;
       },
     }, proposals, assessCandidate);
-    const result = await service.generate({ ...request, baseContentSha256: request.baseContentSha256 ?? sha256(request.existingContent) });
+    const result = await service.generate({
+      ...durableRequest,
+      baseContentSha256: durableRequest.baseContentSha256 ?? sha256(durableRequest.existingContent),
+    });
     await this.durableStore.save();
     return result;
   }
