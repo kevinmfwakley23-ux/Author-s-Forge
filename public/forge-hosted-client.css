@@ -7,6 +7,34 @@ html.forge-hosted body {
   min-height: 100dvh;
 }
 
+/*
+ * Restricted console/WebView surfaces must never require page-level horizontal
+ * scrolling. Keep the existing desktop sidebar geometry, but contain the main
+ * shell and let flexible rows wrap instead of widening the document.
+ */
+html.forge-console,
+html.forge-console body {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+html.forge-console main {
+  max-width: calc(100% - 276px);
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+html.forge-console :is(.forge-masthead, .topbar, .view, .card, .grid, .row) {
+  max-width: 100%;
+  min-width: 0;
+}
+
+html.forge-console .row {
+  flex-wrap: wrap;
+}
+
 html.forge-console :is(a, button, input, select, textarea, [tabindex]):focus,
 html.forge-console :is(a, button, input, select, textarea, [tabindex]):focus-visible {
   outline: 3px solid currentColor !important;
@@ -39,6 +67,12 @@ html.forge-console {
   font: 600 12px/1.2 system-ui, sans-serif;
   opacity: .86;
   pointer-events: none;
+}
+
+@media (max-width: 1100px) {
+  html.forge-console main {
+    max-width: 100%;
+  }
 }
 
 @media (max-width: 760px) {
