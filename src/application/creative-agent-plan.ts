@@ -1,7 +1,8 @@
 import { createAiCollaborationPolicy, type AiCollaborationMode } from "../domain/ai-collaboration";
 import { creativeToolById, type CreativeToolDescriptor, type CreativeToolScope } from "./creative-tool-registry";
+import type { AiMissionRoutingPreference } from "./ai-mission-routing";
 
-export const CREATIVE_AGENT_PLAN_FORMAT_VERSION = 2 as const;
+export const CREATIVE_AGENT_PLAN_FORMAT_VERSION = 3 as const;
 
 export interface CreativeAgentPlanScope {
   readonly project: true;
@@ -15,6 +16,7 @@ export interface CreativeAgentPlanInput {
   readonly goal: string;
   readonly mode: AiCollaborationMode;
   readonly scope: CreativeAgentPlanScope;
+  readonly routingPreference?: AiMissionRoutingPreference;
 }
 
 export interface CreativeAgentToolSelection {
@@ -40,6 +42,7 @@ export interface CreativeAgentPlan {
   readonly formatVersion: typeof CREATIVE_AGENT_PLAN_FORMAT_VERSION;
   readonly goal: string;
   readonly mode: AiCollaborationMode;
+  readonly routingPreference?: AiMissionRoutingPreference;
   readonly policy: {
     readonly authorApprovalRequiredForMajorDecisions: true;
     readonly bulkExecutionEligible: boolean;
@@ -195,6 +198,14 @@ export function compileCreativeAgentSelectedPlan(
     formatVersion: CREATIVE_AGENT_PLAN_FORMAT_VERSION,
     goal,
     mode: policy.mode,
+    ...(input.routingPreference
+      ? {
+        routingPreference:
+          Object.freeze({
+            ...input.routingPreference,
+          }),
+      }
+      : {}),
     policy: Object.freeze({
       authorApprovalRequiredForMajorDecisions: true as const,
       bulkExecutionEligible: policy.aiMayExecuteBulkWork,
