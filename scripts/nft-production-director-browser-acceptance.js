@@ -2,22 +2,44 @@
 const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
 const { mkdtemp, rm, readFile, stat } = require('node:fs/promises');
+const { createServer } = require('node:net');
 const { tmpdir } = require('node:os');
 const { join } = require('node:path');
 const { chromium } = require('@playwright/test');
 
 const HOST = '127.0.0.1';
-const PORT = 6680 + Math.floor(Math.random() * 70);
 const PROJECT_ID = 'nft-production-director-acceptance';
 const SERIES_ID = 'royal-series';
 
-async function waitForHttp(url, timeoutMs = 12000) {
+async function reserveLoopbackPort() {
+  return await new Promise((resolve, reject) => {
+    const probe = createServer();
+    probe.once('error', reject);
+    probe.listen(0, HOST, () => {
+      const address = probe.address();
+      const port = address && typeof address === 'object' ? address.port : 0;
+      probe.close((error) => {
+        if (error) return reject(error);
+        if (!port) return reject(new Error('Could not reserve a loopback port for the NFT Production Director acceptance server.'));
+        resolve(port);
+      });
+    });
+  });
+}
+
+async function waitForHttp(url, server, readDiagnostics, timeoutMs = 15000) {
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
+    if (server.exitCode !== null || server.signalCode !== null) {
+      const detail = server.signalCode ? `signal ${server.signalCode}` : `code ${server.exitCode}`;
+      const diagnostics = readDiagnostics().trim();
+      throw new Error(`NFT Production Director acceptance server exited before becoming healthy (${detail}).${diagnostics ? `\n${diagnostics}` : ''}`);
+    }
     try { if ((await fetch(url)).ok) return; } catch {}
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
-  throw new Error(`Timed out waiting for ${url}`);
+  const diagnostics = readDiagnostics().trim();
+  throw new Error(`Timed out waiting for ${url}.${diagnostics ? `\nServer diagnostics:\n${diagnostics}` : ''}`);
 }
 
 async function api(base, path, method = 'GET', payload, allowFailure = false) {
@@ -69,11 +91,13 @@ async function createReadyCollection(base, input) {
 
 async function main() {
   const dataDir = await mkdtemp(join(tmpdir(), 'forge-nft-production-director-'));
+  const port = await reserveLoopbackPort();
+  let serverDiagnostics = '';
   const server = spawn(process.execPath, ['dist/nft-creation-server.js'], {
     env: {
       ...process.env,
       HOST,
-      NFT_PORT: String(PORT),
+      NFT_PORT: String(port),
       FORGE_DATA_DIR: dataDir,
       PINATA_JWT: '', PINATA_GROUP_ID: '',
       OPENAI_API_KEY: '', OPENAI_MODEL: '', OLLAMA_BASE_URL: '', OLLAMA_MODEL: '',
@@ -82,10 +106,15 @@ async function main() {
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
+  const recordDiagnostics = (chunk) => {
+    serverDiagnostics = `${serverDiagnostics}${String(chunk)}`.slice(-8000);
+  };
+  server.stdout?.on('data', recordDiagnostics);
+  server.stderr?.on('data', recordDiagnostics);
   let browser;
   try {
-    const base = `http://${HOST}:${PORT}`;
-    await waitForHttp(`${base}/api/health`);
+    const base = `http://${HOST}:${port}`;
+    await waitForHttp(`${base}/api/health`, server, () => serverDiagnostics);
     const { body: health } = await api(base, '/api/health');
     assert.equal(health.externalStorage.pinataPublicIpfsConfigured, false);
     assert.equal(health.minting.walletSigningConfigured, false);
@@ -181,8 +210,8 @@ async function main() {
     await context.close();
   } finally {
     if (browser) await browser.close().catch(() => {});
-    server.kill('SIGTERM');
-    await new Promise((resolve) => server.exitCode !== null ? resolve() : server.once('exit', resolve));
+    if (server.exitCode === null && server.signalCode === null) server.kill('SIGTERM');
+    await new Promise((resolve) => server.exitCode !== null || server.signalCode !== null ? resolve() : server.once('exit', resolve));
     await rm(dataDir, { recursive: true, force: true });
   }
 }
