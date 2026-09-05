@@ -41,8 +41,8 @@ jobs:
       - name: Verify runtime contract
         run: npm run runtime:check
 
-      - name: Install Chromium acceptance runtime
-        run: npx playwright install --with-deps chromium
+      - name: Install browser acceptance runtimes
+        run: npx playwright install --with-deps chromium webkit
 
       - name: Run strongest Forge verification gate
         run: npm run verify
@@ -77,7 +77,7 @@ jobs:
           cat > release-bundle/forge/RUN-FORGE.md <<'EOF'
           # Run Author's Forge
 
-          This bundle was assembled only after its exact Git commit passed Author's Forge's strongest repository verification gate: build, baseline, complete regression tests, completion checks, full desktop browser acceptance, and Android/mobile browser acceptance.
+          This bundle was assembled only after its exact Git commit passed Author's Forge's strongest repository verification gate: build, baseline, complete regression tests, completion checks, full desktop browser acceptance, Android/mobile browser acceptance, and hosted WebKit mobile acceptance.
 
           Author's Forge is validated on Node.js 24 LTS. Unsupported or end-of-life Node major versions are rejected before build/install work is allowed to present itself as a supported runtime.
 
