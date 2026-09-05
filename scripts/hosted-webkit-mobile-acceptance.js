@@ -122,12 +122,16 @@ async function main() {
     assert.equal(denied?.status(), 401, "Hosted Forge must require authentication in WebKit too.");
     await page.locator("#token").fill(ACCESS_TOKEN);
     await Promise.all([
-      page.waitForURL(`${base}/`, { waitUntil: "networkidle" }),
+      page.waitForNavigation({ waitUntil: "networkidle" }),
       page.locator('button[type="submit"]').tap(),
     ]);
+    assert.equal(page.url(), `${base}/`, "Hosted WebKit login must return to the authenticated Forge root.");
 
     const cookies = await context.cookies(base);
-    assert.ok(cookies.some((cookie) => cookie.name && cookie.value), "Hosted WebKit login must establish an authenticated browser-session cookie.");
+    const accessCookie = cookies.find((cookie) => cookie.name === "forge_access");
+    assert.ok(accessCookie?.value, "Hosted WebKit login must establish the forge_access browser-session cookie.");
+    assert.equal(accessCookie.httpOnly, true, "Hosted WebKit access cookie must remain HttpOnly.");
+    assert.equal(accessCookie.sameSite, "Strict", "Hosted WebKit access cookie must remain SameSite=Strict.");
 
     // BrowserContext.request shares the authenticated browser context's cookies. Use it for
     // deterministic project setup immediately after the 303 login redirect, then prove normal
