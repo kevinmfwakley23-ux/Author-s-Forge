@@ -101,7 +101,9 @@ async function main() {
     await page.waitForFunction(() => document.querySelector('[data-tool-id="project.context"] button')?.textContent === "Completed" && document.querySelector('[data-tool-id="editing.analyze"] button')?.textContent === "Completed");
     assert.equal(await page.locator('[data-tool-id="writing.propose"] button').isEnabled(), true, "writing should still require its own author approval");
     assert.notEqual(await page.locator('[data-tool-id="writing.propose"] button').innerText(), "Completed");
-    assert.match(await page.locator("#agent-status").innerText(), /read-only group completed/i);
+    const autonomousStatus = await page.locator("#agent-status").innerText();
+    assert.match(autonomousStatus, /completed/i, "autonomous read-only group should report completion");
+    assert.match(autonomousStatus, /no unapproved state-changing step ran automatically/i, "autonomous read-only group must explicitly preserve author approval boundaries");
 
     await page.locator('[data-tool-id="memory.record-working"] button').tap();
     await page.waitForFunction(() => document.querySelector('[data-tool-id="memory.record-working"] button')?.textContent === "Completed");
