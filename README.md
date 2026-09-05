@@ -112,7 +112,7 @@ For trusted LAN/Android browser access:
 npm run forge:android
 ```
 
-The current Android target is the responsive installable web/PWA application; this repository does not claim a native Forge APK unless a verified native packaging milestone later establishes one.
+Android has two real delivery lanes: the responsive installable web/PWA application and the Tauri 2 native APK gateway. The native lane is built by [`.github/workflows/android-native.yml`](.github/workflows/android-native.yml), which compiles an installable APK, verifies it with Android `apksigner`, writes SHA-256 checksums, and uploads the result as a GitHub Actions artifact. The stable Android application identifier remains `com.authorsforge.app` so existing sideloaded installs keep the same application identity. The currently verified APK lane is debug/development signed; production Play Store signing still requires a protected release keystore and release-specific verification. See [`docs/ANDROID_NATIVE_PACKAGE.md`](docs/ANDROID_NATIVE_PACKAGE.md).
 
 ## AI routing configuration
 
