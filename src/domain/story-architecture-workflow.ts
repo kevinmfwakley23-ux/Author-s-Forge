@@ -35,12 +35,20 @@ export interface StoryArchitecturePlan {
   readonly productionRisks: readonly string[];
 }
 
+export interface StoryArchitectureTemplateReference {
+  readonly id: string;
+  readonly title: string;
+  readonly version: number;
+  readonly sourceKind: "built-in" | "author" | "installed-copy";
+}
+
 export interface StoryArchitectureCandidate {
   readonly id: string;
   readonly projectId: string;
   readonly idea: string;
   readonly kind: string;
   readonly targetChapters?: number;
+  readonly template?: StoryArchitectureTemplateReference;
   readonly plan: StoryArchitecturePlan;
   readonly provider: string;
   readonly model: string;
@@ -155,17 +163,34 @@ export function validateStoryArchitectureCandidate(value: unknown): StoryArchite
   const updatedAt = timestamp(input.updatedAt, "Story Architecture updated timestamp");
   if (Date.parse(updatedAt) < Date.parse(createdAt)) throw new Error("Story Architecture updatedAt cannot precede createdAt.");
   const targetChapters = input.targetChapters === undefined ? undefined : positiveInteger(input.targetChapters, "Story Architecture target chapters", 100);
+  const template = input.template === undefined ? undefined : validateStoryArchitectureTemplateReference(input.template);
   return {
     id: identifier(input.id, "Story Architecture candidate id"),
     projectId: identifier(input.projectId, "Story Architecture project id"),
     idea: requiredText(input.idea, "Story Architecture idea", 32_000),
     kind: requiredText(input.kind, "Story Architecture book kind", 120),
     ...(targetChapters === undefined ? {} : { targetChapters }),
+    ...(template === undefined ? {} : { template }),
     plan: validateStoryArchitecturePlan(input.plan),
     provider: requiredText(input.provider, "Story Architecture provider", 200),
     model: requiredText(input.model, "Story Architecture model", 300),
     createdAt,
     updatedAt,
+  };
+}
+
+export function validateStoryArchitectureTemplateReference(value: unknown): StoryArchitectureTemplateReference {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid Story Architecture template reference.");
+  const input = value as Record<string, unknown>;
+  const version = positiveInteger(input.version, "Story Architecture template version", 1_000_000);
+  if (input.sourceKind !== "built-in" && input.sourceKind !== "author" && input.sourceKind !== "installed-copy") {
+    throw new Error("Story Architecture template source kind is invalid.");
+  }
+  return {
+    id: identifier(input.id, "Story Architecture template reference id"),
+    title: requiredText(input.title, "Story Architecture template reference title", 160),
+    version,
+    sourceKind: input.sourceKind,
   };
 }
 
