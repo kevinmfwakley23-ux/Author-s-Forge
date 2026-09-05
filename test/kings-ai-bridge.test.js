@@ -18,6 +18,7 @@ test("KINGS bridge sends the governed Responses-compatible contract", async () =
     assert.equal(result.usage.totalTokens, 9);
     assert.equal(request.url, "http://127.0.0.1:9999/v1/responses");
     assert.equal(request.options.headers.authorization, "Bearer router-secret");
+    assert.equal(request.options.headers["x-kings-app-id"], "authors.forge");
     const body = JSON.parse(request.options.body);
     assert.equal(body.model, "local-kings");
     assert.deepEqual(body.input, [{ role: "system", content: "system" }, { role: "user", content: "write" }]);
@@ -42,13 +43,16 @@ test("KINGS private service host:port expands to the real Responses route", asyn
 
   const originalFetch = global.fetch;
   let requestUrl;
-  global.fetch = async (url) => {
+  let appId;
+  global.fetch = async (url, options) => {
     requestUrl = url;
+    appId = options.headers["x-kings-app-id"];
     return new Response(JSON.stringify({ id: "kings-private-1", output_text: "private route works", usage: { input_tokens: 2, output_tokens: 3, total_tokens: 5 } }), { status: 200, headers: { "content-type": "application/json" } });
   };
   try {
     const result = await generateWithKingsAi({ endpoint: env.KINGS_AI_RESPONSES_URL, model: env.KINGS_AI_MODEL }, { system: "system", user: "write" });
     assert.equal(requestUrl, "http://kings-ai-router:10000/v1/responses");
+    assert.equal(appId, "authors.forge");
     assert.equal(result.text, "private route works");
   } finally {
     global.fetch = originalFetch;
