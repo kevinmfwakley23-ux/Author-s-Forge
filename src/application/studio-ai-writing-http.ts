@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { AiWritingTask } from "./ai-writing";
 import type { AiWritingStudioService, StudioAiContextOptions } from "./ai-writing-studio";
+import { parseAiMissionRoutingPreference } from "./ai-mission-routing";
 import type { StudioWorkspaceState } from "../domain/studio-workspace";
 import { getBook } from "../domain/studio-workspace";
 import { CONTEXT_INCLUSION_MODES, type ContextSectionPolicy } from "../domain/context-assembly";
@@ -48,6 +49,7 @@ export async function generateStudioAiWritingProposal(
     proposalId: String(input.proposalId ?? `proposal-${randomUUID()}`),
     now: input.now === undefined ? undefined : String(input.now),
     sceneCardSha256: optionalSha256(input.sceneCardSha256),
+    routingPreference: parseAiMissionRoutingPreference(input.routingPreference),
   });
 }
 
