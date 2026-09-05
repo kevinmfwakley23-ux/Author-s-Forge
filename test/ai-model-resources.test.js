@@ -1,6 +1,9 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { discoverConfiguredAiModelResources } = require("../.forge-build/infrastructure/ai-model-resources.js");
+const {
+  discoverConfiguredAiModelResources,
+  discoverConfiguredAiProviderQuotas,
+} = require("../.forge-build/infrastructure/ai-model-resources.js");
 
 test("AI resource discovery registers only real configured providers without inventing model limits", () => {
   const resources = discoverConfiguredAiModelResources({
@@ -39,6 +42,30 @@ test("AI resource discovery preserves declared model order for real multi-model 
     "openai/model-b",
     "openai/model-a",
   ]);
+});
+
+test("provider-wide router quota is one shared pool across every configured model", () => {
+  const env = {
+    OMNIROUTE_BASE_URL: "http://omni.test/v1",
+    OMNIROUTE_MODELS: "writer-fast,writer-deep,writer-cheap",
+    OMNIROUTE_TOKEN_QUOTA: "10000",
+    OMNIROUTE_USED_TOKENS: "2500",
+    OMNIROUTE_REMAINING_TOKENS: "7500",
+    OMNIROUTE_QUOTA_RESET_AT: "2026-09-05T00:00:00.000Z",
+  };
+  const resources = discoverConfiguredAiModelResources(env);
+  const quotas = discoverConfiguredAiProviderQuotas(env);
+  assert.equal(quotas.length, 1);
+  assert.deepEqual(quotas[0], {
+    scope: "omniroute",
+    provider: "omniroute",
+    quotaLimit: 10000,
+    usedTokens: 2500,
+    remainingQuota: 7500,
+    quotaResetAt: "2026-09-05T00:00:00.000Z",
+  });
+  assert.ok(resources.every((resource) => resource.quotaScope === "omniroute"));
+  assert.ok(resources.every((resource) => resource.quotaLimit === undefined && resource.remainingQuota === undefined));
 });
 
 test("explicit AI model resources attach per-model quota and capability metadata only to configured providers", () => {
@@ -84,4 +111,5 @@ test("explicit AI model metadata fails closed on fabricated or malformed values"
 
 test("AI resource discovery stays empty when no provider is configured", () => {
   assert.deepEqual(discoverConfiguredAiModelResources({}), []);
+  assert.deepEqual(discoverConfiguredAiProviderQuotas({}), []);
 });

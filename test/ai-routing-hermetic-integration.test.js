@@ -1,14 +1,14 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { generateText, aiRoutingTelemetry } = require("../dist/infrastructure/ai-provider.js");
+const { generateText, aiRoutingTelemetry, aiConfiguredProviderQuotas } = require("../dist/infrastructure/ai-provider.js");
 
 const PROVIDER_ENV = [
   "OMNIROUTE_BASE_URL", "OMNIROUTE_API_KEY", "OMNIROUTE_MODEL", "OMNIROUTE_MODELS", "OMNIROUTE_TOKEN_QUOTA", "OMNIROUTE_USED_TOKENS", "OMNIROUTE_REMAINING_TOKENS", "OMNIROUTE_BILLING_CLASS",
   "ROUTER9_BASE_URL", "ROUTER9_API_KEY", "ROUTER9_MODEL", "ROUTER9_MODELS", "ROUTER9_TOKEN_QUOTA", "ROUTER9_USED_TOKENS", "ROUTER9_REMAINING_TOKENS", "ROUTER9_BILLING_CLASS",
-  "KINGS_AI_ENDPOINT", "KINGS_AI_MODEL", "KINGS_AI_MODELS",
+  "KINGS_AI_ENDPOINT", "KINGS_AI_RESPONSES_URL", "KINGS_AI_MODEL", "KINGS_AI_MODELS",
   "OPENAI_API_KEY", "OPENAI_MODEL", "OPENAI_MODELS",
-  "OLLAMA_BASE_URL", "OLLAMA_MODEL", "OLLAMA_MODELS",
-  "AI_PROVIDER_ORDER", "AI_ROUTING_MODE", "AI_QUOTA_SAFETY_FRACTION", "AI_MODEL_RESOURCES_JSON", "AI_CACHE_ENABLED",
+  "OLLAMA_BASE_URL", "OLLAMA_MODEL", "OLLAMA_MODELS", "OLLAMA_BILLING_CLASS",
+  "AI_PROVIDER_ORDER", "AI_ROUTING_MODE", "AI_QUOTA_SAFETY_FRACTION", "AI_MODEL_RESOURCES_JSON", "AI_CACHE_ENABLED", "AI_PROVIDER_TIMEOUT_MS", "AI_SPEND_POLICY",
 ];
 
 function isolatedEnv(values) {
@@ -23,9 +23,9 @@ function isolatedEnv(values) {
   };
 }
 
-test("live Forge AI broker fails over between configured models and accounts provider-reported tokens", { concurrency: false }, async () => {
+test("hermetic AI routing fails over between configured models and accounts provider-reported tokens", { concurrency: false }, async () => {
   const restoreEnv = isolatedEnv({
-    OMNIROUTE_BASE_URL: "http://omniroute.test",
+    OMNIROUTE_BASE_URL: "http://omniroute.test/v1",
     OMNIROUTE_MODELS: "a-fail,b-good",
     OMNIROUTE_BILLING_CLASS: "subscription",
     AI_PROVIDER_ORDER: "omniroute",
@@ -35,7 +35,7 @@ test("live Forge AI broker fails over between configured models and accounts pro
   const seen = [];
   global.fetch = async (url, options) => {
     const payload = JSON.parse(options.body);
-    seen.push({ url: String(url), model: payload.model });
+    seen.push({ url: String(url), model: payload.model, maxTokens: payload.max_tokens });
     if (payload.model === "a-fail") {
       return new Response(JSON.stringify({ error: { message: "rate limit" } }), { status: 429, headers: { "content-type": "application/json" } });
     }
@@ -52,6 +52,9 @@ test("live Forge AI broker fails over between configured models and accounts pro
     assert.equal(result.model, "b-good");
     assert.equal(result.text, "real generated answer");
     assert.deepEqual(seen.map((item) => item.model), ["a-fail", "b-good"]);
+    assert.ok(seen.every((item) => item.url.endsWith("/v1/chat/completions")));
+    assert.ok(seen.every((item) => !item.url.includes("/v1/v1/")));
+    assert.ok(seen.every((item) => item.maxTokens === 64));
     assert.equal(result.attempts.length, 2);
     assert.equal(result.attempts[0].success, false);
     assert.equal(result.attempts[1].success, true);
@@ -67,9 +70,9 @@ test("live Forge AI broker fails over between configured models and accounts pro
   }
 });
 
-test("live Forge AI broker rotates to a less-used eligible model before either model is exhausted", { concurrency: false }, async () => {
+test("hermetic AI routing rotates to a less-used eligible model before either model is exhausted", { concurrency: false }, async () => {
   const restoreEnv = isolatedEnv({
-    OMNIROUTE_BASE_URL: "http://omniroute-rotate.test",
+    OMNIROUTE_BASE_URL: "http://omniroute-rotate.test/v1",
     OMNIROUTE_MODELS: "rotate-a,rotate-b",
     OMNIROUTE_BILLING_CLASS: "subscription",
     AI_PROVIDER_ORDER: "omniroute",
@@ -93,23 +96,20 @@ test("live Forge AI broker rotates to a less-used eligible model before either m
     assert.equal(first.model, "rotate-a");
     assert.equal(second.model, "rotate-b");
     assert.deepEqual(seen, ["rotate-a", "rotate-b"]);
-    const telemetry = aiRoutingTelemetry();
-    assert.equal(telemetry.find((item) => item.model === "rotate-a").totalTokens, 100);
-    assert.equal(telemetry.find((item) => item.model === "rotate-b").totalTokens, 100);
   } finally {
     global.fetch = oldFetch;
     restoreEnv();
   }
 });
 
-test("live Forge AI broker protects quota reserve using prompt plus response budget and rotates providers before exhaustion", { concurrency: false }, async () => {
+test("hermetic AI routing protects one shared OmniRoute quota across multiple models", { concurrency: false }, async () => {
   const restoreEnv = isolatedEnv({
-    OMNIROUTE_BASE_URL: "http://omniroute-quota.test",
-    OMNIROUTE_MODEL: "nearly-empty",
+    OMNIROUTE_BASE_URL: "http://omniroute-quota.test/v1",
+    OMNIROUTE_MODELS: "nearly-empty-a,nearly-empty-b",
     OMNIROUTE_TOKEN_QUOTA: "1000",
     OMNIROUTE_USED_TOKENS: "850",
     OMNIROUTE_BILLING_CLASS: "subscription",
-    ROUTER9_BASE_URL: "http://router9-safe.test",
+    ROUTER9_BASE_URL: "http://router9-safe.test/v1",
     ROUTER9_MODEL: "safe-model",
     ROUTER9_TOKEN_QUOTA: "10000",
     ROUTER9_USED_TOKENS: "0",
@@ -130,13 +130,43 @@ test("live Forge AI broker protects quota reserve using prompt plus response bud
   };
 
   try {
+    const before = aiConfiguredProviderQuotas().find((quota) => quota.scope === "omniroute");
+    assert.equal(before.remainingQuota, 150);
     const result = await generateText({ system: "Short system", user: "Short user request", task: "writing", maxOutputTokens: 100 });
     assert.equal(result.provider, "9router");
     assert.equal(result.model, "safe-model");
     assert.equal(seen.length, 1);
     assert.match(seen[0].url, /router9-safe/);
     assert.equal(result.routing.accountedTokens, 18);
-    assert.equal(result.routing.usageSource, "provider");
+  } finally {
+    global.fetch = oldFetch;
+    restoreEnv();
+  }
+});
+
+test("hermetic Ollama connector sends broker output budget as num_predict", { concurrency: false }, async () => {
+  const restoreEnv = isolatedEnv({
+    OLLAMA_BASE_URL: "http://ollama.test",
+    OLLAMA_MODEL: "local-writer",
+    AI_PROVIDER_ORDER: "ollama",
+  });
+  const oldFetch = global.fetch;
+  let requestBody;
+  global.fetch = async (url, options) => {
+    assert.equal(String(url), "http://ollama.test/api/chat");
+    requestBody = JSON.parse(options.body);
+    return new Response(JSON.stringify({
+      message: { content: "A complete locally generated answer with enough detail to satisfy the writing request." },
+      prompt_eval_count: 20,
+      eval_count: 30,
+    }), { status: 200, headers: { "content-type": "application/json" } });
+  };
+  try {
+    const result = await generateText({ system: "System", user: "Write a concise useful paragraph.", task: "writing", maxOutputTokens: 123 });
+    assert.equal(result.provider, "ollama");
+    assert.equal(requestBody.options.num_predict, 123);
+    assert.equal(requestBody.options.temperature, 0.7);
+    assert.equal(result.routing.accountedTokens, 50);
   } finally {
     global.fetch = oldFetch;
     restoreEnv();

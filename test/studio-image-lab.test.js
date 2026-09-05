@@ -8,6 +8,9 @@ const { createStudioWorkspace, createWorkspaceBook, addWorkspaceBook, addWorkspa
 const { FileProjectStore } = require("../.forge-build/infrastructure/file-project-store.js");
 const { StudioImageLabService } = require("../.forge-build/application/studio-image-lab.js");
 
+const PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl5ZVQAAAAASUVORK5CYII=";
+const PNG_DATA_URI = `data:image/png;base64,${PNG_BASE64}`;
+
 async function fixture(generator) {
   const root = await mkdtemp(join(tmpdir(), "forge-image-lab-"));
   const store = new FileProjectStore(root);
@@ -23,7 +26,7 @@ async function fixture(generator) {
 function successfulGenerator(calls) {
   return async (request) => {
     calls.push(request);
-    return Object.freeze({ provider: "openai", model: "gpt-image-2", mimeType: "image/png", bytesBase64: "QUJDRA==", dataUri: "data:image/png;base64,QUJDRA==", requestId: `req-${calls.length}`, size: request.size || "1024x1024", quality: request.quality || "medium" });
+    return Object.freeze({ provider: "openai", model: "gpt-image-2", mimeType: "image/png", bytesBase64: PNG_BASE64, dataUri: PNG_DATA_URI, requestId: `req-${calls.length}`, size: request.size || "1024x1024", quality: request.quality || "medium" });
   };
 }
 
@@ -45,7 +48,7 @@ test("new Image Lab generations persist pending assets plus AI provenance and su
   assert.equal(calls[0].context.projectId, "project-1");
   assert.match(calls[0].prompt, /moonlit forest clearing/i);
   assert.equal(result.asset.approvalStatus, "pending");
-  assert.equal(result.asset.assetUri, "data:image/png;base64,QUJDRA==");
+  assert.equal(result.asset.assetUri, PNG_DATA_URI);
   assert.equal(result.asset.reusedFromAssetId, undefined);
   assert.equal(result.provider, "openai");
   assert.equal(result.assetProvenance.eventType, "generation");
@@ -72,7 +75,7 @@ test("reference images require explicit consent before any provider execution", 
   await assert.rejects(() => service.generate({
     projectId: "project-1",
     prompt: "Edit the author image",
-    referenceImage: "data:image/png;base64,QUJDRA==",
+    referenceImage: PNG_DATA_URI,
     referenceRights: authorOwnedRights,
   }), /Explicit author consent/);
   assert.equal(calls.length, 0);
@@ -81,7 +84,7 @@ test("reference images require explicit consent before any provider execution", 
 test("uploaded source images are preserved with rights and per-request consent before derivative generation", async (t) => {
   const calls = [], { root, store, service } = await fixture(successfulGenerator(calls));
   t.after(() => rm(root, { recursive: true, force: true }));
-  const original = "data:image/png;base64,QUJDRA==";
+  const original = PNG_DATA_URI;
   const result = await service.generate({ projectId: "project-1", prompt: "Keep the character exactly the same but change the sky to dawn", style: "soft watercolor", purpose: "character-reference", referenceImage: original, referenceLabel: "Author-approved Luke design", referenceRights: authorOwnedRights, externalProcessingConsent: true, now: "2026-09-01T18:04:00.000Z" });
   assert.equal(calls.length, 1);
   assert.equal(calls[0].referenceImages.length, 1);
@@ -159,7 +162,7 @@ test("completed image generation merges into latest project instead of overwriti
 test("provider failure preserves consented uploaded source and transmission audit but never fabricates derivative output", async (t) => {
   const { root, store, service } = await fixture(async () => { throw new Error("No real image provider is configured."); });
   t.after(() => rm(root, { recursive: true, force: true }));
-  await assert.rejects(() => service.generate({ projectId: "project-1", prompt: "A real provider is required", referenceImage: "data:image/png;base64,QUJDRA==", referenceRights: authorOwnedRights, externalProcessingConsent: true, now: "2026-09-01T18:11:00.000Z" }), /No real image provider/);
+  await assert.rejects(() => service.generate({ projectId: "project-1", prompt: "A real provider is required", referenceImage: PNG_DATA_URI, referenceRights: authorOwnedRights, externalProcessingConsent: true, now: "2026-09-01T18:11:00.000Z" }), /No real image provider/);
   const persisted = await store.load("project-1");
   assert.equal(persisted.illustrationAssetLibrary.assets.length, 1, "consented uploaded original must survive provider failure");
   assert.equal(persisted.illustrationAssetLibrary.assets[0].style, "author-uploaded-source");
@@ -167,13 +170,47 @@ test("provider failure preserves consented uploaded source and transmission audi
   assert.equal(persisted.assetRightsRegistry.records.some((record) => record.eventType === "generation"), false, "failed provider must not fabricate generation provenance");
 });
 
-test("Image Lab rejects unsafe references, contradictory rights, and invalid options before provider execution", async (t) => {
+test("Image Lab rejects unsafe references, contradictory rights, invalid options, and fake image bytes before provider execution", async (t) => {
   let calls = 0;
   const { root, service } = await fixture(async () => { calls += 1; throw new Error("should not run"); });
   t.after(() => rm(root, { recursive: true, force: true }));
   await assert.rejects(() => service.generate({ projectId: "project-1", prompt: "x", referenceImage: "https://example.com/image.png", referenceRights: authorOwnedRights, externalProcessingConsent: true }), /inline PNG, JPEG, or WebP/);
-  await assert.rejects(() => service.generate({ projectId: "project-1", prompt: "x", referenceImage: "data:image/png;base64,QUJDRA==", referenceRights: { rightsBasis: "unknown", authorDeclaresPublicationClearance: true }, externalProcessingConsent: true }), /Unknown or external-reference rights cannot be marked publication-cleared/);
+  await assert.rejects(() => service.generate({ projectId: "project-1", prompt: "x", referenceImage: "data:image/png;base64,QUJDRA==", referenceRights: authorOwnedRights, externalProcessingConsent: true }), /not a valid PNG byte stream/);
+  await assert.rejects(() => service.generate({ projectId: "project-1", prompt: "x", referenceImage: PNG_DATA_URI, referenceRights: { rightsBasis: "unknown", authorDeclaresPublicationClearance: true }, externalProcessingConsent: true }), /Unknown or external-reference rights cannot be marked publication-cleared/);
   await assert.rejects(() => service.generate({ projectId: "project-1", prompt: "x", size: "999x999" }), /Invalid image size/);
   await assert.rejects(() => service.generate({ projectId: "project-1", prompt: "x", quality: "ultra" }), /Invalid image quality/);
   assert.equal(calls, 0);
+});
+
+test("Image Lab refuses fake or mismatched provider image bytes instead of persisting them", async (t) => {
+  const { root, store, service } = await fixture(async () => Object.freeze({
+    provider: "openai",
+    model: "gpt-image-2",
+    mimeType: "image/png",
+    bytesBase64: "QUJDRA==",
+    dataUri: "data:image/png;base64,QUJDRA==",
+    size: "1024x1024",
+    quality: "medium",
+  }));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await assert.rejects(() => service.generate({ projectId: "project-1", prompt: "fake provider image" }), /not a valid PNG byte stream/);
+  const persisted = await store.load("project-1");
+  assert.equal(persisted.illustrationAssetLibrary?.assets.length ?? 0, 0, "invalid provider bytes must not create an illustration asset library entry");
+  assert.equal(persisted.assetRightsRegistry?.records.length ?? 0, 0, "invalid provider bytes must not create generation provenance");
+
+  const mismatchedBytes = Buffer.from(PNG_BASE64, "base64");
+  mismatchedBytes[mismatchedBytes.length - 1] ^= 0x01;
+  const mismatch = new StudioImageLabService(store, async () => Object.freeze({
+    provider: "openai",
+    model: "gpt-image-2",
+    mimeType: "image/png",
+    bytesBase64: PNG_BASE64,
+    dataUri: `data:image/png;base64,${mismatchedBytes.toString("base64")}`,
+    size: "1024x1024",
+    quality: "medium",
+  }));
+  await assert.rejects(() => mismatch.generate({ projectId: "project-1", prompt: "mismatched provider image" }), /does not match the returned image data URI/);
+  const afterMismatch = await store.load("project-1");
+  assert.equal(afterMismatch.illustrationAssetLibrary?.assets.length ?? 0, 0, "mismatched provider payloads must not persist artwork");
+  assert.equal(afterMismatch.assetRightsRegistry?.records.length ?? 0, 0, "mismatched provider payloads must not persist generation provenance");
 });

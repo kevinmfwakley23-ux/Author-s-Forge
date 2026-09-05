@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#111827">
+  <title>Forge Agent Workbench · Author's Forge</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/forge-royal-hardening.css" data-forge-royal-hardening>
+  <style>
+    body{min-height:100vh;margin:0;background:var(--forge-bg,#f3efe6);color:var(--forge-text,#20252b)}
+    .agent-shell{width:min(1180px,calc(100% - 28px));margin:0 auto;padding:24px 0 56px}
+    .agent-top{display:flex;gap:18px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;margin-bottom:18px}
+    .agent-top h1{margin:.2rem 0 .45rem;font-size:clamp(1.8rem,5vw,3.25rem)}
+    .agent-back{display:inline-flex;align-items:center;min-height:44px;padding:8px 13px;border:1px solid currentColor;border-radius:999px;text-decoration:none}
+    .agent-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,.52fr);gap:16px}
+    .agent-card{background:var(--forge-panel,#fff);border:1px solid var(--forge-border,#d8cfbf);border-radius:14px;padding:18px;box-shadow:0 12px 30px rgba(0,0,0,.06)}
+    .agent-card h2,.agent-card h3{margin-top:0}
+    .agent-form{display:grid;gap:12px}.agent-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.agent-row-three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+    .agent-form label,.agent-recipe-controls label{display:grid;gap:6px;font-weight:700}.agent-form input,.agent-form select,.agent-form textarea,.agent-recipe-controls input,.agent-recipe-controls select{width:100%;box-sizing:border-box;font:inherit;padding:11px 12px;border:1px solid var(--forge-border,#cfc7ba);border-radius:9px;background:var(--forge-panel-soft,#faf8f2);color:inherit}
+    .agent-form textarea{min-height:150px;resize:vertical}.agent-actions{display:flex;gap:9px;flex-wrap:wrap}.agent-actions button,.agent-group-run{min-height:44px;padding:10px 14px;border-radius:9px;border:1px solid #20252b;cursor:pointer;font:inherit;font-weight:800}.agent-primary{background:#20252b;color:#fff}.agent-secondary{background:transparent;color:inherit}
+    .agent-note{padding:11px 13px;border-left:4px solid #9a793d;background:var(--forge-panel-soft,#faf8f2);border-radius:7px;font-size:.94rem}.agent-status{min-height:24px;font-weight:700}
+    .agent-snapshot{display:grid;gap:9px}.agent-stat{display:flex;justify-content:space-between;gap:18px;padding-bottom:8px;border-bottom:1px solid var(--forge-border,#ddd)}
+    .agent-plan{display:grid;gap:12px;margin-top:16px}.agent-step{border:1px solid var(--forge-border,#d8cfbf);border-radius:12px;padding:14px;background:var(--forge-panel,#fff)}.agent-step-head{display:flex;gap:12px;align-items:flex-start;justify-content:space-between}.agent-step h3{margin:0 0 4px;font-size:1.06rem}.agent-step p{margin:.3rem 0}.agent-badge{white-space:nowrap;border:1px solid currentColor;border-radius:999px;padding:3px 8px;font-size:.75rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}.agent-step button{margin-top:10px;min-height:42px;border:1px solid #20252b;border-radius:8px;background:#20252b;color:#fff;padding:8px 12px;font-weight:800;cursor:pointer}.agent-step button[disabled],.agent-actions button[disabled]{opacity:.55;cursor:not-allowed}.agent-result{white-space:pre-wrap;overflow-wrap:anywhere;max-height:300px;overflow:auto;margin-top:10px;padding:10px;border-radius:8px;background:#111827;color:#e5e7eb;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace}.agent-hidden{display:none!important}
+    .agent-truth{display:grid;gap:8px;margin:0;padding-left:20px}.agent-truth strong{font-weight:900}.agent-side-section{margin-top:24px;padding-top:20px;border-top:1px solid var(--forge-border,#d8cfbf)}.agent-recipe-controls{display:grid;gap:10px}.agent-mini-status{min-height:20px;font-size:.9rem;font-weight:700}.agent-group-run{margin-left:auto}.agent-help{font-size:.82rem;font-weight:500;line-height:1.35}
+    @media(max-width:800px){.agent-grid,.agent-row,.agent-row-three{grid-template-columns:1fr}.agent-shell{width:min(100% - 18px,1180px);padding-top:14px}.agent-card{padding:14px}.agent-step-head{display:grid}.agent-badge{justify-self:start}.agent-group-run{margin-left:0;width:100%}}
+  </style>
+</head>
+<body>
+  <main class="agent-shell">
+    <div class="agent-top">
+      <div>
+        <div class="eyebrow">AUTHOR'S FORGE · GOVERNED AGENTIC CREATION</div>
+        <h1>Forge Agent Workbench</h1>
+        <p class="muted">Turn one creative goal into a transparent sequence of real Forge operations. Plans and reusable Recipes come from the server-owned governance registry.</p>
+      </div>
+      <a class="agent-back" id="agent-back" href="/">← Main Studio</a>
+    </div>
+
+    <section class="agent-grid">
+      <article class="agent-card">
+        <h2>Creative mission</h2>
+        <div class="agent-note"><strong>Authority boundary:</strong> the server planner decides which registered tools belong in the plan. Provider-backed or state-affecting steps stay individually visible. Only steps explicitly classified read-only with no state effect may be run together after one author approval.</div>
+        <form id="agent-form" class="agent-form">
+          <div class="agent-row-three">
+            <label>Project ID
+              <input id="agent-project" autocomplete="off" spellcheck="false" required>
+            </label>
+            <label>Collaboration mode
+              <select id="agent-mode">
+                <option value="co-pilot">Co-pilot</option>
+                <option value="partner">Partner</option>
+                <option value="director">Director</option>
+                <option value="autonomous">Autonomous</option>
+                <option value="editor">Editor</option>
+              </select>
+            </label>
+            <label>Planner
+              <select id="agent-planner">
+                <option value="deterministic">Deterministic · free/default</option>
+                <option value="ai">AI-enhanced · routed model</option>
+              </select>
+              <span class="muted agent-help">AI-enhanced planning follows your current spend/model policy and falls back visibly if unavailable or invalid.</span>
+            </label>
+          </div>
+          <div class="agent-row-three">
+            <label>Book target
+              <select id="agent-book"><option value="">Load a project first</option></select>
+            </label>
+            <label>Chapter target
+              <select id="agent-chapter"><option value="">—</option></select>
+            </label>
+            <label>Scene target
+              <select id="agent-scene"><option value="">—</option></select>
+            </label>
+          </div>
+          <label>Author / production credit
+            <input id="agent-author" value="Author" autocomplete="name">
+          </label>
+          <label>What do you want Forge to accomplish?
+            <textarea id="agent-goal" required placeholder="Example: Research the KDP niche, create chapter cards, draft and edit the selected scene, generate an illustration, and prepare a PDF review copy."></textarea>
+          </label>
+          <div class="agent-actions">
+            <button class="agent-primary" type="submit">Save mode &amp; ask Forge to plan</button>
+            <button class="agent-secondary" id="agent-refresh" type="button">Refresh project truth</button>
+          </div>
+          <div class="agent-status" id="agent-status" role="status" aria-live="polite"></div>
+        </form>
+        <div id="agent-plan" class="agent-plan"></div>
+      </article>
+
+      <aside class="agent-card">
+        <h2>Project truth</h2>
+        <div id="agent-snapshot" class="agent-snapshot"><p class="muted">Loading durable workspace…</p></div>
+
+        <section class="agent-side-section" aria-labelledby="agent-recipes-title">
+          <h3 id="agent-recipes-title">Forge Recipes</h3>
+          <p class="muted">Bottle a useful governed plan into a reusable workflow. Recipes preserve registered tool IDs and instructions, then compile back through the server before anything can run.</p>
+          <div class="agent-recipe-controls">
+            <label>Saved Recipe
+              <select id="agent-recipe-select"><option value="">Loading Recipes…</option></select>
+            </label>
+            <div class="agent-actions">
+              <button class="agent-primary" id="agent-recipe-compile" type="button" disabled>Compile selected Recipe</button>
+              <button class="agent-secondary" id="agent-recipe-delete" type="button" disabled>Delete Recipe</button>
+            </div>
+            <label>Save current plan as Recipe
+              <input id="agent-recipe-name" maxlength="160" placeholder="Example: Illustrated launch pass">
+            </label>
+            <div class="agent-actions">
+              <button class="agent-secondary" id="agent-recipe-save" type="button">Save current plan</button>
+            </div>
+            <div class="agent-mini-status" id="agent-recipe-status" role="status" aria-live="polite"></div>
+          </div>
+        </section>
+
+        <section class="agent-side-section" aria-labelledby="agent-tools-title">
+          <h3 id="agent-tools-title">Discovered capabilities</h3>
+          <p class="muted">This list is rendered from the server-owned Creative Tool Registry rather than hard-coded navigation.</p>
+          <div id="agent-tools"><p class="muted">Loading governed tools…</p></div>
+        </section>
+
+        <section class="agent-side-section">
+          <h3>Agent rules</h3>
+          <ul class="agent-truth">
+            <li><strong>Server-planned.</strong> The browser asks Forge for the governed plan instead of inventing one locally.</li>
+            <li><strong>AI planning is optional.</strong> Deterministic planning costs no model tokens; AI-enhanced selections must pass strict registry validation and can fall back safely.</li>
+            <li><strong>Source-backed research only.</strong> Live research refuses to run when its real provider boundary is unavailable.</li>
+            <li><strong>Proposal, not takeover.</strong> Writing and Chapter Cards remain candidates until separate author review.</li>
+            <li><strong>Safe groups are bounded.</strong> Only read-only/no-state-effect steps can share one approval, and the group stops on the first failure.</li>
+            <li><strong>Artifacts are real.</strong> Production downloads the exact bytes returned by Forge.</li>
+          </ul>
+        </section>
+      </aside>
+    </section>
+  </main>
+  <script src="/forge-agent-v3.js" defer></script>
+  <script src="/forge-agent-routing.js" defer></script>
+  <script src="/forge-pwa.js" defer></script>
+</body>
+</html>
