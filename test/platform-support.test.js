@@ -18,11 +18,19 @@ test('PWA shell has a platform-neutral install manifest and live lifecycle entry
   assert.equal(manifest.orientation, 'any');
   assert.equal(manifest.start_url, '/?project=forge-studio');
   assert.equal(manifest.prefer_related_applications, false);
-  assert.ok(Array.isArray(manifest.icons) && manifest.icons.length >= 2);
+  assert.ok(Array.isArray(manifest.icons) && manifest.icons.length >= 3);
   const iconSizes = new Set(manifest.icons.map((icon) => icon.sizes));
   assert.ok(iconSizes.has('192x192'), 'manifest must expose a 192x192 install icon');
   assert.ok(iconSizes.has('512x512'), 'manifest must expose a 512x512 install icon');
-  for (const icon of manifest.icons) assert.equal(typeof icon.src, 'string');
+  assert.ok(manifest.icons.some((icon) => icon.type === 'image/png' && icon.sizes === '192x192'), 'Android must have a raster 192 icon fallback');
+  assert.ok(manifest.icons.some((icon) => icon.type === 'image/png' && icon.sizes === '512x512'), 'Android must have a raster 512 icon fallback');
+  assert.ok(manifest.icons.some((icon) => icon.purpose === 'maskable'), 'Android must have an adaptive maskable launcher icon');
+  assert.ok(fs.existsSync('public/icon-192.png'), 'build must generate the 192px Android launcher PNG');
+  assert.ok(fs.existsSync('public/icon-512.png'), 'build must generate the 512px Android launcher PNG');
+  assert.ok(fs.existsSync('public/icon-maskable-512.png'), 'build must generate the maskable Android launcher PNG');
+  for (const file of ['public/icon-192.png', 'public/icon-512.png', 'public/icon-maskable-512.png']) {
+    assert.deepEqual([...fs.readFileSync(file).subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10], `${file} must be a real PNG`);
+  }
   assert.ok(Array.isArray(manifest.shortcuts) && manifest.shortcuts.length >= 4, 'installed Forge must expose Android launcher shortcuts');
   assert.match(index, /manifest\.webmanifest/);
   assert.match(index, /forge-pwa\.js/, 'Main Studio must actually load the PWA lifecycle it claims to ship');
@@ -39,6 +47,7 @@ test('Android install experience is a real round launcher rather than a browser-
   assert.match(pwa, /Add to Home screen/);
   assert.match(launcherIcon, /<circle/);
   assert.match(launcherIcon, /#d4ad63/);
+  assert.match(serviceWorker, /"\/icon-maskable-512\.png"/);
 });
 
 test('Series Engine is discoverable from the live Studio PWA and travels in the offline shell', () => {
