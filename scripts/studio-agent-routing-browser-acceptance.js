@@ -74,19 +74,50 @@ async function main() {
     assert.match(summary, /Configured AI resources\s*0/);
     assert.match(summary, /Spend policy\s*no-paid-tokens/);
     assert.match(summary, /Routing mode\s*economy/);
+    assert.match(summary, /This mission\s*Automatic \/ owner policy/);
     assert.match(await page.locator("#agent-routing-resources").innerText(), /No AI generation resource is currently configured/);
     assert.equal(await page.locator("#agent-spend-policy").inputValue(), "no-paid-tokens");
     assert.equal(await page.locator("#agent-routing-mode").inputValue(), "economy");
-    assert.equal(await page.locator("#agent-provider option").count(), 10);
+    assert.equal(await page.locator("#agent-provider option").count(), 11);
+    assert.equal(await page.locator('#agent-provider option[value="gateway"]').count(), 1, "OpenAI-compatible gateway must be visible in Agent routing UI");
 
     // A routing-mode change is real, explicit and preserves the safe no-paid-token policy.
     await page.locator("#agent-routing-mode").selectOption("balanced");
     await page.locator("#agent-apply-routing-policy").tap();
-    await page.waitForFunction(() => document.querySelector("#agent-routing-status")?.textContent.includes("Routing policy applied"));
+    await page.waitForFunction(() => /owner routing policy applied/i.test(document.querySelector("#agent-routing-status")?.textContent || ""));
     const changed = await api(base, `/api/projects/${PROJECT_ID}/ai/control`);
     assert.equal(changed.control.routingMode, "balanced");
     assert.equal(changed.control.spendPolicy, "no-paid-tokens");
     assert.equal(changed.control.pinnedProvider, undefined);
+
+    // A mission preference is ephemeral: it reaches the governed Agent plan but does not mutate owner policy.
+    await page.locator("#agent-provider").selectOption("gateway");
+    await page.locator("#agent-use-mission-route").tap();
+    await page.waitForFunction(() => /mission route set to gateway/i.test(document.querySelector("#agent-routing-status")?.textContent || ""));
+    const routedPlan = await page.evaluate(async (projectId) => {
+      const response = await fetch(`/api/projects/${projectId}/agent/plan`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ goal: "Prepare a PDF review copy.", planner: "deterministic" }),
+      });
+      return response.json();
+    }, PROJECT_ID);
+    assert.deepEqual(routedPlan.plan.routingPreference, { preferProvider: "gateway" });
+    const afterMissionRoute = await api(base, `/api/projects/${PROJECT_ID}/ai/control`);
+    assert.equal(afterMissionRoute.control.routingMode, "balanced");
+    assert.equal(afterMissionRoute.control.spendPolicy, "no-paid-tokens");
+    assert.equal(afterMissionRoute.control.pinnedProvider, undefined, "mission route must not become a global pin");
+
+    await page.locator("#agent-clear-mission-route").tap();
+    const automaticPlan = await page.evaluate(async (projectId) => {
+      const response = await fetch(`/api/projects/${projectId}/agent/plan`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ goal: "Prepare a PDF review copy.", planner: "deterministic" }),
+      });
+      return response.json();
+    }, PROJECT_ID);
+    assert.equal(automaticPlan.plan.routingPreference, undefined);
 
     // An intentionally unconfigured local router catalog must fail honestly instead of inventing models or reaching the internet.
     await page.locator("#agent-provider").selectOption("omniroute");
@@ -100,8 +131,10 @@ async function main() {
     assert.ok(dimensions.document <= dimensions.viewport + 1, `AI routing panel introduced horizontal document overflow: ${JSON.stringify(dimensions)}`);
     const applyBox = await page.locator("#agent-apply-routing-policy").boundingBox();
     assert.ok(applyBox && applyBox.height >= 40, `Routing policy control is too small for touch: ${JSON.stringify(applyBox)}`);
+    const missionBox = await page.locator("#agent-use-mission-route").boundingBox();
+    assert.ok(missionBox && missionBox.height >= 40, `Mission routing control is too small for touch: ${JSON.stringify(missionBox)}`);
 
-    console.log("FORGE AGENT ROUTING BROWSER ACCEPTANCE PASSED: real AI control state + ten-provider UI + explicit policy mutation + safe spend preservation + honest offline catalog failure + Android-sized layout.");
+    console.log("FORGE AGENT ROUTING BROWSER ACCEPTANCE PASSED: real owner AI state + eleven-provider UI + gateway visibility + explicit global policy mutation + mission-scoped route propagation/isolation + safe spend preservation + honest offline catalog failure + Android-sized layout.");
   } finally {
     if (browser) await browser.close().catch(() => {});
     server.kill("SIGTERM");
