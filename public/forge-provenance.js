@@ -14,7 +14,17 @@
     return payload;
   }
 
+  function ensureBrandStudioExtension() {
+    if (!document.getElementById("dashboard") || document.querySelector('script[data-forge-extension="brand-studio"]')) return;
+    const script = document.createElement("script");
+    script.src = "/forge-brand-studio.js";
+    script.defer = true;
+    script.dataset.forgeExtension = "brand-studio";
+    document.head.appendChild(script);
+  }
+
   function ensureUi() {
+    ensureBrandStudioExtension();
     if (!$("#dashboard") || $("#provenance-room")) return;
     const nav = $(".sidebar nav");
     if (nav) {
