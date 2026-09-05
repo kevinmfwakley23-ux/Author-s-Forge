@@ -98,7 +98,9 @@ async function main() {
     assert.equal((await api(base, `/api/projects/${PROJECT_ID}/collaboration`)).mode, "autonomous");
     assert.match(await page.locator(".agent-group-run").innerText(), /2 safe read-only steps/);
     await page.locator(".agent-group-run").tap();
-    await page.waitForFunction(() => document.querySelector('[data-tool-id="project.context"] button')?.textContent === "Completed" && document.querySelector('[data-tool-id="editing.analyze"] button')?.textContent === "Completed");
+    await page.waitForFunction(() => document.querySelector(".agent-group-run")?.textContent === "Safe read-only group completed");
+    assert.equal(await page.locator('[data-tool-id="project.context"] button').innerText(), "Completed");
+    assert.equal(await page.locator('[data-tool-id="editing.analyze"] button').innerText(), "Completed");
     assert.equal(await page.locator('[data-tool-id="writing.propose"] button').isEnabled(), true, "writing should still require its own author approval");
     assert.notEqual(await page.locator('[data-tool-id="writing.propose"] button').innerText(), "Completed");
     assert.match(await page.locator("#agent-status").innerText(), /read-only group completed/i);
