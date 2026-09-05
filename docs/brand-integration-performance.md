@@ -1,0 +1,1 @@
+Use a shipping-size derivative of the locked artwork for fast mobile rendering. Do not alter the artwork; only resize/re-encode for delivery efficiency.
