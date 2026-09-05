@@ -15,7 +15,7 @@ export const SPECIALIZED_DESIGN_TEMPLATE_FORMAT_VERSION = 1 as const;
 export type SpecializedTemplateAssetPolicy = "detached-placeholders";
 
 export interface SpecializedDesignTemplateSource {
-  readonly kind: "author-captured" | "installed-copy";
+  readonly kind: "built-in" | "author-captured" | "installed-copy";
   readonly specializedProjectId: string;
   readonly documentId: string;
   readonly profileId: string;
@@ -139,9 +139,16 @@ export function validateSpecializedDesignTemplate(
   if (value.source.specializedProjectId !== value.document.projectId) {
     throw new Error("Specialized design template source scope is inconsistent.");
   }
+  if (!["built-in", "author-captured", "installed-copy"].includes(value.source.kind)) {
+    throw new Error("Unsupported Specialized design template source kind.");
+  }
   identifier(value.source.specializedProjectId, "Source Specialized project id");
   identifier(value.source.documentId, "Source document id");
   identifier(value.source.profileId, "Source production profile id");
+  if (value.source.sourceTemplateId !== undefined) identifier(value.source.sourceTemplateId, "Source template id");
+  if (value.source.sourceTemplateVersion !== undefined && (!Number.isInteger(value.source.sourceTemplateVersion) || value.source.sourceTemplateVersion < 1)) {
+    throw new Error("Source template version must be a positive integer.");
+  }
   timestamp(value.createdAt);
   timestamp(value.updatedAt);
   return deepFreeze(clone(value));
