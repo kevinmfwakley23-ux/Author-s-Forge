@@ -27,6 +27,12 @@ const PROVIDERS:
   "gateway",
 ];
 
+const ALLOWED_FIELDS =
+  new Set([
+    "preferProvider",
+    "preferModel",
+  ]);
+
 /**
  * Parse a mission/request preference without changing Forge's owner-wide
  * routing policy. This is deliberately a preference rather than a bypass:
@@ -57,6 +63,17 @@ export function parseAiMissionRoutingPreference(
 
   const row =
     value as Record<string, unknown>;
+
+  const unsupportedFields =
+    Object.keys(row).filter(
+      (key) => !ALLOWED_FIELDS.has(key),
+    );
+
+  if (unsupportedFields.length) {
+    throw new Error(
+      `Mission AI routing preference contains unsupported fields: ${unsupportedFields.join(", ")}.`,
+    );
+  }
 
   const rawProvider =
     row.preferProvider;
