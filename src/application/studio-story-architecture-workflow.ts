@@ -19,6 +19,7 @@ import {
 import type { FileProjectStore } from "../infrastructure/file-project-store";
 import { generateProjectText, type AiGenerationResult, type ProjectAiGenerationRequest } from "../infrastructure/ai-provider";
 import { ProjectMemoryStore } from "./project-memory-store";
+import { StoryArchitectureTemplateService, formatStoryArchitectureTemplateGuidance } from "./story-architecture-templates";
 
 export type StoryArchitectureGenerator = (request: ProjectAiGenerationRequest) => Promise<AiGenerationResult>;
 
@@ -30,14 +31,19 @@ export interface GenerateStoryArchitectureInput {
   readonly idea: string;
   readonly kind?: string;
   readonly targetChapters?: number;
+  readonly templateId?: string;
   readonly now?: string;
 }
 
 export class StudioStoryArchitectureWorkflowService {
+  private readonly templates: StoryArchitectureTemplateService;
+
   constructor(
     private readonly projects: Pick<FileProjectStore, "load" | "save">,
     private readonly generator: StoryArchitectureGenerator = generateProjectText,
-  ) {}
+  ) {
+    this.templates = new StoryArchitectureTemplateService(projects);
+  }
 
   async snapshot(projectId: string) {
     const project = await this.requireProject(projectId);
@@ -65,6 +71,9 @@ export class StudioStoryArchitectureWorkflowService {
     const targetChapters = input.targetChapters === undefined || input.targetChapters === 0
       ? undefined
       : positiveInteger(input.targetChapters, "Target chapters", 100);
+    const template = input.templateId === undefined || input.templateId === ""
+      ? undefined
+      : await this.templates.resolve(projectId, identifier(input.templateId, "Story Architecture template id"));
 
     const memory = new ProjectMemoryStore();
     for (const record of project.memories) memory.register(record);
@@ -88,12 +97,14 @@ export class StudioStoryArchitectureWorkflowService {
         "Treat Project Brain authoritative canon as binding unless the author explicitly requested a change.",
         "Separate assumptions from supplied facts. Canon candidates are proposals only and must never be described as already-established canon.",
         "Make the chapter and scene plan coherent enough to hand directly into Chapter Card planning after author approval.",
+        "A selected story structure template is guidance, not canon: adapt it to the author's idea and never force a beat that contradicts explicit author intent or authoritative Project Brain truth.",
         "Do not invent research, external facts, or unsupported character ids.",
       ].join(" "),
       user: [
         `BOOK TYPE: ${kind}`,
         `TARGET CHAPTERS: ${targetChapters ?? "choose the appropriate count"}`,
         `AUTHOR IDEA:\n${idea}`,
+        template ? formatStoryArchitectureTemplateGuidance(template) : "STORY STRUCTURE TEMPLATE: none selected; derive an appropriate structure from the author idea and Project Brain.",
         characters.length ? `EXISTING CHARACTER IDS:\n${characters.map((item) => `- ${item.id}: ${item.name}`).join("\n")}` : "EXISTING CHARACTER IDS: none yet.",
         "JSON SCHEMA:",
         '{"premise":"","themes":[""],"audience":"","genreExpectations":[""],"canonCandidates":[""],"characterCandidates":[""],"locations":[""],"timelineConsiderations":[""],"assumptions":[""],"chapterPlan":[{"number":1,"title":"","summary":"","requiredEvents":[""],"continuityDependencies":[""]}],"scenePlan":[{"chapterNumber":1,"title":"","summary":"","goal":"","conflict":"","outcome":""}],"unresolvedQuestions":[""],"productionRisks":[""]}',
@@ -118,6 +129,14 @@ export class StudioStoryArchitectureWorkflowService {
       idea,
       kind,
       ...(targetChapters === undefined ? {} : { targetChapters }),
+      ...(template ? {
+        template: {
+          id: template.id,
+          title: template.title,
+          version: template.version,
+          sourceKind: template.source.kind,
+        },
+      } : {}),
       plan,
       provider: result.provider,
       model: result.model,
@@ -131,6 +150,12 @@ export class StudioStoryArchitectureWorkflowService {
       authorApprovalRequired: true as const,
       manuscriptChanged: false as const,
       canonChanged: false as const,
+      templateGuidanceApplied: template ? {
+        id: template.id,
+        title: template.title,
+        version: template.version,
+        sourceKind: template.source.kind,
+      } : null,
       message: "Story Architecture saved as durable unapproved planning. Review/edit it, then explicitly approve the exact current plan before handing it to Chapter Cards.",
     });
   }
@@ -173,6 +198,7 @@ export class StudioStoryArchitectureWorkflowService {
     ]);
     const description = [
       `APPROVED STORY ARCHITECTURE (${approval.planSha256})`,
+      candidate.template ? `Structure template provenance: ${candidate.template.title} (${candidate.template.id} v${candidate.template.version}, ${candidate.template.sourceKind}). Template guidance is not Project Brain canon.` : "",
       `Premise: ${plan.premise}`,
       `Themes: ${plan.themes.join("; ")}`,
       `Audience: ${plan.audience}`,
@@ -186,6 +212,7 @@ export class StudioStoryArchitectureWorkflowService {
     return Object.freeze({
       architectureId: candidate.id,
       architectureSha256: approval.planSha256,
+      template: candidate.template ?? null,
       kind: candidate.kind,
       description,
       events,

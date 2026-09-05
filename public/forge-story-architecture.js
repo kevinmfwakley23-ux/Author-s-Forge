@@ -7,7 +7,10 @@
   const esc = (value) => String(value ?? "").replace(/[&<>\"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[char]));
   const lines = (value) => [...new Set(String(value || "").split(/\r?\n/u).map((item) => item.trim()).filter(Boolean))];
   let snapshot = { candidates: [], approvedArchitectureId: null };
+  let templates = { builtIn: [], installed: [] };
   let selectedId = null;
+  let selectedTemplateId = "";
+  let templateEditorMode = "selected";
   let busy = false;
 
   async function api(path, init = {}) {
@@ -29,8 +32,8 @@
     const style = document.createElement("style");
     style.id = "story-architecture-workflow-styles";
     style.textContent = `
-      .story-architecture-workflow{margin-top:1rem}.story-architecture-grid{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}.story-architecture-grid label{display:grid;gap:.3rem}.story-architecture-grid textarea,.story-architecture-grid input{width:100%}.story-architecture-wide{grid-column:1/-1}.story-architecture-actions{display:flex;gap:.55rem;flex-wrap:wrap}.story-architecture-actions button{min-height:44px}.story-architecture-status{padding:.65rem .75rem;border:1px solid rgba(127,127,127,.35);border-radius:10px;margin:.7rem 0}.story-architecture-candidates{display:grid;gap:.45rem;margin:.7rem 0}.story-architecture-candidates button{text-align:left;min-height:44px}.story-architecture-json{min-height:190px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.85rem}
-      @media(max-width:800px){.story-architecture-grid{grid-template-columns:1fr}.story-architecture-wide{grid-column:1}.story-architecture-actions{display:grid;grid-template-columns:1fr}.story-architecture-actions button{width:100%;min-height:44px}}
+      .story-architecture-workflow{margin-top:1rem}.story-architecture-grid{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}.story-architecture-grid label{display:grid;gap:.3rem}.story-architecture-grid textarea,.story-architecture-grid input,.story-architecture-grid select{width:100%}.story-architecture-wide{grid-column:1/-1}.story-architecture-actions{display:flex;gap:.55rem;flex-wrap:wrap}.story-architecture-actions button{min-height:44px}.story-architecture-status{padding:.65rem .75rem;border:1px solid rgba(127,127,127,.35);border-radius:10px;margin:.7rem 0}.story-architecture-candidates{display:grid;gap:.45rem;margin:.7rem 0}.story-architecture-candidates button{text-align:left;min-height:44px}.story-architecture-json{min-height:190px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.85rem}.story-template-panel{margin:.8rem 0;padding:.8rem;border:1px solid rgba(127,127,127,.32);border-radius:12px}.story-template-panel select{width:100%;min-height:44px}.story-template-editor{margin-top:.7rem}.story-template-editor summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:700}.story-template-meta{margin:.45rem 0;white-space:pre-wrap}.story-template-actions{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.6rem}.story-template-actions button{min-height:44px}
+      @media(max-width:800px){.story-architecture-grid{grid-template-columns:1fr}.story-architecture-wide{grid-column:1}.story-architecture-actions,.story-template-actions{display:grid;grid-template-columns:1fr}.story-architecture-actions button,.story-template-actions button{width:100%;min-height:44px}}
     `;
     document.head.appendChild(style);
   }
@@ -48,7 +51,27 @@
     article.id = "story-architecture-workflow";
     article.className = "card story-architecture-workflow";
     article.innerHTML = `
-      <div class="section-title"><div><div class="eyebrow">DURABLE STORY ARCHITECTURE</div><h3>Review the plan before it governs the book</h3><p class="muted">Forge stores the architecture as structured planning. Editing changes its fingerprint. Only the exact version you explicitly approve can feed Chapter Card generation. Approval can be revoked at any time, does not promote proposed canon into Project Brain, and never writes manuscript prose.</p></div></div>
+      <div class="section-title"><div><div class="eyebrow">DURABLE STORY ARCHITECTURE</div><h3>Review the plan before it governs the book</h3><p class="muted">Forge stores architecture as structured planning. Templates are optional guidance, never canon. Editing a generated plan changes its fingerprint; only the exact version you explicitly approve can feed Chapter Cards.</p></div></div>
+      <section class="story-template-panel" aria-labelledby="story-template-heading">
+        <h4 id="story-template-heading">Story structure template</h4>
+        <p class="muted">Choose no template, an immutable Forge built-in, or a versioned project template. The exact template/version used is recorded on the generated architecture candidate.</p>
+        <label>Template for the next generation<select id="story-template-select"><option value="">No template — derive structure from my idea</option></select></label>
+        <p id="story-template-meta" class="story-template-meta muted">No template selected.</p>
+        <div class="story-template-actions"><button id="story-template-install" type="button" disabled>Install editable project copy</button><button id="story-template-new" type="button">Create project template</button></div>
+        <details id="story-template-editor" class="story-template-editor">
+          <summary>Project template editor</summary>
+          <form id="story-template-form">
+            <div class="story-architecture-grid">
+              <label>Title<input id="story-template-title" maxlength="160" required></label>
+              <label>Book kinds <small>one per line</small><textarea id="story-template-kinds" maxlength="4000"></textarea></label>
+              <label class="story-architecture-wide">Description<textarea id="story-template-description" maxlength="2000"></textarea></label>
+              <label class="story-architecture-wide">Guidance <small>one rule per line</small><textarea id="story-template-guidance" maxlength="20000" required></textarea></label>
+              <label class="story-architecture-wide">Structure beats JSON <small>array of {label,purpose,targetPosition?}</small><textarea id="story-template-beats" class="story-architecture-json" spellcheck="false" required></textarea></label>
+            </div>
+            <div class="story-template-actions"><button id="story-template-save" class="primary" type="submit">Save project template</button><button id="story-template-delete" type="button" disabled>Delete project template</button></div>
+          </form>
+        </details>
+      </section>
       <div id="story-architecture-status" class="story-architecture-status" role="status">No durable architecture candidate selected.</div>
       <div id="story-architecture-candidates" class="story-architecture-candidates"></div>
       <form id="story-architecture-form">
@@ -75,8 +98,15 @@
     $("#story-architecture-revoke")?.addEventListener("click", () => void revokeSelected());
     $("#story-architecture-seed")?.addEventListener("click", () => void seedChapterCards());
     $("#story-architecture-refresh")?.addEventListener("click", () => void refresh());
+    $("#story-template-select")?.addEventListener("change", templateSelected);
+    $("#story-template-install")?.addEventListener("click", () => void installSelectedTemplate());
+    $("#story-template-new")?.addEventListener("click", beginNewTemplate);
+    $("#story-template-form")?.addEventListener("submit", saveTemplate);
+    $("#story-template-delete")?.addEventListener("click", () => void deleteSelectedTemplate());
     return true;
   }
+  function allTemplates() { return [...(templates.builtIn || []), ...(templates.installed || [])]; }
+  function selectedTemplate() { return allTemplates().find((item) => item.id === selectedTemplateId) || null; }
   function candidate() { return snapshot.candidates?.find((item) => item.id === selectedId) || snapshot.candidates?.[0] || null; }
   function readable(plan) {
     if (!plan) return "";
@@ -95,14 +125,62 @@
       plan.productionRisks?.length ? `Production risks:\n${plan.productionRisks.map((item) => `- ${item}`).join("\n")}` : "",
     ].filter(Boolean).join("\n\n");
   }
+  function renderTemplates() {
+    const select = $("#story-template-select");
+    if (!select) return;
+    const builtInOptions = (templates.builtIn || []).map((item) => `<option value="${esc(item.id)}">${esc(item.title)} · built-in v${item.version}</option>`).join("");
+    const installedOptions = (templates.installed || []).map((item) => `<option value="${esc(item.id)}">${esc(item.title)} · project v${item.version}</option>`).join("");
+    select.innerHTML = `<option value="">No template — derive structure from my idea</option>${builtInOptions ? `<optgroup label="Forge built-ins">${builtInOptions}</optgroup>` : ""}${installedOptions ? `<optgroup label="My project templates">${installedOptions}</optgroup>` : ""}`;
+    if (selectedTemplateId && allTemplates().some((item) => item.id === selectedTemplateId)) select.value = selectedTemplateId;
+    else { selectedTemplateId = ""; select.value = ""; }
+    renderTemplateDetails();
+  }
+  function renderTemplateDetails() {
+    const item = selectedTemplate();
+    const meta = $("#story-template-meta"), install = $("#story-template-install"), remove = $("#story-template-delete");
+    if (!item) {
+      if (meta) meta.textContent = "No template selected. Forge will derive structure from the author idea and Project Brain.";
+      if (install) install.disabled = true;
+      if (remove) remove.disabled = true;
+      if (templateEditorMode !== "new") clearTemplateEditor();
+      return;
+    }
+    if (meta) meta.textContent = `${item.title} · v${item.version} · ${item.source?.kind || "unknown source"}\n${item.description || ""}`;
+    if (install) install.disabled = item.source?.kind !== "built-in";
+    if (remove) remove.disabled = item.source?.kind === "built-in";
+    if (templateEditorMode !== "new") fillTemplateEditor(item);
+  }
+  function fillTemplateEditor(item) {
+    templateEditorMode = "selected";
+    $("#story-template-title").value = item?.title || "";
+    $("#story-template-description").value = item?.description || "";
+    $("#story-template-kinds").value = (item?.bookKinds || []).join("\n");
+    $("#story-template-guidance").value = (item?.guidance || []).join("\n");
+    $("#story-template-beats").value = JSON.stringify(item?.beats || [], null, 2);
+    const save = $("#story-template-save"), remove = $("#story-template-delete");
+    if (save) { save.textContent = item?.source?.kind === "built-in" ? "Install a project copy to edit" : "Save new template version"; save.disabled = item?.source?.kind === "built-in"; }
+    if (remove) remove.disabled = !item || item.source?.kind === "built-in";
+  }
+  function clearTemplateEditor() {
+    $("#story-template-title").value = "";
+    $("#story-template-description").value = "";
+    $("#story-template-kinds").value = "";
+    $("#story-template-guidance").value = "";
+    $("#story-template-beats").value = "[]";
+    const save = $("#story-template-save"), remove = $("#story-template-delete");
+    if (save) { save.textContent = "Create project template"; save.disabled = false; }
+    if (remove) remove.disabled = true;
+  }
   function render() {
     ensureUi();
+    renderTemplates();
     const host = $("#story-architecture-candidates");
     if (host) {
       host.innerHTML = (snapshot.candidates || []).slice(0, 8).map((item) => {
         const state = item.approved ? "APPROVED" : item.approvalStale ? "STALE APPROVAL" : "UNAPPROVED";
         const updated = Number.isNaN(Date.parse(item.updatedAt)) ? "unknown time" : new Date(item.updatedAt).toLocaleString();
-        return `<button type="button" data-architecture-candidate="${esc(item.id)}"><strong>${esc(state)}</strong> · ${esc(item.kind)} · ${(item.plan?.chapterPlan || []).length} chapters<br><small>${esc(item.provider)} · ${esc(item.model)} · ${esc(updated)}</small></button>`;
+        const template = item.template ? ` · ${item.template.title} v${item.template.version}` : " · no template";
+        return `<button type="button" data-architecture-candidate="${esc(item.id)}"><strong>${esc(state)}</strong> · ${esc(item.kind)} · ${(item.plan?.chapterPlan || []).length} chapters${esc(template)}<br><small>${esc(item.provider)} · ${esc(item.model)} · ${esc(updated)}</small></button>`;
       }).join("") || '<p class="muted">Generate architecture from the idea box above.</p>';
     }
     const item = candidate();
@@ -129,20 +207,27 @@
     $("#story-architecture-risks").value = (plan.productionRisks || []).join("\n");
     $("#story-architecture-chapters").value = JSON.stringify(plan.chapterPlan || [], null, 2);
     $("#story-architecture-scenes").value = JSON.stringify(plan.scenePlan || [], null, 2);
-    $("#arch-result").textContent = readable(plan);
+    $("#arch-result").textContent = `${item.template ? `Template guidance: ${item.template.title} (${item.template.id} v${item.template.version}, ${item.template.sourceKind})\n\n` : ""}${readable(plan)}`;
+    const provenance = item.template ? ` Guided by ${item.template.title} v${item.template.version}; that template is planning guidance, not canon.` : "";
     const status = item.approved
-      ? `Approved exact architecture ${String(item.planSha256 || "").slice(0, 12)}…${item.approvedAt ? ` · ${new Date(item.approvedAt).toLocaleString()}` : ""}. It may seed Chapter Cards.`
+      ? `Approved exact architecture ${String(item.planSha256 || "").slice(0, 12)}…${item.approvedAt ? ` · ${new Date(item.approvedAt).toLocaleString()}` : ""}.${provenance} It may seed Chapter Cards.`
       : item.approvalStale
-        ? "Approval is stale because this architecture was edited after approval. Review and approve the current version before downstream use, or revoke the old approval explicitly."
-        : "Durable candidate saved but not approved. Review/edit it before downstream use.";
+        ? `Approval is stale because this architecture was edited after approval.${provenance} Review and approve the current version before downstream use, or revoke the old approval explicitly.`
+        : `Durable candidate saved but not approved.${provenance} Review/edit it before downstream use.`;
     $("#story-architecture-status").textContent = status;
     $("#story-architecture-approve").disabled = Boolean(item.approved);
     $("#story-architecture-revoke").disabled = !(item.approved || item.approvalStale);
     $("#story-architecture-seed").disabled = !item.approved;
   }
-  async function refresh(preferredId) {
+  async function refresh(preferredId, preferredTemplateId) {
     if (!ensureUi()) return;
-    snapshot = await api(projectUrl("/story-architecture"));
+    const [nextSnapshot, nextTemplates] = await Promise.all([
+      api(projectUrl("/story-architecture")),
+      api(projectUrl("/story-architecture/templates")),
+    ]);
+    snapshot = nextSnapshot;
+    templates = nextTemplates;
+    if (preferredTemplateId && allTemplates().some((item) => item.id === preferredTemplateId)) selectedTemplateId = preferredTemplateId;
     if (preferredId && snapshot.candidates?.some((item) => item.id === preferredId)) selectedId = preferredId;
     else if (!selectedId || !snapshot.candidates?.some((item) => item.id === selectedId)) selectedId = snapshot.candidates?.[0]?.id || null;
     render();
@@ -157,15 +242,82 @@
       if (!idea) throw new Error("Describe the book idea before building Story Architecture.");
       const rawTarget = $("#arch-target")?.value || "";
       const targetChapters = rawTarget ? Number(rawTarget) : undefined;
-      notify("Forge is building structured Story Architecture from the author idea and Project Brain…", true);
+      const template = selectedTemplate();
+      notify(template ? `Forge is building Story Architecture using ${template.title} v${template.version} as author-selected guidance…` : "Forge is building structured Story Architecture from the author idea and Project Brain…", true);
       const result = await api(projectUrl("/story-architecture/generate"), {
         method: "POST",
-        body: JSON.stringify({ idea, kind: $("#arch-kind")?.value || "novel", ...(targetChapters === undefined ? {} : { targetChapters }) }),
+        body: JSON.stringify({ idea, kind: $("#arch-kind")?.value || "novel", ...(targetChapters === undefined ? {} : { targetChapters }), ...(selectedTemplateId ? { templateId: selectedTemplateId } : {}) }),
       });
-      await refresh(result.candidate.id);
-      notify("Story Architecture saved as durable unapproved planning. Nothing was added to manuscript or Project Brain canon.", true);
+      await refresh(result.candidate.id, selectedTemplateId);
+      notify(`Story Architecture saved as durable unapproved planning${result.templateGuidanceApplied ? ` using ${result.templateGuidanceApplied.title} v${result.templateGuidanceApplied.version}` : ""}. Nothing was added to manuscript or Project Brain canon.`, true);
     } catch (error) { notify(error instanceof Error ? error.message : String(error)); }
     finally { busy = false; if (button) button.disabled = false; }
+  }
+  function templateSelected() {
+    selectedTemplateId = $("#story-template-select")?.value || "";
+    templateEditorMode = "selected";
+    renderTemplateDetails();
+  }
+  function beginNewTemplate() {
+    selectedTemplateId = "";
+    if ($("#story-template-select")) $("#story-template-select").value = "";
+    templateEditorMode = "new";
+    clearTemplateEditor();
+    if ($("#story-template-editor")) $("#story-template-editor").open = true;
+    $("#story-template-title")?.focus();
+  }
+  function templatePayload() {
+    let beats;
+    try { beats = JSON.parse($("#story-template-beats").value || "[]"); }
+    catch { throw new Error("Template structure beats must be valid JSON."); }
+    if (!Array.isArray(beats)) throw new Error("Template structure beats JSON must be an array.");
+    return {
+      title: $("#story-template-title").value,
+      description: $("#story-template-description").value,
+      bookKinds: lines($("#story-template-kinds").value),
+      guidance: lines($("#story-template-guidance").value),
+      beats,
+    };
+  }
+  async function saveTemplate(event) {
+    event.preventDefault();
+    try {
+      const current = selectedTemplate();
+      if (current?.source?.kind === "built-in") throw new Error("Forge built-ins are immutable. Install an editable project copy first.");
+      const creating = templateEditorMode === "new" || !current;
+      const saved = await api(creating ? projectUrl("/story-architecture/templates") : projectUrl(`/story-architecture/templates/${encodeURIComponent(current.id)}`), {
+        method: creating ? "POST" : "PUT",
+        body: JSON.stringify(templatePayload()),
+      });
+      selectedTemplateId = saved.id;
+      templateEditorMode = "selected";
+      await refresh(undefined, saved.id);
+      notify(`${creating ? "Project template created" : "Project template version saved"}: ${saved.title} v${saved.version}.`, true);
+    } catch (error) { notify(error instanceof Error ? error.message : String(error)); }
+  }
+  async function installSelectedTemplate() {
+    const current = selectedTemplate();
+    if (!current || current.source?.kind !== "built-in") return notify("Choose a Forge built-in template to install an editable project copy.");
+    try {
+      const saved = await api(projectUrl("/story-architecture/templates/install"), { method: "POST", body: JSON.stringify({ builtInId: current.id }) });
+      selectedTemplateId = saved.id;
+      templateEditorMode = "selected";
+      await refresh(undefined, saved.id);
+      if ($("#story-template-editor")) $("#story-template-editor").open = true;
+      notify(`Installed editable project copy: ${saved.title}. Future edits create versioned project-template records.`, true);
+    } catch (error) { notify(error instanceof Error ? error.message : String(error)); }
+  }
+  async function deleteSelectedTemplate() {
+    const current = selectedTemplate();
+    if (!current || current.source?.kind === "built-in") return notify("Only project templates can be deleted. Forge built-ins are immutable.");
+    if (!window.confirm(`Delete project template ${current.title}? Existing Story Architecture candidates keep their recorded template provenance.`)) return;
+    try {
+      await api(projectUrl(`/story-architecture/templates/${encodeURIComponent(current.id)}`), { method: "DELETE" });
+      selectedTemplateId = "";
+      templateEditorMode = "selected";
+      await refresh();
+      notify("Project template removed from the active library. Its version history remains preserved in project memory.", true);
+    } catch (error) { notify(error instanceof Error ? error.message : String(error)); }
   }
   function editedPlan() {
     let chapterPlan, scenePlan;
@@ -236,7 +388,7 @@
       timeline.value = (seed.timelineDetails || []).join("\n");
       target.value = String(seed.targetChapters || "");
       $("#chapter-card-workflow")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      notify("Approved Story Architecture handed to Chapter Cards. Review the seeded brief/events/timeline, then generate Chapter Cards when ready.", true);
+      notify("Approved Story Architecture handed to Chapter Cards. Template provenance remains visible in the seeded brief; review it, then generate Chapter Cards when ready.", true);
     } catch (error) { notify(error instanceof Error ? error.message : String(error)); }
   }
 
