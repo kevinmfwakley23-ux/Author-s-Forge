@@ -62,6 +62,7 @@ const browserHarnesses = [
   "scripts/nft-creation-browser-acceptance.js",
   "scripts/nft-production-director-browser-acceptance.js",
   "scripts/forge-offices-browser-acceptance.js",
+  "scripts/hosted-device-browser-acceptance.js",
 ];
 const mobileHarnesses = [
   "scripts/studio-mobile-acceptance.js",

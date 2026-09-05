@@ -49,9 +49,17 @@ test("platform contract does not falsely claim native PS5 or mandatory Termux", 
   const matrix = read("docs/PLATFORM_EXECUTION_MATRIX.md");
   assert.match(matrix, /without requiring Termux/i);
   assert.match(matrix, /No native PS5 package is claimed/i);
+  assert.match(matrix, /no direct consumer PS5 launch path is currently marked supported/i);
   assert.match(matrix, /Windows 10\/11/);
   assert.match(matrix, /macOS/);
   assert.match(matrix, /Chromebook/);
   assert.match(matrix, /Android phone\/tablet/);
   assert.match(matrix, /iPhone\/iPad/);
+});
+
+test("native gateway points localhost users at the real hosted gateway and keeps PS5 claims truthful", () => {
+  const shell = read("native-shell/index.html");
+  assert.match(shell, /http:\/\/127\.0\.0\.1:4173/);
+  assert.doesNotMatch(shell, /http:\/\/127\.0\.0\.1:4573/);
+  assert.match(shell, /direct consumer PS5 access is not marked supported/i);
 });
