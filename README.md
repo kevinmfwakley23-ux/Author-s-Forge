@@ -4,6 +4,10 @@
 
 This repository is the working product, not a mission gallery. The canonical product contract remains [`AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md`](AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md).
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2Fkevinmfwakley23-ux%2FAuthor-s-Forge)
+
+The root `render.yaml` is the deployment source of truth for the K.I.N.G.S. ecosystem: the private K.I.N.G.S. AI router, the persisted Author's Forge web/PWA service, and the persisted Collector's Kingdom web service. Render prompts for the private Forge access token. K.I.N.G.S. only exposes AI gateways that are actually configured; provider URLs and credentials remain deployment secrets rather than repository data.
+
 ## Chief Engineering Standard
 
 Author's Forge is built under one permanent rule: **real working code only**.
