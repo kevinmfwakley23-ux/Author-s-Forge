@@ -98,8 +98,9 @@ test("multi-target proposal preserves source and creates exact raster production
 
 test("safe reflow uses one uniform scale so element geometry is not stretched", () => {
   const source = sourceDocument();
-  const square = CREATIVE_TARGET_PRESETS.find((target) => target.id === "social-square-1080");
-  const proposal = createMultiTargetReflowProposal({ source, targets: [square], now: "2026-09-05T15:20:00.000Z" });
+  const vertical = CREATIVE_TARGET_PRESETS.find((target) => target.id === "story-vertical-9x16-1080");
+  assert.ok(vertical, "vertical preset must exist");
+  const proposal = createMultiTargetReflowProposal({ source, targets: [vertical], now: "2026-09-05T15:20:00.000Z" });
   const original = source.surfaces[0].elements[0].box;
   const resized = proposal.variants[0].document.surfaces[0].elements[0].box;
   const widthScale = resized.width / original.width;
