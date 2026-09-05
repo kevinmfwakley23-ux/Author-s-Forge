@@ -1,0 +1,46 @@
+name: Converge Hosted Runtime
+
+on:
+  push:
+    branches:
+      - chief/android-ps5-web-runtime
+    paths:
+      - .github/workflows/converge-hosted-runtime.yml
+
+permissions:
+  contents: write
+
+jobs:
+  converge:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Merge current main into hosted runtime lane
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git merge --no-commit --no-ff -X ours origin/main
+          if git ls-files -u | grep -q .; then
+            echo "Unresolved merge conflicts remain:" >&2
+            git status --short >&2
+            exit 1
+          fi
+          git rm .github/workflows/converge-hosted-runtime.yml
+      - name: Install
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Unit verification
+        run: npm test
+      - name: Commit and push convergence
+        run: |
+          git commit -m "Merge current main into hosted runtime release lane"
+          git push origin HEAD:chief/android-ps5-web-runtime
