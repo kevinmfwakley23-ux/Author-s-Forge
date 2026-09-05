@@ -12,7 +12,7 @@ const index = fs.readFileSync('public/index.html', 'utf8');
 const platformContract = fs.readFileSync('docs/PLATFORM_SUPPORT.md', 'utf8');
 
 test('PWA shell has a platform-neutral install manifest and live lifecycle entrypoint', () => {
-  assert.equal(manifest.name, "Author's Forge");
+  assert.equal(manifest.name, "K.I.N.G.S. Author's Forge");
   assert.equal(manifest.id, '/');
   assert.equal(manifest.display, 'standalone');
   assert.equal(manifest.orientation, 'any');
