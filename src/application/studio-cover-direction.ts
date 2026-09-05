@@ -2,6 +2,7 @@ import type { ProjectState } from "../domain/project";
 import { getBook, validateStudioWorkspace } from "../domain/studio-workspace";
 import type { FileProjectStore } from "../infrastructure/file-project-store";
 import { generateProjectText, type AiGenerationResult, type ProjectAiGenerationRequest } from "../infrastructure/ai-provider";
+import { aiMissionRoutingGenerationFields, type AiMissionRoutingPreference } from "./ai-mission-routing";
 import { ProjectMemoryStore } from "./project-memory-store";
 
 export type CoverDirectionGenerator = (request: ProjectAiGenerationRequest) => Promise<AiGenerationResult>;
@@ -20,6 +21,7 @@ export interface CoverDirectionCandidate {
 export interface ProposeCoverDirectionInput {
   readonly bookId: string;
   readonly brief: string;
+  readonly routingPreference?: AiMissionRoutingPreference;
 }
 
 export interface CoverDirectionProposal {
@@ -80,6 +82,7 @@ export class StudioCoverDirectionService {
       maxOutputTokens: 3500,
       requiresCreativeWriting: true,
       requiresInstructionFollowing: true,
+      ...aiMissionRoutingGenerationFields(input.routingPreference),
     });
 
     return {
