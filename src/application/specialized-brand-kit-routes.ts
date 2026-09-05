@@ -3,6 +3,12 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { createBrandKit, auditBrandCompliance, proposeBrandApplication, validateBrandKit, type BrandKit } from "../domain/brand-kit";
 import type { FileBrandKitStore } from "../infrastructure/file-brand-kit-store";
 import type { FileSpecializedCreationStore } from "../infrastructure/file-specialized-creation-store";
+import {
+  CREATIVE_TARGET_PRESETS,
+  createMultiTargetReflowProposal,
+  validateCreativeTargetSpec,
+  type CreativeTargetSpec,
+} from "./specialized-creation-multi-target-reflow";
 
 export type SpecializedBrandKitRouteHandler = (req: IncomingMessage, res: ServerResponse, url: URL, forgeProjectId: string) => Promise<boolean>;
 
@@ -11,7 +17,7 @@ export function createSpecializedBrandKitRoutes(brandKits: FileBrandKitStore, sp
     const root = `/api/projects/${forgeProjectId}/brand-kits`;
 
     if (url.pathname === root && req.method === "GET") {
-      json(res, 200, { kits: await brandKits.list(forgeProjectId) });
+      json(res, 200, { kits: await brandKits.list(forgeProjectId), creativeTargetPresets: CREATIVE_TARGET_PRESETS });
       return true;
     }
     if (url.pathname === root && req.method === "POST") {
@@ -33,7 +39,7 @@ export function createSpecializedBrandKitRoutes(brandKits: FileBrandKitStore, sp
       return true;
     }
 
-    const match = url.pathname.match(new RegExp(`^${escapeRegex(root)}/([^/]+)(?:/(audit|propose-application))?$`));
+    const match = url.pathname.match(new RegExp(`^${escapeRegex(root)}/([^/]+)(?:/(audit|propose-application|multi-target-reflow))?$`));
     if (!match) return false;
     const kitId = decodeURIComponent(match[1]);
     const action = match[2] ?? "";
@@ -65,7 +71,7 @@ export function createSpecializedBrandKitRoutes(brandKits: FileBrandKitStore, sp
       return true;
     }
 
-    if ((action === "audit" || action === "propose-application") && req.method === "POST") {
+    if ((action === "audit" || action === "propose-application" || action === "multi-target-reflow") && req.method === "POST") {
       const input = await body(req);
       const specializedProjectId = required(input.specializedProjectId, "Specialized project id");
       const specializedProject = await specialized.get(forgeProjectId, specializedProjectId);
@@ -78,18 +84,56 @@ export function createSpecializedBrandKitRoutes(brandKits: FileBrandKitStore, sp
         json(res, 200, { brandKit: kit, report: auditBrandCompliance(kit, document) });
         return true;
       }
-      const proposal = proposeBrandApplication(kit, document);
+      if (action === "propose-application") {
+        const proposal = proposeBrandApplication(kit, document);
+        json(res, 200, {
+          brandKit: kit,
+          proposal,
+          persisted: false,
+          nextStep: "Review the candidate document. Persist it only through the existing Specialized Creation document revision endpoint after author approval.",
+        });
+        return true;
+      }
+
+      const targets = resolveCreativeTargets(input);
+      const proposal = createMultiTargetReflowProposal({ source: document, targets, brandKit: kit });
       json(res, 200, {
         brandKit: kit,
         proposal,
         persisted: false,
-        nextStep: "Review the candidate document. Persist it only through the existing Specialized Creation document revision endpoint after author approval.",
+        nextStep: "Review each candidate and its safe-zone/Brand Kit evidence. Persist approved documents and target production profiles only through the existing Specialized Creation save/profile endpoints.",
       });
       return true;
     }
 
     return false;
   };
+}
+
+function resolveCreativeTargets(input: Record<string, unknown>): CreativeTargetSpec[] {
+  const requestedIds = input.targetIds;
+  const customTargets = input.targets;
+  if (requestedIds !== undefined && customTargets !== undefined) throw new Error("Choose targetIds or custom targets, not both.");
+
+  if (requestedIds !== undefined) {
+    if (!Array.isArray(requestedIds) || !requestedIds.length) throw new Error("targetIds must be a non-empty array.");
+    const ids = [...new Set(requestedIds.map((value) => required(value, "Creative target id")))];
+    return ids.map((id) => {
+      const target = CREATIVE_TARGET_PRESETS.find((candidate) => candidate.id === id);
+      if (!target) throw new Error(`Unknown creative target preset "${id}".`);
+      return target;
+    });
+  }
+
+  if (customTargets !== undefined) {
+    if (!Array.isArray(customTargets) || !customTargets.length) throw new Error("targets must be a non-empty array.");
+    return customTargets.map((value) => {
+      if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Each custom creative target must be an object.");
+      return validateCreativeTargetSpec(value as CreativeTargetSpec);
+    });
+  }
+
+  return [...CREATIVE_TARGET_PRESETS];
 }
 
 async function body(req: IncomingMessage): Promise<Record<string, unknown>> {
