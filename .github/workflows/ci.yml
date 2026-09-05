@@ -53,6 +53,7 @@ jobs:
       - run: node --check public/forge-review-room.js
       - run: node --check public/forge-reviewer.js
       - run: node --check public/forge-provenance.js
+      - run: node --check public/forge-brand-studio.js
       - run: node --check public/specialized-creation-api-state-sync.js
       - run: node --check public/specialized-brand-kit.js
       - run: node --check public/forge-kdp-preflight.js
@@ -82,6 +83,7 @@ jobs:
       - run: node --check scripts/nft-creation-browser-acceptance.js
       - run: node --check scripts/nft-production-director-browser-acceptance.js
       - run: node --check scripts/studio-architecture-browser-acceptance.js
+      - run: node --check scripts/studio-brand-kit-browser-acceptance.js
       - run: node --check scripts/studio-scene-card-browser-acceptance.js
       - run: node --check scripts/studio-series-browser-acceptance.js
       - run: node --check scripts/studio-manuscript-import-browser-acceptance.js
