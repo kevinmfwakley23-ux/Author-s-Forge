@@ -6,7 +6,7 @@ This deployment lane removes the requirement for Android to execute the Forge ba
 
 The Author's Forge Node 24 runtime runs on one trusted hosted machine. Android, Chromebook, desktop browsers, and the PS5's limited system web view connect to that same runtime over HTTPS.
 
-This is not a fake static demo and it is not a second Forge implementation. The hosted gateway launches the existing four production office servers against the same `FORGE_DATA_DIR` and proxies them through one authenticated origin:
+This is not a fake static demo and it is not a second Forge implementation. The hosted gateway launches the existing five production office servers against the same `FORGE_DATA_DIR` and proxies them through one authenticated origin:
 
 | Public path | Existing production server |
 | --- | --- |
@@ -14,8 +14,9 @@ This is not a fake static demo and it is not a second Forge implementation. The 
 | `/journal/` | Guided Journal Office |
 | `/workbooks/` | Educational Workbook Office |
 | `/specialized/` | Specialized Creation Office |
+| `/nft/` | NFT Creation Office |
 
-The application state, Project Brain, manuscript state, journal/workbook/specialized data, generated artifacts, provider boundaries, and author governance remain server-side Forge state.
+The application state, Project Brain, manuscript state, journal/workbook/specialized/NFT data, generated artifacts, provider boundaries, and author governance remain server-side Forge state.
 
 ## Security boundary
 
@@ -41,7 +42,7 @@ npm run forge:web
 
 Open `http://127.0.0.1:4173/` and enter the access token.
 
-Hosted-mode source and integration regression coverage lives in `test/forge-web-gateway.test.js`.
+Hosted-mode source and integration regression coverage lives in `test/forge-web-gateway.test.js` and exercises Studio plus every prefixed production office, including NFT Creation.
 
 ## Docker
 
@@ -87,7 +88,7 @@ Once the hosted Forge address is live:
 
 The phone is now only the secure browser/PWA client. It does not need Node, npm, Git, Termux, or a local Forge checkout.
 
-The existing responsive/mobile UI remains the application surface. The hosted client additionally remaps the historical four-port office links onto the single HTTPS origin.
+The existing responsive/mobile UI remains the application surface. The hosted client remaps the historical office ports—including the NFT Creation port—onto the single HTTPS origin.
 
 ## PS5
 
@@ -122,7 +123,7 @@ Do not mark PS5 support fully verified until the actual console has passed at le
 - Main Studio load and navigation;
 - open/save/reload of an existing project;
 - text entry with the PS5 on-screen keyboard or connected keyboard;
-- Guided Journal, Workbook, and Specialized Creation navigation;
+- Guided Journal, Workbook, Specialized Creation, and NFT Creation navigation;
 - artifact download behavior for the formats the PS5 browser permits;
 - long-page scrolling and modal/dialog interaction;
 - provider-backed AI request and visible error behavior.
