@@ -11,32 +11,30 @@
   <main class="shell">
     <section class="crest" aria-label="K.I.N.G.S. Author's Forge">
       <img class="official-logo" src="kings-authors-forge-official-512.png" alt="K.I.N.G.S. Author's Forge" />
-      <p class="subtitle">Native gateway to your creative workplace</p>
+      <p class="subtitle">Native Forge runtime</p>
     </section>
 
-    <section class="card" aria-labelledby="connect-title">
-      <h2 id="connect-title">Open your Forge</h2>
-      <p>Enter the HTTPS address of your hosted K.I.N.G.S. Author's Forge. For local desktop development, <code>http://127.0.0.1:4173</code> is also allowed.</p>
-      <form id="connect-form" novalidate>
-        <label for="forge-url">Forge address</label>
-        <input id="forge-url" name="forge-url" type="url" inputmode="url" autocomplete="url" placeholder="https://forge.example.com/" required />
-        <button type="submit">Enter the Forge</button>
-      </form>
-      <p id="status" class="status" role="status" aria-live="polite"></p>
+    <section class="card" aria-labelledby="runtime-title">
+      <h2 id="runtime-title">Forge on this device</h2>
+      <p id="status" class="status" role="status" aria-live="polite">Checking the device-local Forge runtime…</p>
       <div class="facts">
-        <p><strong>No Termux required.</strong> This native client is the application surface.</p>
-        <p><strong>No fake offline mode.</strong> Hosted capabilities remain visibly unavailable when the real Forge gateway cannot be reached.</p>
+        <p><strong>No Chromebook dependency.</strong> The accepted Android build must own its normal Forge runtime on this device.</p>
+        <p><strong>No gateway fallback.</strong> This application does not ask for a remote Forge address as a substitute for standalone capability.</p>
+        <p><strong>Cloud AI remains online.</strong> Provider-backed generation still requires internet access when the selected model/provider is remote.</p>
       </div>
     </section>
 
-    <section class="card compact">
-      <h2>Platform modes</h2>
-      <ul>
-        <li>Android / iPhone / iPad: native or hosted client → authenticated Forge runtime.</li>
-        <li>Windows / macOS / Linux: native gateway client where packaged, plus hosted access; a bundled local-runtime sidecar remains the true standalone/offline desktop release target.</li>
-        <li>Chromebook: Android package where supported, plus installable web/PWA and optional Linux power-user lane.</li>
-        <li>PS5: compatibility architecture is retained, but direct consumer PS5 access is not marked supported because PS5 has no dedicated browser app; a native release requires Sony-authorized distribution.</li>
+    <section class="card compact" aria-labelledby="offices-title">
+      <h2 id="offices-title">Forge offices</h2>
+      <p>Main Forge is permanent. Specialist offices can remain add-ons here or later be packaged as their own K.I.N.G.S.-branded applications.</p>
+      <ul id="office-list">
+        <li>Loading native office registry…</li>
       </ul>
+    </section>
+
+    <section class="card compact">
+      <h2>Private-test rule</h2>
+      <p id="acceptance-note">This native package is not considered a standalone Android private-test build until the repository's Android standalone acceptance gate passes.</p>
     </section>
   </main>
   <script src="app.js" defer></script>
