@@ -2,13 +2,17 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { buildOfficeAiEnvironment, resolveOfficeSelection } = require("../scripts/forge-office-ai-env");
 
-test("Main Studio is the only default runtime and add-ons are explicit", () => {
-  assert.deepEqual(resolveOfficeSelection([], {}), ["studio"]);
+test("Author's Forge launches every attached office by default", () => {
+  const all = ["studio", "journal", "workbooks", "specialized", "nft"];
+  assert.deepEqual(resolveOfficeSelection([], {}), all);
+  assert.deepEqual(resolveOfficeSelection(["--offices=all"], {}), all);
+  assert.deepEqual(resolveOfficeSelection([], { FORGE_ENABLED_OFFICES: "" }), all);
+
+  // Explicit subsets remain engineering/test controls, not the product default.
   assert.deepEqual(resolveOfficeSelection(["--offices=journal,specialized"], {}), ["studio", "journal", "specialized"]);
   assert.deepEqual(resolveOfficeSelection([], { FORGE_ENABLED_OFFICES: "workbooks,nft" }), ["studio", "workbooks", "nft"]);
-  assert.deepEqual(resolveOfficeSelection(["--offices=all"], {}), ["studio", "journal", "workbooks", "specialized", "nft"]);
   assert.deepEqual(resolveOfficeSelection(["--core"], { FORGE_ENABLED_OFFICES: "all" }), ["studio"]);
-  assert.throws(() => resolveOfficeSelection(["--offices=studio,journal"], {}), /invalid Forge add-on/);
+  assert.throws(() => resolveOfficeSelection(["--offices=studio,journal"], {}), /invalid Forge side office/);
 });
 
 test("office AI environment removes shared credentials and other-office secrets by default", () => {
