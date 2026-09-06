@@ -26,16 +26,115 @@ concurrency:
   group: forge-android-standalone-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  CI: "true"
+  TAURI_CLI_VERSION: "2.11.4"
+  ANDROID_NDK_VERSION: "27.0.12077973"
+  ANDROID_PLATFORM: "android-36"
+  ANDROID_BUILD_TOOLS: "36.0.0"
+
 jobs:
-  build-installable-standalone-apk:
+  native-runtime-compile:
+    name: Android native runtime compile proof
     runs-on: ubuntu-latest
     timeout-minutes: 75
-    env:
-      CI: "true"
-      TAURI_CLI_VERSION: "2.11.4"
-      ANDROID_NDK_VERSION: "27.0.12077973"
-      ANDROID_PLATFORM: "android-36"
-      ANDROID_BUILD_TOOLS: "36.0.0"
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v7
+
+      - name: Setup validated Node runtime
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install locked Forge dependencies
+        run: npm ci
+
+      - name: Verify Forge runtime and native shell source
+        run: |
+          npm run runtime:check
+          npm run build
+          node --check native-shell/app.js
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Android SDK packages required by Tauri
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" \
+            "platform-tools" \
+            "platforms;${ANDROID_PLATFORM}" \
+            "build-tools;${ANDROID_BUILD_TOOLS}" \
+            "ndk;${ANDROID_NDK_VERSION}"
+          echo "NDK_HOME=$ANDROID_HOME/ndk/${ANDROID_NDK_VERSION}" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/${ANDROID_NDK_VERSION}" >> "$GITHUB_ENV"
+
+      - name: Setup Rust Android targets
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add \
+            aarch64-linux-android \
+            armv7-linux-androideabi \
+            i686-linux-android \
+            x86_64-linux-android
+
+      - name: Cache Cargo downloads and native target output
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: forge-android-${{ runner.os }}-${{ hashFiles('src-tauri/Cargo.toml', 'src-tauri/tauri.conf.json', 'src-tauri/tauri.android.conf.json') }}
+
+      - name: Install pinned Tauri CLI
+        shell: bash
+        run: cargo install tauri-cli --version "$TAURI_CLI_VERSION" --locked
+
+      - name: Generate native launcher icons
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f public/icon-512.png
+          cargo tauri icon public/icon-512.png
+
+      - name: Initialize deterministic Android project
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf src-tauri/gen/android
+          cargo tauri android init --ci --skip-targets-install
+          test -f src-tauri/gen/android/app/build.gradle.kts
+
+      - name: Compile Android development APK without publishing it
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo tauri android build --debug --apk --ci
+          mapfile -t APKS < <(find src-tauri/gen/android/app/build/outputs/apk -type f -name '*.apk' | sort)
+          if [ "${#APKS[@]}" -eq 0 ]; then
+            echo "Native runtime compile completed without producing an APK." >&2
+            exit 1
+          fi
+          echo "Native Android source compiled into ${#APKS[@]} development APK(s)."
+          echo "Engineering compile proof only: no APK is uploaded from this job."
+
+  standalone-readiness:
+    name: Android standalone release readiness
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout exact source
         uses: actions/checkout@v7
@@ -47,6 +146,26 @@ jobs:
           cache: npm
 
       - name: Enforce standalone Android runtime contract
+        run: node scripts/verify-android-standalone-contract.js
+
+  build-installable-standalone-apk:
+    name: Build accepted standalone Android APK
+    needs:
+      - native-runtime-compile
+      - standalone-readiness
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v7
+
+      - name: Setup validated Node runtime
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Re-enforce standalone Android runtime contract before packaging
         run: node scripts/verify-android-standalone-contract.js
 
       - name: Install locked Forge dependencies
@@ -98,7 +217,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             src-tauri/target
-          key: forge-android-${{ runner.os }}-${{ hashFiles('src-tauri/Cargo.toml', 'src-tauri/tauri.conf.json', 'src-tauri/tauri.android.conf.json') }}
+          key: forge-android-release-${{ runner.os }}-${{ hashFiles('src-tauri/Cargo.toml', 'src-tauri/tauri.conf.json', 'src-tauri/tauri.android.conf.json') }}
 
       - name: Install pinned Tauri CLI
         shell: bash
