@@ -10,17 +10,34 @@
 
   const original=window.forgeSpecializedApi,state=window.forgeSpecializedState;
   if(typeof original!=="function"||!state)return;
+
+  function syncCurrentProject(result){
+    if(!result||typeof result!=="object"||!result.id||!result.mode||state.current?.id!==result.id)return false;
+    state.current=result;
+    state.document=result.documents?.at?.(-1)||state.document;
+    if(state.document&&(!state.surface||!state.document.surfaces?.some(surface=>surface.id===state.surface.id)))state.surface=state.document.surfaces?.[0]||null;
+    const modeJson=document.querySelector("#mode-json");
+    if(modeJson)modeJson.value=JSON.stringify(result.modeData??{},null,2);
+    return true;
+  }
+
   window.forgeSpecializedApi=async (...args)=>{
     const result=await original(...args);
-    if(result&&typeof result==="object"&&result.id&&result.mode&&state.current?.id===result.id){
-      state.current=result;
-      state.document=result.documents?.at?.(-1)||state.document;
-      if(state.document&&(!state.surface||!state.document.surfaces?.some(surface=>surface.id===state.surface.id)))state.surface=state.document.surfaces?.[0]||null;
-      const modeJson=document.querySelector("#mode-json");
-      if(modeJson)modeJson.value=JSON.stringify(result.modeData??{},null,2);
-    }
+    syncCurrentProject(result);
     return result;
   };
+
+  // TCG and other extension tools refresh the selected project and then emit
+  // forge:specialized-ready. Keep the canonical Advanced mode-data JSON in
+  // lockstep with state.current even when an extension captured an earlier API
+  // reference or the refresh itself is the authoritative state transition.
+  window.addEventListener("forge:specialized-ready",()=>{
+    if(state.current?.id&&state.current?.mode){
+      const modeJson=document.querySelector("#mode-json");
+      if(modeJson)modeJson.value=JSON.stringify(state.current.modeData??{},null,2);
+    }
+  });
+
   if(!document.querySelector('script[data-forge-extension="brand-kit"]')){
     const script=document.createElement("script");script.src="/specialized-brand-kit.js";script.defer=true;script.dataset.forgeExtension="brand-kit";document.head.appendChild(script);
   }
