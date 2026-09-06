@@ -14,7 +14,7 @@ const zlib = require("node:zlib");
 const crypto = require("node:crypto");
 
 const SOURCE = path.join(process.cwd(), "assets", "brand", "kings-authors-forge-official-192.base64");
-const SOURCE_SHA256 = "51e63036fa02378911ed63f85a2a3ff2a78992704a3aa928292efb1012cbd7d3";
+const SOURCE_SHA256 = "ec966db1a0fca7e1fb48e80d8b04f20804ebc806a5ebfe734977738d170bb2ea";
 const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 
 function sha256(buffer) {
