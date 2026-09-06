@@ -14,7 +14,7 @@ const zlib = require("node:zlib");
 const crypto = require("node:crypto");
 
 const SOURCE = path.join(process.cwd(), "assets", "brand", "kings-authors-forge-official-192.base64");
-const SOURCE_SHA256 = "ec966db1a0fca7e1fb48e80d8b04f20804ebc806a5ebfe734977738d170bb2ea";
+const SOURCE_SHA256 = "51e63036fa02378911ed63f85a2a3ff2a78992704a3aa928292efb1012cbd7d3";
 const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 
 function sha256(buffer) {
@@ -74,30 +74,36 @@ function decodePng(bytes) {
   }
 
   if (width !== 192 || height !== 192) throw new Error(`Official Forge runtime source must be 192x192; got ${width}x${height}.`);
-  if (bitDepth !== 8) throw new Error(`Official Forge logo PNG bit depth ${bitDepth} is unsupported; expected 8.`);
   if (interlace !== 0) throw new Error("Official Forge logo PNG must be non-interlaced for deterministic build decoding.");
   if (!idat.length) throw new Error("Official Forge logo PNG contains no image data.");
 
   const channelsByType = new Map([[0, 1], [2, 3], [3, 1], [4, 2], [6, 4]]);
   const channels = channelsByType.get(colorType);
   if (!channels) throw new Error(`Official Forge logo PNG color type ${colorType} is unsupported.`);
-  if (colorType === 3 && (!palette || palette.length < 3)) throw new Error("Indexed official Forge logo is missing its palette.");
+  if (colorType === 3) {
+    if (bitDepth !== 4 && bitDepth !== 8) throw new Error(`Indexed official Forge logo bit depth ${bitDepth} is unsupported; expected 4 or 8.`);
+    if (!palette || palette.length < 3) throw new Error("Indexed official Forge logo is missing its palette.");
+  } else if (bitDepth !== 8) {
+    throw new Error(`Official Forge logo PNG bit depth ${bitDepth} is unsupported; expected 8.`);
+  }
 
+  const bitsPerPixel = channels * bitDepth;
+  const rowBytes = Math.ceil((width * bitsPerPixel) / 8);
+  const filterBytesPerPixel = Math.max(1, Math.ceil(bitsPerPixel / 8));
   const packed = zlib.inflateSync(Buffer.concat(idat));
-  const stride = width * channels;
-  const expected = (stride + 1) * height;
+  const expected = (rowBytes + 1) * height;
   if (packed.length !== expected) throw new Error(`Official Forge logo PNG decoded length mismatch: ${packed.length} != ${expected}.`);
 
-  const raw = Buffer.alloc(stride * height);
+  const raw = Buffer.alloc(rowBytes * height);
   let sourceOffset = 0;
   for (let y = 0; y < height; y += 1) {
     const filter = packed[sourceOffset++];
-    const rowOffset = y * stride;
-    for (let x = 0; x < stride; x += 1) {
+    const rowOffset = y * rowBytes;
+    for (let x = 0; x < rowBytes; x += 1) {
       const value = packed[sourceOffset++];
-      const left = x >= channels ? raw[rowOffset + x - channels] : 0;
-      const up = y > 0 ? raw[rowOffset - stride + x] : 0;
-      const upperLeft = y > 0 && x >= channels ? raw[rowOffset - stride + x - channels] : 0;
+      const left = x >= filterBytesPerPixel ? raw[rowOffset + x - filterBytesPerPixel] : 0;
+      const up = y > 0 ? raw[rowOffset - rowBytes + x] : 0;
+      const upperLeft = y > 0 && x >= filterBytesPerPixel ? raw[rowOffset - rowBytes + x - filterBytesPerPixel] : 0;
       let decoded;
       if (filter === 0) decoded = value;
       else if (filter === 1) decoded = (value + left) & 255;
@@ -110,34 +116,46 @@ function decodePng(bytes) {
   }
 
   const rgba = Buffer.alloc(width * height * 4);
-  for (let pixel = 0; pixel < width * height; pixel += 1) {
-    const src = pixel * channels;
-    const dst = pixel * 4;
-    if (colorType === 6) {
-      raw.copy(rgba, dst, src, src + 4);
-    } else if (colorType === 2) {
-      rgba[dst] = raw[src];
-      rgba[dst + 1] = raw[src + 1];
-      rgba[dst + 2] = raw[src + 2];
-      rgba[dst + 3] = 255;
-    } else if (colorType === 3) {
-      const index = raw[src];
-      const paletteOffset = index * 3;
-      if (paletteOffset + 2 >= palette.length) throw new Error(`Official Forge logo palette index ${index} is invalid.`);
-      rgba[dst] = palette[paletteOffset];
-      rgba[dst + 1] = palette[paletteOffset + 1];
-      rgba[dst + 2] = palette[paletteOffset + 2];
-      rgba[dst + 3] = transparency && index < transparency.length ? transparency[index] : 255;
-    } else if (colorType === 0) {
-      rgba[dst] = raw[src];
-      rgba[dst + 1] = raw[src];
-      rgba[dst + 2] = raw[src];
-      rgba[dst + 3] = 255;
-    } else if (colorType === 4) {
-      rgba[dst] = raw[src];
-      rgba[dst + 1] = raw[src];
-      rgba[dst + 2] = raw[src];
-      rgba[dst + 3] = raw[src + 1];
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const pixel = y * width + x;
+      const dst = pixel * 4;
+      if (colorType === 3) {
+        const rowOffset = y * rowBytes;
+        let index;
+        if (bitDepth === 8) index = raw[rowOffset + x];
+        else {
+          const packedByte = raw[rowOffset + (x >> 1)];
+          index = (x & 1) === 0 ? packedByte >> 4 : packedByte & 0x0f;
+        }
+        const paletteOffset = index * 3;
+        if (paletteOffset + 2 >= palette.length) throw new Error(`Official Forge logo palette index ${index} is invalid.`);
+        rgba[dst] = palette[paletteOffset];
+        rgba[dst + 1] = palette[paletteOffset + 1];
+        rgba[dst + 2] = palette[paletteOffset + 2];
+        rgba[dst + 3] = transparency && index < transparency.length ? transparency[index] : 255;
+        continue;
+      }
+
+      const src = y * rowBytes + x * channels;
+      if (colorType === 6) {
+        raw.copy(rgba, dst, src, src + 4);
+      } else if (colorType === 2) {
+        rgba[dst] = raw[src];
+        rgba[dst + 1] = raw[src + 1];
+        rgba[dst + 2] = raw[src + 2];
+        rgba[dst + 3] = 255;
+      } else if (colorType === 0) {
+        rgba[dst] = raw[src];
+        rgba[dst + 1] = raw[src];
+        rgba[dst + 2] = raw[src];
+        rgba[dst + 3] = 255;
+      } else if (colorType === 4) {
+        rgba[dst] = raw[src];
+        rgba[dst + 1] = raw[src];
+        rgba[dst + 2] = raw[src];
+        rgba[dst + 3] = raw[src + 1];
+      }
     }
   }
   return { width, height, rgba };
