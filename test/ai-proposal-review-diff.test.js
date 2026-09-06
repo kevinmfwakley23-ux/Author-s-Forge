@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { AiProposalStore, diffProposalText } from "../dist/index.js";
+import { AiProposalStore, createAiProposalDiff } from "../dist/index.js";
 
 test("proposal review creates an append-only attributable audit entry", () => {
   const store = new AiProposalStore();
@@ -14,10 +14,10 @@ test("proposal review creates an append-only attributable audit entry", () => {
 });
 
 test("proposal diff is deterministic and preserves line provenance", () => {
-  const diff = diffProposalText("one\ntwo\nthree", "one\ntwo revised\nthree\nfour");
+  const diff = createAiProposalDiff("one\ntwo\nthree", "one\ntwo revised\nthree\nfour");
   assert.equal(diff.changed, true);
-  assert.equal(diff.added, 2);
-  assert.equal(diff.removed, 1);
-  assert.equal(diff.unchanged, 2);
-  assert.deepEqual(diff.lines[0], { kind: "equal", text: "one", oldLine: 1, newLine: 1 });
+  assert.equal(diff.addedLines, 2);
+  assert.equal(diff.removedLines, 1);
+  assert.equal(diff.unchangedLines, 2);
+  assert.deepEqual(diff.lines[0], { kind: "unchanged", text: "one", lineNumber: 1, proposedLineNumber: 1 });
 });
