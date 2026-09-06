@@ -1,0 +1,213 @@
+name: Forge Private Test Release
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/forge-office-ai-env.js"
+      - "scripts/start-forge-modular.js"
+      - "test/forge-office-ai-env.test.js"
+      - "package.json"
+      - "README.md"
+      - "docs/FORGE_AI_TRUNK_ROUTING_CONTRACT.md"
+      - ".github/workflows/private-test-release.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: forge-private-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux-private-runtime:
+    name: Chromebook Linux private runtime
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact private-test source
+        uses: actions/checkout@v7
+
+      - name: Setup validated Node runtime
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Install browser acceptance runtimes
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Verify exact private-test head
+        run: npm run verify
+
+      - name: Validate modular launcher scripts
+        run: |
+          node --check scripts/forge-office-ai-env.js
+          node --check scripts/start-forge-modular.js
+          node --test test/forge-office-ai-env.test.js
+
+      - name: Assemble Chromebook Linux private bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf private-test
+          mkdir -p private-test/forge
+          cp -R dist private-test/forge/dist
+          cp -R public private-test/forge/public
+          cp -R scripts private-test/forge/scripts
+          cp package.json package-lock.json .nvmrc private-test/forge/
+          cp README.md AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md private-test/forge/
+          mkdir -p private-test/forge/docs
+          cp docs/FORGE_AI_TRUNK_ROUTING_CONTRACT.md private-test/forge/docs/
+          cat > private-test/forge/PRIVATE-TEST.md <<'EOF'
+          # K.I.N.G.S. Author's Forge — private Chromebook/Linux test build
+
+          This artifact is for owner/private acceptance only. It is not a public-production release.
+
+          1. Install/use Node.js 24 LTS.
+          2. Run `npm ci`.
+          3. Run `npm run forge:private-test` to start Main Forge plus all current add-ons.
+          4. Run `npm run forge:modular:core` for Main Forge only.
+          5. Or run `node scripts/start-forge-modular.js --offices=journal,specialized` to choose add-ons.
+          6. Open Main Forge at http://127.0.0.1:4173/.
+
+          Each modular office has its own AI environment namespace. Configure providers with `FORGE_<OFFICE>_<NORMAL_PROVIDER_VARIABLE>`, such as `FORGE_STUDIO_OPENAI_API_KEY` or `FORGE_JOURNAL_OMNIROUTE_BASE_URL`.
+
+          Separate Forge accounting does not manufacture separate provider quotas. Use genuinely separate provider credentials/accounts/projects when you want provider-side allowances to be independent.
+          EOF
+          tar -C private-test -czf "authors-forge-private-linux-${GITHUB_SHA::12}.tar.gz" forge
+          sha256sum "authors-forge-private-linux-${GITHUB_SHA::12}.tar.gz" > "authors-forge-private-linux-${GITHUB_SHA::12}.sha256"
+
+      - name: Upload Chromebook Linux private bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: authors-forge-private-linux-${{ github.sha }}
+          path: |
+            authors-forge-private-linux-*.tar.gz
+            authors-forge-private-linux-*.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+  android-private-apk:
+    name: Android private APK gateway
+    needs: linux-private-runtime
+    runs-on: ubuntu-latest
+    timeout-minutes: 80
+    env:
+      CI: "true"
+      TAURI_CLI_VERSION: "2.11.4"
+      ANDROID_NDK_VERSION: "27.0.12077973"
+      ANDROID_PLATFORM: "android-36"
+      ANDROID_BUILD_TOOLS: "36.0.0"
+    steps:
+      - name: Checkout exact verified private-test source
+        uses: actions/checkout@v7
+
+      - name: Setup validated Node runtime
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install locked Forge dependencies
+        run: npm ci
+
+      - name: Verify native gateway source
+        run: |
+          npm run runtime:check
+          npm run build
+          node --check native-shell/app.js
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Android SDK packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" \
+            "platform-tools" \
+            "platforms;${ANDROID_PLATFORM}" \
+            "build-tools;${ANDROID_BUILD_TOOLS}" \
+            "ndk;${ANDROID_NDK_VERSION}"
+          echo "NDK_HOME=$ANDROID_HOME/ndk/${ANDROID_NDK_VERSION}" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/${ANDROID_NDK_VERSION}" >> "$GITHUB_ENV"
+
+      - name: Setup Rust Android targets
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+
+      - name: Cache Cargo downloads and native output
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: forge-private-android-${{ runner.os }}-${{ hashFiles('src-tauri/Cargo.toml', 'src-tauri/tauri.conf.json', 'src-tauri/tauri.android.conf.json') }}
+
+      - name: Install pinned Tauri CLI
+        run: cargo install tauri-cli --version "$TAURI_CLI_VERSION" --locked
+
+      - name: Generate native launcher icons
+        run: |
+          test -f public/icon-512.png
+          cargo tauri icon public/icon-512.png
+
+      - name: Initialize deterministic Android project
+        run: |
+          set -euo pipefail
+          rm -rf src-tauri/gen/android
+          cargo tauri android init --ci --skip-targets-install
+          test -f src-tauri/gen/android/app/build.gradle.kts
+
+      - name: Build private installable APK
+        run: cargo tauri android build --debug --apk --ci
+
+      - name: Verify private APK signature and checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p android-private
+          APKSIGNER="$ANDROID_HOME/build-tools/${ANDROID_BUILD_TOOLS}/apksigner"
+          test -x "$APKSIGNER"
+          mapfile -t APKS < <(find src-tauri/gen/android/app/build/outputs/apk -type f -name '*.apk' | sort)
+          if [ "${#APKS[@]}" -eq 0 ]; then
+            echo "Tauri completed without producing an APK." >&2
+            exit 1
+          fi
+          : > android-private/SHA256SUMS
+          for apk in "${APKS[@]}"; do
+            "$APKSIGNER" verify --verbose --print-certs "$apk"
+            cp "$apk" android-private/
+            sha256sum "$apk" >> android-private/SHA256SUMS
+          done
+          cat > android-private/PRIVATE-ANDROID-README.txt <<'EOF'
+          K.I.N.G.S. Author's Forge private Android test APK.
+
+          This build is debug/development signed for owner testing only. It is not a Play Store production package.
+          The current Tauri APK is a native gateway/client. It connects to a real Author's Forge runtime; it does not yet embed the complete Node Forge backend inside the APK.
+          For trusted local testing, start the modular Forge runtime with `npm run forge:private-test:android`, open the protected URL printed by the runtime first, and then use that real runtime address from the native client as permitted by the gateway security rules.
+          EOF
+
+      - name: Upload Android private APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: authors-forge-private-android-${{ github.sha }}
+          path: android-private/
+          if-no-files-found: error
+          retention-days: 30
