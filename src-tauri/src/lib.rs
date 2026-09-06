@@ -1,3 +1,4 @@
+mod native_project_store;
 mod native_provider;
 mod office_runtime;
 mod runtime;
@@ -33,6 +34,10 @@ pub fn run() {
             office_runtime::forge_native_set_spend_policy,
             office_runtime::forge_native_configure_provider_metadata,
             office_runtime::forge_native_record_provider_observation,
+            native_project_store::forge_native_project_put,
+            native_project_store::forge_native_project_get,
+            native_project_store::forge_native_project_list,
+            native_project_store::forge_native_project_delete,
             native_provider::forge_native_configure_provider,
             native_provider::forge_native_remove_provider,
             native_provider::forge_native_generate_text,
