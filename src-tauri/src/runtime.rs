@@ -10,7 +10,11 @@ pub const STANDALONE_ANDROID_RUNTIME_READY: bool = false;
 pub struct NativeOfficeDescriptor {
     pub id: &'static str,
     pub name: &'static str,
+    /// False means this office is part of the shipped complete Forge rather
+    /// than an optional product add-on.
     pub optional_add_on: bool,
+    pub attached_by_default: bool,
+    pub separate_live_brain: bool,
     pub brain_scope: &'static str,
 }
 
@@ -29,30 +33,40 @@ pub fn office_descriptors() -> Vec<NativeOfficeDescriptor> {
             id: "studio",
             name: "Main Forge / Studio",
             optional_add_on: false,
+            attached_by_default: true,
+            separate_live_brain: true,
             brain_scope: "studio",
         },
         NativeOfficeDescriptor {
             id: "journal",
             name: "Guided Journal Office",
-            optional_add_on: true,
+            optional_add_on: false,
+            attached_by_default: true,
+            separate_live_brain: true,
             brain_scope: "journal",
         },
         NativeOfficeDescriptor {
             id: "workbooks",
             name: "Educational Workbook Office",
-            optional_add_on: true,
+            optional_add_on: false,
+            attached_by_default: true,
+            separate_live_brain: true,
             brain_scope: "workbooks",
         },
         NativeOfficeDescriptor {
             id: "specialized",
             name: "Specialized Creation Office",
-            optional_add_on: true,
+            optional_add_on: false,
+            attached_by_default: true,
+            separate_live_brain: true,
             brain_scope: "specialized",
         },
         NativeOfficeDescriptor {
             id: "nft",
             name: "NFT Creation Office",
-            optional_add_on: true,
+            optional_add_on: false,
+            attached_by_default: true,
+            separate_live_brain: true,
             brain_scope: "nft",
         },
     ]
