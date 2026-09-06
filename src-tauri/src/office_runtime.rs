@@ -3,8 +3,8 @@ use std::collections::BTreeMap;
 use std::sync::Mutex;
 use tauri::State;
 
-const OFFICE_IDS: [&str; 5] = ["studio", "journal", "workbooks", "specialized", "nft"];
-const PROVIDERS: [&str; 10] = [
+pub(crate) const OFFICE_IDS: [&str; 5] = ["studio", "journal", "workbooks", "specialized", "nft"];
+pub(crate) const PROVIDERS: [&str; 10] = [
     "omniroute",
     "9router",
     "openai",
@@ -105,13 +105,22 @@ impl OfficeRuntimeManager {
         }
     }
 
-    fn snapshot(&self) -> Vec<OfficeBrainState> {
+    pub(crate) fn snapshot(&self) -> Vec<OfficeBrainState> {
         self.offices
             .lock()
             .expect("office runtime lock poisoned")
             .values()
             .cloned()
             .collect()
+    }
+
+    pub(crate) fn office(&self, office_id: &str) -> Result<OfficeBrainState, String> {
+        self.offices
+            .lock()
+            .map_err(|_| "Office runtime lock is unavailable.".to_string())?
+            .get(office_id)
+            .cloned()
+            .ok_or_else(|| format!("Unknown Forge office: {office_id}."))
     }
 
     fn set_enabled(&self, office_id: &str, enabled: bool) -> Result<OfficeBrainState, String> {
@@ -129,7 +138,58 @@ impl OfficeRuntimeManager {
         Ok(office.clone())
     }
 
-    fn configure_provider_metadata(
+    pub(crate) fn set_spend_policy(
+        &self,
+        office_id: &str,
+        spend_policy: &str,
+    ) -> Result<OfficeBrainState, String> {
+        let normalized = spend_policy.trim().to_lowercase();
+        if !matches!(normalized.as_str(), "no-paid-tokens" | "budgeted" | "unrestricted") {
+            return Err(format!("Unsupported Forge spend policy: {spend_policy}."));
+        }
+        let mut offices = self
+            .offices
+            .lock()
+            .map_err(|_| "Office runtime lock is unavailable.".to_string())?;
+        let office = offices
+            .get_mut(office_id)
+            .ok_or_else(|| format!("Unknown Forge office: {office_id}."))?;
+        office.spend_policy = normalized;
+        office.routing_health_generation += 1;
+        Ok(office.clone())
+    }
+
+    pub(crate) fn register_model(
+        &self,
+        office_id: &str,
+        provider: &str,
+        model: &str,
+    ) -> Result<OfficeBrainState, String> {
+        let provider = provider.trim().to_lowercase();
+        let model = model.trim();
+        if model.is_empty() {
+            return Err("Forge provider model cannot be empty.".to_string());
+        }
+        let mut offices = self
+            .offices
+            .lock()
+            .map_err(|_| "Office runtime lock is unavailable.".to_string())?;
+        let office = offices
+            .get_mut(office_id)
+            .ok_or_else(|| format!("Unknown Forge office: {office_id}."))?;
+        if !office.providers.contains_key(&provider) {
+            return Err(format!("Unsupported Forge AI provider: {provider}."));
+        }
+        let model_key = format!("{provider}/{model}");
+        if !office.model_collection.iter().any(|candidate| candidate == &model_key) {
+            office.model_collection.push(model_key);
+            office.model_collection.sort();
+            office.routing_health_generation += 1;
+        }
+        Ok(office.clone())
+    }
+
+    pub(crate) fn configure_provider_metadata(
         &self,
         office_id: &str,
         provider: &str,
@@ -148,14 +208,24 @@ impl OfficeRuntimeManager {
             .providers
             .get_mut(provider)
             .ok_or_else(|| format!("Unsupported Forge AI provider: {provider}."))?;
+        if let (Some(limit), Some(remaining)) = (quota_limit, remaining_tokens) {
+            if remaining > limit {
+                return Err("Provider remaining token quota cannot exceed its quota limit.".to_string());
+            }
+        }
         provider_state.configured = configured;
         provider_state.quota_limit = quota_limit;
         provider_state.remaining_tokens = remaining_tokens;
+        if configured {
+            provider_state.healthy = true;
+            provider_state.consecutive_failures = 0;
+            provider_state.cooldown_until = None;
+        }
         office.routing_health_generation += 1;
         Ok(office.clone())
     }
 
-    fn record_provider_observation(
+    pub(crate) fn record_provider_observation(
         &self,
         office_id: &str,
         provider: &str,
@@ -206,6 +276,18 @@ pub fn forge_native_set_office_enabled(
     enabled: bool,
 ) -> Result<OfficeBrainState, String> {
     state.set_enabled(office_id.trim().to_lowercase().as_str(), enabled)
+}
+
+#[tauri::command]
+pub fn forge_native_set_spend_policy(
+    state: State<'_, OfficeRuntimeManager>,
+    office_id: String,
+    spend_policy: String,
+) -> Result<OfficeBrainState, String> {
+    state.set_spend_policy(
+        office_id.trim().to_lowercase().as_str(),
+        spend_policy.trim(),
+    )
 }
 
 #[tauri::command]
@@ -295,6 +377,21 @@ mod tests {
         assert_eq!(journal_openai.used_tokens, 0);
         assert_eq!(journal_openai.remaining_tokens, Some(50_000));
         assert_eq!(journal_openai.consecutive_failures, 0);
+    }
+
+    #[test]
+    fn model_collection_and_spend_policy_are_office_local() {
+        let manager = OfficeRuntimeManager::new();
+        manager.register_model("studio", "openai", "gpt-test").unwrap();
+        manager.register_model("journal", "openai", "gpt-journal").unwrap();
+        manager.set_spend_policy("journal", "unrestricted").unwrap();
+
+        let studio = manager.office("studio").unwrap();
+        let journal = manager.office("journal").unwrap();
+        assert_eq!(studio.model_collection, vec!["openai/gpt-test"]);
+        assert_eq!(journal.model_collection, vec!["openai/gpt-journal"]);
+        assert_eq!(studio.spend_policy, "no-paid-tokens");
+        assert_eq!(journal.spend_policy, "unrestricted");
     }
 
     #[test]
