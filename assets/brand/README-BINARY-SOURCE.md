@@ -1,0 +1,1 @@
+The canonical runtime launcher artwork is the owner-approved K.I.N.G.S. Author's Forge logo. Runtime PNG assets are generated only from hash-pinned binary PNG sources in this directory. Text/base64 transport is not accepted as the production source because it previously corrupted PNG IDAT data in CI.
