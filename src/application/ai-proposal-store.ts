@@ -40,10 +40,15 @@ export interface ProposalReviewDecision {
   readonly reviewedAt: string;
 }
 
+export interface ProposalReviewAuditEntry extends ProposalReviewDecision {
+  readonly sequence: number;
+}
+
 type ProposalInput = Omit<AiProposal, "status" | "createdAt"> & { now?: string };
 
 export class AiProposalStore {
   private readonly proposals = new Map<string, AiProposal>();
+  private readonly reviewAudit: ProposalReviewAuditEntry[] = [];
 
   propose(input: ProposalInput): AiProposal {
     if (!input.id.trim()) throw new Error("AI proposal id is required.");
@@ -100,10 +105,27 @@ export class AiProposalStore {
     if (reviewer !== "author") throw new Error("AI proposals require author review before they become durable.");
     const reviewed: AiProposal = { ...existing, status: decision, reviewedAt: now, reviewedBy: reviewer, ...(note?.trim() ? { reviewNote: note.trim() } : {}) };
     this.proposals.set(proposalId, cloneProposal(reviewed));
-    return { proposalId, from: existing.status, to: decision, reviewer, ...(note?.trim() ? { note: note.trim() } : {}), reviewedAt: now };
+    const audit: ProposalReviewAuditEntry = {
+      proposalId,
+      from: existing.status,
+      to: decision,
+      reviewer,
+      ...(note?.trim() ? { note: note.trim() } : {}),
+      reviewedAt: now,
+      sequence: this.reviewAudit.length + 1,
+    };
+    this.reviewAudit.push(Object.freeze({ ...audit }));
+    return { proposalId, from: audit.from, to: audit.to, reviewer: audit.reviewer, ...(audit.note ? { note: audit.note } : {}), reviewedAt: audit.reviewedAt };
   }
 
   pending(projectId?: string): AiProposal[] { return this.list(projectId).filter((proposal) => proposal.status === "pending"); }
+
+  audit(projectId?: string): ProposalReviewAuditEntry[] {
+    const allowed = projectId === undefined ? undefined : new Set(this.list(projectId).map((proposal) => proposal.id));
+    return this.reviewAudit
+      .filter((entry) => allowed === undefined || allowed.has(entry.proposalId))
+      .map((entry) => ({ ...entry }));
+  }
 
   snapshot(): AiProposal[] { return this.list(); }
 
