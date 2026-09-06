@@ -1,4 +1,4 @@
-name: Forge Android Native APK
+name: Forge Android Standalone APK
 
 on:
   pull_request:
@@ -6,6 +6,7 @@ on:
     paths:
       - "src-tauri/**"
       - "native-shell/**"
+      - "scripts/verify-android-standalone-contract.js"
       - "scripts/generate-launcher-icons.js"
       - ".github/workflows/android-native.yml"
   push:
@@ -13,6 +14,7 @@ on:
     paths:
       - "src-tauri/**"
       - "native-shell/**"
+      - "scripts/verify-android-standalone-contract.js"
       - "scripts/generate-launcher-icons.js"
       - ".github/workflows/android-native.yml"
   workflow_dispatch:
@@ -21,11 +23,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: forge-android-native-${{ github.ref }}
+  group: forge-android-standalone-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build-installable-apk:
+  build-installable-standalone-apk:
     runs-on: ubuntu-latest
     timeout-minutes: 75
     env:
@@ -44,10 +46,13 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
+      - name: Enforce standalone Android runtime contract
+        run: node scripts/verify-android-standalone-contract.js
+
       - name: Install locked Forge dependencies
         run: npm ci
 
-      - name: Verify Forge runtime and native gateway source
+      - name: Verify Forge runtime and native source
         run: |
           npm run runtime:check
           npm run build
@@ -114,7 +119,7 @@ jobs:
           cargo tauri android init --ci --skip-targets-install
           test -f src-tauri/gen/android/app/build.gradle.kts
 
-      - name: Build installable Android APK
+      - name: Build installable standalone Android APK
         shell: bash
         run: cargo tauri android build --debug --apk --ci
 
@@ -136,12 +141,12 @@ jobs:
             cp "$apk" android-artifacts/
             sha256sum "$apk" >> android-artifacts/SHA256SUMS
           done
-          printf 'Verified %s installable APK artifact(s).\n' "${#APKS[@]}"
+          printf 'Verified %s standalone installable APK artifact(s).\n' "${#APKS[@]}"
 
-      - name: Upload Android APK artifact
+      - name: Upload Android standalone APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: authors-forge-android-${{ github.sha }}
+          name: authors-forge-android-standalone-${{ github.sha }}
           path: android-artifacts/
           if-no-files-found: error
           retention-days: 30
