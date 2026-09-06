@@ -1,54 +1,47 @@
 (() => {
   "use strict";
 
-  const STORAGE_KEY = "authors-forge-native-url";
-  const form = document.getElementById("connect-form");
-  const input = document.getElementById("forge-url");
   const status = document.getElementById("status");
+  const officeList = document.getElementById("office-list");
+  const acceptanceNote = document.getElementById("acceptance-note");
 
-  const saved = localStorage.getItem(STORAGE_KEY);
-  if (saved) input.value = saved;
+  async function invoke(command) {
+    const tauri = window.__TAURI__?.core;
+    if (!tauri?.invoke) throw new Error("Native Forge bridge is unavailable in this build.");
+    return tauri.invoke(command);
+  }
 
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-    status.className = "status";
-
-    let target;
+  async function boot() {
     try {
-      target = validateForgeUrl(input.value);
+      const runtime = await invoke("native_runtime_status");
+      renderOffices(runtime.offices || []);
+
+      if (runtime.standaloneAndroidRuntimeReady === true && runtime.requiresRemoteForgeRuntime === false) {
+        status.className = "status";
+        status.textContent = "Device-local Forge runtime is ready.";
+        acceptanceNote.textContent = "Source readiness is enabled. Device workflow acceptance and live-provider certification are still required before public release.";
+      } else {
+        status.className = "status error";
+        status.textContent = "Standalone Android Forge runtime is still under construction. This package is not an accepted private-test build yet.";
+        acceptanceNote.textContent = "The build remains blocked until local persistence, secure office credentials, native provider transport, independent office brains and full Forge workflows are operational on-device.";
+      }
     } catch (error) {
-      setError(error instanceof Error ? error.message : String(error));
-      return;
+      status.className = "status error";
+      status.textContent = error instanceof Error ? error.message : String(error);
+      officeList.innerHTML = "<li>Native office registry unavailable.</li>";
     }
-
-    // A normal browser fetch from the Tauri asset origin to a remote Forge
-    // gateway can be blocked by WebView CORS before the request ever proves
-    // whether Forge is healthy. Navigation itself is the truthful transport:
-    // the real gateway owns authentication, login/bootstrap, HTTP errors, and
-    // project availability. Do not turn a CORS policy mismatch into a fake
-    // "server offline" status.
-    localStorage.setItem(STORAGE_KEY, target.origin);
-    status.textContent = "Opening the real Forge gateway…";
-    window.location.assign(target.href);
-  });
-
-  function validateForgeUrl(value) {
-    const raw = String(value || "").trim();
-    if (!raw) throw new Error("Enter the address of your Forge runtime.");
-    let parsed;
-    try { parsed = new URL(raw); }
-    catch { throw new Error("Enter a valid Forge URL."); }
-
-    const localHost = parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost" || parsed.hostname === "::1";
-    if (parsed.protocol !== "https:" && !(parsed.protocol === "http:" && localHost)) {
-      throw new Error("Remote Forge connections must use HTTPS. Plain HTTP is allowed only for localhost development.");
-    }
-    if (parsed.username || parsed.password) throw new Error("Do not put usernames or passwords in the Forge URL.");
-    return parsed;
   }
 
-  function setError(message) {
-    status.className = "status error";
-    status.textContent = message;
+  function renderOffices(offices) {
+    officeList.textContent = "";
+    for (const office of offices) {
+      const item = document.createElement("li");
+      const kind = office.optionalAddOn ? "optional add-on" : "Forge core";
+      item.textContent = `${office.name} — ${kind}; independent AI brain scope: ${office.brainScope}.`;
+      officeList.appendChild(item);
+    }
+    if (!offices.length) officeList.innerHTML = "<li>No native Forge offices registered.</li>";
   }
+
+  boot();
 })();
