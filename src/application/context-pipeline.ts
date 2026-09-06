@@ -100,7 +100,8 @@ function deduplicateMemories(
   const duplicateMemoryIds: string[] = [];
   for (const memory of memories) {
     const key = normalizeForDedup([
-      `[${memory.class} | ${memory.authority}] ${memory.summary}`,
+      memory.class,
+      memory.authority,
       memory.content,
       formatRelationshipEvidence(memory.id, relationshipEvidence),
     ].filter(Boolean).join("\n"));
