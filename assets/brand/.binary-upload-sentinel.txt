@@ -1,0 +1,1 @@
+Binary official Forge logo assets are created via Git blob objects, not text/base64 source files.
