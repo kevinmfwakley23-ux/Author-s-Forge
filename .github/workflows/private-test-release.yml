@@ -15,6 +15,7 @@ on:
       - "README.md"
       - "docs/FORGE_AI_TRUNK_ROUTING_CONTRACT.md"
       - "docs/FORGE_PLATFORM_RUNTIME_GOSPEL.md"
+      - "docs/STANDALONE_PLATFORM_CONTRACT.md"
       - ".github/workflows/private-test-release.yml"
 
 permissions:
@@ -61,12 +62,12 @@ jobs:
           node --check scripts/start-forge-modular.js
           node --test test/forge-office-ai-env.test.js
 
-      - name: Assemble Chromebook Linux private bundle
+      - name: Assemble self-contained Chromebook Linux private bundle
         shell: bash
         run: |
           set -euo pipefail
           rm -rf private-test
-          mkdir -p private-test/forge
+          mkdir -p private-test/forge/runtime
           cp -R dist private-test/forge/dist
           cp -R public private-test/forge/public
           cp -R scripts private-test/forge/scripts
@@ -75,6 +76,55 @@ jobs:
           mkdir -p private-test/forge/docs
           cp docs/FORGE_AI_TRUNK_ROUTING_CONTRACT.md private-test/forge/docs/
           cp docs/FORGE_PLATFORM_RUNTIME_GOSPEL.md private-test/forge/docs/
+          cp docs/STANDALONE_PLATFORM_CONTRACT.md private-test/forge/docs/
+
+          # Install runtime dependencies into the bundle now. The owner does not
+          # need npm, a source checkout, or a separately installed Node runtime.
+          npm ci --omit=dev --ignore-scripts --prefix private-test/forge
+
+          NODE_VERSION="$(node -p 'process.versions.node')"
+          curl --fail --silent --show-error --location \
+            "https://nodejs.org/dist/v${NODE_VERSION}/SHASUMS256.txt" \
+            --output private-test/SHASUMS256.txt
+          for arch in x64 arm64; do
+            archive="node-v${NODE_VERSION}-linux-${arch}.tar.xz"
+            curl --fail --silent --show-error --location \
+              "https://nodejs.org/dist/v${NODE_VERSION}/${archive}" \
+              --output "private-test/${archive}"
+            (
+              cd private-test
+              grep " ${archive}$" SHASUMS256.txt | sha256sum --check --strict -
+            )
+            mkdir -p "private-test/forge/runtime/linux-${arch}"
+            tar -xJf "private-test/${archive}" \
+              -C "private-test/forge/runtime/linux-${arch}" \
+              --strip-components=1
+          done
+          rm -f private-test/node-v*-linux-*.tar.xz private-test/SHASUMS256.txt
+
+          cat > private-test/forge/launch-forge.sh <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+          case "$(uname -m)" in
+            x86_64|amd64) RUNTIME_ARCH="linux-x64" ;;
+            aarch64|arm64) RUNTIME_ARCH="linux-arm64" ;;
+            *)
+              echo "Unsupported Linux CPU architecture: $(uname -m). This private bundle currently includes x64 and arm64 Node runtimes." >&2
+              exit 1
+              ;;
+          esac
+          NODE="$ROOT/runtime/$RUNTIME_ARCH/bin/node"
+          if [[ ! -x "$NODE" ]]; then
+            echo "Bundled Forge Node runtime is missing or not executable: $NODE" >&2
+            exit 1
+          fi
+          export FORGE_ENABLED_OFFICES="${FORGE_ENABLED_OFFICES:-all}"
+          cd "$ROOT"
+          exec "$NODE" scripts/start-forge-modular.js "$@"
+          EOF
+          chmod +x private-test/forge/launch-forge.sh
+
           cat > private-test/forge/PRIVATE-TEST.md <<'EOF'
           # K.I.N.G.S. Author's Forge — private Chromebook/Linux test build
 
@@ -82,17 +132,21 @@ jobs:
 
           For pull-request builds, the artifact is created from GitHub's tested integration snapshot: the PR changes combined with the current target main branch.
 
-          1. Install/use Node.js 24 LTS.
-          2. Run `npm ci`.
-          3. Run `npm run forge:private-test` to start Main Forge plus all current add-ons.
-          4. Run `npm run forge:modular:core` for Main Forge only.
-          5. Or run `node scripts/start-forge-modular.js --offices=journal,specialized` to choose add-ons.
-          6. Open Main Forge at http://127.0.0.1:4173/.
+          No separate Node.js or npm installation is required for this bundle. It includes verified Node 24 runtimes for Linux x64 and Linux arm64 plus the locked production dependencies.
+
+          1. Extract the archive.
+          2. Run `./forge/launch-forge.sh` to start Main Forge plus all current add-ons.
+          3. Run `./forge/launch-forge.sh --core` for Main Forge only.
+          4. Run `./forge/launch-forge.sh --offices=journal,specialized` to choose add-ons.
+          5. Open Main Forge at http://127.0.0.1:4173/.
 
           Each modular office has its own AI environment namespace. Configure providers with `FORGE_<OFFICE>_<NORMAL_PROVIDER_VARIABLE>`, such as `FORGE_STUDIO_OPENAI_API_KEY` or `FORGE_JOURNAL_OMNIROUTE_BASE_URL`.
 
           Separate Forge accounting does not manufacture separate provider quotas. Use genuinely separate provider credentials/accounts/projects when you want provider-side allowances to be independent.
           EOF
+
+          private-test/forge/runtime/linux-x64/bin/node --version
+          private-test/forge/runtime/linux-x64/bin/node --check private-test/forge/scripts/start-forge-modular.js
           tar -C private-test -czf "authors-forge-private-linux-${GITHUB_SHA::12}.tar.gz" forge
           sha256sum "authors-forge-private-linux-${GITHUB_SHA::12}.tar.gz" > "authors-forge-private-linux-${GITHUB_SHA::12}.sha256"
 
