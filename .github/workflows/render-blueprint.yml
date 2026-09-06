@@ -1,0 +1,26 @@
+name: Render Blueprint
+
+on:
+  push:
+    paths:
+      - render.yaml
+      - scripts/validate-render-blueprint.py
+      - .github/workflows/render-blueprint.yml
+  pull_request:
+    paths:
+      - render.yaml
+      - scripts/validate-render-blueprint.py
+      - .github/workflows/render-blueprint.yml
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install Blueprint validators
+        run: python -m pip install --disable-pip-version-check PyYAML jsonschema
+      - name: Validate Render Blueprint
+        run: python scripts/validate-render-blueprint.py render.yaml
