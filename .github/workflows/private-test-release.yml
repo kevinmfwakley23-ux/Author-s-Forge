@@ -26,8 +26,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - name: Checkout exact private-test source
+      - name: Checkout private-test integration snapshot
         uses: actions/checkout@v7
+
+      - name: Record tested source identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rev-parse HEAD
+          echo "Private PR runs validate GitHub's pull-request integration snapshot (PR head combined with the target main branch)."
 
       - name: Setup validated Node runtime
         uses: actions/setup-node@v7
@@ -41,7 +48,7 @@ jobs:
       - name: Install browser acceptance runtimes
         run: npx playwright install --with-deps chromium webkit
 
-      - name: Verify exact private-test head
+      - name: Verify private-test integration snapshot
         run: npm run verify
 
       - name: Validate modular launcher scripts
@@ -67,6 +74,8 @@ jobs:
           # K.I.N.G.S. Author's Forge — private Chromebook/Linux test build
 
           This artifact is for owner/private acceptance only. It is not a public-production release.
+
+          For pull-request builds, the artifact is created from GitHub's tested integration snapshot: the PR changes combined with the current target main branch.
 
           1. Install/use Node.js 24 LTS.
           2. Run `npm ci`.
@@ -104,8 +113,15 @@ jobs:
       ANDROID_PLATFORM: "android-36"
       ANDROID_BUILD_TOOLS: "36.0.0"
     steps:
-      - name: Checkout exact verified private-test source
+      - name: Checkout verified private-test integration snapshot
         uses: actions/checkout@v7
+
+      - name: Record tested source identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rev-parse HEAD
+          echo "Private PR runs package GitHub's verified pull-request integration snapshot."
 
       - name: Setup validated Node runtime
         uses: actions/setup-node@v7
@@ -200,6 +216,7 @@ jobs:
           K.I.N.G.S. Author's Forge private Android test APK.
 
           This build is debug/development signed for owner testing only. It is not a Play Store production package.
+          For pull-request builds, it packages GitHub's verified integration snapshot (PR changes combined with the current target main branch).
           The current Tauri APK is a native gateway/client. It connects to a real Author's Forge runtime; it does not yet embed the complete Node Forge backend inside the APK.
           For trusted local testing, start the modular Forge runtime with `npm run forge:private-test:android`, open the protected URL printed by the runtime first, and then use that real runtime address from the native client as permitted by the gateway security rules.
           EOF
