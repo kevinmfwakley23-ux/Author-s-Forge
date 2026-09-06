@@ -1,6 +1,7 @@
 "use strict";
 
 const OFFICE_IDS = Object.freeze(["studio", "journal", "workbooks", "specialized", "nft"]);
+const ADDON_OFFICE_IDS = Object.freeze(OFFICE_IDS.filter((id) => id !== "studio"));
 const OFFICE_PREFIXES = Object.freeze(OFFICE_IDS.map((id) => `FORGE_${id.toUpperCase()}_`));
 const AI_SETTING_PREFIXES = Object.freeze([
   "AI_",
@@ -30,6 +31,23 @@ function isAiSetting(key) {
 
 function isOfficeScopedSecret(key) {
   return OFFICE_PREFIXES.some((prefix) => key.startsWith(prefix));
+}
+
+function resolveOfficeSelection(argv = [], env = {}) {
+  if (argv.includes("--core")) return ["studio"];
+  const officesArg = argv.find((arg) => String(arg).startsWith("--offices="));
+  const raw = officesArg
+    ? String(officesArg).slice("--offices=".length)
+    : String(env.FORGE_ENABLED_OFFICES || "");
+  const normalized = raw.trim().toLowerCase();
+  const requestedAddons = normalized === "all"
+    ? [...ADDON_OFFICE_IDS]
+    : normalized.split(",").map((value) => value.trim()).filter(Boolean);
+  const invalid = requestedAddons.filter((id) => id === "studio" || !ADDON_OFFICE_IDS.includes(id));
+  if (invalid.length) {
+    throw new Error(`Unknown or invalid Forge add-on office(s): ${invalid.join(", ")}. Choose from ${ADDON_OFFICE_IDS.join(", ")}, or use all.`);
+  }
+  return ["studio", ...new Set(requestedAddons)];
 }
 
 /**
@@ -72,8 +90,10 @@ function buildOfficeAiEnvironment(baseEnv, officeId) {
 }
 
 module.exports = {
+  ADDON_OFFICE_IDS,
   AI_SETTING_PREFIXES,
   OFFICE_IDS,
   buildOfficeAiEnvironment,
   isAiSetting,
+  resolveOfficeSelection,
 };
