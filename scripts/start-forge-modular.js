@@ -39,14 +39,14 @@ function launchOffice(officeId) {
   const child = spawn(process.execPath, args, { env, stdio: "inherit" });
   children.push(child);
   child.on("error", (error) => {
-    console.error(`[Forge Modular] ${officeId} failed to start: ${error.message}`);
+    console.error(`[Forge] ${officeId} failed to start: ${error.message}`);
     exitCode = 1;
     stopAll();
   });
   child.on("exit", (code, signal) => {
     if (!shuttingDown) {
       const detail = signal ? `signal ${signal}` : `code ${code}`;
-      console.error(`[Forge Modular] ${officeId} exited unexpectedly (${detail}).`);
+      console.error(`[Forge] ${officeId} exited unexpectedly (${detail}).`);
       exitCode = code && code !== 0 ? code : 1;
       stopAll();
     }
@@ -55,13 +55,14 @@ function launchOffice(officeId) {
 
 for (const officeId of selected) launchOffice(officeId);
 
-console.log(`[Forge Modular] Enabled runtime offices: ${selected.join(", ")}.`);
-console.log("[Forge Modular] Main Studio is always present; add-on offices are opt-in with --offices=<list>, --offices=all, or FORGE_ENABLED_OFFICES.");
-console.log("[Forge Modular] Every office runs in a separate process with its own AI scope, broker state, routing health/cooldowns and Forge-side quota accounting.");
-console.log("[Forge Modular] Configure AI with FORGE_<OFFICE>_<PROVIDER_SETTING>; global provider credentials are not inherited unless FORGE_ALLOW_SHARED_AI_FALLBACK=true is explicitly set.");
+console.log(`[Forge] Attached runtime offices: ${selected.join(", ")}.`);
+console.log("[Forge] Normal startup launches the complete Author's Forge with every side office attached.");
+console.log("[Forge] Every office runs with its own AI scope, broker state, model collection, routing health/cooldowns and Forge-side quota accounting.");
+console.log("[Forge] Configure AI independently with FORGE_<OFFICE>_<PROVIDER_SETTING>; global provider credentials are not inherited unless FORGE_ALLOW_SHARED_AI_FALLBACK=true is explicitly set.");
+console.log("[Forge] --core and --offices=<list> remain engineering/test controls only; they do not define the shipped product shape.");
 if (protectedLanMode) {
   const displayHost = host === "0.0.0.0" || host === "::" ? "<device-ip>" : host;
-  console.log(`[Forge Modular] Open Main Studio first: http://${displayHost}:4173/?access=${encodeURIComponent(sharedAccessToken)}`);
+  console.log(`[Forge] Open Main Studio first: http://${displayHost}:4173/?access=${encodeURIComponent(sharedAccessToken)}`);
 }
 
 process.on("SIGINT", () => stopAll("SIGINT"));
