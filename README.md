@@ -26,7 +26,7 @@ The permanent product is the **Main Forge / Studio**. Specialist offices are opt
 
 Current office runtimes are:
 
-| Office | Runtime id | Default local URL |
+| Office | Runtime id | Default Linux URL |
 | --- | --- | --- |
 | Main Forge / Studio | `studio` | `http://127.0.0.1:4173` |
 | Guided Journal | `journal` | `http://127.0.0.1:4273` |
@@ -39,6 +39,16 @@ The offices share K.I.N.G.S. Brain Core code, safety contracts, provider adapter
 Each enabled office owns an independent runtime brain with its own model broker, provider/model collection, routing health/cooldowns, quota and token accounting, spend policy, provider credentials/endpoints and optional K.I.N.G.S. Responses endpoint. See [`docs/FORGE_AI_TRUNK_ROUTING_CONTRACT.md`](docs/FORGE_AI_TRUNK_ROUTING_CONTRACT.md).
 
 Authoritative project/canon/voice/research state may still be shared intentionally across offices so continuity is preserved. Shared project knowledge is not the same thing as shared provider credentials or quota pools.
+
+### Independent full platform runtimes
+
+Chromebook/Linux and Android phone/tablet are separate complete work environments. Neither platform is allowed to depend on the other for normal Forge operation.
+
+The Chromebook/Linux build owns its complete Node/local Forge runtime.
+
+The Android build must own the complete normal Forge runtime on the Android device itself. It must not require a Chromebook/Linux Forge server, LAN bootstrap URL, hosted Forge URL, Termux, or another application to provide normal Forge functionality. Cloud AI providers and web research may still require internet connectivity because those are genuinely online services.
+
+The platform contract is locked in [`docs/FORGE_PLATFORM_RUNTIME_GOSPEL.md`](docs/FORGE_PLATFORM_RUNTIME_GOSPEL.md).
 
 ### Forge owns its own intelligence
 
@@ -71,13 +81,28 @@ Every Forge office may independently route work to its strongest appropriate con
 
 Supported provider families include OmniRoute-compatible gateways, 9Router-compatible gateways, OpenAI, Groq, Mistral, Gemini, Anthropic, OpenRouter, local Ollama models and an optional K.I.N.G.S. Responses-compatible endpoint. A provider name existing in code is not proof that it is configured or live.
 
-Local Ollama models remain a last-resort/offline/local fallback rather than the architectural center of Forge.
+Local Ollama models remain a last-resort/offline/local fallback rather than the architectural center of Forge. Android may expose local models only when that device/platform can actually host or reach them without another required app dependency.
 
 ### Token-limit truth
 
-Forge can and should keep independent broker state and token/quota accounting for every office. That prevents one office from silently consuming another office's configured Forge allowance.
+Forge can and should keep independent broker state and token/quota accounting for every office on every platform. That prevents one office from silently consuming another office's configured Forge allowance.
 
 However, duplicating one upstream API key does **not** create extra provider-side tokens. To obtain genuinely separate upstream allowances, the provider must issue separate credentials/accounts/projects/quota allocations. The modular Forge architecture supports that by allowing different credentials for each office.
+
+### Possible K.I.N.G.S. office app family
+
+Forge begins as one complete application containing Main Forge plus optional offices. The architecture must also allow selected offices to become their own K.I.N.G.S.-branded applications later without copying or forking the product logic.
+
+Possible products include:
+
+- K.I.N.G.S. Author's Forge — complete Forge;
+- K.I.N.G.S. Guided Journals;
+- K.I.N.G.S. Educational Workbooks;
+- K.I.N.G.S. Specialized Creation;
+- K.I.N.G.S. NFT Creation;
+- future Forge offices approved by the owner.
+
+A separately packaged office app must still own its own app sandbox, credentials, brain runtime, usage ledger and settings while sharing the same authoritative office module and K.I.N.G.S. Brain Core contracts as the add-on inside full Forge.
 
 ### Relationship to K.I.N.G.S. AI
 
@@ -103,7 +128,11 @@ Mocks and test doubles belong only in clearly identified tests. Missing credenti
 
 Forge contains substantial authoring infrastructure: durable manuscript/canon/character state, Project Brain/context services, author-controlled AI proposals, editing, research, production, image/cover work, publishing preparation, recovery, specialized creation, guided journals, educational workbooks, NFT creation and responsive mobile/PWA surfaces.
 
-The modular office-brain boundary is being validated as the private-testing architecture. Historical verified detail belongs in build history and current CI/PR evidence rather than being duplicated as a stale completion wall.
+The Chromebook/Linux modular office-brain boundary is implemented and under private-release verification.
+
+The Android Tauri code now contains the beginning of a device-local native runtime and office registry, but the standalone Android runtime is **not complete yet**. The repository deliberately keeps `STANDALONE_ANDROID_RUNTIME_READY` false and blocks the Android standalone artifact lane until device-local persistence, secure credentials, native provider transport, independent office brain execution and full workflow access are implemented. The old remote-URL gateway UI is not accepted as the product architecture.
+
+Historical verified detail belongs in build history and current CI/PR evidence rather than being duplicated as a stale completion wall.
 
 ## Private testing first — no public release yet
 
@@ -139,21 +168,23 @@ node scripts/start-forge-modular.js --offices=journal,specialized
 
 ### Android private testing
 
-The current native Android lane is a Tauri 2 APK gateway/client for a real Forge runtime. It is suitable for private UI/workflow testing but is **not** yet proof of a self-contained Android backend.
+`npm run forge:private-test:android` is reserved for the **standalone native Android acceptance path**. It no longer starts a Chromebook/LAN Forge server and therefore cannot accidentally certify a dependent gateway build.
 
-For trusted-LAN testing of the modular runtime:
+During engineering only, the former LAN/browser behavior remains explicitly available as:
 
 ```bash
-npm run forge:private-test:android
+npm run forge:private-test:android:legacy-lan
 ```
 
-The launcher prints the protected Main Studio bootstrap URL. All selected office proxies share that generated access token/cookie, while the actual office processes remain isolated on loopback.
+That legacy command is not Android product acceptance.
 
-The native APK build is defined by [`.github/workflows/android-native.yml`](.github/workflows/android-native.yml). It compiles an installable APK, verifies it with Android `apksigner`, writes SHA-256 checksums and uploads it as a GitHub Actions artifact. The stable Android application identifier remains `com.authorsforge.app`.
+The standalone APK workflow is gated by `scripts/verify-android-standalone-contract.js`. No Android APK emitted by that private-test lane may be called standalone until the native source gate passes, and passing the source gate still requires real device acceptance and live-provider testing before release.
 
-The current APK lane is debug/development signed. Production Play Store signing remains a later release gate after owner acceptance.
+The current Android application identifier remains `com.authorsforge.app` during migration so existing development installs are not silently replaced with a new identity. Final K.I.N.G.S. package identifiers for the full app and any separately published office apps must be locked before production signing.
 
 ## Office-scoped AI configuration
+
+### Chromebook/Linux
 
 The modular launcher uses this pattern:
 
@@ -188,6 +219,10 @@ FORGE_SPECIALIZED_AI_ROUTING_MODE="quality"
 
 Global provider credentials are not inherited by modular office children by default. `FORGE_ALLOW_SHARED_AI_FALLBACK=true` exists only as an explicit migration compatibility option.
 
+### Android
+
+Standalone Android must expose the equivalent configuration through device-local settings and secure credential storage for each office. Android credentials are independent from Chromebook/Linux credentials by default; using the Android build must not require importing a Linux environment file.
+
 Do not commit credentials.
 
 ## Verification
@@ -199,6 +234,12 @@ npm run build
 npm test
 npm run test:ai:hermetic
 npm run verify
+```
+
+Standalone Android source gate:
+
+```bash
+npm run forge:android:standalone:verify
 ```
 
 Live provider certification remains separate from hermetic routing tests:
@@ -216,6 +257,7 @@ A live-provider test only proves the provider/path it actually executed.
 
 - [`docs/KINGS_FAMILY_ARCHITECTURE_GOSPEL.md`](docs/KINGS_FAMILY_ARCHITECTURE_GOSPEL.md) — expanded locked family architecture.
 - [`docs/FORGE_AI_TRUNK_ROUTING_CONTRACT.md`](docs/FORGE_AI_TRUNK_ROUTING_CONTRACT.md) — mandatory modular Forge office-brain/model-routing contract.
+- [`docs/FORGE_PLATFORM_RUNTIME_GOSPEL.md`](docs/FORGE_PLATFORM_RUNTIME_GOSPEL.md) — independent Chromebook/Linux and standalone Android runtime contract plus optional app-family packaging.
 - [`AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md`](AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md) — product contract.
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — architecture overview.
 - [`docs/AUTHORS_FORGE_CANONICAL_ARCHITECTURE.md`](docs/AUTHORS_FORGE_CANONICAL_ARCHITECTURE.md) — architecture detail.
@@ -225,6 +267,6 @@ A live-provider test only proves the provider/path it actually executed.
 
 K.I.N.G.S. Author's Forge is complete only when a real author can reliably carry a project through the intended author journey using real durable state, real provider boundaries, explicit author authority, truthful failures, verified production artifacts and the strongest applicable desktop/mobile acceptance paths.
 
-For public Android release, that additionally requires owner acceptance of the private-test build, production signing/store configuration and final exact-head verification.
+For public Android release, that additionally requires a genuinely standalone on-device Forge runtime, owner acceptance of the private-test APK, production signing/store configuration and final exact-release verification.
 
 Until that standard is met, engineering continues.
