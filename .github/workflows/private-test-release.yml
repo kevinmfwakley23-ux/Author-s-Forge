@@ -7,10 +7,14 @@ on:
     paths:
       - "scripts/forge-office-ai-env.js"
       - "scripts/start-forge-modular.js"
+      - "scripts/verify-android-standalone-contract.js"
       - "test/forge-office-ai-env.test.js"
+      - "src-tauri/**"
+      - "native-shell/**"
       - "package.json"
       - "README.md"
       - "docs/FORGE_AI_TRUNK_ROUTING_CONTRACT.md"
+      - "docs/FORGE_PLATFORM_RUNTIME_GOSPEL.md"
       - ".github/workflows/private-test-release.yml"
 
 permissions:
@@ -70,6 +74,7 @@ jobs:
           cp README.md AUTHORS_FORGE_MASTER_PRODUCT_DIRECTIVE.md private-test/forge/
           mkdir -p private-test/forge/docs
           cp docs/FORGE_AI_TRUNK_ROUTING_CONTRACT.md private-test/forge/docs/
+          cp docs/FORGE_PLATFORM_RUNTIME_GOSPEL.md private-test/forge/docs/
           cat > private-test/forge/PRIVATE-TEST.md <<'EOF'
           # K.I.N.G.S. Author's Forge — private Chromebook/Linux test build
 
@@ -101,8 +106,8 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-  android-private-apk:
-    name: Android private APK gateway
+  android-standalone-private-apk:
+    name: Android standalone private APK
     needs: linux-private-runtime
     runs-on: ubuntu-latest
     timeout-minutes: 80
@@ -129,10 +134,13 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
+      - name: Enforce standalone Android source contract
+        run: node scripts/verify-android-standalone-contract.js
+
       - name: Install locked Forge dependencies
         run: npm ci
 
-      - name: Verify native gateway source
+      - name: Verify native Forge source
         run: |
           npm run runtime:check
           npm run build
@@ -191,7 +199,7 @@ jobs:
           cargo tauri android init --ci --skip-targets-install
           test -f src-tauri/gen/android/app/build.gradle.kts
 
-      - name: Build private installable APK
+      - name: Build standalone private installable APK
         run: cargo tauri android build --debug --apk --ci
 
       - name: Verify private APK signature and checksum
@@ -213,18 +221,17 @@ jobs:
             sha256sum "$apk" >> android-private/SHA256SUMS
           done
           cat > android-private/PRIVATE-ANDROID-README.txt <<'EOF'
-          K.I.N.G.S. Author's Forge private Android test APK.
+          K.I.N.G.S. Author's Forge standalone private Android test APK.
 
           This build is debug/development signed for owner testing only. It is not a Play Store production package.
           For pull-request builds, it packages GitHub's verified integration snapshot (PR changes combined with the current target main branch).
-          The current Tauri APK is a native gateway/client. It connects to a real Author's Forge runtime; it does not yet embed the complete Node Forge backend inside the APK.
-          For trusted local testing, start the modular Forge runtime with `npm run forge:private-test:android`, open the protected URL printed by the runtime first, and then use that real runtime address from the native client as permitted by the gateway security rules.
+          The artifact is emitted only after the standalone source gate confirms the native package no longer requires a remote Forge runtime URL and includes the required local-runtime adapter classes. Device acceptance and live-provider certification are still required before public release.
           EOF
 
-      - name: Upload Android private APK
+      - name: Upload Android standalone private APK
         uses: actions/upload-artifact@v4
         with:
-          name: authors-forge-private-android-${{ github.sha }}
+          name: authors-forge-private-android-standalone-${{ github.sha }}
           path: android-private/
           if-no-files-found: error
           retention-days: 30
