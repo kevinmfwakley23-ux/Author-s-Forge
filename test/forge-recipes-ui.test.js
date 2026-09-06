@@ -36,13 +36,16 @@ test("Forge Recipes client exposes no-code stages, provider/model control, durab
   assert.match(recipes, /min=\"128\" max=\"32000\"/);
 });
 
-test("native shell never mislabels WebView CORS as server-offline state", () => {
+test("native shell uses only the device-local Tauri runtime rather than a remote Forge gateway", () => {
   const native = read("native-shell/app.js");
+  const shell = read("native-shell/index.html");
   assert.doesNotThrow(() => new vm.Script(native, { filename: "native-shell/app.js" }));
-  assert.doesNotMatch(native, /fetch\(healthUrl/);
-  assert.match(native, /WebView CORS/);
-  assert.match(native, /window\.location\.assign\(target\.href\)/);
-  assert.match(native, /Remote Forge connections must use HTTPS/);
+  assert.match(native, /native_runtime_status/);
+  assert.match(native, /window\.__TAURI__/);
+  assert.doesNotMatch(native, /window\.location\.assign|validateForgeUrl|authors-forge-native-url|WebView CORS/);
+  assert.doesNotMatch(shell, /connect-form|forge-url|http:\/\/127\.0\.0\.1:4173|hosted K\.I\.N\.G\.S\./i);
+  assert.match(shell, /No Chromebook dependency/i);
+  assert.match(shell, /No gateway fallback/i);
 });
 
 test("platform contract does not falsely claim native PS5 or mandatory Termux", () => {
@@ -57,9 +60,13 @@ test("platform contract does not falsely claim native PS5 or mandatory Termux", 
   assert.match(matrix, /iPhone\/iPad/);
 });
 
-test("native gateway points localhost users at the real hosted gateway and keeps PS5 claims truthful", () => {
+test("native shell labels standalone Android readiness truthfully and keeps office-app evolution visible", () => {
   const shell = read("native-shell/index.html");
-  assert.match(shell, /http:\/\/127\.0\.0\.1:4173/);
-  assert.doesNotMatch(shell, /http:\/\/127\.0\.0\.1:4573/);
-  assert.match(shell, /direct consumer PS5 access is not marked supported/i);
+  const native = read("native-shell/app.js");
+  assert.match(shell, /Forge on this device/i);
+  assert.match(shell, /Forge offices/i);
+  assert.match(shell, /K\.I\.N\.G\.S\.-branded applications/i);
+  assert.match(native, /standaloneAndroidRuntimeReady === true/);
+  assert.match(native, /not an accepted private-test build yet/i);
+  assert.match(native, /local persistence, secure office credentials, native provider transport, independent office brains/i);
 });
