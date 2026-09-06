@@ -11,32 +11,136 @@
   <main class="shell">
     <section class="crest" aria-label="K.I.N.G.S. Author's Forge">
       <img class="official-logo" src="kings-authors-forge-official-512.png" alt="K.I.N.G.S. Author's Forge" />
-      <p class="subtitle">Native gateway to your creative workplace</p>
+      <p class="subtitle">Native Forge runtime</p>
     </section>
 
-    <section class="card" aria-labelledby="connect-title">
-      <h2 id="connect-title">Open your Forge</h2>
-      <p>Enter the HTTPS address of your hosted K.I.N.G.S. Author's Forge. For local desktop development, <code>http://127.0.0.1:4173</code> is also allowed.</p>
-      <form id="connect-form" novalidate>
-        <label for="forge-url">Forge address</label>
-        <input id="forge-url" name="forge-url" type="url" inputmode="url" autocomplete="url" placeholder="https://forge.example.com/" required />
-        <button type="submit">Enter the Forge</button>
-      </form>
-      <p id="status" class="status" role="status" aria-live="polite"></p>
+    <section class="card" aria-labelledby="runtime-title">
+      <h2 id="runtime-title">Forge on this device</h2>
+      <p id="status" class="status" role="status" aria-live="polite">Checking the device-local Forge runtime…</p>
       <div class="facts">
-        <p><strong>No Termux required.</strong> This native client is the application surface.</p>
-        <p><strong>No fake offline mode.</strong> Hosted capabilities remain visibly unavailable when the real Forge gateway cannot be reached.</p>
+        <p><strong>No Chromebook dependency.</strong> The accepted Android build must own its normal Forge runtime on this device.</p>
+        <p><strong>No gateway fallback.</strong> This application does not ask for a remote Forge address as a substitute for standalone capability.</p>
+        <p><strong>Cloud AI remains online.</strong> Provider-backed generation still requires internet access when the selected model/provider is remote.</p>
       </div>
     </section>
 
-    <section class="card compact">
-      <h2>Platform modes</h2>
-      <ul>
-        <li>Android / iPhone / iPad: native or hosted client → authenticated Forge runtime.</li>
-        <li>Windows / macOS / Linux: native gateway client where packaged, plus hosted access; a bundled local-runtime sidecar remains the true standalone/offline desktop release target.</li>
-        <li>Chromebook: Android package where supported, plus installable web/PWA and optional Linux power-user lane.</li>
-        <li>PS5: compatibility architecture is retained, but direct consumer PS5 access is not marked supported because PS5 has no dedicated browser app; a native release requires Sony-authorized distribution.</li>
+    <section class="card compact" aria-labelledby="offices-title">
+      <h2 id="offices-title">Complete Forge offices</h2>
+      <p>Main Forge / Studio, Guided Journal, Educational Workbooks, Specialized Creation and NFT Creation are attached to the complete Forge by default. Each office keeps a separate live AI brain scope.</p>
+      <ul id="office-list">
+        <li>Loading native office registry…</li>
       </ul>
+    </section>
+
+    <section class="card" aria-labelledby="projects-title">
+      <h2 id="projects-title">Device-local projects</h2>
+      <p>Create Forge project records in the app's own persistent storage. These records survive normal app restarts and do not require another Forge machine.</p>
+      <form id="project-form">
+        <label for="project-id">Project ID</label>
+        <input id="project-id" name="projectId" required maxlength="96" pattern="[A-Za-z0-9_-]+" placeholder="my-novel" autocomplete="off" />
+        <label for="project-title">Project title</label>
+        <input id="project-title" name="projectTitle" required maxlength="300" placeholder="My Novel" autocomplete="off" />
+        <button type="submit">Create local Forge project</button>
+      </form>
+      <p id="project-status" class="status" role="status" aria-live="polite"></p>
+      <div id="project-list" class="project-list" aria-live="polite"></div>
+    </section>
+
+    <section class="card" aria-labelledby="provider-title">
+      <h2 id="provider-title">Office AI provider vault</h2>
+      <p>Configure a provider for one office. Provider credentials are encrypted in Stronghold; ordinary Forge project and metadata storage does not contain API keys.</p>
+      <form id="provider-form">
+        <div class="field-grid">
+          <div>
+            <label for="provider-office">Office</label>
+            <select id="provider-office" required>
+              <option value="studio">Main Forge / Studio</option>
+              <option value="journal">Guided Journal</option>
+              <option value="workbooks">Educational Workbooks</option>
+              <option value="specialized">Specialized Creation</option>
+              <option value="nft">NFT Creation</option>
+            </select>
+          </div>
+          <div>
+            <label for="provider-name">Provider</label>
+            <select id="provider-name" required>
+              <option value="omniroute">OmniRoute</option>
+              <option value="9router">9Router</option>
+              <option value="openai">OpenAI</option>
+              <option value="groq">Groq</option>
+              <option value="mistral">Mistral</option>
+              <option value="gemini">Gemini</option>
+              <option value="anthropic">Anthropic</option>
+              <option value="openrouter">OpenRouter</option>
+              <option value="ollama">Ollama</option>
+              <option value="kings">K.I.N.G.S. Responses</option>
+            </select>
+          </div>
+        </div>
+        <label for="provider-base-url">Provider endpoint (when required)</label>
+        <input id="provider-base-url" inputmode="url" placeholder="https://provider.example" autocomplete="off" />
+        <label for="provider-models">Model IDs</label>
+        <input id="provider-models" required placeholder="model-one, model-two" autocomplete="off" />
+        <label for="provider-billing">Billing class</label>
+        <select id="provider-billing">
+          <option value="subscription">Subscription</option>
+          <option value="free">Free</option>
+          <option value="local">Local</option>
+          <option value="metered">Metered</option>
+          <option value="gateway-managed">Gateway managed</option>
+          <option value="unknown">Unknown</option>
+        </select>
+        <label for="provider-api-key">API key (when required)</label>
+        <input id="provider-api-key" type="password" autocomplete="off" spellcheck="false" />
+        <label for="vault-password">Forge credential-vault password</label>
+        <input id="vault-password" type="password" minlength="12" required autocomplete="current-password" />
+        <div class="button-row">
+          <button type="submit">Encrypt &amp; configure provider</button>
+          <button id="restore-providers" type="button" class="secondary">Unlock &amp; restore saved providers</button>
+        </div>
+      </form>
+      <p id="provider-status" class="status" role="status" aria-live="polite"></p>
+    </section>
+
+    <section class="card" aria-labelledby="generation-title">
+      <h2 id="generation-title">Native office-brain generation</h2>
+      <p>Send a real text request through the selected office's native broker, routing, quota and provider health state.</p>
+      <form id="generation-form">
+        <label for="generation-office">Office</label>
+        <select id="generation-office">
+          <option value="studio">Main Forge / Studio</option>
+          <option value="journal">Guided Journal</option>
+          <option value="workbooks">Educational Workbooks</option>
+          <option value="specialized">Specialized Creation</option>
+          <option value="nft">NFT Creation</option>
+        </select>
+        <label for="generation-provider">Preferred provider (optional)</label>
+        <select id="generation-provider">
+          <option value="">Use office routing order</option>
+          <option value="omniroute">OmniRoute</option>
+          <option value="9router">9Router</option>
+          <option value="openai">OpenAI</option>
+          <option value="groq">Groq</option>
+          <option value="mistral">Mistral</option>
+          <option value="gemini">Gemini</option>
+          <option value="anthropic">Anthropic</option>
+          <option value="openrouter">OpenRouter</option>
+          <option value="ollama">Ollama</option>
+          <option value="kings">K.I.N.G.S. Responses</option>
+        </select>
+        <label for="generation-system">System instruction</label>
+        <textarea id="generation-system" rows="3">You are the selected K.I.N.G.S. Author's Forge office. Follow author authority and do not fabricate provider output.</textarea>
+        <label for="generation-prompt">Request</label>
+        <textarea id="generation-prompt" rows="5" required placeholder="Write or analyze something for this Forge office."></textarea>
+        <button type="submit">Run native office brain</button>
+      </form>
+      <p id="generation-status" class="status" role="status" aria-live="polite"></p>
+      <pre id="generation-output" class="output" aria-live="polite"></pre>
+    </section>
+
+    <section class="card compact">
+      <h2>Private-test rule</h2>
+      <p id="acceptance-note">This native package is not considered a standalone Android private-test build until the repository's Android standalone acceptance gate passes.</p>
     </section>
   </main>
   <script src="app.js" defer></script>
