@@ -12,7 +12,7 @@ const index = fs.readFileSync('public/index.html', 'utf8');
 const platformContract = fs.readFileSync('docs/PLATFORM_SUPPORT.md', 'utf8');
 
 test('PWA shell has a platform-neutral install manifest and live lifecycle entrypoint', () => {
-  assert.equal(manifest.name, "Author's Forge");
+  assert.equal(manifest.name, "K.I.N.G.S. Author's Forge");
   assert.equal(manifest.id, '/');
   assert.equal(manifest.display, 'standalone');
   assert.equal(manifest.orientation, 'any');
@@ -46,8 +46,9 @@ test('Android install experience is a real round launcher rather than a browser-
   assert.match(pwa, /beforeinstallprompt/);
   assert.match(pwa, /appinstalled/);
   assert.match(pwa, /Add to Home screen/);
-  assert.match(launcherIcon, /<circle/);
-  assert.match(launcherIcon, /#d4ad63/);
+  assert.match(launcherIcon, /<svg/);
+  assert.match(launcherIcon, /kings-authors-forge-official-512\.png/, 'launcher wrapper must use the owner-approved official K.I.N.G.S. Author\'s Forge artwork');
+  assert.match(launcherIcon, /preserveAspectRatio="xMidYMid meet"/, 'official launcher artwork must not be distorted');
   assert.match(serviceWorker, /"\/icon-maskable-512\.png"/);
 });
 

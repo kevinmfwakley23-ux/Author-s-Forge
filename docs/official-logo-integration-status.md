@@ -1,0 +1,1 @@
+Official logo integration is in progress on the K.I.N.G.S. branding branch. This status file is removed or folded into the durable release record before merge.

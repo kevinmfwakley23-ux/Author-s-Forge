@@ -1,19 +1,165 @@
 #!/usr/bin/env node
 
 /**
- * Deterministically generates opaque PNG launcher fallbacks for Android/PWA installs.
- * No image toolchain or native dependency is required; Node's zlib is sufficient.
+ * Build the K.I.N.G.S. Author's Forge install/runtime logo assets from the
+ * owner-approved official artwork derivative checked into assets/brand.
+ *
+ * The checked source is hash-pinned. No network access, substitute artwork,
+ * procedural logo, or silent fallback is allowed: if the official source is
+ * missing or altered, the build fails.
  */
 const fs = require("node:fs");
 const path = require("node:path");
 const zlib = require("node:zlib");
+const crypto = require("node:crypto");
 
-const COLORS = Object.freeze({
-  background: [32, 37, 43, 255],
-  inner: [22, 26, 31, 255],
-  gold: [212, 173, 99, 255],
-  marble: [244, 241, 235, 255],
-});
+const SOURCE = path.join(process.cwd(), "assets", "brand", "kings-authors-forge-official-192.base64");
+const SOURCE_SHA256 = "ab0f5f0e58d66fd35420a9f0f07a96eed7fbcfd3c8cd76a154280b83aaeb33d1";
+const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+
+function sha256(buffer) {
+  return crypto.createHash("sha256").update(buffer).digest("hex");
+}
+
+function paeth(a, b, c) {
+  const p = a + b - c;
+  const pa = Math.abs(p - a);
+  const pb = Math.abs(p - b);
+  const pc = Math.abs(p - c);
+  if (pa <= pb && pa <= pc) return a;
+  if (pb <= pc) return b;
+  return c;
+}
+
+function decodePng(bytes) {
+  if (!bytes.subarray(0, 8).equals(PNG_SIGNATURE)) throw new Error("Official Forge logo source is not a PNG.");
+
+  let offset = 8;
+  let width = 0;
+  let height = 0;
+  let bitDepth = 0;
+  let colorType = 0;
+  let interlace = 0;
+  let palette = null;
+  let transparency = null;
+  const idat = [];
+
+  while (offset + 12 <= bytes.length) {
+    const length = bytes.readUInt32BE(offset);
+    const type = bytes.toString("ascii", offset + 4, offset + 8);
+    const start = offset + 8;
+    const end = start + length;
+    if (end + 4 > bytes.length) throw new Error(`Official Forge logo PNG has a truncated ${type} chunk.`);
+    const data = bytes.subarray(start, end);
+
+    if (type === "IHDR") {
+      width = data.readUInt32BE(0);
+      height = data.readUInt32BE(4);
+      bitDepth = data[8];
+      colorType = data[9];
+      const compression = data[10];
+      const filterMethod = data[11];
+      interlace = data[12];
+      if (compression !== 0 || filterMethod !== 0) throw new Error("Official Forge logo PNG uses unsupported compression/filter metadata.");
+    } else if (type === "PLTE") {
+      palette = Buffer.from(data);
+    } else if (type === "tRNS") {
+      transparency = Buffer.from(data);
+    } else if (type === "IDAT") {
+      idat.push(Buffer.from(data));
+    } else if (type === "IEND") {
+      break;
+    }
+    offset = end + 4;
+  }
+
+  if (width !== 192 || height !== 192) throw new Error(`Official Forge runtime source must be 192x192; got ${width}x${height}.`);
+  if (interlace !== 0) throw new Error("Official Forge logo PNG must be non-interlaced for deterministic build decoding.");
+  if (!idat.length) throw new Error("Official Forge logo PNG contains no image data.");
+
+  const channelsByType = new Map([[0, 1], [2, 3], [3, 1], [4, 2], [6, 4]]);
+  const channels = channelsByType.get(colorType);
+  if (!channels) throw new Error(`Official Forge logo PNG color type ${colorType} is unsupported.`);
+  if (colorType === 3) {
+    if (bitDepth !== 4 && bitDepth !== 8) throw new Error(`Indexed official Forge logo bit depth ${bitDepth} is unsupported; expected 4 or 8.`);
+    if (!palette || palette.length < 3) throw new Error("Indexed official Forge logo is missing its palette.");
+  } else if (bitDepth !== 8) {
+    throw new Error(`Official Forge logo PNG bit depth ${bitDepth} is unsupported; expected 8.`);
+  }
+
+  const bitsPerPixel = channels * bitDepth;
+  const rowBytes = Math.ceil((width * bitsPerPixel) / 8);
+  const filterBytesPerPixel = Math.max(1, Math.ceil(bitsPerPixel / 8));
+  const packed = zlib.inflateSync(Buffer.concat(idat));
+  const expected = (rowBytes + 1) * height;
+  if (packed.length !== expected) throw new Error(`Official Forge logo PNG decoded length mismatch: ${packed.length} != ${expected}.`);
+
+  const raw = Buffer.alloc(rowBytes * height);
+  let sourceOffset = 0;
+  for (let y = 0; y < height; y += 1) {
+    const filter = packed[sourceOffset++];
+    const rowOffset = y * rowBytes;
+    for (let x = 0; x < rowBytes; x += 1) {
+      const value = packed[sourceOffset++];
+      const left = x >= filterBytesPerPixel ? raw[rowOffset + x - filterBytesPerPixel] : 0;
+      const up = y > 0 ? raw[rowOffset - rowBytes + x] : 0;
+      const upperLeft = y > 0 && x >= filterBytesPerPixel ? raw[rowOffset - rowBytes + x - filterBytesPerPixel] : 0;
+      let decoded;
+      if (filter === 0) decoded = value;
+      else if (filter === 1) decoded = (value + left) & 255;
+      else if (filter === 2) decoded = (value + up) & 255;
+      else if (filter === 3) decoded = (value + Math.floor((left + up) / 2)) & 255;
+      else if (filter === 4) decoded = (value + paeth(left, up, upperLeft)) & 255;
+      else throw new Error(`Official Forge logo PNG uses unsupported row filter ${filter}.`);
+      raw[rowOffset + x] = decoded;
+    }
+  }
+
+  const rgba = Buffer.alloc(width * height * 4);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const pixel = y * width + x;
+      const dst = pixel * 4;
+      if (colorType === 3) {
+        const rowOffset = y * rowBytes;
+        let index;
+        if (bitDepth === 8) index = raw[rowOffset + x];
+        else {
+          const packedByte = raw[rowOffset + (x >> 1)];
+          index = (x & 1) === 0 ? packedByte >> 4 : packedByte & 0x0f;
+        }
+        const paletteOffset = index * 3;
+        if (paletteOffset + 2 >= palette.length) throw new Error(`Official Forge logo palette index ${index} is invalid.`);
+        rgba[dst] = palette[paletteOffset];
+        rgba[dst + 1] = palette[paletteOffset + 1];
+        rgba[dst + 2] = palette[paletteOffset + 2];
+        rgba[dst + 3] = transparency && index < transparency.length ? transparency[index] : 255;
+        continue;
+      }
+
+      const src = y * rowBytes + x * channels;
+      if (colorType === 6) {
+        raw.copy(rgba, dst, src, src + 4);
+      } else if (colorType === 2) {
+        rgba[dst] = raw[src];
+        rgba[dst + 1] = raw[src + 1];
+        rgba[dst + 2] = raw[src + 2];
+        rgba[dst + 3] = 255;
+      } else if (colorType === 0) {
+        rgba[dst] = raw[src];
+        rgba[dst + 1] = raw[src];
+        rgba[dst + 2] = raw[src];
+        rgba[dst + 3] = 255;
+      } else if (colorType === 4) {
+        rgba[dst] = raw[src];
+        rgba[dst + 1] = raw[src];
+        rgba[dst + 2] = raw[src];
+        rgba[dst + 3] = raw[src + 1];
+      }
+    }
+  }
+  return { width, height, rgba };
+}
 
 const crcTable = (() => {
   const table = new Uint32Array(256);
@@ -27,105 +173,95 @@ const crcTable = (() => {
 
 function crc32(buffer) {
   let c = 0xffffffff;
-  for (const byte of buffer) c = crcTable[(c ^ byte) & 0xff] ^ (c >>> 8);
+  for (const byte of buffer) c = crcTable[(c ^ byte) & 255] ^ (c >>> 8);
   return (c ^ 0xffffffff) >>> 0;
 }
 
-function chunk(type, data) {
-  const typeBuffer = Buffer.from(type, "ascii");
+function pngChunk(type, data) {
+  const typeBytes = Buffer.from(type, "ascii");
   const length = Buffer.alloc(4);
   length.writeUInt32BE(data.length, 0);
   const crc = Buffer.alloc(4);
-  crc.writeUInt32BE(crc32(Buffer.concat([typeBuffer, data])), 0);
-  return Buffer.concat([length, typeBuffer, data, crc]);
+  crc.writeUInt32BE(crc32(Buffer.concat([typeBytes, data])), 0);
+  return Buffer.concat([length, typeBytes, data, crc]);
 }
 
-function pointInPolygon(x, y, points) {
-  let inside = false;
-  for (let i = 0, j = points.length - 1; i < points.length; j = i, i += 1) {
-    const xi = points[i][0], yi = points[i][1];
-    const xj = points[j][0], yj = points[j][1];
-    const intersect = ((yi > y) !== (yj > y)) && (x < ((xj - xi) * (y - yi)) / (yj - yi || Number.EPSILON) + xi);
-    if (intersect) inside = !inside;
-  }
-  return inside;
-}
-
-function paint(size) {
-  const pixels = Buffer.alloc(size * size * 4);
-  const outerRadius = size * 0.395;
-  const innerRadius = size * 0.355;
-  const center = size / 2;
-  const crown = [
-    [0.297, 0.334], [0.332, 0.246], [0.398, 0.293], [0.5, 0.211],
-    [0.602, 0.293], [0.668, 0.246], [0.703, 0.334],
-  ].map(([x, y]) => [x * size, y * size]);
-
-  for (let y = 0; y < size; y += 1) {
-    for (let x = 0; x < size; x += 1) {
-      const dx = x + 0.5 - center;
-      const dy = y + 0.5 - center;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      let color = COLORS.background;
-      if (distance <= outerRadius) color = COLORS.gold;
-      if (distance <= innerRadius) color = COLORS.inner;
-
-      const nx = (x + 0.5) / size;
-      const ny = (y + 0.5) / size;
-      const inF =
-        (nx >= 0.314 && nx <= 0.433 && ny >= 0.293 && ny <= 0.805) ||
-        (nx >= 0.314 && nx <= 0.748 && ny >= 0.293 && ny <= 0.400) ||
-        (nx >= 0.314 && nx <= 0.691 && ny >= 0.490 && ny <= 0.596);
-      if (inF) color = COLORS.gold;
-      if (pointInPolygon(x + 0.5, y + 0.5, crown)) color = COLORS.marble;
-
-      const offset = (y * size + x) * 4;
-      pixels[offset] = color[0];
-      pixels[offset + 1] = color[1];
-      pixels[offset + 2] = color[2];
-      pixels[offset + 3] = color[3];
-    }
-  }
-  return pixels;
-}
-
-function encodePng(size) {
-  const pixels = paint(size);
-  const stride = size * 4;
-  const scanlines = Buffer.alloc((stride + 1) * size);
-  for (let y = 0; y < size; y += 1) {
-    const rowOffset = y * (stride + 1);
-    scanlines[rowOffset] = 0;
-    pixels.copy(scanlines, rowOffset + 1, y * stride, (y + 1) * stride);
+function encodePng(width, height, rgba) {
+  const stride = width * 4;
+  const scanlines = Buffer.alloc((stride + 1) * height);
+  for (let y = 0; y < height; y += 1) {
+    const rowStart = y * (stride + 1);
+    scanlines[rowStart] = 0;
+    rgba.copy(scanlines, rowStart + 1, y * stride, (y + 1) * stride);
   }
 
   const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(size, 0);
-  ihdr.writeUInt32BE(size, 4);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
   ihdr[8] = 8;
   ihdr[9] = 6;
-  ihdr[10] = 0;
-  ihdr[11] = 0;
-  ihdr[12] = 0;
-
   return Buffer.concat([
-    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
-    chunk("IHDR", ihdr),
-    chunk("IDAT", zlib.deflateSync(scanlines, { level: 9 })),
-    chunk("IEND", Buffer.alloc(0)),
+    PNG_SIGNATURE,
+    pngChunk("IHDR", ihdr),
+    pngChunk("IDAT", zlib.deflateSync(scanlines, { level: 9 })),
+    pngChunk("IEND", Buffer.alloc(0)),
   ]);
 }
 
-function writeIcon(filename, size) {
-  const output = path.join(process.cwd(), "public", filename);
-  fs.writeFileSync(output, encodePng(size));
-  const bytes = fs.readFileSync(output);
-  if (!bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) {
-    throw new Error(`${filename} was not written as a valid PNG`);
+function resizeRgba(source, sourceWidth, sourceHeight, targetWidth, targetHeight) {
+  if (sourceWidth === targetWidth && sourceHeight === targetHeight) return Buffer.from(source);
+  const output = Buffer.alloc(targetWidth * targetHeight * 4);
+  const scaleX = sourceWidth / targetWidth;
+  const scaleY = sourceHeight / targetHeight;
+  for (let y = 0; y < targetHeight; y += 1) {
+    const sy = Math.max(0, Math.min(sourceHeight - 1, (y + 0.5) * scaleY - 0.5));
+    const y0 = Math.floor(sy);
+    const y1 = Math.min(sourceHeight - 1, y0 + 1);
+    const fy = sy - y0;
+    for (let x = 0; x < targetWidth; x += 1) {
+      const sx = Math.max(0, Math.min(sourceWidth - 1, (x + 0.5) * scaleX - 0.5));
+      const x0 = Math.floor(sx);
+      const x1 = Math.min(sourceWidth - 1, x0 + 1);
+      const fx = sx - x0;
+      const dst = (y * targetWidth + x) * 4;
+      const p00 = (y0 * sourceWidth + x0) * 4;
+      const p10 = (y0 * sourceWidth + x1) * 4;
+      const p01 = (y1 * sourceWidth + x0) * 4;
+      const p11 = (y1 * sourceWidth + x1) * 4;
+      for (let channel = 0; channel < 4; channel += 1) {
+        const top = source[p00 + channel] * (1 - fx) + source[p10 + channel] * fx;
+        const bottom = source[p01 + channel] * (1 - fx) + source[p11 + channel] * fx;
+        output[dst + channel] = Math.round(top * (1 - fy) + bottom * fy);
+      }
+    }
   }
-  console.log(`Generated ${filename} (${size}x${size}, ${bytes.length} bytes)`);
+  return output;
 }
 
-writeIcon("icon-192.png", 192);
-writeIcon("icon-512.png", 512);
-writeIcon("icon-maskable-512.png", 512);
+function writePng(relativePath, width, height, rgba) {
+  const output = path.join(process.cwd(), relativePath);
+  fs.mkdirSync(path.dirname(output), { recursive: true });
+  const bytes = encodePng(width, height, rgba);
+  fs.writeFileSync(output, bytes);
+  const written = fs.readFileSync(output);
+  if (!written.subarray(0, 8).equals(PNG_SIGNATURE)) throw new Error(`${relativePath} is not a valid PNG.`);
+  if (written.readUInt32BE(16) !== width || written.readUInt32BE(20) !== height) throw new Error(`${relativePath} has incorrect PNG dimensions.`);
+  console.log(`[forge-logo] ${relativePath} ${width}x${height} ${written.length} bytes`);
+}
+
+console.log("[forge-logo] Verify official K.I.N.G.S. Author's Forge artwork source");
+const encoded = fs.readFileSync(SOURCE, "utf8").replace(/\s+/g, "");
+if (!encoded) throw new Error("Official Forge logo source is empty.");
+const sourceBytes = Buffer.from(encoded, "base64");
+const digest = sha256(sourceBytes);
+if (digest !== SOURCE_SHA256) throw new Error(`Official Forge logo source hash mismatch: ${digest}`);
+const official = decodePng(sourceBytes);
+const official512 = resizeRgba(official.rgba, official.width, official.height, 512, 512);
+
+writePng("public/assets/brand/kings-authors-forge-official-192.png", 192, 192, official.rgba);
+writePng("public/assets/brand/kings-authors-forge-official-512.png", 512, 512, official512);
+writePng("native-shell/assets/brand/kings-authors-forge-official-512.png", 512, 512, official512);
+writePng("public/icon-192.png", 192, 192, official.rgba);
+writePng("public/icon-512.png", 512, 512, official512);
+writePng("public/icon-maskable-512.png", 512, 512, official512);
+console.log(`[forge-logo] Locked source SHA-256 ${SOURCE_SHA256}`);

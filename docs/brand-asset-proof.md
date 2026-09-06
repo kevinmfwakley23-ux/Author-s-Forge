@@ -1,0 +1,1 @@
+The owner-locked logo is a square white-marble / black / gold crest with crowned lion, book, quill, K.I.N.G.S. wordmark, AUTHOR'S FORGE title, and KNOWLEDGE • INVESTIGATION • NARRATIVE • GENERATION • SYSTEM expansion. Shipping derivatives must preserve that exact visual identity.

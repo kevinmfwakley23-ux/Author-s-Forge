@@ -1,0 +1,1 @@
+Official logo images must carry concise K.I.N.G.S. Author's Forge alt text when informative and empty alt text when decorative. The full acronym remains available as text elsewhere for accessibility.

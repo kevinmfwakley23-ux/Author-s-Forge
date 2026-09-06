@@ -1,4 +1,4 @@
-/* Author's Forge royal marble interface shell. Presentation only: durable state, routes, forms, and provider boundaries remain owned by the existing Studio runtime. */
+/* K.I.N.G.S. Author's Forge royal marble interface shell. Presentation only: durable state, routes, forms, and provider boundaries remain owned by the existing Studio runtime. */
 (() => {
   "use strict";
 
@@ -75,6 +75,9 @@
     const style = document.createElement("style");
     style.id = "forge-royal-runtime-styles";
     style.textContent = `
+      .brand .brand-kings{display:block;font-size:.7em;letter-spacing:.24em;margin-bottom:2px}
+      .brand .brand-title{display:block}
+      .sidebar .tag{font-size:.58rem;line-height:1.35;letter-spacing:.08em;text-transform:uppercase}
       .forge-current-project{display:grid!important;grid-template-columns:112px minmax(0,1fr) auto!important;align-items:center!important;gap:24px!important}
       .forge-current-cover{width:112px;height:168px;border:1px solid var(--forge-border-strong);border-radius:5px 9px 9px 5px;overflow:hidden;background:var(--forge-black-soft);box-shadow:0 12px 24px rgba(38,26,12,.18);align-self:center}
       .forge-current-cover img{display:block;width:100%;height:100%;object-fit:cover}
@@ -127,10 +130,11 @@
 
     const brand = document.querySelector(".brand");
     if (brand && !brand.querySelector(".brand-quill")) {
-      brand.innerHTML = `<span class="brand-quill" aria-hidden="true">❧</span><span class="brand-word">AUTHOR'S</span><strong>FORGE</strong><span class="brand-rule" aria-hidden="true"></span>`;
+      brand.setAttribute("aria-label", "K.I.N.G.S. Author's Forge");
+      brand.innerHTML = `<span class="brand-quill" aria-hidden="true">❧</span><span class="brand-kings">K.I.N.G.S.</span><span class="brand-title"><span class="brand-word">AUTHOR'S</span> <strong>FORGE</strong></span><span class="brand-rule" aria-hidden="true"></span>`;
     }
     const tag = document.querySelector(".tag");
-    if (tag) tag.textContent = "Shape stories. Forge legacies.";
+    if (tag) tag.textContent = "KNOWLEDGE • INVESTIGATION • NARRATIVE • GENERATION • SYSTEM";
     nav.dataset.royalDecorated = "true";
     observeNavigation(nav);
   }
@@ -143,7 +147,7 @@
     const masthead = document.createElement("section");
     masthead.id = "forge-masthead";
     masthead.className = "forge-masthead";
-    masthead.setAttribute("aria-label", "Forged works");
+    masthead.setAttribute("aria-label", "K.I.N.G.S. Author's Forge");
     masthead.innerHTML = `
       <div class="forge-shelf-wrap">
         <div class="forge-shelf-kicker">BOOKS FORGED · WORLDS REMEMBERED</div>
@@ -152,7 +156,7 @@
       </div>
       <div class="forge-title-lockup">
         <span aria-hidden="true" class="forge-title-rule"></span>
-        <div><h1>AUTHOR'S FORGE</h1><p>SHAPE STORIES. FORGE LEGACIES.</p></div>
+        <div><h1>K.I.N.G.S. AUTHOR'S FORGE</h1><p>KNOWLEDGE • INVESTIGATION • NARRATIVE • GENERATION • SYSTEM</p></div>
         <span aria-hidden="true" class="forge-title-rule"></span>
       </div>`;
     main.insertBefore(masthead, topbar);
@@ -268,6 +272,7 @@
   }
 
   function enhance() {
+    document.title = "K.I.N.G.S. Author's Forge";
     ensureThemeToggle();
     applyTheme(currentTheme(), false);
     ensureRuntimeStyles();

@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "Author's Forge",
-  "short_name": "Forge",
-  "description": "Author's Forge — local-first authoring, AI writing, editing, illustration, production, and publishing studio.",
+  "name": "K.I.N.G.S. Author's Forge",
+  "short_name": "K.I.N.G.S. Forge",
+  "description": "K.I.N.G.S. Author's Forge — KNOWLEDGE • INVESTIGATION • NARRATIVE • GENERATION • SYSTEM for local-first authoring, AI writing, editing, illustration, production, and publishing.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -30,12 +30,6 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
-    },
-    {
-      "src": "/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any"
     }
   ],
   "shortcuts": [
