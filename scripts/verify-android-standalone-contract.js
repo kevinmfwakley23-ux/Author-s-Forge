@@ -13,6 +13,8 @@ const forbidMatch = (text, pattern, message) => { if (pattern.test(text)) failur
 const runtime = read("src-tauri/src/runtime.rs");
 const lib = read("src-tauri/src/lib.rs");
 const cargo = read("src-tauri/Cargo.toml");
+const nativeProjectStore = read("src-tauri/src/native_project_store.rs");
+const nativeProvider = read("src-tauri/src/native_provider.rs");
 const index = read("native-shell/index.html");
 const app = read("native-shell/app.js");
 
@@ -24,11 +26,24 @@ for (const office of ["studio", "journal", "workbooks", "specialized", "nft"]) {
   requireMatch(runtime, new RegExp(`id:\\s*"${office}"`), `Native runtime is missing the ${office} office descriptor.`);
 }
 
+for (const command of [
+  "forge_native_project_put",
+  "forge_native_project_get",
+  "forge_native_project_list",
+  "forge_native_project_delete",
+]) {
+  requireMatch(lib, new RegExp(command), `Native runtime is not registering durable project command ${command}.`);
+  requireMatch(nativeProjectStore, new RegExp(`fn\\s+${command}`), `Native durable project store is missing ${command}.`);
+}
+requireMatch(nativeProjectStore, /StoreExt/, "Native durable project store is not using the Tauri persistent Store adapter.");
+requireMatch(nativeProjectStore, /\.save\(\)/, "Native durable project writes do not explicitly flush to persistent storage.");
+requireMatch(nativeProvider, /forge_native_generate_text/, "Native provider runtime does not expose real text generation.");
+
 forbidMatch(index, /Forge address|hosted K\.I\.N\.G\.S\.|connect-form|forge-url/i, "Native shell still asks for a remote/hosted Forge runtime URL.");
 forbidMatch(app, /window\.location\.assign\s*\(|authors-forge-native-url|validateForgeUrl/i, "Native shell still navigates to an external Forge runtime.");
 
 for (const capability of [
-  [cargo, /sqlite|sqlx|tauri-plugin-sql/i, "Native Android runtime has no durable database/storage adapter dependency."],
+  [cargo, /sqlite|sqlx|tauri-plugin-sql|tauri-plugin-store/i, "Native Android runtime has no durable database/storage adapter dependency."],
   [cargo, /stronghold|keyring|secure/i, "Native Android runtime has no secure credential-vault dependency."],
   [cargo, /reqwest|tauri-plugin-http|hyper/i, "Native Android runtime has no native HTTP/provider transport dependency."],
 ]) {
