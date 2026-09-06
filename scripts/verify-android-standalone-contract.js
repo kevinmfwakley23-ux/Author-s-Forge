@@ -13,8 +13,10 @@ const forbidMatch = (text, pattern, message) => { if (pattern.test(text)) failur
 const runtime = read("src-tauri/src/runtime.rs");
 const lib = read("src-tauri/src/lib.rs");
 const cargo = read("src-tauri/Cargo.toml");
+const officeRuntime = read("src-tauri/src/office_runtime.rs");
 const nativeProjectStore = read("src-tauri/src/native_project_store.rs");
 const nativeProvider = read("src-tauri/src/native_provider.rs");
+const nativeCredentials = read("src-tauri/src/native_credentials.rs");
 const index = read("native-shell/index.html");
 const app = read("native-shell/app.js");
 
@@ -25,6 +27,8 @@ requireMatch(lib, /native_offices/, "Native office registry command is not regis
 for (const office of ["studio", "journal", "workbooks", "specialized", "nft"]) {
   requireMatch(runtime, new RegExp(`id:\\s*"${office}"`), `Native runtime is missing the ${office} office descriptor.`);
 }
+requireMatch(officeRuntime, /enabled:\s*true\s*,/, "Native office brains are not attached/enabled by default in the live runtime.");
+requireMatch(officeRuntime, /cannot be disabled/, "Native runtime does not protect the complete Forge office set from being disabled.");
 
 for (const command of [
   "forge_native_project_put",
@@ -38,6 +42,21 @@ for (const command of [
 requireMatch(nativeProjectStore, /StoreExt/, "Native durable project store is not using the Tauri persistent Store adapter.");
 requireMatch(nativeProjectStore, /\.save\(\)/, "Native durable project writes do not explicitly flush to persistent storage.");
 requireMatch(nativeProvider, /forge_native_generate_text/, "Native provider runtime does not expose real text generation.");
+
+for (const command of [
+  "forge_native_secure_configure_provider",
+  "forge_native_secure_restore_providers",
+  "forge_native_secure_remove_provider",
+]) {
+  requireMatch(lib, new RegExp(command), `Native runtime is not registering encrypted credential command ${command}.`);
+  requireMatch(nativeCredentials, new RegExp(`fn\\s+${command}`), `Native credential vault is missing ${command}.`);
+}
+requireMatch(nativeCredentials, /stronghold::Stronghold/, "Native provider credentials are not backed by Stronghold.");
+requireMatch(nativeCredentials, /Stronghold::new/, "Native provider credential vault is not opened as a Stronghold snapshot.");
+requireMatch(nativeCredentials, /\.save\(\)/, "Native provider credential updates do not explicitly persist the Stronghold snapshot.");
+requireMatch(nativeCredentials, /office\/\{office_id\}\/provider\/\{provider\}\/api_key/, "Native provider credential keys are not office/provider scoped.");
+requireMatch(nativeCredentials, /struct\s+NativeProviderMetadata[\s\S]*has_api_key:\s*bool/, "Native provider metadata does not distinguish secret presence from secret value.");
+forbidMatch(nativeCredentials.match(/struct\s+NativeProviderMetadata\s*\{[\s\S]*?\}/)?.[0] || "", /\bapi_key\s*:/, "Plaintext API-key values are present in ordinary native provider metadata.");
 
 forbidMatch(index, /Forge address|hosted K\.I\.N\.G\.S\.|connect-form|forge-url/i, "Native shell still asks for a remote/hosted Forge runtime URL.");
 forbidMatch(app, /window\.location\.assign\s*\(|authors-forge-native-url|validateForgeUrl/i, "Native shell still navigates to an external Forge runtime.");
