@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "product": "K.I.N.G.S. Author's Forge",
+  "coreOffice": "studio",
+  "providerFamilies": [
+    "omniroute",
+    "9router",
+    "openai",
+    "groq",
+    "mistral",
+    "gemini",
+    "anthropic",
+    "openrouter",
+    "ollama",
+    "kings"
+  ],
+  "offices": [
+    {
+      "id": "studio",
+      "name": "Main Forge / Studio",
+      "role": "core",
+      "defaultEnabled": true,
+      "port": 4173,
+      "linuxAppSlug": "authors-forge",
+      "currentAndroidId": "com.authorsforge.app",
+      "candidateStandaloneAndroidId": "com.kings.authorsforge"
+    },
+    {
+      "id": "journal",
+      "name": "Guided Journal Office",
+      "role": "addon",
+      "defaultEnabled": false,
+      "port": 4273,
+      "linuxAppSlug": "authors-forge-journal",
+      "candidateStandaloneAndroidId": "com.kings.authorsforge.journal"
+    },
+    {
+      "id": "workbooks",
+      "name": "Educational Workbook Office",
+      "role": "addon",
+      "defaultEnabled": false,
+      "port": 4373,
+      "linuxAppSlug": "authors-forge-workbooks",
+      "candidateStandaloneAndroidId": "com.kings.authorsforge.workbooks"
+    },
+    {
+      "id": "specialized",
+      "name": "Specialized Creation Office",
+      "role": "addon",
+      "defaultEnabled": false,
+      "port": 4473,
+      "linuxAppSlug": "authors-forge-specialized",
+      "candidateStandaloneAndroidId": "com.kings.authorsforge.specialized"
+    },
+    {
+      "id": "nft",
+      "name": "NFT Creation Office",
+      "role": "addon",
+      "defaultEnabled": false,
+      "port": 4573,
+      "linuxAppSlug": "authors-forge-nft",
+      "candidateStandaloneAndroidId": "com.kings.authorsforge.nft"
+    }
+  ]
+}
