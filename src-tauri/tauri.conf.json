@@ -7,6 +7,7 @@
     "frontendDist": "../native-shell"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "label": "main",
@@ -20,7 +21,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https: http://127.0.0.1:* http://localhost:*; navigate-to https: http://127.0.0.1:* http://localhost:*"
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https: http://127.0.0.1:* http://localhost:*"
     }
   },
   "bundle": {
@@ -28,6 +29,6 @@
     "targets": "all",
     "category": "Productivity",
     "shortDescription": "K.I.N.G.S. AI creativity, authoring and publishing workplace",
-    "longDescription": "K.I.N.G.S. Author's Forge is a governed AI creativity, authoring, publishing and production workplace with durable project state and cross-platform access."
+    "longDescription": "K.I.N.G.S. Author's Forge is a governed AI creativity, authoring, publishing and production workplace with independent native and desktop runtime targets."
   }
 }
