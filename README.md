@@ -71,7 +71,7 @@ Every Forge office may independently route work to its strongest appropriate con
 
 Supported provider families include OmniRoute-compatible gateways, 9Router-compatible gateways, OpenAI, Groq, Mistral, Gemini, Anthropic, OpenRouter, local Ollama models and an optional K.I.N.G.S. Responses-compatible endpoint. A provider name existing in code is not proof that it is configured or live.
 
-Local Ollama models remain a last-resort/offline/local option rather than the architectural center of Forge.
+Local Ollama models remain a last-resort/offline/local fallback rather than the architectural center of Forge.
 
 ### Token-limit truth
 
