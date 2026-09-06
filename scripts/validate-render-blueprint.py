@@ -2,7 +2,7 @@
 """Validate render.yaml without requiring Render account credentials.
 
 Uses Render's published JSON Schema for structural validation and adds the
-cross-service reference checks this K.I.N.G.S. ecosystem depends on.
+cross-service reference checks this ecosystem depends on.
 """
 from __future__ import annotations
 
