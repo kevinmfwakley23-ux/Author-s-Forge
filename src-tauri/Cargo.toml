@@ -1,8 +1,8 @@
 [package]
 name = "authors-forge-native"
 version = "0.1.0"
-description = "Author's Forge native desktop and mobile shell"
-authors = ["Author's Forge"]
+description = "K.I.N.G.S. Author's Forge native desktop and mobile runtime"
+authors = ["K.I.N.G.S. Author's Forge"]
 edition = "2021"
 rust-version = "1.77.2"
 
@@ -18,4 +18,5 @@ path = "src/main.rs"
 tauri-build = { version = "=2.6.3", features = [] }
 
 [dependencies]
+serde = { version = "1", features = ["derive"] }
 tauri = { version = "=2.11.5", features = [] }
