@@ -56,7 +56,7 @@ jobs:
       - name: Verify private-test integration snapshot
         run: npm run verify
 
-      - name: Validate modular launcher scripts
+      - name: Validate complete Forge launcher scripts
         run: |
           node --check scripts/forge-office-ai-env.js
           node --check scripts/start-forge-modular.js
@@ -119,7 +119,7 @@ jobs:
             echo "Bundled Forge Node runtime is missing or not executable: $NODE" >&2
             exit 1
           fi
-          export FORGE_ENABLED_OFFICES="${FORGE_ENABLED_OFFICES:-all}"
+          export FORGE_ENABLED_OFFICES="all"
           cd "$ROOT"
           exec "$NODE" scripts/start-forge-modular.js "$@"
           EOF
@@ -130,17 +130,19 @@ jobs:
 
           This artifact is for owner/private acceptance only. It is not a public-production release.
 
+          Author's Forge ships as one complete Forge. Normal startup launches Main Forge / Studio, Guided Journal, Educational Workbooks, Specialized Creation and NFT Creation together. Every office has its own isolated live AI broker/routing/quota process while approved project/canon/voice state can remain shared intentionally.
+
           For pull-request builds, the artifact is created from GitHub's tested integration snapshot: the PR changes combined with the current target main branch.
 
           No separate Node.js or npm installation is required for this bundle. It includes verified Node 24 runtimes for Linux x64 and Linux arm64 plus the locked production dependencies.
 
           1. Extract the archive.
-          2. Run `./forge/launch-forge.sh` to start Main Forge plus all current add-ons.
-          3. Run `./forge/launch-forge.sh --core` for Main Forge only.
-          4. Run `./forge/launch-forge.sh --offices=journal,specialized` to choose add-ons.
-          5. Open Main Forge at http://127.0.0.1:4173/.
+          2. Run `./forge/launch-forge.sh`.
+          3. Open Main Forge at http://127.0.0.1:4173/.
 
-          Each modular office has its own AI environment namespace. Configure providers with `FORGE_<OFFICE>_<NORMAL_PROVIDER_VARIABLE>`, such as `FORGE_STUDIO_OPENAI_API_KEY` or `FORGE_JOURNAL_OMNIROUTE_BASE_URL`.
+          Engineering-only subset flags may exist for diagnostics and targeted tests, but they do not define the shipped product and should not be used for normal private acceptance.
+
+          Each office has its own AI environment namespace. Configure providers with `FORGE_<OFFICE>_<NORMAL_PROVIDER_VARIABLE>`, such as `FORGE_STUDIO_OPENAI_API_KEY` or `FORGE_JOURNAL_OMNIROUTE_BASE_URL`.
 
           Separate Forge accounting does not manufacture separate provider quotas. Use genuinely separate provider credentials/accounts/projects when you want provider-side allowances to be independent.
           EOF
