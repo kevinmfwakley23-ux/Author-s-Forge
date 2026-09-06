@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "product": "K.I.N.G.S. Author's Forge",
   "coreOffice": "studio",
+  "shipAsOneCompleteForge": true,
   "providerFamilies": [
     "omniroute",
     "9router",
@@ -20,6 +21,8 @@
       "name": "Main Forge / Studio",
       "role": "core",
       "defaultEnabled": true,
+      "attachedByDefault": true,
+      "separateLiveBrain": true,
       "port": 4173,
       "linuxAppSlug": "authors-forge",
       "currentAndroidId": "com.authorsforge.app",
@@ -28,8 +31,10 @@
     {
       "id": "journal",
       "name": "Guided Journal Office",
-      "role": "addon",
-      "defaultEnabled": false,
+      "role": "side-office",
+      "defaultEnabled": true,
+      "attachedByDefault": true,
+      "separateLiveBrain": true,
       "port": 4273,
       "linuxAppSlug": "authors-forge-journal",
       "candidateStandaloneAndroidId": "com.kings.authorsforge.journal"
@@ -37,8 +42,10 @@
     {
       "id": "workbooks",
       "name": "Educational Workbook Office",
-      "role": "addon",
-      "defaultEnabled": false,
+      "role": "side-office",
+      "defaultEnabled": true,
+      "attachedByDefault": true,
+      "separateLiveBrain": true,
       "port": 4373,
       "linuxAppSlug": "authors-forge-workbooks",
       "candidateStandaloneAndroidId": "com.kings.authorsforge.workbooks"
@@ -46,8 +53,10 @@
     {
       "id": "specialized",
       "name": "Specialized Creation Office",
-      "role": "addon",
-      "defaultEnabled": false,
+      "role": "side-office",
+      "defaultEnabled": true,
+      "attachedByDefault": true,
+      "separateLiveBrain": true,
       "port": 4473,
       "linuxAppSlug": "authors-forge-specialized",
       "candidateStandaloneAndroidId": "com.kings.authorsforge.specialized"
@@ -55,8 +64,10 @@
     {
       "id": "nft",
       "name": "NFT Creation Office",
-      "role": "addon",
-      "defaultEnabled": false,
+      "role": "side-office",
+      "defaultEnabled": true,
+      "attachedByDefault": true,
+      "separateLiveBrain": true,
       "port": 4573,
       "linuxAppSlug": "authors-forge-nft",
       "candidateStandaloneAndroidId": "com.kings.authorsforge.nft"
