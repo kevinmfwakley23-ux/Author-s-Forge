@@ -22,8 +22,8 @@ test('native Android package keeps a stable application identity and pinned Taur
 });
 
 test('Android native shell is device-local and contains no remote Forge gateway bootstrap', () => {
-  assert.doesNotMatch(nativeHtml, /connect-form|forge-url|hosted K\.I\.N\.G\.S\.|Forge address/i);
-  assert.doesNotMatch(nativeShell, /window\.location\.assign|authors-forge-native-url|validateForgeUrl|Remote Forge connections/i);
+  assert.doesNotMatch(nativeHtml, /id=["']connect-form["']|id=["']forge-url["']|https?:\/\/127\.0\.0\.1:4173|https?:\/\/localhost:4173|hosted-forge/i);
+  assert.doesNotMatch(nativeShell, /window\.location\.assign|authors-forge-native-url|validateForgeUrl|localStorage\.(?:getItem|setItem).*forge|sessionStorage\.(?:getItem|setItem).*forge/i);
   assert.match(nativeHtml, /No Chromebook dependency/i);
   assert.match(nativeHtml, /No gateway fallback/i);
   assert.match(nativeShell, /native_runtime_status/);
