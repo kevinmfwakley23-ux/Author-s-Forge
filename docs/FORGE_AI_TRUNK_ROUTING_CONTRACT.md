@@ -106,13 +106,13 @@ This prevents a journal process from silently consuming Studio's OpenAI key or q
 
 The legacy unified launcher remains available during migration and regression testing. The modular launcher is the architecture path for private testing and future product packaging.
 
-Run Main Forge plus all currently enabled add-ons:
+Run Main Forge only (the normal modular default):
 
 ```bash
 npm run forge:modular
 ```
 
-Run only Main Forge:
+The explicit core-only alias remains available:
 
 ```bash
 npm run forge:modular:core
@@ -130,13 +130,22 @@ Or set:
 FORGE_ENABLED_OFFICES=journal,workbooks,specialized
 ```
 
-For trusted LAN/private Android testing:
+Run Main Forge plus every current add-on deliberately:
 
 ```bash
-npm run forge:modular:android
+npm run forge:modular:all
 ```
 
-The Main Forge is always included by the modular launcher; listed offices are optional add-ons.
+Private acceptance intentionally launches every office so the owner can test the complete product:
+
+```bash
+npm run forge:private-test
+npm run forge:private-test:android
+```
+
+For normal trusted-LAN modular operation, `npm run forge:modular:android` still respects the opt-in add-on configuration instead of silently enabling every office.
+
+The Main Forge is always included by the modular launcher; specialist offices are optional add-ons.
 
 ## Required execution path inside each office
 
