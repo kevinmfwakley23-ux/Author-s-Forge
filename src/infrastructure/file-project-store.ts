@@ -27,7 +27,8 @@ import { validateAiCollaborationPolicy, type AiCollaborationPolicy } from "../do
 import { validateProjectHealthReport, type ProjectHealthReport } from "../domain/project-health";
 import { validateMemoryRelationship, type MemoryRelationship } from "../domain/relationship-memory";
 import { validateDeliveryAuditReport, type DeliveryAuditReport } from "../domain/delivery-audit";
-import { mkdir, readFile, rename, writeFile, access } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { access, mkdir, open, readFile, rename, unlink } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 const LEGACY_PROJECT_FORMAT_VERSION = 2 as const;
@@ -55,12 +56,28 @@ export class FileProjectStore {
     if (!project || typeof project !== "object" || !project.metadata || typeof project.metadata.id !== "string") throw new Error("Invalid project package.");
     const validated = this.validate(project, project.metadata.id);
     const path = this.projectPath(validated.metadata.id);
-    await mkdir(dirname(path), { recursive: true });
-    const temporaryPath = `${path}.tmp`;
+    const directory = dirname(path);
+    await mkdir(directory, { recursive: true });
+    const temporaryPath = `${path}.${process.pid}.${randomUUID()}.tmp`;
     const persisted = JSON.parse(JSON.stringify(validated)) as Record<string, unknown>;
     persisted.formatVersion = PROJECT_FORMAT_VERSION;
-    await writeFile(temporaryPath, `${JSON.stringify(persisted, null, 2)}\n`, "utf8");
-    await rename(temporaryPath, path);
+    const serialized = `${JSON.stringify(persisted, null, 2)}\n`;
+    let handle: Awaited<ReturnType<typeof open>> | undefined;
+    try {
+      handle = await open(temporaryPath, "wx", 0o600);
+      await handle.writeFile(serialized, "utf8");
+      await handle.sync();
+      await handle.close();
+      handle = undefined;
+      await rename(temporaryPath, path);
+      await syncDirectoryBestEffort(directory);
+    } catch (error) {
+      if (handle) await handle.close().catch(() => undefined);
+      await unlink(temporaryPath).catch((cleanupError) => {
+        if (!isMissingFile(cleanupError)) throw cleanupError;
+      });
+      throw error;
+    }
   }
   public async exists(projectId: string): Promise<boolean> {
     try { await access(this.projectPath(projectId)); return true; }
@@ -431,4 +448,19 @@ function cloneCharacter(character: CharacterRecord): CharacterRecord { return va
 function cloneVisualIdentity(identity: VisualCharacterIdentity): VisualCharacterIdentity { return validateVisualCharacterIdentity(JSON.parse(JSON.stringify(identity))); }
 function cloneIllustrationAssetLibrary(library: IllustrationAssetLibraryState): IllustrationAssetLibraryState { return validateIllustrationAssetLibraryState(JSON.parse(JSON.stringify(library))); }
 function cloneBookCoverPlan(plan: BookCoverPlan): BookCoverPlan { return clone(plan); }
+async function syncDirectoryBestEffort(directory: string): Promise<void> {
+  let handle: Awaited<ReturnType<typeof open>> | undefined;
+  try {
+    handle = await open(directory, "r");
+    await handle.sync();
+  } catch (error) {
+    if (!isUnsupportedDirectorySync(error)) throw error;
+  } finally {
+    if (handle) await handle.close().catch(() => undefined);
+  }
+}
 function isMissingFile(error: unknown): boolean { return typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "ENOENT"; }
+function isUnsupportedDirectorySync(error: unknown): boolean {
+  if (typeof error !== "object" || error === null || !("code" in error)) return false;
+  return ["EINVAL", "ENOTSUP", "EPERM", "EISDIR"].includes(String((error as { code?: string }).code ?? ""));
+}
