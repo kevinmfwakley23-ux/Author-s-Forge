@@ -3,24 +3,13 @@
 
 const { spawn } = require("node:child_process");
 const { createAccessToken, isLoopbackHost } = require("./forge-network-security");
-const { OFFICE_IDS, buildOfficeAiEnvironment } = require("./forge-office-ai-env");
+const { buildOfficeAiEnvironment, resolveOfficeSelection } = require("./forge-office-ai-env");
 
 const hostArg = process.argv.find((arg) => arg.startsWith("--host="));
 const host = hostArg ? hostArg.slice("--host=".length).trim() : (process.env.HOST || "127.0.0.1");
 if (!host) throw new Error("Forge modular launcher host cannot be blank.");
 
-const coreOnly = process.argv.includes("--core");
-const officesArg = process.argv.find((arg) => arg.startsWith("--offices="));
-const requestedAddons = coreOnly
-  ? []
-  : officesArg
-    ? officesArg.slice("--offices=".length).split(",").map((value) => value.trim().toLowerCase()).filter(Boolean)
-    : String(process.env.FORGE_ENABLED_OFFICES || "journal,workbooks,specialized,nft").split(",").map((value) => value.trim().toLowerCase()).filter(Boolean);
-
-const invalid = requestedAddons.filter((id) => id === "studio" || !OFFICE_IDS.includes(id));
-if (invalid.length) throw new Error(`Unknown or invalid Forge add-on office(s): ${invalid.join(", ")}. Choose from journal, workbooks, specialized, nft.`);
-
-const selected = ["studio", ...new Set(requestedAddons)];
+const selected = resolveOfficeSelection(process.argv.slice(2), process.env);
 const protectedLanMode = !isLoopbackHost(host);
 const configuredToken = String(process.env.FORGE_ACCESS_TOKEN || "").trim();
 if (protectedLanMode && configuredToken && configuredToken.length < 24) {
@@ -42,6 +31,7 @@ function stopAll(signal = "SIGTERM") {
 function launchOffice(officeId) {
   const env = buildOfficeAiEnvironment(process.env, officeId);
   env.HOST = host;
+  env.FORGE_ENABLED_OFFICES = selected.filter((id) => id !== "studio").join(",");
   if (protectedLanMode) env.FORGE_ACCESS_TOKEN = sharedAccessToken;
   else delete env.FORGE_ACCESS_TOKEN;
 
@@ -65,7 +55,8 @@ function launchOffice(officeId) {
 
 for (const officeId of selected) launchOffice(officeId);
 
-console.log(`[Forge Modular] Main Forge plus add-ons: ${selected.join(", ")}.`);
+console.log(`[Forge Modular] Enabled runtime offices: ${selected.join(", ")}.`);
+console.log("[Forge Modular] Main Studio is always present; add-on offices are opt-in with --offices=<list>, --offices=all, or FORGE_ENABLED_OFFICES.");
 console.log("[Forge Modular] Every office runs in a separate process with its own AI scope, broker state, routing health/cooldowns and Forge-side quota accounting.");
 console.log("[Forge Modular] Configure AI with FORGE_<OFFICE>_<PROVIDER_SETTING>; global provider credentials are not inherited unless FORGE_ALLOW_SHARED_AI_FALLBACK=true is explicitly set.");
 if (protectedLanMode) {
