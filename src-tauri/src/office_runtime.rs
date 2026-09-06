@@ -69,7 +69,10 @@ impl OfficeBrainState {
             .collect();
         Self {
             office_id: office_id.to_string(),
-            enabled: office_id == "studio",
+            // Author's Forge ships as one complete product. Every current
+            // office is attached and live by default; per-office isolation is
+            // an AI/runtime boundary, not an add-on enablement boundary.
+            enabled: true,
             runtime_instance_id: format!("{office_id}-{process_nonce}"),
             broker_instance_id: format!("broker-{office_id}-{process_nonce}"),
             credential_namespace: format!("office/{office_id}/provider"),
@@ -124,9 +127,6 @@ impl OfficeRuntimeManager {
     }
 
     fn set_enabled(&self, office_id: &str, enabled: bool) -> Result<OfficeBrainState, String> {
-        if office_id == "studio" && !enabled {
-            return Err("Main Studio is the permanent Forge core and cannot be disabled.".to_string());
-        }
         let mut offices = self
             .offices
             .lock()
@@ -134,7 +134,15 @@ impl OfficeRuntimeManager {
         let office = offices
             .get_mut(office_id)
             .ok_or_else(|| format!("Unknown Forge office: {office_id}."))?;
-        office.enabled = enabled;
+        if !enabled {
+            return Err(
+                "All current Forge offices are attached to the complete product and cannot be disabled."
+                    .to_string(),
+            );
+        }
+        // Keep the command idempotent for diagnostics/native callers without
+        // permitting the shipped product to drift back to optional offices.
+        office.enabled = true;
         Ok(office.clone())
     }
 
@@ -346,6 +354,7 @@ mod tests {
         assert_eq!(broker_ids.len(), 5);
         assert_eq!(credential_namespaces.len(), 5);
         for office in snapshot {
+            assert!(office.enabled, "{} must ship attached and enabled", office.office_id);
             assert_eq!(office.providers.len(), PROVIDERS.len());
         }
     }
@@ -395,10 +404,14 @@ mod tests {
     }
 
     #[test]
-    fn main_studio_cannot_be_disabled_but_addons_are_opt_in() {
+    fn complete_forge_attaches_every_office_and_rejects_runtime_disable() {
         let manager = OfficeRuntimeManager::new();
+        assert!(manager.snapshot().iter().all(|office| office.enabled));
         assert!(manager.set_enabled("studio", false).is_err());
+        assert!(manager.set_enabled("journal", false).is_err());
         assert!(manager.set_enabled("journal", true).unwrap().enabled);
-        assert!(manager.set_enabled("journal", false).is_ok());
+        assert!(manager.office("workbooks").unwrap().enabled);
+        assert!(manager.office("specialized").unwrap().enabled);
+        assert!(manager.office("nft").unwrap().enabled);
     }
 }
