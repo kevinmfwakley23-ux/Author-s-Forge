@@ -1,3 +1,4 @@
+mod native_provider;
 mod office_runtime;
 mod runtime;
 
@@ -23,13 +24,18 @@ pub fn run() {
             Ok(())
         })
         .manage(office_runtime::OfficeRuntimeManager::new())
+        .manage(native_provider::NativeProviderManager::new())
         .invoke_handler(tauri::generate_handler![
             runtime::native_runtime_status,
             runtime::native_offices,
             office_runtime::forge_native_runtime_snapshot,
             office_runtime::forge_native_set_office_enabled,
+            office_runtime::forge_native_set_spend_policy,
             office_runtime::forge_native_configure_provider_metadata,
             office_runtime::forge_native_record_provider_observation,
+            native_provider::forge_native_configure_provider,
+            native_provider::forge_native_remove_provider,
+            native_provider::forge_native_generate_text,
         ])
         .run(tauri::generate_context!())
         .expect("error while running K.I.N.G.S. Author's Forge native application");
