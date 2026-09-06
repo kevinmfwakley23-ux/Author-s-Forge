@@ -16,6 +16,8 @@ Current office runtime ids are:
 
 Future offices may be added, but they must follow this contract before being presented as operational.
 
+The same office-brain contract applies independently on every supported work environment, including Chromebook/Linux and standalone Android phone/tablet. See [`FORGE_PLATFORM_RUNTIME_GOSPEL.md`](FORGE_PLATFORM_RUNTIME_GOSPEL.md).
+
 ## Shared DNA, independent brains
 
 The offices share reusable K.I.N.G.S. Brain Core **code, contracts, safety rules, project-state formats and provider adapters** so fixes can propagate without copy/paste drift.
@@ -30,7 +32,7 @@ Every enabled office gets its own runtime AI boundary with independent:
 - routing health and cooldown state;
 - token/quota accounting;
 - cost/spend policy;
-- semantic/provider cache state held by that office process;
+- semantic/provider cache state held by that office runtime;
 - provider credentials/endpoints;
 - optional K.I.N.G.S. Responses endpoint;
 - failure/failover telemetry.
@@ -39,7 +41,9 @@ Project/canon state may still be shared intentionally through the Forge project 
 
 ## Office-scoped provider configuration
 
-The modular launcher translates office-prefixed settings into the canonical provider variables inside that office process only.
+### Chromebook/Linux
+
+The modular Linux launcher translates office-prefixed settings into the canonical provider variables inside that office process only.
 
 Pattern:
 
@@ -65,6 +69,14 @@ FORGE_SPECIALIZED_GEMINI_API_KEY=...
 FORGE_NFT_OPENROUTER_API_KEY=...
 ```
 
+### Android
+
+Standalone Android must provide the same logical office-scoped configuration through device-local secure settings/credential storage. It must not depend on a Chromebook environment file, a LAN Forge server, Termux, or a hosted Forge URL for normal operation.
+
+The UI may expose friendly provider setup instead of raw environment variable names, but the effective runtime model remains the same: credentials and quota/routing policy are stored and resolved for one office scope only.
+
+## Supported provider families per office
+
 Each office may independently configure the full supported provider family:
 
 - OmniRoute-compatible routing;
@@ -75,16 +87,18 @@ Each office may independently configure the full supported provider family:
 - Gemini;
 - Anthropic;
 - OpenRouter;
-- Ollama/local models;
+- Ollama/local models where the platform can actually run/reach them;
 - optional K.I.N.G.S. Responses-compatible endpoint.
 
-The same pattern applies to `*_MODELS`, `*_MODEL`, provider billing metadata, provider token quota fields and Forge `AI_*` routing/spend policy variables. For example:
+The same pattern applies to model lists, billing metadata, provider token quota fields and Forge AI routing/spend policy. For example on Linux:
 
 ```text
 FORGE_JOURNAL_AI_PROVIDER_ORDER=omniroute,9router,openai,groq,mistral,gemini,anthropic,openrouter,ollama,kings
 FORGE_JOURNAL_AI_ROUTING_MODE=quality
 FORGE_JOURNAL_AI_SPEND_POLICY=no-paid-tokens
 ```
+
+Android stores the equivalent values in that office's secure/native configuration rather than requiring shell environment variables.
 
 ## Token-limit truth boundary
 
@@ -96,17 +110,19 @@ To obtain genuinely separate provider-side allowances, the provider must supply 
 
 ## No credential leakage between offices
 
-When using `scripts/start-forge-modular.js`, global AI/provider variables are removed from office children by default. Credentials prefixed for one office are also removed from every other office child environment.
+On Chromebook/Linux, `scripts/start-forge-modular.js` removes global AI/provider variables from office children by default. Credentials prefixed for one office are also removed from every other office child environment.
 
-This prevents a journal process from silently consuming Studio's OpenAI key or quota, for example.
+On Android, the native credential store/runtime resolver must enforce the same office boundary.
 
-`FORGE_ALLOW_SHARED_AI_FALLBACK=true` is an explicit migration-only compatibility escape hatch. It is not the target architecture and must not be enabled silently.
+This prevents a journal runtime from silently consuming Studio's OpenAI key or quota, for example.
+
+`FORGE_ALLOW_SHARED_AI_FALLBACK=true` is a Linux migration-only compatibility escape hatch. It is not the target architecture and must not be enabled silently. Standalone Android must not implement implicit cross-office credential borrowing.
 
 ## Add-on selection
 
-The legacy unified launcher remains available during migration and regression testing. The modular launcher is the architecture path for private testing and future product packaging.
+The legacy unified Linux launcher remains available during migration and regression testing. The modular launcher is the architecture path for private Linux testing and future product packaging.
 
-Run Main Forge only (the normal modular default):
+Run Main Forge only:
 
 ```bash
 npm run forge:modular
@@ -136,16 +152,9 @@ Run Main Forge plus every current add-on deliberately:
 npm run forge:modular:all
 ```
 
-Private acceptance intentionally launches every office so the owner can test the complete product:
+The Main Forge is always included; specialist offices are optional add-ons.
 
-```bash
-npm run forge:private-test
-npm run forge:private-test:android
-```
-
-For normal trusted-LAN modular operation, `npm run forge:modular:android` still respects the opt-in add-on configuration instead of silently enabling every office.
-
-The Main Forge is always included by the modular launcher; specialist offices are optional add-ons.
+Standalone Android must expose the same office enablement concept in-device without needing another machine.
 
 ## Required execution path inside each office
 
@@ -174,18 +183,22 @@ PROVIDER USAGE / FAILURE EVIDENCE
 THAT OFFICE'S ROUTING TELEMETRY + AUTHOR-REVIEWABLE RESULT
 ```
 
+The execution contract is platform-neutral. Linux may realize it through Node processes; Android may realize it through native Tauri/Rust-managed state and provider transport. The behavior and author-visible truth requirements remain the same.
+
 ## Non-negotiable rules
 
 1. **One product, modular offices.** Main Forge is permanent; specialist offices are optional add-ons.
-2. **Independent live brains.** Each enabled office owns a separate provider/model/routing/quota runtime instance.
+2. **Independent live brains.** Each enabled office owns a separate provider/model/routing/quota runtime instance on each platform.
 3. **Shared knowledge only when intentional.** Project/canon/voice state may be shared to preserve continuity, but provider secrets and quota pools are not implicitly shared.
 4. **No fabricated output.** If an office has no eligible real provider/model, it fails clearly.
 5. **No silent provider borrowing.** An office may not use another office's credential because its own provider is unavailable.
 6. **Separate quota accounting.** Every office tracks its own observed/estimated usage and quota reserve.
 7. **Provider-side reality wins.** One upstream account remains one upstream account unless the provider actually supplies independent allowance.
-8. **Full provider choice.** Every office may expose OmniRoute, 9Router, OpenAI, Groq, Mistral, Gemini, Anthropic, OpenRouter, Ollama and K.I.N.G.S. Responses when genuinely configured.
+8. **Full provider choice.** Every office may expose OmniRoute, 9Router, OpenAI, Groq, Mistral, Gemini, Anthropic, OpenRouter, Ollama and K.I.N.G.S. Responses when genuinely configured and technically available on that platform.
 9. **Author authority remains separate.** A model route never grants permission to silently mutate author-owned canon/manuscript/state.
 10. **No completion by configuration alone.** Each office needs end-to-end proof through its actual UI/workflow and at least one real configured provider path before that path is called live-operational.
+11. **Platform independence is required.** Android may not rely on Chromebook/Linux or a hosted Forge runtime for normal Forge operation.
+12. **No gateway-as-standalone claim.** A native client that asks for another Forge server URL is not a complete Android Forge runtime.
 
 ## Private-testing release policy
 
@@ -193,8 +206,9 @@ Until owner acceptance is complete:
 
 - no Play Store production claim;
 - no public release claim;
-- private Linux/Chromebook bundles and debug/development-signed Android APKs are acceptable test artifacts;
-- the Android Tauri package is currently a native gateway/client for a real Forge runtime, not proof of a self-contained Android backend;
+- private Chromebook/Linux bundles are acceptable only after exact-head verification;
+- an Android APK is acceptable as a **standalone Forge private-test build only after** it owns its normal Forge runtime, local persistence and office brains on-device;
+- the current gateway-style Tauri shell is migration infrastructure only and must not be labeled as satisfying standalone Android acceptance;
 - release status must distinguish source implementation, automated verification, live-provider certification, device acceptance and production signing.
 
-The public-release gate is owner acceptance that the intended Forge workflows can actually be completed on the target private-test builds, followed by production Android signing/store work and final exact-head verification.
+The public-release gate is owner acceptance that the intended Forge workflows can actually be completed independently on the target Chromebook/Linux and standalone Android private-test builds, followed by production Android signing/store work and final exact-head verification.
