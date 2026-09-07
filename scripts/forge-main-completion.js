@@ -37,14 +37,21 @@ const groups = [
   ["Guided Journal core office", [
     "src/domain/guided-journal.ts",
     "src/domain/guided-journal-layout.ts",
+    "src/domain/guided-journal-packs.ts",
+    "src/domain/guided-journal-journey.ts",
+    "src/domain/guided-journal-personalization.ts",
     "src/application/guided-journal-office.ts",
     "src/application/guided-journal-library.ts",
     "src/application/guided-journal-prompt-import.ts",
+    "src/application/guided-journal-guided-journeys.ts",
+    "src/application/guided-journal-personalized-journeys.ts",
+    "src/application/guided-journal-journey-http.ts",
     "src/application/guided-journal-intelligence.ts",
     "src/application/guided-journal-production.ts",
     "src/application/guided-journal-workspace.ts",
     "src/infrastructure/file-guided-journal-store.ts",
     "src/infrastructure/file-guided-journal-library-store.ts",
+    "src/infrastructure/file-guided-journal-journey-store.ts",
     "src/guided-journal-server.ts",
     "public/guided-journal.html",
     "public/guided-journal.js",
@@ -52,6 +59,7 @@ const groups = [
     "public/guided-journal-royal.js",
     "public/guided-journal-royal.css",
     "test/guided-journal-prompt-import.test.js",
+    "test/guided-journal-journey.test.js",
     "test/guided-journal-core-integration.test.js",
   ]],
   ["Visual + cover", [
@@ -128,7 +136,7 @@ for (const file of [...browserHarnesses, ...mobileHarnesses]) {
 console.log("K.I.N.G.S. AUTHOR'S FORGE — CORE COMPLETION GATE");
 console.log("=".repeat(72));
 console.log("Scope: idea -> planning -> writing/editing + Guided Journal -> visual/cover -> production -> publishing/promotion");
-console.log("Guided Journal is part of Forge core. Workbooks, Specialized Creation, and NFT remain separate lanes.");
+console.log("Guided Journal, including durable personalized journeys, is part of Forge core. Workbooks, Specialized Creation, and NFT remain separate lanes.");
 
 if (missing.length) {
   console.log("Status: BLOCKED");
