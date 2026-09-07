@@ -67,6 +67,12 @@ jobs:
               'const aiEditingStudio = new AiEditingStudioService(aiProposalStore, generateText);',
               'const aiEditingStudio = new AiEditingStudioService(aiProposalStore, generateMainStudioText);'
           )
+          server_path = Path(server)
+          server_text = server_path.read_text()
+          direct_ai_calls = server_text.count('generateText({')
+          if direct_ai_calls != 3:
+              raise SystemExit(f"Expected exactly three remaining direct Studio generateText calls, found {direct_ai_calls}")
+          server_path.write_text(server_text.replace('generateText({', 'generateMainStudioText({'))
           replace_once(
               server,
               'if(url.pathname==="/api/health"&&req.method==="GET"){json(res,200,{ok:true,service:"authors-forge-studio",projectId:defaultProjectId,port,ai:{openai:Boolean(process.env.OPENAI_API_KEY&&process.env.OPENAI_MODEL),ollama:Boolean(process.env.OLLAMA_BASE_URL&&process.env.OLLAMA_MODEL),image:Boolean(process.env.OPENAI_API_KEY)}});return true;}',
