@@ -205,7 +205,7 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
   }
   const statementMatch = url.pathname.match(new RegExp(`^/api/projects/${projectId}/journal/library/cover-statements/([^/]+)$`));
   if (statementMatch && req.method === "PATCH") { const input = await body(req); json(res, 200, await library.setCoverStatementEnabled(projectId, decodeURIComponent(statementMatch[1]), input.enabled === true)); return true; }
-  if (statementMatch && req.method === "DELETE") { json(res, 200, await library.removeCoverStatement(projectId, decodeURIComponent(statementMatch[1])); return true; }
+  if (statementMatch && req.method === "DELETE") { json(res, 200, await library.removeCoverStatement(projectId, decodeURIComponent(statementMatch[1]))); return true; }
 
   if (url.pathname === `/api/projects/${projectId}/journal/random` && req.method === "POST") {
     const input = await body(req);
