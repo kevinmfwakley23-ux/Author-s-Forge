@@ -192,6 +192,9 @@ async function main() {
   let browser;
   try {
     await waitForHttp(`${base}/api/health`, studio, () => stderr);
+    const health = await jsonRequest(base, "/api/health");
+    assert.equal(health.forgeCore?.status, "ready", "Production Studio must report ready ForgeCore health when its routed model is operational.");
+    assert.ok(health.forgeCore?.aiOperationalModels >= 1, "Production Studio health must expose operational AI capacity.");
 
     await jsonRequest(base, "/api/projects", {
       method: "POST",

@@ -27,7 +27,8 @@ import { validateAiCollaborationPolicy, type AiCollaborationPolicy } from "../do
 import { validateProjectHealthReport, type ProjectHealthReport } from "../domain/project-health";
 import { validateMemoryRelationship, type MemoryRelationship } from "../domain/relationship-memory";
 import { validateDeliveryAuditReport, type DeliveryAuditReport } from "../domain/delivery-audit";
-import { mkdir, readFile, rename, writeFile, access } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { access, mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 const LEGACY_PROJECT_FORMAT_VERSION = 2 as const;
@@ -56,11 +57,9 @@ export class FileProjectStore {
     const validated = this.validate(project, project.metadata.id);
     const path = this.projectPath(validated.metadata.id);
     await mkdir(dirname(path), { recursive: true });
-    const temporaryPath = `${path}.tmp`;
     const persisted = JSON.parse(JSON.stringify(validated)) as Record<string, unknown>;
     persisted.formatVersion = PROJECT_FORMAT_VERSION;
-    await writeFile(temporaryPath, `${JSON.stringify(persisted, null, 2)}\n`, "utf8");
-    await rename(temporaryPath, path);
+    await writeFileAtomically(path, `${JSON.stringify(persisted, null, 2)}\n`);
   }
   public async exists(projectId: string): Promise<boolean> {
     try { await access(this.projectPath(projectId)); return true; }
@@ -431,4 +430,27 @@ function cloneCharacter(character: CharacterRecord): CharacterRecord { return va
 function cloneVisualIdentity(identity: VisualCharacterIdentity): VisualCharacterIdentity { return validateVisualCharacterIdentity(JSON.parse(JSON.stringify(identity))); }
 function cloneIllustrationAssetLibrary(library: IllustrationAssetLibraryState): IllustrationAssetLibraryState { return validateIllustrationAssetLibraryState(JSON.parse(JSON.stringify(library))); }
 function cloneBookCoverPlan(plan: BookCoverPlan): BookCoverPlan { return clone(plan); }
+async function writeFileAtomically(path: string, content: string): Promise<void> {
+  const directory = dirname(path);
+  const temporaryPath = `${path}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    const handle = await open(temporaryPath, "wx", 0o600);
+    try {
+      await handle.writeFile(content, "utf8");
+      await handle.sync();
+    } finally {
+      await handle.close();
+    }
+    await rename(temporaryPath, path);
+    await syncDirectory(directory);
+  } catch (error) {
+    await rm(temporaryPath, { force: true }).catch(() => undefined);
+    throw error;
+  }
+}
+async function syncDirectory(directory: string): Promise<void> {
+  if (process.platform === "win32") return;
+  const handle = await open(directory, "r");
+  try { await handle.sync(); } finally { await handle.close(); }
+}
 function isMissingFile(error: unknown): boolean { return typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "ENOENT"; }
