@@ -36,13 +36,15 @@ test("Forge Recipes client exposes no-code stages, provider/model control, durab
   assert.match(recipes, /min=\"128\" max=\"32000\"/);
 });
 
-test("native shell never mislabels WebView CORS as server-offline state", () => {
+test("native standalone boot reports embedded runtime failure instead of inventing remote CORS or offline state", () => {
   const native = read("native-shell/app.js");
+  const assembler = read("scripts/prepare-android-embedded-runtime.js");
   assert.doesNotThrow(() => new vm.Script(native, { filename: "native-shell/app.js" }));
-  assert.doesNotMatch(native, /fetch\(healthUrl/);
-  assert.match(native, /WebView CORS/);
-  assert.match(native, /window\.location\.assign\(target\.href\)/);
-  assert.match(native, /Remote Forge connections must use HTTPS/);
+  assert.doesNotMatch(native, /WebView CORS|Remote Forge connections must use HTTPS|window\.location\.assign\(target\.href\)|fetch\(healthUrl/);
+  assert.match(native, /__forgeNativeBootFailed/);
+  assert.match(assembler, /HEALTH_URL = \"http:\/\/127\.0\.0\.1:4173\/api\/health\"/);
+  assert.match(assembler, /Forge Core startup failed/);
+  assert.match(assembler, /webView\.loadUrl\(STUDIO_URL\)/);
 });
 
 test("platform contract does not falsely claim native PS5 or mandatory Termux", () => {
@@ -57,9 +59,14 @@ test("platform contract does not falsely claim native PS5 or mandatory Termux", 
   assert.match(matrix, /iPhone\/iPad/);
 });
 
-test("native gateway points localhost users at the real hosted gateway and keeps PS5 claims truthful", () => {
+test("native Android boot opens only the embedded localhost Studio while PS5 claims remain truthful", () => {
   const shell = read("native-shell/index.html");
-  assert.match(shell, /http:\/\/127\.0\.0\.1:4173/);
-  assert.doesNotMatch(shell, /http:\/\/127\.0\.0\.1:4573/);
-  assert.match(shell, /direct consumer PS5 access is not marked supported/i);
+  const assembler = read("scripts/prepare-android-embedded-runtime.js");
+  const matrix = read("docs/PLATFORM_EXECUTION_MATRIX.md");
+  assert.match(shell, /No hosted address and no Termux are required/i);
+  assert.doesNotMatch(shell, /forge\.example\.com|forge-url|Enter the Forge/i);
+  assert.match(assembler, /STUDIO_URL = \"http:\/\/127\.0\.0\.1:4173\/\"/);
+  assert.doesNotMatch(assembler, /127\.0\.0\.1:4573/);
+  assert.match(matrix, /No native PS5 package is claimed/i);
+  assert.match(matrix, /no direct consumer PS5 launch path is currently marked supported/i);
 });
