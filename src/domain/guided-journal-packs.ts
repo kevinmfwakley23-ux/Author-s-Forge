@@ -9,6 +9,7 @@ export type PromptPackSource = typeof PROMPT_PACK_SOURCES[number];
 
 export interface GuidedJournalPromptPack {
   readonly formatVersion: typeof GUIDED_JOURNAL_PROMPT_PACK_FORMAT_VERSION;
+  readonly projectId: string;
   readonly id: string;
   readonly version: number;
   readonly title: string;
@@ -23,6 +24,7 @@ export interface GuidedJournalPromptPack {
 }
 
 export interface CreateGuidedJournalPromptPackRequest {
+  readonly projectId: string;
   readonly id: string;
   readonly title: string;
   readonly description?: string;
@@ -49,6 +51,7 @@ export interface ReviseGuidedJournalPromptPackRequest {
 export function createGuidedJournalPromptPack(request: CreateGuidedJournalPromptPackRequest): GuidedJournalPromptPack {
   const now = timestamp(request.now);
   return buildPack({
+    projectId: required(request.projectId, "Project id"),
     id: required(request.id, "Prompt pack id"),
     version: 1,
     title: required(request.title, "Prompt pack title"),
@@ -68,6 +71,7 @@ export function reviseGuidedJournalPromptPack(request: ReviseGuidedJournalPrompt
   const now = timestamp(request.now);
   const promptIds = request.promptIds ?? request.previous.prompts.map((prompt) => prompt.id);
   return buildPack({
+    projectId: request.previous.projectId,
     id: request.previous.id,
     version: request.previous.version + 1,
     title: request.title === undefined ? request.previous.title : required(request.title, "Prompt pack title"),
@@ -86,7 +90,7 @@ export function resolvePromptPackOrder(pack: GuidedJournalPromptPack, seed = "de
   validateGuidedJournalPromptPack(pack);
   const ids = pack.prompts.map((prompt) => prompt.id);
   if (pack.mode === "ordered") return Object.freeze(ids);
-  return Object.freeze(deterministicShuffle(ids, `${pack.id}:v${pack.version}:${required(seed, "Prompt pack seed")}`));
+  return Object.freeze(deterministicShuffle(ids, `${pack.projectId}:${pack.id}:v${pack.version}:${required(seed, "Prompt pack seed")}`));
 }
 
 export function promptPackFingerprint(prompts: readonly JournalPrompt[]): string {
@@ -103,6 +107,7 @@ export function promptPackFingerprint(prompts: readonly JournalPrompt[]): string
 
 export function validateGuidedJournalPromptPack(pack: GuidedJournalPromptPack): void {
   if (pack.formatVersion !== GUIDED_JOURNAL_PROMPT_PACK_FORMAT_VERSION) throw new Error("Unsupported Guided Journal prompt pack version.");
+  required(pack.projectId, "Project id");
   required(pack.id, "Prompt pack id");
   required(pack.title, "Prompt pack title");
   positiveInteger(pack.version, "Prompt pack version");
@@ -116,6 +121,7 @@ export function validateGuidedJournalPromptPack(pack: GuidedJournalPromptPack): 
 }
 
 function buildPack(input: {
+  readonly projectId: string;
   readonly id: string;
   readonly version: number;
   readonly title: string;
@@ -146,6 +152,7 @@ function buildPack(input: {
 
   const pack: GuidedJournalPromptPack = Object.freeze({
     formatVersion: GUIDED_JOURNAL_PROMPT_PACK_FORMAT_VERSION,
+    projectId: required(input.projectId, "Project id"),
     id: input.id,
     version: input.version,
     title: input.title,
