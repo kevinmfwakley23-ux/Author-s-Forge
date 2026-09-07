@@ -1,0 +1,129 @@
+name: Finalize Main Studio Integrity
+
+on:
+  push:
+    branches:
+      - chief-engineer/main-studio-save-integrity
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: chief-engineer/main-studio-save-integrity
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Apply guarded production reconciliation
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"Expected exactly one match in {path}, found {count}: {old[:100]!r}")
+              p.write_text(text.replace(old, new, 1))
+
+          store = "src/infrastructure/file-project-store.ts"
+          replace_once(
+              store,
+              'import { mkdir, readFile, rename, writeFile, access } from "node:fs/promises";\nimport { dirname, join } from "node:path";',
+              'import { randomUUID } from "node:crypto";\nimport { access, mkdir, open, readFile, rename, rm } from "node:fs/promises";\nimport { dirname, join } from "node:path";'
+          )
+          replace_once(
+              store,
+              '''    const path = this.projectPath(validated.metadata.id);\n    await mkdir(dirname(path), { recursive: true });\n    const temporaryPath = `${path}.tmp`;\n    const persisted = JSON.parse(JSON.stringify(validated)) as Record<string, unknown>;\n    persisted.formatVersion = PROJECT_FORMAT_VERSION;\n    await writeFile(temporaryPath, `${JSON.stringify(persisted, null, 2)}\\n`, "utf8");\n    await rename(temporaryPath, path);''',
+              '''    const path = this.projectPath(validated.metadata.id);\n    await mkdir(dirname(path), { recursive: true });\n    const persisted = JSON.parse(JSON.stringify(validated)) as Record<string, unknown>;\n    persisted.formatVersion = PROJECT_FORMAT_VERSION;\n    await writeFileAtomically(path, `${JSON.stringify(persisted, null, 2)}\\n`);'''
+          )
+          replace_once(
+              store,
+              'function cloneBookCoverPlan(plan: BookCoverPlan): BookCoverPlan { return clone(plan); }\nfunction isMissingFile(error: unknown): boolean { return typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "ENOENT"; }',
+              '''function cloneBookCoverPlan(plan: BookCoverPlan): BookCoverPlan { return clone(plan); }\nasync function writeFileAtomically(path: string, content: string): Promise<void> {\n  const directory = dirname(path);\n  const temporaryPath = `${path}.${process.pid}.${randomUUID()}.tmp`;\n  try {\n    const handle = await open(temporaryPath, "wx", 0o600);\n    try {\n      await handle.writeFile(content, "utf8");\n      await handle.sync();\n    } finally {\n      await handle.close();\n    }\n    await rename(temporaryPath, path);\n    await syncDirectory(directory);\n  } catch (error) {\n    await rm(temporaryPath, { force: true }).catch(() => undefined);\n    throw error;\n  }\n}\nasync function syncDirectory(directory: string): Promise<void> {\n  if (process.platform === "win32") return;\n  const handle = await open(directory, "r");\n  try { await handle.sync(); } finally { await handle.close(); }\n}\nfunction isMissingFile(error: unknown): boolean { return typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "ENOENT"; }'''
+          )
+
+          server = "src/studio-server.ts"
+          replace_once(
+              server,
+              'import { FileProjectStore } from "./infrastructure/file-project-store";',
+              'import type { FileProjectStore } from "./infrastructure/file-project-store";\nimport { generateMainStudioText, getMainStudioForgeRuntime, inspectMainStudioForgeRuntime } from "./infrastructure/main-studio-ai-runtime";'
+          )
+          replace_once(server, 'import { generateText } from "./infrastructure/ai-provider";\n', '')
+          replace_once(
+              server,
+              'const store = new FileProjectStore(dataRoot);',
+              'const mainStudioRuntime = getMainStudioForgeRuntime();\nconst store = mainStudioRuntime.projectStore as FileProjectStore;'
+          )
+          replace_once(
+              server,
+              'const aiEditingStudio = new AiEditingStudioService(aiProposalStore, generateText);',
+              'const aiEditingStudio = new AiEditingStudioService(aiProposalStore, generateMainStudioText);'
+          )
+          replace_once(
+              server,
+              'if(url.pathname==="/api/health"&&req.method==="GET"){json(res,200,{ok:true,service:"authors-forge-studio",projectId:defaultProjectId,port,ai:{openai:Boolean(process.env.OPENAI_API_KEY&&process.env.OPENAI_MODEL),ollama:Boolean(process.env.OLLAMA_BASE_URL&&process.env.OLLAMA_MODEL),image:Boolean(process.env.OPENAI_API_KEY)}});return true;}',
+              'if(url.pathname==="/api/health"&&req.method==="GET"){const forgeCore=inspectMainStudioForgeRuntime();json(res,200,{ok:true,service:"authors-forge-studio",projectId:defaultProjectId,port,forgeCore,ai:{openai:Boolean(process.env.OPENAI_API_KEY&&process.env.OPENAI_MODEL),ollama:Boolean(process.env.OLLAMA_BASE_URL&&process.env.OLLAMA_MODEL),image:Boolean(process.env.OPENAI_API_KEY)}});return true;}'
+          )
+
+          browser = "scripts/studio-ai-writing-operational-browser-acceptance.js"
+          replace_once(
+              browser,
+              '    await waitForHttp(`${base}/api/health`, studio, () => stderr);\n\n    await jsonRequest(base, "/api/projects", {',
+              '    await waitForHttp(`${base}/api/health`, studio, () => stderr);\n    const health = await jsonRequest(base, "/api/health");\n    assert.equal(health.forgeCore?.status, "ready", "Production Studio must report ready ForgeCore health when its routed model is operational.");\n    assert.ok(health.forgeCore?.aiOperationalModels >= 1, "Production Studio health must expose operational AI capacity.");\n\n    await jsonRequest(base, "/api/projects", {'
+          )
+
+          Path("test/file-project-store-integrity.test.js").write_text(r'''const assert = require("node:assert/strict");
+          const { mkdtemp, readFile, readdir, rm } = require("node:fs/promises");
+          const { tmpdir } = require("node:os");
+          const { join } = require("node:path");
+          const test = require("node:test");
+          const { createProject, FileProjectStore, touchProject } = require("../.forge-build/index.js");
+
+          test("same-project concurrent saves remain valid and leave no orphan temporary files", async () => {
+            const root = await mkdtemp(join(tmpdir(), "authors-forge-save-integrity-"));
+            try {
+              const store = new FileProjectStore(root);
+              const project = createProject({ id: "concurrent-save", title: "Concurrent Save", now: "2026-09-07T00:00:00.000Z" });
+              await store.create(project);
+              const candidates = Array.from({ length: 24 }, (_, index) =>
+                touchProject(project, `2026-09-07T00:00:${String(index + 1).padStart(2, "0")}.000Z`)
+              );
+
+              await Promise.all(candidates.map((candidate) => store.save(candidate)));
+
+              const restored = await store.load(project.metadata.id);
+              assert.ok(restored, "A valid project must remain loadable after overlapping saves.");
+              assert.ok(candidates.some((candidate) => candidate.metadata.updatedAt === restored.metadata.updatedAt), "Final state must be one complete submitted save, not a torn mixture.");
+
+              const projectDir = join(root, "projects", project.metadata.id);
+              const raw = await readFile(join(projectDir, "project.json"), "utf8");
+              assert.doesNotThrow(() => JSON.parse(raw));
+              const entries = await readdir(projectDir);
+              assert.deepEqual(entries.filter((name) => name.endsWith(".tmp")), [], "Atomic save must clean every sibling temporary file.");
+            } finally {
+              await rm(root, { recursive: true, force: true });
+            }
+          });
+          ''').replace('\n          ', '\n').lstrip()
+          PY
+      - run: npm ci
+      - run: npm run build
+      - run: node --test test/file-project-store-integrity.test.js
+      - name: Commit verified reconciliation
+        shell: bash
+        run: |
+          git rm .github/workflows/main-studio-finalize.yml
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/infrastructure/file-project-store.ts src/studio-server.ts scripts/studio-ai-writing-operational-browser-acceptance.js test/file-project-store-integrity.test.js
+          git commit -m "fix: finish main Studio runtime and save integrity"
+          git push origin HEAD:chief-engineer/main-studio-save-integrity
