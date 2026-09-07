@@ -19,6 +19,17 @@ services:
         generateValue: true
       - key: KINGS_APP_ROUTER_PROVIDER_ORDER
         value: omniroute,9router
+      # At least one real upstream gateway must be configured for a fresh hosted
+      # K.I.N.G.S. router to have a routable model. Existing Render services keep
+      # any manually configured values when the Blueprint is synced.
+      - key: KINGS_OMNIROUTE_BASE_URL
+        sync: false
+      - key: KINGS_OMNIROUTE_API_KEY
+        sync: false
+      - key: KINGS_9ROUTER_BASE_URL
+        sync: false
+      - key: KINGS_9ROUTER_API_KEY
+        sync: false
 
   - type: web
     name: authors-forge
@@ -37,6 +48,8 @@ services:
         value: "1"
       - key: FORGE_SECURE_COOKIE
         value: "1"
+      - key: AI_PROVIDER_ORDER
+        value: kings,omniroute,9router,openrouter,openai
       - key: KINGS_AI_RESPONSES_URL
         fromService:
           type: pserv
@@ -53,6 +66,12 @@ services:
         value: gateway-managed
       - key: KINGS_AI_TIMEOUT_MS
         value: "65000"
+      # Direct OmniRoute is an optional fallback for Forge. It does not replace
+      # K.I.N.G.S.; the provider order above prefers the K.I.N.G.S. router first.
+      - key: OMNIROUTE_BASE_URL
+        sync: false
+      - key: OMNIROUTE_API_KEY
+        sync: false
     disk:
       name: forge-data
       mountPath: /var/data
