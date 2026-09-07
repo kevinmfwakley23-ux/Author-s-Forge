@@ -23,27 +23,30 @@ export class FileGuidedJournalJourneyStore {
   async savePack(pack: GuidedJournalPromptPack): Promise<GuidedJournalPromptPack> {
     await this.load();
     validateGuidedJournalPromptPack(pack);
-    if (this.packs.some((candidate) => candidate.id === pack.id && candidate.version === pack.version)) {
-      throw new Error(`Prompt pack "${pack.id}" version ${pack.version} already exists.`);
+    if (this.packs.some((candidate) => candidate.projectId === pack.projectId && candidate.id === pack.id && candidate.version === pack.version)) {
+      throw new Error(`Prompt pack "${pack.id}" version ${pack.version} already exists in project "${pack.projectId}".`);
     }
     this.packs.push(clone(pack));
     await this.persist();
     return clone(pack);
   }
 
-  async getPack(packId: string, version?: number): Promise<GuidedJournalPromptPack | undefined> {
+  async getPack(projectId: string, packId: string, version?: number): Promise<GuidedJournalPromptPack | undefined> {
     await this.load();
-    const matches = this.packs.filter((pack) => pack.id === required(packId, "Prompt pack id"));
+    const project = required(projectId, "Project id");
+    const id = required(packId, "Prompt pack id");
+    const matches = this.packs.filter((pack) => pack.projectId === project && pack.id === id);
     const selected = version === undefined
       ? matches.sort((a, b) => b.version - a.version)[0]
       : matches.find((pack) => pack.version === version);
     return selected ? clone(selected) : undefined;
   }
 
-  async listLatestPacks(): Promise<readonly GuidedJournalPromptPack[]> {
+  async listLatestPacks(projectId: string): Promise<readonly GuidedJournalPromptPack[]> {
     await this.load();
+    const project = required(projectId, "Project id");
     const latest = new Map<string, GuidedJournalPromptPack>();
-    for (const pack of this.packs) {
+    for (const pack of this.packs.filter((candidate) => candidate.projectId === project)) {
       const current = latest.get(pack.id);
       if (!current || pack.version > current.version) latest.set(pack.id, pack);
     }
@@ -53,14 +56,14 @@ export class FileGuidedJournalJourneyStore {
   async saveJourney(progress: GuidedJournalJourneyProgress): Promise<GuidedJournalJourneyProgress> {
     await this.load();
     validateGuidedJournalJourneyProgress(progress);
-    this.journeys.set(progress.id, clone(progress));
+    this.journeys.set(journeyKey(progress.projectId, progress.id), clone(progress));
     await this.persist();
     return clone(progress);
   }
 
-  async getJourney(journeyId: string): Promise<GuidedJournalJourneyProgress | undefined> {
+  async getJourney(projectId: string, journeyId: string): Promise<GuidedJournalJourneyProgress | undefined> {
     await this.load();
-    const current = this.journeys.get(required(journeyId, "Journey id"));
+    const current = this.journeys.get(journeyKey(projectId, journeyId));
     return current ? clone(current) : undefined;
   }
 
@@ -84,15 +87,16 @@ export class FileGuidedJournalJourneyStore {
       const packKeys = new Set<string>();
       for (const pack of parsed.packs) {
         validateGuidedJournalPromptPack(pack);
-        const key = `${pack.id}@${pack.version}`;
+        const key = `${pack.projectId}:${pack.id}@${pack.version}`;
         if (packKeys.has(key)) throw new Error(`Duplicate persisted prompt pack version "${key}".`);
         packKeys.add(key);
         this.packs.push(clone(pack));
       }
       for (const journey of parsed.journeys) {
         validateGuidedJournalJourneyProgress(journey);
-        if (this.journeys.has(journey.id)) throw new Error(`Duplicate persisted journey id "${journey.id}".`);
-        this.journeys.set(journey.id, clone(journey));
+        const key = journeyKey(journey.projectId, journey.id);
+        if (this.journeys.has(key)) throw new Error(`Duplicate persisted journey id "${journey.id}" in project "${journey.projectId}".`);
+        this.journeys.set(key, clone(journey));
       }
     } catch (error) {
       if (isMissingFile(error)) return;
@@ -105,12 +109,16 @@ export class FileGuidedJournalJourneyStore {
     const state: PersistedJourneyState = {
       formatVersion: GUIDED_JOURNAL_JOURNEY_STORE_VERSION,
       packs: this.packs.map(clone),
-      journeys: [...this.journeys.values()].sort((a, b) => a.id.localeCompare(b.id)).map(clone),
+      journeys: [...this.journeys.values()].sort((a, b) => a.projectId.localeCompare(b.projectId) || a.id.localeCompare(b.id)).map(clone),
     };
     const temporary = `${this.filePath}.${process.pid}.${Date.now()}.tmp`;
     await writeFile(temporary, `${JSON.stringify(state, null, 2)}\n`, "utf8");
     await rename(temporary, this.filePath);
   }
+}
+
+function journeyKey(projectId: string, journeyId: string): string {
+  return `${required(projectId, "Project id")}\u001f${required(journeyId, "Journey id")}`;
 }
 
 function clone<T>(value: T): T {
