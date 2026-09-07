@@ -16,30 +16,38 @@ test("royal UI shell is valid JavaScript and loaded only through the main Studio
   assert.match(pwa, /function ensureRoyalHardeningStyles\(\)\{if\(!isMainStudio\(\)/);
 });
 
-test("main Studio launcher contains only main writing-production tools and no optional offices", () => {
+test("Forge core launcher exposes Guided Journal while keeping separate offices out", () => {
   const pwa = read("public/forge-pwa.js");
-  assert.match(pwa, /Main Studio tools/);
-  for (const tool of ["Agent Workbench", "Design & Motion", "Series Engine"]) assert.match(pwa, new RegExp(tool));
-  for (const forbidden of ["open-guided-journal-office", "open-workbook-office", "open-specialized-office", "open-nft-office", "HOSTED_PORT_PATHS"]) {
-    assert.equal(pwa.includes(forbidden), false, `${forbidden} must not exist in the main Studio PWA`);
+  assert.match(pwa, /Forge core tools/);
+  for (const tool of ["Guided Journal", "Agent Workbench", "Design & Motion", "Series Engine"]) assert.match(pwa, new RegExp(tool));
+  assert.match(pwa, /open-guided-journal-office/);
+  assert.match(pwa, /open-guided-journal-dashboard/);
+  assert.match(pwa, /function journalUrl\(\)/);
+  for (const forbidden of ["open-workbook-office", "open-specialized-office", "open-nft-office", "HOSTED_PORT_PATHS"]) {
+    assert.equal(pwa.includes(forbidden), false, `${forbidden} must not exist in the Forge core PWA`);
   }
   assert.doesNotMatch(pwa, /officeUrl\(/);
 });
 
-test("optional offices cannot inherit the main white-marble royal skin", () => {
+test("Guided Journal inherits Forge core royal language while separate offices stay isolated", () => {
   const sharedOfficeCss = read("public/forge-office-royal.css");
   const sharedOfficeJs = read("public/forge-office-royal.js");
   const journalCss = read("public/guided-journal-royal.css");
   const journalJs = read("public/guided-journal-royal.js");
   const specializedCss = read("public/specialized-creation-royal.css");
-  for (const source of [sharedOfficeCss, journalCss, specializedCss]) {
+
+  for (const source of [sharedOfficeCss, specializedCss]) {
     assert.match(source, /main .*Studio|main K\.I\.N\.G\.S\. Author's Forge Studio/i);
     assert.doesNotMatch(source, /linear-gradient|radial-gradient|--office-gold|--sc-royal-gold/);
   }
-  for (const source of [sharedOfficeJs, journalJs]) {
-    assert.match(source, /Compatibility no-op/);
-    assert.doesNotMatch(source, /localStorage\.setItem\(|forge-office-theme|dataset\.forgeTheme/);
-  }
+  assert.match(sharedOfficeJs, /Compatibility no-op/);
+  assert.doesNotMatch(sharedOfficeJs, /localStorage\.setItem\(|forge-office-theme|dataset\.forgeTheme/);
+
+  assert.match(journalCss, /first-class Author's Forge core office/i);
+  assert.match(journalCss, /linear-gradient|radial-gradient/);
+  assert.match(journalJs, /forgeCoreOffice/);
+  assert.match(journalJs, /guided-journal/);
+  assert.doesNotMatch(journalJs, /Compatibility no-op/);
 });
 
 test("royal UI is part of the versioned offline shell", () => {
