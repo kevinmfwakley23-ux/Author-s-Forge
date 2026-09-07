@@ -15,7 +15,7 @@ if (!host) throw new Error("Forge launcher host cannot be blank.");
 
 const onlyArg = process.argv.find((arg) => arg.startsWith("--only="));
 const allRequested = process.argv.includes("--all") || /^(1|true|yes)$/i.test(String(process.env.FORGE_ENABLE_OPTIONAL_OFFICES || ""));
-const only = onlyArg ? onlyArg.slice("--only=".length).trim().toLowerCase() : (allRequested ? "" : "studio");
+const only = onlyArg ? onlyArg.slice("--only=".length).trim().toLowerCase() : "";
 const allServices = [
   { id: "studio", name: "Studio", entry: "dist/studio-server.js", portKey: "PORT", port: process.env.PORT || "4173" },
   { id: "journal", name: "Guided Journal", entry: "dist/guided-journal-server.js", portKey: "JOURNAL_PORT", port: process.env.JOURNAL_PORT || "4273" },
@@ -23,7 +23,10 @@ const allServices = [
   { id: "specialized", name: "Specialized Creation", entry: "dist/specialized-creation-server.js", portKey: "SPECIALIZED_PORT", port: process.env.SPECIALIZED_PORT || "4473" },
   { id: "nft", name: "NFT Creation", entry: "dist/nft-creation-server.js", portKey: "NFT_PORT", port: process.env.NFT_PORT || "4573" },
 ];
-const services = only ? allServices.filter((service) => service.id === only) : allServices;
+const coreServiceIds = new Set(["studio", "journal"]);
+const services = only
+  ? allServices.filter((service) => service.id === only)
+  : (allRequested ? allServices : allServices.filter((service) => coreServiceIds.has(service.id)));
 if (only && services.length !== 1) throw new Error(`Unknown Forge office "${only}". Use studio, journal, workbooks, specialized, nft, or --all.`);
 
 const seen = new Set();
@@ -209,7 +212,7 @@ async function main() {
       console.log(`[Forge] ${service.name}: http://${host}:${service.port}`);
     }
   }
-  if (!allRequested && !onlyArg) console.log("[Forge] Main Studio mode is active. Use --all to launch optional offices together.");
+  if (!allRequested && !onlyArg) console.log("[Forge] Core Studio mode is active: Studio + Guided Journal are attached. Use --all to launch the other optional offices too.");
 }
 
 process.on("SIGINT", () => stopAll("SIGINT"));
