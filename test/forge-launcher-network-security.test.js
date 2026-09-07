@@ -73,12 +73,12 @@ test("LAN policy uses strong tokens and strips bootstrap credentials from redire
   assert.equal(rejected.authorized, false);
 });
 
-test("forge:android launcher denies anonymous LAN access and gates all offices behind one host cookie", { timeout: 45000 }, async () => {
+test("explicit all-office Android launcher denies anonymous LAN access and gates every office behind one host cookie", { timeout: 45000 }, async () => {
   const [studioPort, journalPort, workbookPort, specializedPort, nftPort] = await uniquePorts(5);
   const root = await mkdtemp(join(tmpdir(), "authors-forge-lan-security-"));
   const accessToken = "forge-test-access-token-1234567890";
   let output = "";
-  const child = spawn(process.execPath, ["scripts/start-forge.js", "--host=0.0.0.0"], {
+  const child = spawn(process.execPath, ["scripts/start-forge.js", "--host=0.0.0.0", "--all"], {
     cwd: join(__dirname, ".."),
     env: {
       ...process.env,
