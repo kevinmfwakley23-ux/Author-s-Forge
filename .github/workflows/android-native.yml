@@ -11,8 +11,10 @@ on:
       - "scripts/build-forge.js"
       - "scripts/generate-launcher-icons.js"
       - "scripts/prepare-android-embedded-runtime.js"
+      - "scripts/finalize-android-native-runtime.js"
       - "scripts/android-node18-runtime-smoke.js"
       - "test/android-native-runtime-contract.test.js"
+      - "test/android-native-package.test.js"
       - "package.json"
       - "package-lock.json"
       - ".nvmrc"
@@ -27,8 +29,10 @@ on:
       - "scripts/build-forge.js"
       - "scripts/generate-launcher-icons.js"
       - "scripts/prepare-android-embedded-runtime.js"
+      - "scripts/finalize-android-native-runtime.js"
       - "scripts/android-node18-runtime-smoke.js"
       - "test/android-native-runtime-contract.test.js"
+      - "test/android-native-package.test.js"
       - "package.json"
       - "package-lock.json"
       - ".nvmrc"
@@ -74,6 +78,7 @@ jobs:
           npm run build
           node --check native-shell/app.js
           node --check scripts/prepare-android-embedded-runtime.js
+          node --check scripts/finalize-android-native-runtime.js
           node --check scripts/android-node18-runtime-smoke.js
           ! grep -RniE 'forge\.example\.com|id="forge-url"|Enter the HTTPS address' native-shell
           grep -q 'Opening your Forge' native-shell/index.html
@@ -133,7 +138,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             src-tauri/target
-          key: forge-android-embedded-${{ runner.os }}-${{ hashFiles('src-tauri/Cargo.toml', 'src-tauri/tauri.conf.json', 'src-tauri/tauri.android.conf.json', 'scripts/prepare-android-embedded-runtime.js') }}
+          key: forge-android-embedded-${{ runner.os }}-${{ hashFiles('src-tauri/Cargo.toml', 'src-tauri/tauri.conf.json', 'src-tauri/tauri.android.conf.json', 'scripts/prepare-android-embedded-runtime.js', 'scripts/finalize-android-native-runtime.js') }}
 
       - name: Install pinned Tauri CLI
         shell: bash
@@ -172,12 +177,16 @@ jobs:
         run: |
           set -euo pipefail
           NODEJS_MOBILE_DIR="$PWD/.android-nodejs-mobile" node scripts/prepare-android-embedded-runtime.js
+          node scripts/finalize-android-native-runtime.js
           test -f src-tauri/gen/android/app/src/main/assets/nodejs-project/main.js
           test -f src-tauri/gen/android/app/src/main/assets/nodejs-project/dist/studio-server.js
           test -f src-tauri/gen/android/app/src/main/assets/nodejs-project/public/index.html
           test -f src-tauri/gen/android/app/src/main/jniLibs/arm64-v8a/libnode.so
+          test -f src-tauri/gen/android/app/src/main/jniLibs/arm64-v8a/libc++_shared.so
           test -f src-tauri/gen/android/app/src/main/jniLibs/armeabi-v7a/libnode.so
+          test -f src-tauri/gen/android/app/src/main/jniLibs/armeabi-v7a/libc++_shared.so
           test -f src-tauri/gen/android/app/src/main/jniLibs/x86_64/libnode.so
+          test -f src-tauri/gen/android/app/src/main/jniLibs/x86_64/libc++_shared.so
           test -f src-tauri/gen/android/app/src/main/cpp/forge_node_bridge.cpp
           test -f src-tauri/gen/android/app/CMakeLists.txt
           grep -q 'One place to finish the book' src-tauri/gen/android/app/src/main/assets/nodejs-project/public/index.html
@@ -204,6 +213,7 @@ jobs:
           fi
           for apk in "${APKS[@]}"; do
             unzip -l "$apk" | grep -q 'lib/arm64-v8a/libnode.so'
+            unzip -l "$apk" | grep -q 'lib/arm64-v8a/libc++_shared.so'
             unzip -l "$apk" | grep -q 'lib/arm64-v8a/libforge_node_bridge.so'
             unzip -l "$apk" | grep -q 'assets/nodejs-project/main.js'
             unzip -l "$apk" | grep -q 'assets/nodejs-project/dist/studio-server.js'
