@@ -83,8 +83,8 @@ async function main() {
     const health = await waitForJson(`${base}/healthz`).catch((error) => {
       throw new Error(`${error.message}\nHosted gateway stderr:\n${stderr}`);
     });
-    assert.equal(health.mode, "main-studio");
-    assert.deepEqual(health.services, ["studio"]);
+    assert.equal(health.mode, "forge-core");
+    assert.deepEqual(health.services, ["studio", "journal"]);
 
     browser = await webkit.launch({ headless: true });
     const context = await browser.newContext({
@@ -98,7 +98,7 @@ async function main() {
     const page = await context.newPage();
 
     const denied = await page.goto(`${base}/`, { waitUntil: "domcontentloaded" });
-    assert.equal(denied?.status(), 401, "Hosted main Studio must require authentication on WebKit.");
+    assert.equal(denied?.status(), 401, "Hosted Forge core must require authentication on WebKit.");
     await page.locator("#token").fill(ACCESS_TOKEN);
     await Promise.all([page.waitForNavigation({ waitUntil: "networkidle" }), page.locator('button[type="submit"]').tap()]);
 
@@ -109,7 +109,7 @@ async function main() {
     assert.equal(accessCookie.sameSite, "Strict");
 
     const created = await context.request.post(`${base}/api/projects`, {
-      data: { id: PROJECT_ID, title: "Main Studio mobile acceptance" },
+      data: { id: PROJECT_ID, title: "Forge core mobile acceptance" },
       headers: { accept: "application/json" },
     });
     assert.equal(created.ok(), true, `Project creation failed: ${created.status()} ${await created.text()}`);
@@ -124,22 +124,23 @@ async function main() {
       launcherText: document.getElementById("forge-studio-tool-launcher")?.textContent || "",
       royalLoaded: Boolean(document.querySelector('script[data-forge-extension="royal-ui"]')),
       royalHardeningLoaded: Boolean(document.querySelector('link[data-forge-royal-hardening]')),
-      optionalLinks: [
+      coreAndOfficeLinks: [
         "open-guided-journal-office",
         "open-workbook-office",
         "open-specialized-office",
         "open-nft-office",
       ].filter((id) => document.getElementById(id)),
     }));
-    assert.match(studioUi.launcherText, /Main Studio tools/);
+    assert.match(studioUi.launcherText, /Forge core tools/);
+    assert.match(studioUi.launcherText, /Guided Journal/);
     assert.match(studioUi.launcherText, /Agent Workbench/);
     assert.match(studioUi.launcherText, /Design & Motion/);
     assert.match(studioUi.launcherText, /Series Engine/);
-    assert.equal(studioUi.royalLoaded, true, "Mobile main Studio must load the royal white-marble UI extension.");
-    assert.equal(studioUi.royalHardeningLoaded, true, "Mobile main Studio must load the royal white-marble hardening stylesheet.");
-    assert.deepEqual(studioUi.optionalLinks, [], "Optional offices must not appear in the mobile main Studio royal launcher.");
+    assert.equal(studioUi.royalLoaded, true, "Mobile Studio must load the royal white-marble UI extension.");
+    assert.equal(studioUi.royalHardeningLoaded, true, "Mobile Studio must load the royal white-marble hardening stylesheet.");
+    assert.deepEqual(studioUi.coreAndOfficeLinks, ["open-guided-journal-office"], "Mobile Forge core must expose Journal but not separate offices.");
 
-    await noHorizontalOverflow(page, "Hosted main Studio");
+    await noHorizontalOverflow(page, "Hosted Forge core Studio");
 
     const loaded = await page.evaluate(async (id) => {
       const response = await fetch(`/api/projects/${encodeURIComponent(id)}`, { headers: { accept: "application/json" } });
@@ -148,10 +149,12 @@ async function main() {
     assert.equal(loaded.ok, true);
     assert.equal(loaded.payload?.metadata?.id, PROJECT_ID);
 
-    const optional = await context.request.get(`${base}/specialized/?project=${encodeURIComponent(PROJECT_ID)}`);
-    assert.equal(optional.status(), 404);
+    const journal = await context.request.get(`${base}/journal/?project=${encodeURIComponent(PROJECT_ID)}`);
+    assert.equal(journal.ok(), true, "Guided Journal must be attached in mobile Forge core mode.");
+    const separate = await context.request.get(`${base}/specialized/?project=${encodeURIComponent(PROJECT_ID)}`);
+    assert.equal(separate.status(), 404);
     const mainHealth = await context.request.get(`${base}/api/health`);
-    assert.equal(mainHealth.ok(), true, "Optional-office isolation must not interrupt the main Studio on WebKit.");
+    assert.equal(mainHealth.ok(), true, "Separate-office isolation must not interrupt Forge core on WebKit.");
 
     const controls = page.locator("button, a, input, select, textarea");
     const count = Math.min(await controls.count(), 40);
@@ -162,10 +165,10 @@ async function main() {
       const box = await element.boundingBox();
       if (box && box.width >= 40 && box.height >= 40) usableTargets += 1;
     }
-    assert.ok(usableTargets >= 3, "Main Studio must expose touch-usable controls on iPhone-sized WebKit.");
+    assert.ok(usableTargets >= 3, "Forge core must expose touch-usable controls on iPhone-sized WebKit.");
 
     await context.close();
-    console.log("HOSTED MAIN WEBKIT ACCEPTANCE PASSED: authenticated iPhone-sized Studio, royal white-marble UI isolated to main Studio, durable project API, touch usability, no horizontal overflow, and optional-office isolation.");
+    console.log("HOSTED FORGE CORE WEBKIT ACCEPTANCE PASSED: authenticated Studio + Guided Journal, touch usability, no horizontal overflow, and separate-office isolation.");
   } finally {
     if (browser) await browser.close().catch(() => {});
     await stop(launcher).catch(() => {});
