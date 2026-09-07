@@ -4,7 +4,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Author's Forge",
+        "title": "K.I.N.G.S. Author's Forge",
         "width": 412,
         "height": 915,
         "minWidth": 320,
@@ -14,7 +14,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https:; navigate-to https:"
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http://127.0.0.1:4173; navigate-to http://127.0.0.1:4173"
     }
   },
   "bundle": {
