@@ -34,6 +34,21 @@ const groups = [
     "src/domain/author-control.ts",
     "src/domain/ai-collaboration.ts",
   ]],
+  ["Guided Journal core office", [
+    "src/domain/guided-journal.ts",
+    "src/domain/guided-journal-layout.ts",
+    "src/application/guided-journal-office.ts",
+    "src/application/guided-journal-library.ts",
+    "src/application/guided-journal-intelligence.ts",
+    "src/application/guided-journal-production.ts",
+    "src/application/guided-journal-workspace.ts",
+    "src/infrastructure/file-guided-journal-store.ts",
+    "src/infrastructure/file-guided-journal-library-store.ts",
+    "src/guided-journal-server.ts",
+    "public/guided-journal.html",
+    "public/guided-journal.js",
+    "public/guided-journal.css",
+  ]],
   ["Visual + cover", [
     "src/application/studio-image-lab.ts",
     "src/infrastructure/image-provider.ts",
@@ -52,12 +67,14 @@ const groups = [
     "src/domain/promotion-readiness.ts",
     "src/domain/promotion-performance.ts",
   ]],
-  ["Integrated Studio runtime", [
+  ["Integrated Forge core runtime", [
     "src/studio-server.ts",
+    "src/guided-journal-server.ts",
     "scripts/start-forge.js",
     "scripts/start-forge-web.js",
     "public/index.html",
     "public/app.js",
+    "public/guided-journal.html",
   ]],
 ];
 
@@ -86,6 +103,7 @@ const browserHarnesses = [
   "scripts/studio-publishing-promotion-browser-acceptance.js",
   "scripts/studio-promotion-performance-browser-acceptance.js",
   "scripts/hosted-main-studio-browser-acceptance.js",
+  "scripts/guided-journal-browser-acceptance.js",
 ];
 const mobileHarnesses = [
   "scripts/run-studio-mobile-acceptance.js",
@@ -102,10 +120,10 @@ for (const file of [...browserHarnesses, ...mobileHarnesses]) {
   if (!existsSync(join(root, file))) missing.push({ name: "Acceptance evidence", files: [file] });
 }
 
-console.log("K.I.N.G.S. AUTHOR'S FORGE — MAIN STUDIO COMPLETION GATE");
+console.log("K.I.N.G.S. AUTHOR'S FORGE — CORE COMPLETION GATE");
 console.log("=".repeat(72));
-console.log("Scope: idea -> planning -> writing -> editing -> visual/cover -> production -> publishing/promotion");
-console.log("Optional offices (Guided Journals, Workbooks, Specialized Creation, NFT) are deliberately excluded.");
+console.log("Scope: idea -> planning -> writing/editing + Guided Journal -> visual/cover -> production -> publishing/promotion");
+console.log("Guided Journal is part of Forge core. Workbooks, Specialized Creation, and NFT remain separate lanes.");
 
 if (missing.length) {
   console.log("Status: BLOCKED");
