@@ -1,7 +1,8 @@
 import { AiWritingService, type AiWritingCandidateAssessor, type AiWritingRequest, type AiWritingResult } from "./ai-writing";
 import type { AiProposal, AiProposalStore, ProposalReviewDecision } from "./ai-proposal-store";
 import { FileAiProposalStore } from "../infrastructure/file-ai-proposal-store";
-import { generateText, type AiGenerationResult } from "../infrastructure/ai-provider";
+import type { AiGenerationResult } from "../infrastructure/ai-provider";
+import { generateMainStudioText } from "../infrastructure/main-studio-ai-runtime";
 import { aiMissionRoutingGenerationFields } from "./ai-mission-routing";
 import { createHash } from "node:crypto";
 
@@ -18,7 +19,7 @@ export type AiWritingGenerator = (request: {
 export class AiWritingCoordinator {
   private readonly generator: AiWritingGenerator;
 
-  constructor(private readonly durableStore: FileAiProposalStore, generator: AiWritingGenerator = generateText) {
+  constructor(private readonly durableStore: FileAiProposalStore, generator: AiWritingGenerator = generateMainStudioText) {
     this.generator = generator;
   }
 
