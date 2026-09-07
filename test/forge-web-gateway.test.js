@@ -119,12 +119,12 @@ test("access bootstrap can issue a Secure cookie behind HTTPS", () => {
   assert.match(result.setCookie, /Secure/);
 });
 
-test("hosted Forge gateway performs real login and serves Studio plus prefixed offices", { timeout: 45000 }, async (t) => {
+test("explicit all-office hosted Forge gateway performs real login and serves Studio plus prefixed offices", { timeout: 45000 }, async (t) => {
   const dataDir = await mkdtemp(join(tmpdir(), "authors-forge-web-"));
   const port = await reservePort();
   const token = "forge-web-integration-token-1234567890";
   const base = `http://127.0.0.1:${port}`;
-  const child = spawn(process.execPath, ["scripts/start-forge-web.js"], {
+  const child = spawn(process.execPath, ["scripts/start-forge-web.js", "--all"], {
     env: {
       ...process.env,
       FORGE_WEB_HOST: "127.0.0.1",
