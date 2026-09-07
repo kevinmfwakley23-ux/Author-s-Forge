@@ -77,8 +77,8 @@ async function main() {
       throw new Error(`${error.message}\nHosted gateway stderr:\n${stderr}`);
     });
     assert.equal(health.ok, true);
-    assert.equal(health.mode, "main-studio");
-    assert.deepEqual(health.services, ["studio"]);
+    assert.equal(health.mode, "forge-core");
+    assert.deepEqual(health.services, ["studio", "journal"]);
 
     browser = await chromium.launch({
       executablePath: process.env.FORGE_BROWSER_EXECUTABLE || chromium.executablePath(),
@@ -89,7 +89,7 @@ async function main() {
     const page = await context.newPage();
 
     const denied = await page.goto(`${base}/`, { waitUntil: "domcontentloaded" });
-    assert.equal(denied?.status(), 401, "Hosted main Studio must require owner authentication.");
+    assert.equal(denied?.status(), 401, "Hosted Forge core must require owner authentication.");
     await page.locator("#token").fill(ACCESS_TOKEN);
     await Promise.all([page.waitForURL(`${base}/`), page.locator('button[type="submit"]').click()]);
 
@@ -97,7 +97,7 @@ async function main() {
       const response = await fetch("/api/projects", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ id, title: "Main Studio hosted acceptance" }),
+        body: JSON.stringify({ id, title: "Forge core hosted acceptance" }),
       });
       return { ok: response.ok, status: response.status, body: await response.text() };
     }, PROJECT_ID);
@@ -113,20 +113,23 @@ async function main() {
       launcherText: document.getElementById("forge-studio-tool-launcher")?.textContent || "",
       royalLoaded: Boolean(document.querySelector('script[data-forge-extension="royal-ui"]')),
       royalHardeningLoaded: Boolean(document.querySelector('link[data-forge-royal-hardening]')),
-      optionalLinks: [
+      coreAndOfficeLinks: [
         "open-guided-journal-office",
         "open-workbook-office",
         "open-specialized-office",
         "open-nft-office",
       ].filter((id) => document.getElementById(id)),
+      journalHref: document.getElementById("open-guided-journal-office")?.getAttribute("href") || "",
     }));
-    assert.match(studioUi.launcherText, /Main Studio tools/);
+    assert.match(studioUi.launcherText, /Forge core tools/);
+    assert.match(studioUi.launcherText, /Guided Journal/);
     assert.match(studioUi.launcherText, /Agent Workbench/);
     assert.match(studioUi.launcherText, /Design & Motion/);
     assert.match(studioUi.launcherText, /Series Engine/);
     assert.equal(studioUi.royalLoaded, true, "Main Studio must load the royal white-marble UI extension.");
     assert.equal(studioUi.royalHardeningLoaded, true, "Main Studio must load the royal white-marble hardening stylesheet.");
-    assert.deepEqual(studioUi.optionalLinks, [], "Optional offices must not appear in the main Studio royal launcher.");
+    assert.deepEqual(studioUi.coreAndOfficeLinks, ["open-guided-journal-office"], "Guided Journal must be visible while separate offices stay out of Forge core mode.");
+    assert.equal(new URL(studioUi.journalHref, base).pathname, "/journal/");
 
     const loaded = await page.evaluate(async (id) => {
       const response = await fetch(`/api/projects/${encodeURIComponent(id)}`, { headers: { accept: "application/json" } });
@@ -135,16 +138,19 @@ async function main() {
     assert.equal(loaded.ok, true);
     assert.equal(loaded.payload?.metadata?.id, PROJECT_ID);
 
-    const optional = await context.request.get(`${base}/journal/?project=${encodeURIComponent(PROJECT_ID)}`);
-    assert.equal(optional.status(), 404, "An isolated optional office must not be silently launched by main Studio mode.");
-    const afterOptional = await context.request.get(`${base}/api/projects/${encodeURIComponent(PROJECT_ID)}`);
-    assert.equal(afterOptional.ok(), true, "Requesting an isolated optional office must not take the main Studio down.");
+    const journal = await context.request.get(`${base}/journal/?project=${encodeURIComponent(PROJECT_ID)}`);
+    assert.equal(journal.ok(), true, "Guided Journal must be attached to the hosted Forge core.");
+    assert.match(await journal.text(), /Guided Journal Office/i);
+    const separate = await context.request.get(`${base}/specialized/?project=${encodeURIComponent(PROJECT_ID)}`);
+    assert.equal(separate.status(), 404, "Separate optional offices must still require all-office mode.");
+    const afterJournal = await context.request.get(`${base}/api/projects/${encodeURIComponent(PROJECT_ID)}`);
+    assert.equal(afterJournal.ok(), true, "Using the attached Journal must not interrupt the Studio project API.");
 
     const overflow = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, body: document.body.scrollWidth, doc: document.documentElement.scrollWidth }));
-    assert.ok(overflow.body <= overflow.viewport + 1 && overflow.doc <= overflow.viewport + 1, `Hosted main Studio overflows viewport: ${JSON.stringify(overflow)}`);
+    assert.ok(overflow.body <= overflow.viewport + 1 && overflow.doc <= overflow.viewport + 1, `Hosted Forge core Studio overflows viewport: ${JSON.stringify(overflow)}`);
 
     await context.close();
-    console.log("HOSTED MAIN STUDIO ACCEPTANCE PASSED: authenticated single-service Studio, royal white-marble UI isolated to main Studio, durable project API, restricted-console layout, and optional-office isolation.");
+    console.log("HOSTED FORGE CORE ACCEPTANCE PASSED: authenticated Studio + Guided Journal, shared project route, royal UI, restricted-console layout, and separate-office isolation.");
   } finally {
     if (browser) await browser.close().catch(() => {});
     await stop(launcher).catch(() => {});
