@@ -41,7 +41,10 @@ const allServiceDefinitions = [
   { id: "specialized", name: "Specialized Creation", entry: "dist/specialized-creation-server.js", portKey: "SPECIALIZED_PORT" },
   { id: "nft", name: "NFT Creation", entry: "dist/nft-creation-server.js", portKey: "NFT_PORT" },
 ];
-const serviceDefinitions = allRequested ? allServiceDefinitions : allServiceDefinitions.filter((service) => service.id === "studio");
+const coreServiceIds = new Set(["studio", "journal"]);
+const serviceDefinitions = allRequested
+  ? allServiceDefinitions
+  : allServiceDefinitions.filter((service) => coreServiceIds.has(service.id));
 
 const children = [];
 const internalPorts = new Map();
@@ -233,7 +236,7 @@ function proxyRequest(req, res, route) {
   const port = internalPorts.get(route.serviceId);
   if (!port) {
     res.writeHead(404, { ...commonHeaders(req), "cache-control": "no-store", "content-type": "application/json; charset=utf-8" });
-    res.end(JSON.stringify({ error: `Optional Forge office "${route.serviceId}" is not enabled in main Studio mode. Launch with --all to enable optional offices.` }));
+    res.end(JSON.stringify({ error: `Forge office "${route.serviceId}" is not enabled in this runtime. Launch with --all to enable the remaining optional offices.` }));
     return;
   }
   const headers = { ...req.headers };
@@ -311,7 +314,7 @@ async function handleRequest(req, res) {
   const parsed = new URL(req.url || "/", "http://forge.local");
   if (parsed.pathname === "/healthz") {
     res.writeHead(200, { ...commonHeaders(req), "cache-control": "no-store", "content-type": "application/json; charset=utf-8" });
-    res.end(JSON.stringify({ ok: true, mode: allRequested ? "all-offices" : "main-studio", services: serviceDefinitions.map((service) => service.id) }));
+    res.end(JSON.stringify({ ok: true, mode: allRequested ? "all-offices" : "forge-core", services: serviceDefinitions.map((service) => service.id) }));
     return;
   }
 
@@ -380,7 +383,7 @@ async function main() {
   gateway.listen(publicPort, publicHost, () => {
     console.log(`[Forge Web] Author's Forge is listening on ${publicHost}:${publicPort}`);
     if (allRequested) console.log("[Forge Web] All-office mode is active: Studio /, Guided Journal /journal/, Workbooks /workbooks/, Specialized Creation /specialized/, and NFT routes are enabled.");
-    else console.log("[Forge Web] Main Studio mode is active. Optional offices are isolated; launch with --all to enable them together.");
+    else console.log("[Forge Web] Core mode is active: Studio / and Guided Journal /journal/ are attached. Use --all to enable the remaining optional offices.");
     console.log("[Forge Web] Persistent state directory:", process.env.FORGE_DATA_DIR || join(process.cwd(), ".forge-data"));
     if (isLoopbackHost(publicHost) && !configuredToken) console.log(`[Forge Web] Local bootstrap: http://${publicHost}:${publicPort}/?access=${encodeURIComponent(accessToken)}`);
     else console.log("[Forge Web] Open the hosted URL and enter the configured FORGE_ACCESS_TOKEN once per browser session.");
