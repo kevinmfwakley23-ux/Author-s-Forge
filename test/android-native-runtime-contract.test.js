@@ -24,10 +24,12 @@ test("Android native shell opens the real embedded Forge instead of requesting a
 test("Android build assembles a private embedded Node Forge runtime and verifies APK payload", () => {
   const workflow = read(".github/workflows/android-native.yml");
   const prepare = read("scripts/prepare-android-embedded-runtime.js");
+  const finalize = read("scripts/finalize-android-native-runtime.js");
   const androidConfig = read("src-tauri/tauri.android.conf.json");
 
   assert.match(workflow, /NODEJS_MOBILE_VERSION: "18\.20\.4"/);
   assert.match(workflow, /prepare-android-embedded-runtime\.js/);
+  assert.match(workflow, /finalize-android-native-runtime\.js/);
   assert.match(workflow, /android-node18-runtime-smoke\.js/);
   assert.match(workflow, /--target aarch64/);
   assert.match(workflow, /--target armv7/);
@@ -46,6 +48,10 @@ test("Android build assembles a private embedded Node Forge runtime and verifies
   assert.match(prepare, /http:\/\/127\.0\.0\.1:4173\/api\/health/);
   assert.match(prepare, /FORGE_DATA_DIR/);
   assert.match(prepare, /forge_network_security_config/);
+
+  assert.match(finalize, /JSONObject\.quote/);
+  assert.match(finalize, /window\.__forgeNativeBootFailed\(\$safe\)/);
+  assert.match(finalize, /safe Tauri\/Forge startup order/);
 
   assert.match(androidConfig, /http:\/\/127\.0\.0\.1:4173/);
   assert.doesNotMatch(androidConfig, /navigate-to https:/);

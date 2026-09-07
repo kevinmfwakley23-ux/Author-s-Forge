@@ -40,10 +40,41 @@ const mainActivities = walk(path.join(androidApp, "src", "main", "java"), (_abso
 if (mainActivities.length !== 1) fail(`Expected exactly one MainActivity.kt; found ${mainActivities.length}.`);
 const mainActivity = mainActivities[0];
 let kotlin = fs.readFileSync(mainActivity, "utf8");
+
 const unsafeOrder = `    override fun onCreate(savedInstanceState: Bundle?) {\n        startEmbeddedForge()\n        super.onCreate(savedInstanceState)\n    }`;
 const safeOrder = `    override fun onCreate(savedInstanceState: Bundle?) {\n        super.onCreate(savedInstanceState)\n        startEmbeddedForge()\n    }`;
 if (kotlin.includes(unsafeOrder)) kotlin = kotlin.replace(unsafeOrder, safeOrder);
 if (!kotlin.includes(safeOrder)) fail("MainActivity does not contain the expected safe Tauri/Forge startup order.");
+
+// The generator previously emitted a hand-escaped Kotlin expression here. After
+// JavaScript template processing it could become invalid Kotlin and fail the APK
+// at compileUniversalDebugKotlin. Quote the complete error message as JSON instead;
+// JSONObject.quote is valid Kotlin/Android code and safely handles quotes, slashes,
+// newlines and other characters before the value enters evaluateJavascript.
+const unsafeEscapeLines = kotlin.match(/^\s*val safe = lastError\.replace\(.*$/gm) ?? [];
+if (unsafeEscapeLines.length > 1) fail(`Expected at most one legacy WebView error-escape line; found ${unsafeEscapeLines.length}.`);
+if (unsafeEscapeLines.length === 1) {
+  const importAnchor = "import java.net.URL\n";
+  if (!kotlin.includes("import org.json.JSONObject\n")) {
+    if (!kotlin.includes(importAnchor)) fail("MainActivity is missing the java.net.URL import anchor required for JSON quoting.");
+    kotlin = kotlin.replace(importAnchor, `${importAnchor}import org.json.JSONObject\n`);
+  }
+  kotlin = kotlin.replace(
+    unsafeEscapeLines[0],
+    '            val safe = JSONObject.quote("Forge Core startup failed: $lastError")',
+  );
+  kotlin = kotlin.replace(
+    /^\s*webView\.evaluateJavascript\("window\.__forgeNativeBootFailed && window\.__forgeNativeBootFailed\('Forge Core startup failed: \$safe'\);", null\)\s*$/m,
+    '                webView.evaluateJavascript("window.__forgeNativeBootFailed && window.__forgeNativeBootFailed($safe);", null)',
+  );
+}
+if (!kotlin.includes('val safe = JSONObject.quote("Forge Core startup failed: $lastError")')) {
+  fail("MainActivity does not contain the safe JSON-quoted native boot error bridge.");
+}
+if (!kotlin.includes('window.__forgeNativeBootFailed($safe);')) {
+  fail("MainActivity does not pass the JSON-quoted startup error to the WebView.");
+}
+
 fs.writeFileSync(mainActivity, kotlin);
 
 for (const abi of Object.keys(abiTriples)) {
@@ -53,4 +84,4 @@ for (const abi of Object.keys(abiTriples)) {
   }
 }
 
-console.log("[Forge Android native finalize] Shared C++ runtime and safe Activity startup are locked for arm64-v8a, armeabi-v7a, and x86_64.");
+console.log("[Forge Android native finalize] Shared C++ runtime, safe Activity startup, and JSON-safe WebView boot errors are locked for arm64-v8a, armeabi-v7a, and x86_64.");
