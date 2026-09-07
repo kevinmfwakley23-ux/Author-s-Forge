@@ -5,13 +5,40 @@ const vm = require("node:vm");
 
 const read = (path) => readFileSync(path, "utf8");
 
-test("royal UI shell is valid JavaScript and loaded by the Studio PWA", () => {
+test("royal UI shell is valid JavaScript and loaded only through the main Studio extension gate", () => {
   const ui = read("public/forge-royal-ui.js");
   const pwa = read("public/forge-pwa.js");
   assert.doesNotThrow(() => new vm.Script(ui, { filename: "forge-royal-ui.js" }));
   assert.doesNotThrow(() => new vm.Script(pwa, { filename: "forge-pwa.js" }));
+  assert.match(pwa, /function isMainStudio\(\)\{return Boolean\(document\.getElementById\("dashboard"\)\);\}/);
+  assert.match(pwa, /function ensureStudioExtensions\(\)\{if\(!isMainStudio\(\)\)return;/);
   assert.match(pwa, /loadExtension\("royal-ui","\/forge-royal-ui\.js"\)/);
-  assert.match(pwa, /forge-royal-hardening\.css/);
+  assert.match(pwa, /function ensureRoyalHardeningStyles\(\)\{if\(!isMainStudio\(\)/);
+});
+
+test("main Studio launcher contains only main writing-production tools and no optional offices", () => {
+  const pwa = read("public/forge-pwa.js");
+  assert.match(pwa, /Main Studio tools/);
+  for (const tool of ["Agent Workbench", "Design & Motion", "Series Engine"]) assert.match(pwa, new RegExp(tool));
+  for (const forbidden of ["open-guided-journal-office", "open-workbook-office", "open-specialized-office", "open-nft-office", "HOSTED_PORT_PATHS", "officeUrl\("]) {
+    assert.doesNotMatch(pwa, new RegExp(forbidden));
+  }
+});
+
+test("optional offices cannot inherit the main white-marble royal skin", () => {
+  const sharedOfficeCss = read("public/forge-office-royal.css");
+  const sharedOfficeJs = read("public/forge-office-royal.js");
+  const journalCss = read("public/guided-journal-royal.css");
+  const journalJs = read("public/guided-journal-royal.js");
+  const specializedCss = read("public/specialized-creation-royal.css");
+  for (const source of [sharedOfficeCss, journalCss, specializedCss]) {
+    assert.match(source, /main .*Studio|main K\.I\.N\.G\.S\. Author's Forge Studio/i);
+    assert.doesNotMatch(source, /linear-gradient|radial-gradient|--office-gold|--sc-royal-gold/);
+  }
+  for (const source of [sharedOfficeJs, journalJs]) {
+    assert.match(source, /Compatibility no-op/);
+    assert.doesNotMatch(source, /localStorage\.setItem\(|forge-office-theme|dataset\.forgeTheme/);
+  }
 });
 
 test("royal UI is part of the versioned offline shell", () => {
@@ -22,7 +49,7 @@ test("royal UI is part of the versioned offline shell", () => {
   assert.match(worker, /url\.pathname\.startsWith\("\/api\/"\)/);
 });
 
-test("royal UI supports persistent light and dark themes across Studio and Series Engine", () => {
+test("royal UI supports persistent light and dark themes inside main Studio", () => {
   const ui = read("public/forge-royal-ui.js");
   const pwa = read("public/forge-pwa.js");
   const css = read("public/styles.css");
@@ -96,6 +123,8 @@ test("royal text and primary actions use high-contrast hardening tokens", () => 
   assert.match(hardening, /--forge-faint:#b8aa95/);
   assert.match(hardening, /--forge-gold-deep:#d5b06c/);
   assert.match(hardening, /color:#1b140b!important/);
+  assert.match(hardening, /forge-studio-tool-link/);
+  assert.doesNotMatch(hardening, /forge-office-link/);
 });
 
 test("K.I.N.G.S. Author's Forge branding and family brain gospel cannot silently drift", () => {
