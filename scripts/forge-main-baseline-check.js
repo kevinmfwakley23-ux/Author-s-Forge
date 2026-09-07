@@ -36,6 +36,7 @@ const required = [
   "dist/public/app.js",
   "dist/public/guided-journal.html",
   "dist/public/guided-journal.js",
+  "dist/public/guided-journal-journeys.js",
   "dist/public/guided-journal.css",
   "dist/public/guided-journal-royal.js",
   "dist/public/guided-journal-royal.css",
