@@ -77,12 +77,12 @@ const browserHarnesses = [
   "scripts/studio-knowledge-gap-browser-acceptance.js",
   "scripts/studio-publishing-promotion-browser-acceptance.js",
   "scripts/studio-promotion-performance-browser-acceptance.js",
-  "scripts/hosted-device-browser-acceptance.js",
+  "scripts/hosted-main-studio-browser-acceptance.js",
 ];
 const mobileHarnesses = [
   "scripts/run-studio-mobile-acceptance.js",
   "scripts/android-install-browser-acceptance.js",
-  "scripts/hosted-webkit-mobile-acceptance.js",
+  "scripts/hosted-main-webkit-mobile-acceptance.js",
 ];
 
 const missing = [];
