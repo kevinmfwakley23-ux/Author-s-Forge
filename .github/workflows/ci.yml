@@ -1,4 +1,4 @@
-name: Forge CI
+name: Forge Main Studio CI
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  verify:
+  verify-main-studio:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -21,21 +21,14 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run runtime:check
-      - run: npm run build
+      - run: npm run test:main
       - run: npm run baseline
-      - run: npm test
       - run: npm run completion
       - run: node --check public/app.js
       - run: node --check public/forge-command-center.js
       - run: node --check public/forge-workbench.js
       - run: node --check public/forge-agent-v3.js
       - run: node --check public/forge-agent-routing.js
-      - run: node --check public/forge-media-studio.js
-      - run: node --check public/nft-creation.js
-      - run: node --check public/nft-author-artwork-ui.js
-      - run: node --check public/nft-production-director.js
-      - run: node --check public/forge-office-royal.js
-      - run: node --check public/guided-journal-royal.js
       - run: node --check public/forge-ai-proposals.js
       - run: node --check public/forge-editing-proposals.js
       - run: node --check public/forge-story-map.js
@@ -54,8 +47,6 @@ jobs:
       - run: node --check public/forge-reviewer.js
       - run: node --check public/forge-provenance.js
       - run: node --check public/forge-brand-studio.js
-      - run: node --check public/specialized-creation-api-state-sync.js
-      - run: node --check public/specialized-brand-kit.js
       - run: node --check public/forge-kdp-preflight.js
       - run: node --check public/forge-publishing-promotion.js
       - run: node --check public/forge-promotion-performance.js
@@ -73,15 +64,14 @@ jobs:
       - run: node --check scripts/forge-sandbox.js
       - run: node --check scripts/forge-codespaces.js
       - run: node --check scripts/forge-ssh.js
-      - run: node --check scripts/forge-offices-browser-acceptance.js
-      - run: node --check scripts/hosted-device-browser-acceptance.js
-      - run: node --check scripts/hosted-webkit-mobile-acceptance.js
+      - run: node --check scripts/run-main-tests.js
+      - run: node --check scripts/forge-main-baseline-check.js
+      - run: node --check scripts/forge-main-completion.js
+      - run: node --check scripts/hosted-main-studio-browser-acceptance.js
+      - run: node --check scripts/hosted-main-webkit-mobile-acceptance.js
       - run: node --check scripts/studio-agent-planner-api-acceptance.js
       - run: node --check scripts/studio-agent-routing-browser-acceptance.js
       - run: node --check scripts/studio-agent-workbench-browser-acceptance.js
-      - run: node --check scripts/studio-media-studio-browser-acceptance.js
-      - run: node --check scripts/nft-creation-browser-acceptance.js
-      - run: node --check scripts/nft-production-director-browser-acceptance.js
       - run: node --check scripts/studio-architecture-browser-acceptance.js
       - run: node --check scripts/studio-brand-kit-browser-acceptance.js
       - run: node --check scripts/studio-scene-card-browser-acceptance.js
@@ -92,10 +82,10 @@ jobs:
       - run: node --check scripts/studio-author-craft-browser-acceptance.js
       - run: bash -n scripts/termux-forge.sh
 
-  browser-acceptance:
+  browser-acceptance-main-studio:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: verify
+    needs: verify-main-studio
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
