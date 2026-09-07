@@ -25,17 +25,17 @@ export class GuidedJournalJourneyService {
     return this.store.savePack(createGuidedJournalPromptPack(request));
   }
 
-  async revisePack(request: Omit<ReviseGuidedJournalPromptPackRequest, "previous"> & { readonly packId: string }): Promise<GuidedJournalPromptPack> {
-    const previous = await this.requirePack(request.packId);
+  async revisePack(request: Omit<ReviseGuidedJournalPromptPackRequest, "previous"> & { readonly projectId: string; readonly packId: string }): Promise<GuidedJournalPromptPack> {
+    const previous = await this.requirePack(request.projectId, request.packId);
     return this.store.savePack(reviseGuidedJournalPromptPack({ ...request, previous }));
   }
 
-  async getPack(packId: string, version?: number): Promise<GuidedJournalPromptPack | undefined> {
-    return this.store.getPack(packId, version);
+  async getPack(projectId: string, packId: string, version?: number): Promise<GuidedJournalPromptPack | undefined> {
+    return this.store.getPack(projectId, packId, version);
   }
 
-  async listPacks(): Promise<readonly GuidedJournalPromptPack[]> {
-    return this.store.listLatestPacks();
+  async listPacks(projectId: string): Promise<readonly GuidedJournalPromptPack[]> {
+    return this.store.listLatestPacks(projectId);
   }
 
   async start(input: {
@@ -47,65 +47,65 @@ export class GuidedJournalJourneyService {
     readonly seed?: string;
     readonly now?: string;
   }): Promise<GuidedJournalJourneyProgress> {
-    const pack = await this.requirePack(input.packId, input.packVersion);
+    const pack = await this.requirePack(input.projectId, input.packId, input.packVersion);
     const progress = startGuidedJournalJourney({ ...input, pack });
-    if (await this.store.getJourney(progress.id)) throw new Error(`Guided journey "${progress.id}" already exists.`);
+    if (await this.store.getJourney(progress.projectId, progress.id)) throw new Error(`Guided journey "${progress.id}" already exists in project "${progress.projectId}".`);
     return this.store.saveJourney(progress);
   }
 
-  async complete(journeyId: string, promptId: string, now?: string): Promise<GuidedJournalJourneyProgress> {
-    const { progress, pack } = await this.context(journeyId);
+  async complete(projectId: string, journeyId: string, promptId: string, now?: string): Promise<GuidedJournalJourneyProgress> {
+    const { progress, pack } = await this.context(projectId, journeyId);
     return this.store.saveJourney(completeGuidedJournalJourneyPrompt(progress, pack, promptId, now));
   }
 
-  async reopen(journeyId: string, promptId: string, now?: string): Promise<GuidedJournalJourneyProgress> {
-    const { progress, pack } = await this.context(journeyId);
+  async reopen(projectId: string, journeyId: string, promptId: string, now?: string): Promise<GuidedJournalJourneyProgress> {
+    const { progress, pack } = await this.context(projectId, journeyId);
     return this.store.saveJourney(reopenGuidedJournalJourneyPrompt(progress, pack, promptId, now));
   }
 
-  async hide(journeyId: string, promptId: string, now?: string): Promise<GuidedJournalJourneyProgress> {
-    const { progress, pack } = await this.context(journeyId);
+  async hide(projectId: string, journeyId: string, promptId: string, now?: string): Promise<GuidedJournalJourneyProgress> {
+    const { progress, pack } = await this.context(projectId, journeyId);
     return this.store.saveJourney(hideGuidedJournalJourneyPrompt(progress, pack, promptId, now));
   }
 
-  async unhide(journeyId: string, promptId: string, now?: string): Promise<GuidedJournalJourneyProgress> {
-    const { progress, pack } = await this.context(journeyId);
+  async unhide(projectId: string, journeyId: string, promptId: string, now?: string): Promise<GuidedJournalJourneyProgress> {
+    const { progress, pack } = await this.context(projectId, journeyId);
     return this.store.saveJourney(unhideGuidedJournalJourneyPrompt(progress, pack, promptId, now));
   }
 
-  async next(journeyId: string): Promise<JournalPrompt | undefined> {
-    const { progress, pack } = await this.context(journeyId);
+  async next(projectId: string, journeyId: string): Promise<JournalPrompt | undefined> {
+    const { progress, pack } = await this.context(projectId, journeyId);
     return nextGuidedJournalJourneyPrompt(progress, pack);
   }
 
-  async status(journeyId: string) {
-    const progress = await this.requireJourney(journeyId);
+  async status(projectId: string, journeyId: string) {
+    const progress = await this.requireJourney(projectId, journeyId);
     return guidedJournalJourneyStatus(progress);
   }
 
-  async getJourney(journeyId: string): Promise<GuidedJournalJourneyProgress | undefined> {
-    return this.store.getJourney(journeyId);
+  async getJourney(projectId: string, journeyId: string): Promise<GuidedJournalJourneyProgress | undefined> {
+    return this.store.getJourney(projectId, journeyId);
   }
 
   async listJourneys(projectId: string): Promise<readonly GuidedJournalJourneyProgress[]> {
     return this.store.listJourneys(projectId);
   }
 
-  private async context(journeyId: string): Promise<{ progress: GuidedJournalJourneyProgress; pack: GuidedJournalPromptPack }> {
-    const progress = await this.requireJourney(journeyId);
-    const pack = await this.requirePack(progress.packId, progress.packVersion);
+  private async context(projectId: string, journeyId: string): Promise<{ progress: GuidedJournalJourneyProgress; pack: GuidedJournalPromptPack }> {
+    const progress = await this.requireJourney(projectId, journeyId);
+    const pack = await this.requirePack(projectId, progress.packId, progress.packVersion);
     return { progress, pack };
   }
 
-  private async requirePack(packId: string, version?: number): Promise<GuidedJournalPromptPack> {
-    const pack = await this.store.getPack(packId, version);
-    if (!pack) throw new Error(version === undefined ? `Prompt pack "${packId}" not found.` : `Prompt pack "${packId}" version ${version} not found.`);
+  private async requirePack(projectId: string, packId: string, version?: number): Promise<GuidedJournalPromptPack> {
+    const pack = await this.store.getPack(projectId, packId, version);
+    if (!pack) throw new Error(version === undefined ? `Prompt pack "${packId}" not found in project "${projectId}".` : `Prompt pack "${packId}" version ${version} not found in project "${projectId}".`);
     return pack;
   }
 
-  private async requireJourney(journeyId: string): Promise<GuidedJournalJourneyProgress> {
-    const journey = await this.store.getJourney(journeyId);
-    if (!journey) throw new Error(`Guided journey "${journeyId}" not found.`);
+  private async requireJourney(projectId: string, journeyId: string): Promise<GuidedJournalJourneyProgress> {
+    const journey = await this.store.getJourney(projectId, journeyId);
+    if (!journey) throw new Error(`Guided journey "${journeyId}" not found in project "${projectId}".`);
     return journey;
   }
 }
