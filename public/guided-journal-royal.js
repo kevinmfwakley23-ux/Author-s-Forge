@@ -11,6 +11,14 @@
   const coverLink = document.getElementById("cover-studio-link");
   if (coverLink) coverLink.href = `/?project=${encodeURIComponent(projectId)}#cover`;
 
+  if (!document.querySelector('script[data-guided-journal-journeys]')) {
+    const journeys = document.createElement("script");
+    journeys.src = "guided-journal-journeys.js";
+    journeys.defer = true;
+    journeys.dataset.guidedJournalJourneys = "true";
+    document.head.appendChild(journeys);
+  }
+
   const legacyImport = document.getElementById("library-import");
   const importRow = legacyImport?.closest(".row");
   if (!importRow || document.getElementById("journal-bulk-import")) return;
