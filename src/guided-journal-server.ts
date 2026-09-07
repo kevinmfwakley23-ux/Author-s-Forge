@@ -9,6 +9,7 @@ import { discoverConfiguredAiModelResources } from "./infrastructure/ai-model-re
 import { GuidedJournalOfficeService } from "./application/guided-journal-office";
 import { GuidedJournalLibraryService } from "./application/guided-journal-library";
 import { GuidedJournalPromptImportService, JOURNAL_PROMPT_IMPORT_FORMATS, type JournalPromptImportFormat } from "./application/guided-journal-prompt-import";
+import { createGuidedJournalJourneyHttpHandler } from "./application/guided-journal-journey-http";
 import { GuidedJournalIntelligenceService, type JournalAiPromptProposal } from "./application/guided-journal-intelligence";
 import { GuidedJournalProductionService } from "./application/guided-journal-production";
 import { GuidedJournalWorkspaceService } from "./application/guided-journal-workspace";
@@ -26,6 +27,7 @@ const projects = new FileProjectStore(dataRoot);
 const editions = new GuidedJournalOfficeService(new FileGuidedJournalStore(join(dataRoot, "guided-journal-editions.json")));
 const library = new GuidedJournalLibraryService(new FileGuidedJournalLibraryStore(join(dataRoot, "guided-journal-library.json")));
 const promptImport = new GuidedJournalPromptImportService(library);
+const journeyApi = createGuidedJournalJourneyHttpHandler({ dataRoot, library });
 const production = new GuidedJournalProductionService();
 
 function json(res: ServerResponse, status: number, value: unknown): void {
@@ -144,7 +146,7 @@ function aiStatus() {
 
 async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): Promise<boolean> {
   if (url.pathname === "/api/health" && req.method === "GET") {
-    json(res, 200, { ok: true, service: "authors-forge-guided-journal-office", sharedDataRoot: dataRoot, ai: aiStatus(), categories: JOURNAL_CATEGORIES, pageStyles: JOURNAL_PAGE_STYLES, promptImportFormats: JOURNAL_PROMPT_IMPORT_FORMATS });
+    json(res, 200, { ok: true, service: "authors-forge-guided-journal-office", sharedDataRoot: dataRoot, ai: aiStatus(), categories: JOURNAL_CATEGORIES, pageStyles: JOURNAL_PAGE_STYLES, promptImportFormats: JOURNAL_PROMPT_IMPORT_FORMATS, guidedJourneys: true });
     return true;
   }
   if (url.pathname === "/api/projects" && req.method === "POST") {
@@ -158,11 +160,12 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
   if (!projectId) return false;
   const project = await projects.load(projectId);
   if (!project) { json(res, 404, { error: "Project not found." }); return true; }
+  if (await journeyApi(req, res, url, projectId)) return true;
   const { workspace, memory, covers } = await runtime(project);
 
   if (url.pathname === `/api/projects/${projectId}` && req.method === "GET") {
     const [source, history] = await Promise.all([workspace.getLibrary(projectId), workspace.listEditions(projectId)]);
-    json(res, 200, { project: project.metadata, memoryCount: project.memories.length, coverPlanCount: project.bookCoverPlans?.length ?? 0, promptCount: source.prompts.length, coverStatementCount: source.coverStatements.length, editionCount: history.length, ai: aiStatus() });
+    json(res, 200, { project: project.metadata, memoryCount: project.memories.length, coverPlanCount: project.bookCoverPlans?.length ?? 0, promptCount: source.prompts.length, coverStatementCount: source.coverStatements.length, editionCount: history.length, ai: aiStatus(), guidedJourneys: true });
     return true;
   }
   if (url.pathname === `/api/projects/${projectId}/journal/library` && req.method === "GET") { json(res, 200, await workspace.getLibrary(projectId)); return true; }
