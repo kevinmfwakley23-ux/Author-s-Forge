@@ -49,13 +49,15 @@ test('media studio keeps remote image export honest about CORS and device video 
   assert.match(source, /Use GIF export instead/);
 });
 
-test('Design & Motion Offices are wired into the royal PWA launcher and offline shell', () => {
+test('Design & Motion is a main Studio tool and remains available in the offline shell', () => {
   const pwa = fs.readFileSync('public/forge-pwa.js', 'utf8');
   const sw = fs.readFileSync('public/sw.js', 'utf8');
+  assert.match(pwa, /function ensureMediaNavigation\(\)\{if\(!isMainStudio\(\)\)return;/);
   assert.match(pwa, /open-design-motion/);
   assert.match(pwa, /forge-media-studio\.html/);
-  assert.match(pwa, /Design & Motion Offices/);
-  assert.match(sw, /authors-forge-shell-v23/);
+  assert.match(pwa, /Design & Motion/);
+  assert.match(pwa, /Main Studio tools/);
+  assert.match(sw, /authors-forge-shell-v\d+/);
   assert.match(sw, /forge-media-studio\.html/);
   assert.match(sw, /forge-media-studio\.css/);
   assert.match(sw, /forge-media-studio\.js/);
