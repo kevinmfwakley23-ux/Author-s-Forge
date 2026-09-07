@@ -105,9 +105,28 @@ async function main() {
 
     const studio = await page.goto(`${base}/?project=${encodeURIComponent(PROJECT_ID)}#dashboard`, { waitUntil: "networkidle" });
     assert.ok(studio?.ok());
-    await page.waitForSelector("#forge-office-launcher");
+    await page.waitForSelector("#forge-studio-tool-launcher");
     assert.equal(await page.evaluate(() => document.documentElement.classList.contains("forge-hosted")), true);
     assert.equal(await page.evaluate(() => document.documentElement.classList.contains("forge-console")), true);
+
+    const studioUi = await page.evaluate(() => ({
+      launcherText: document.getElementById("forge-studio-tool-launcher")?.textContent || "",
+      royalLoaded: Boolean(document.querySelector('script[data-forge-extension="royal-ui"]')),
+      royalHardeningLoaded: Boolean(document.querySelector('link[data-forge-royal-hardening]')),
+      optionalLinks: [
+        "open-guided-journal-office",
+        "open-workbook-office",
+        "open-specialized-office",
+        "open-nft-office",
+      ].filter((id) => document.getElementById(id)),
+    }));
+    assert.match(studioUi.launcherText, /Main Studio tools/);
+    assert.match(studioUi.launcherText, /Agent Workbench/);
+    assert.match(studioUi.launcherText, /Design & Motion/);
+    assert.match(studioUi.launcherText, /Series Engine/);
+    assert.equal(studioUi.royalLoaded, true, "Main Studio must load the royal white-marble UI extension.");
+    assert.equal(studioUi.royalHardeningLoaded, true, "Main Studio must load the royal white-marble hardening stylesheet.");
+    assert.deepEqual(studioUi.optionalLinks, [], "Optional offices must not appear in the main Studio royal launcher.");
 
     const loaded = await page.evaluate(async (id) => {
       const response = await fetch(`/api/projects/${encodeURIComponent(id)}`, { headers: { accept: "application/json" } });
@@ -125,7 +144,7 @@ async function main() {
     assert.ok(overflow.body <= overflow.viewport + 1 && overflow.doc <= overflow.viewport + 1, `Hosted main Studio overflows viewport: ${JSON.stringify(overflow)}`);
 
     await context.close();
-    console.log("HOSTED MAIN STUDIO ACCEPTANCE PASSED: authenticated single-service gateway, durable project API, restricted-console layout, and optional-office isolation without taking Studio down.");
+    console.log("HOSTED MAIN STUDIO ACCEPTANCE PASSED: authenticated single-service Studio, royal white-marble UI isolated to main Studio, durable project API, restricted-console layout, and optional-office isolation.");
   } finally {
     if (browser) await browser.close().catch(() => {});
     await stop(launcher).catch(() => {});
