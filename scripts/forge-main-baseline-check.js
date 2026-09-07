@@ -5,6 +5,16 @@ const { resolve, join } = require("node:path");
 const root = resolve(__dirname, "..");
 const required = [
   "dist/studio-server.js",
+  "dist/guided-journal-server.js",
+  "dist/application/guided-journal-office.js",
+  "dist/application/guided-journal-library.js",
+  "dist/application/guided-journal-intelligence.js",
+  "dist/application/guided-journal-production.js",
+  "dist/application/guided-journal-workspace.js",
+  "dist/domain/guided-journal.js",
+  "dist/domain/guided-journal-layout.js",
+  "dist/infrastructure/file-guided-journal-store.js",
+  "dist/infrastructure/file-guided-journal-library-store.js",
   "dist/application/ai-model-broker.js",
   "dist/application/ai-writing-coordinator.js",
   "dist/application/ai-writing-studio.js",
@@ -16,6 +26,9 @@ const required = [
   "dist/infrastructure/file-project-store.js",
   "dist/public/index.html",
   "dist/public/app.js",
+  "dist/public/guided-journal.html",
+  "dist/public/guided-journal.js",
+  "dist/public/guided-journal.css",
   "dist/public/forge-ai-proposals.js",
   "dist/public/forge-editing-proposals.js",
   "dist/public/forge-image-lab.js",
@@ -30,10 +43,10 @@ for (const relative of required) {
 }
 
 if (missing.length) {
-  console.error("[Forge main baseline] BLOCKED — required main Studio build artifacts are missing or empty:");
+  console.error("[Forge core baseline] BLOCKED — required Studio + Guided Journal build artifacts are missing or empty:");
   for (const file of missing) console.error(`- ${file}`);
   process.exit(1);
 }
 
-console.log(`[Forge main baseline] PASS — ${required.length} required main Studio artifacts are present and non-empty.`);
-console.log("[Forge main baseline] Optional offices are intentionally outside this production gate.");
+console.log(`[Forge core baseline] PASS — ${required.length} required Studio + Guided Journal artifacts are present and non-empty.`);
+console.log("[Forge core baseline] Workbooks, Specialized Creation, and NFT remain outside this core production gate.");
