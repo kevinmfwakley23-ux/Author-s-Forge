@@ -26,6 +26,7 @@ const groups = [
     "src/application/ai-writing-coordinator.ts",
     "src/application/ai-writing-studio.ts",
     "src/application/studio-ai-writing-http.ts",
+    "src/infrastructure/main-studio-ai-runtime.ts",
   ]],
   ["Editing + author control", [
     "src/application/intelligent-editing.ts",
@@ -62,6 +63,7 @@ const groups = [
 
 const browserHarnesses = [
   "scripts/studio-browser-acceptance.js",
+  "scripts/studio-ai-writing-operational-browser-acceptance.js",
   "scripts/studio-context-browser-acceptance.js",
   "scripts/studio-architecture-browser-acceptance.js",
   "scripts/studio-brand-kit-browser-acceptance.js",
