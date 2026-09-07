@@ -55,6 +55,7 @@ const groups = [
     "src/guided-journal-server.ts",
     "public/guided-journal.html",
     "public/guided-journal.js",
+    "public/guided-journal-journeys.js",
     "public/guided-journal.css",
     "public/guided-journal-royal.js",
     "public/guided-journal-royal.css",
@@ -117,6 +118,7 @@ const browserHarnesses = [
   "scripts/studio-promotion-performance-browser-acceptance.js",
   "scripts/hosted-main-studio-browser-acceptance.js",
   "scripts/guided-journal-browser-acceptance.js",
+  "scripts/guided-journal-journey-browser-acceptance.js",
 ];
 const mobileHarnesses = [
   "scripts/run-studio-mobile-acceptance.js",
