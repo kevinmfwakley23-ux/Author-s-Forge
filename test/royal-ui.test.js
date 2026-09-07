@@ -20,9 +20,10 @@ test("main Studio launcher contains only main writing-production tools and no op
   const pwa = read("public/forge-pwa.js");
   assert.match(pwa, /Main Studio tools/);
   for (const tool of ["Agent Workbench", "Design & Motion", "Series Engine"]) assert.match(pwa, new RegExp(tool));
-  for (const forbidden of ["open-guided-journal-office", "open-workbook-office", "open-specialized-office", "open-nft-office", "HOSTED_PORT_PATHS", "officeUrl\("]) {
-    assert.doesNotMatch(pwa, new RegExp(forbidden));
+  for (const forbidden of ["open-guided-journal-office", "open-workbook-office", "open-specialized-office", "open-nft-office", "HOSTED_PORT_PATHS"]) {
+    assert.equal(pwa.includes(forbidden), false, `${forbidden} must not exist in the main Studio PWA`);
   }
+  assert.doesNotMatch(pwa, /officeUrl\(/);
 });
 
 test("optional offices cannot inherit the main white-marble royal skin", () => {
