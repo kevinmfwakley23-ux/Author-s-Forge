@@ -3,9 +3,9 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 
 const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-const completion = fs.readFileSync('scripts/forge-completion.js', 'utf8');
+const mainCompletion = fs.readFileSync('scripts/forge-main-completion.js', 'utf8');
 
-test('completion evidence inventory tracks every desktop browser acceptance gate', () => {
+test('main completion evidence inventory tracks every main Studio desktop browser acceptance gate', () => {
   const command = String(packageJson.scripts?.['test:browser'] || '');
   const harnesses = [...command.matchAll(/node\s+(scripts\/[A-Za-z0-9._/-]+-browser-acceptance\.js)/g)]
     .map((match) => match[1]);
@@ -15,9 +15,9 @@ test('completion evidence inventory tracks every desktop browser acceptance gate
 
   for (const harness of harnesses) {
     assert.match(
-      completion,
+      mainCompletion,
       new RegExp(harness.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
-      `completion evidence inventory must include ${harness}`,
+      `main completion evidence inventory must include ${harness}`,
     );
   }
 });

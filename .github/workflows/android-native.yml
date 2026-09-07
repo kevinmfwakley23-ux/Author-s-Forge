@@ -4,16 +4,28 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - "src/**"
+      - "public/**"
       - "src-tauri/**"
       - "native-shell/**"
+      - "scripts/build-forge.js"
       - "scripts/generate-launcher-icons.js"
+      - "package.json"
+      - "package-lock.json"
+      - ".nvmrc"
       - ".github/workflows/android-native.yml"
   push:
     branches: [main]
     paths:
+      - "src/**"
+      - "public/**"
       - "src-tauri/**"
       - "native-shell/**"
+      - "scripts/build-forge.js"
       - "scripts/generate-launcher-icons.js"
+      - "package.json"
+      - "package-lock.json"
+      - ".nvmrc"
       - ".github/workflows/android-native.yml"
   workflow_dispatch:
 

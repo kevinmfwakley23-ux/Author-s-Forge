@@ -1,9 +1,8 @@
-/* Guided Journal scoped royal theme behavior. Mirrors the shared office layer without widening the journal server's static-file allowlist. */
+/*
+ * Compatibility no-op.
+ * Guided Journal is outside the main Studio release and must not inherit the
+ * main K.I.N.G.S. Author's Forge white-marble theme or theme state.
+ */
 (() => {
   "use strict";
-  const KEY = "forge-theme";
-  function preferred() { try { const saved = localStorage.getItem(KEY); if (saved === "light" || saved === "dark") return saved; } catch {} return matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "dark" : "light"; }
-  function apply(theme, persist = true) { const value = theme === "dark" ? "dark" : "light"; document.documentElement.dataset.forgeTheme = value; document.documentElement.style.colorScheme = value; if (persist) { try { localStorage.setItem(KEY, value); } catch {} } const button = document.querySelector("#forge-office-theme"); if (button) { button.textContent = value === "dark" ? "☀ Light" : "☾ Dark"; button.setAttribute("aria-pressed", String(value === "dark")); button.setAttribute("aria-label", `Switch to ${value === "dark" ? "light" : "dark"} mode`); } }
-  function install() { apply(preferred(), false); const header = document.querySelector("header,.office-header"); if (!header) return; let host = header.querySelector(".header-actions,nav,.row"); if (!host) { host = document.createElement("div"); host.style.display = "flex"; host.style.gap = "8px"; host.style.flexWrap = "wrap"; header.append(host); } if (!document.querySelector("#forge-office-theme")) { const button = document.createElement("button"); button.id = "forge-office-theme"; button.type = "button"; button.addEventListener("click", () => apply(document.documentElement.dataset.forgeTheme === "dark" ? "light" : "dark")); host.append(button); apply(document.documentElement.dataset.forgeTheme, false); } }
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", install, { once: true }); else install();
 })();

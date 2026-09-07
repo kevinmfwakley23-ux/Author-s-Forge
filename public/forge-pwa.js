@@ -1,11 +1,10 @@
-/* Author's Forge PWA lifecycle, Android install UX, persisted appearance, and cross-office launcher. No project data is stored here. */
+/* Author's Forge PWA lifecycle, Android install UX, persisted appearance, and main Studio tool launcher. No project data is stored here. */
 (() => {
   "use strict";
 
   const THEME_KEY = "forge-theme";
   const ANDROID_INSTALL_FAB_ID = "forge-android-install-fab";
   const ANDROID_INSTALL_HELP_ID = "forge-android-install-help";
-  const HOSTED_PORT_PATHS = Object.freeze({4273:"/journal",4373:"/workbooks",4473:"/specialized",4573:"/nft"});
 
   let deferredPrompt = null;
 
@@ -13,31 +12,30 @@
   function hostedMode(){return document.documentElement.classList.contains("forge-hosted");}
   function isAndroid(){return /Android/i.test(navigator.userAgent||"");}
   function isStandalone(){return window.matchMedia?.("(display-mode: standalone)")?.matches||window.navigator.standalone===true;}
+  function isMainStudio(){return Boolean(document.getElementById("dashboard"));}
   function projectUrl(path="/"){const pathname=path.startsWith("/")?path:`/${path}`;return `${location.origin}${pathname}?project=${encodeURIComponent(currentProjectId())}`;}
-  function officeUrl(port,path="/"){const pathname=path.startsWith("/")?path:`/${path}`;if(hostedMode()&&HOSTED_PORT_PATHS[port]){const prefix=HOSTED_PORT_PATHS[port],target=pathname==="/"?`${prefix}/`:`${prefix}${pathname}`;return `${location.origin}${target}?project=${encodeURIComponent(currentProjectId())}`;}const protocol=location.protocol==="https:"?"https:":"http:",host=location.hostname||"127.0.0.1";return `${protocol}//${host}:${port}${pathname}?project=${encodeURIComponent(currentProjectId())}`;}
 
   function applyStoredTheme(){try{const saved=localStorage.getItem(THEME_KEY);const theme=saved==="dark"||saved==="light"?saved:(window.matchMedia?.("(prefers-color-scheme: dark)")?.matches?"dark":"light");document.documentElement.dataset.forgeTheme=theme;document.documentElement.style.colorScheme=theme;}catch{}}
-  function ensureRoyalHardeningStyles(){if(document.querySelector('link[data-forge-royal-hardening]'))return;const link=document.createElement("link");link.rel="stylesheet";link.href="/forge-royal-hardening.css";link.dataset.forgeRoyalHardening="true";document.head.appendChild(link);}
+  function ensureRoyalHardeningStyles(){if(!isMainStudio()||document.querySelector('link[data-forge-royal-hardening]'))return;const link=document.createElement("link");link.rel="stylesheet";link.href="/forge-royal-hardening.css";link.dataset.forgeRoyalHardening="true";document.head.appendChild(link);}
 
-  function ensureAgentNavigation(){if(!document.getElementById("dashboard"))return;const nav=document.querySelector(".sidebar nav");if(!nav)return;let link=document.getElementById("open-agent-workbench");if(!link){link=document.createElement("a");link.id="open-agent-workbench";link.textContent="Agent Workbench";link.dataset.icon="⚒";const writing=nav.querySelector('[data-route="writing"]');nav.insertBefore(link,writing||nav.firstChild);}link.href=projectUrl("/forge-agent.html");}
-  function ensureMediaNavigation(){if(!document.getElementById("dashboard"))return;const nav=document.querySelector(".sidebar nav");if(!nav)return;let link=document.getElementById("open-design-motion");if(!link){link=document.createElement("a");link.id="open-design-motion";link.textContent="Design & Motion";link.dataset.icon="◈";const art=nav.querySelector('[data-route="art"]');nav.insertBefore(link,art||null);}link.href=projectUrl("/forge-media-studio.html");}
-  function ensureSeriesNavigation(){if(!document.getElementById("dashboard"))return;const nav=document.querySelector(".sidebar nav");if(!nav)return;let link=document.getElementById("open-series-engine");if(!link){link=document.createElement("a");link.id="open-series-engine";link.textContent="Series Engine";const characters=nav.querySelector('[data-route="characters"]');nav.insertBefore(link,characters||null);}link.href=projectUrl("/series.html");}
+  function ensureAgentNavigation(){if(!isMainStudio())return;const nav=document.querySelector(".sidebar nav");if(!nav)return;let link=document.getElementById("open-agent-workbench");if(!link){link=document.createElement("a");link.id="open-agent-workbench";link.textContent="Agent Workbench";link.dataset.icon="⚒";const writing=nav.querySelector('[data-route="writing"]');nav.insertBefore(link,writing||nav.firstChild);}link.href=projectUrl("/forge-agent.html");}
+  function ensureMediaNavigation(){if(!isMainStudio())return;const nav=document.querySelector(".sidebar nav");if(!nav)return;let link=document.getElementById("open-design-motion");if(!link){link=document.createElement("a");link.id="open-design-motion";link.textContent="Design & Motion";link.dataset.icon="◈";const art=nav.querySelector('[data-route="art"]');nav.insertBefore(link,art||null);}link.href=projectUrl("/forge-media-studio.html");}
+  function ensureSeriesNavigation(){if(!isMainStudio())return;const nav=document.querySelector(".sidebar nav");if(!nav)return;let link=document.getElementById("open-series-engine");if(!link){link=document.createElement("a");link.id="open-series-engine";link.textContent="Series Engine";const characters=nav.querySelector('[data-route="characters"]');nav.insertBefore(link,characters||null);}link.href=projectUrl("/series.html");}
 
-  function ensureOfficeLauncher(){
-    if(document.getElementById("forge-office-launcher"))return;
+  function ensureStudioWorkspaceLauncher(){
+    if(document.getElementById("forge-studio-tool-launcher"))return;
     const dashboard=document.getElementById("dashboard");
     if(!dashboard)return;
     const card=document.createElement("article");
-    card.id="forge-office-launcher";
+    card.id="forge-studio-tool-launcher";
     card.className="card";
-    const runtimeNote=hostedMode()?"These first-class workplaces run through this same authenticated hosted Forge service.":"Start the complete local workplace with <code>npm run forge</code> (or <code>npm run forge:android</code> for LAN/device access).";
-    card.innerHTML=`<h3>Forge workspaces</h3><p class="muted">Open a first-class workplace for this same durable Forge project. ${runtimeNote}</p><div class="row"><a class="forge-office-link" id="open-agent-workbench-dashboard" href="${projectUrl("/forge-agent.html")}">Agent Workbench</a><a class="forge-office-link" id="open-design-motion-dashboard" href="${projectUrl("/forge-media-studio.html")}">Design & Motion Offices</a><a class="forge-office-link" id="open-series-engine-dashboard" href="${projectUrl("/series.html")}">Series Engine</a><a class="forge-office-link" id="open-guided-journal-office" href="${officeUrl(4273)}" target="_blank" rel="noopener">Guided Journal</a><a class="forge-office-link" id="open-workbook-office" href="${officeUrl(4373)}" target="_blank" rel="noopener">Educational Workbooks</a><a class="forge-office-link" id="open-workbook-differentiation" href="${officeUrl(4373,"/educational-differentiation.html")}" target="_blank" rel="noopener">Workbook Differentiation</a><a class="forge-office-link" id="open-workbook-assessment" href="${officeUrl(4373,"/educational-assessment.html")}" target="_blank" rel="noopener">Rubrics & Assessment</a><a class="forge-office-link" id="open-specialized-office" href="${officeUrl(4473)}" target="_blank" rel="noopener">Specialized Creation</a><a class="forge-office-link" id="open-nft-office" href="${officeUrl(4573)}" target="_blank" rel="noopener">NFT Creation</a></div>`;
+    card.innerHTML=`<h3>Main Studio tools</h3><p class="muted">These tools belong to the main K.I.N.G.S. Author's Forge writing, production, and publishing workflow.</p><div class="row"><a class="forge-studio-tool-link" id="open-agent-workbench-dashboard" href="${projectUrl("/forge-agent.html")}">Agent Workbench</a><a class="forge-studio-tool-link" id="open-design-motion-dashboard" href="${projectUrl("/forge-media-studio.html")}">Design & Motion</a><a class="forge-studio-tool-link" id="open-series-engine-dashboard" href="${projectUrl("/series.html")}">Series Engine</a></div>`;
     dashboard.append(card);
-    card.querySelectorAll(".forge-office-link").forEach(link=>Object.assign(link.style,{display:"inline-flex",alignItems:"center",justifyContent:"center",minHeight:"44px",padding:"10px 14px",border:"1px solid #20252b",borderRadius:"7px",background:"#20252b",color:"#fff",textDecoration:"none",flex:"1 1 180px"}));
+    card.querySelectorAll(".forge-studio-tool-link").forEach(link=>Object.assign(link.style,{display:"inline-flex",alignItems:"center",justifyContent:"center",minHeight:"44px",padding:"10px 14px",border:"1px solid #20252b",borderRadius:"7px",background:"#20252b",color:"#fff",textDecoration:"none",flex:"1 1 180px"}));
   }
 
   function loadExtension(name,src){if(document.querySelector(`script[data-forge-extension="${name}"]`))return;const script=document.createElement("script");script.src=src;script.defer=true;script.dataset.forgeExtension=name;document.head.appendChild(script);}
-  function ensureStudioExtensions(){if(!document.getElementById("dashboard"))return;if(document.getElementById("art"))loadExtension("image-lab","/forge-image-lab.js");loadExtension("story-architecture","/forge-story-architecture.js");loadExtension("chapter-cards","/forge-chapter-cards.js");loadExtension("chapter-card-workflow","/forge-chapter-card-workflow.js");loadExtension("chapter-card-approval","/forge-chapter-card-approval.js");loadExtension("scene-cards","/forge-scene-cards.js");loadExtension("manuscript-import","/forge-manuscript-import.js");loadExtension("ai-gateways","/forge-ai-gateways.js");loadExtension("model-freedom","/forge-model-freedom.js");loadExtension("forge-recipes","/forge-recipes.js");loadExtension("review-room","/forge-review-room.js");loadExtension("provenance","/forge-provenance.js");loadExtension("brand-studio","/forge-brand-studio.js");loadExtension("royal-ui","/forge-royal-ui.js");}
+  function ensureStudioExtensions(){if(!isMainStudio())return;if(document.getElementById("art"))loadExtension("image-lab","/forge-image-lab.js");loadExtension("story-architecture","/forge-story-architecture.js");loadExtension("chapter-cards","/forge-chapter-cards.js");loadExtension("chapter-card-workflow","/forge-chapter-card-workflow.js");loadExtension("chapter-card-approval","/forge-chapter-card-approval.js");loadExtension("scene-cards","/forge-scene-cards.js");loadExtension("manuscript-import","/forge-manuscript-import.js");loadExtension("ai-gateways","/forge-ai-gateways.js");loadExtension("model-freedom","/forge-model-freedom.js");loadExtension("forge-recipes","/forge-recipes.js");loadExtension("review-room","/forge-review-room.js");loadExtension("provenance","/forge-provenance.js");loadExtension("brand-studio","/forge-brand-studio.js");loadExtension("royal-ui","/forge-royal-ui.js");}
 
   function ensureAndroidInstallStyles(){
     if(document.querySelector("style[data-forge-android-install]"))return;
@@ -99,7 +97,7 @@
     ensureAgentNavigation();
     ensureMediaNavigation();
     ensureSeriesNavigation();
-    ensureOfficeLauncher();
+    ensureStudioWorkspaceLauncher();
     ensureStudioExtensions();
     ensureAndroidInstallLauncher();
     if(document.getElementById("pwa-status"))return;

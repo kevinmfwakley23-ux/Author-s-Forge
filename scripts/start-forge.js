@@ -14,7 +14,8 @@ const host = hostArg ? hostArg.slice("--host=".length).trim() : (process.env.HOS
 if (!host) throw new Error("Forge launcher host cannot be blank.");
 
 const onlyArg = process.argv.find((arg) => arg.startsWith("--only="));
-const only = onlyArg ? onlyArg.slice("--only=".length).trim().toLowerCase() : "";
+const allRequested = process.argv.includes("--all") || /^(1|true|yes)$/i.test(String(process.env.FORGE_ENABLE_OPTIONAL_OFFICES || ""));
+const only = onlyArg ? onlyArg.slice("--only=".length).trim().toLowerCase() : (allRequested ? "" : "studio");
 const allServices = [
   { id: "studio", name: "Studio", entry: "dist/studio-server.js", portKey: "PORT", port: process.env.PORT || "4173" },
   { id: "journal", name: "Guided Journal", entry: "dist/guided-journal-server.js", portKey: "JOURNAL_PORT", port: process.env.JOURNAL_PORT || "4273" },
@@ -23,7 +24,7 @@ const allServices = [
   { id: "nft", name: "NFT Creation", entry: "dist/nft-creation-server.js", portKey: "NFT_PORT", port: process.env.NFT_PORT || "4573" },
 ];
 const services = only ? allServices.filter((service) => service.id === only) : allServices;
-if (only && services.length !== 1) throw new Error(`Unknown Forge office "${only}". Use studio, journal, workbooks, specialized, or nft.`);
+if (only && services.length !== 1) throw new Error(`Unknown Forge office "${only}". Use studio, journal, workbooks, specialized, nft, or --all.`);
 
 const seen = new Set();
 for (const service of services) {
@@ -208,6 +209,7 @@ async function main() {
       console.log(`[Forge] ${service.name}: http://${host}:${service.port}`);
     }
   }
+  if (!allRequested && !onlyArg) console.log("[Forge] Main Studio mode is active. Use --all to launch optional offices together.");
 }
 
 process.on("SIGINT", () => stopAll("SIGINT"));

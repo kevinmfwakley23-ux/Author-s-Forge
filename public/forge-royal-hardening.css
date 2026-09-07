@@ -7,11 +7,11 @@
 }
 
 /* Gold remains the accent; primary action copy stays high-contrast. */
-.primary,.forge-office-link{
+.primary,.forge-studio-tool-link{
   color:#1b140b!important;
   background:linear-gradient(180deg,#c59a50,#a87834)!important;
 }
-.primary:hover,.forge-office-link:hover{
+.primary:hover,.forge-studio-tool-link:hover{
   color:#151009!important;
   background:linear-gradient(180deg,#d0a85d,#b17f38)!important;
 }
@@ -91,7 +91,7 @@
     overflow-x:hidden;
   }
   .topbar{margin-bottom:14px}
-  button,.top-actions button,.forge-office-link{min-height:44px}
+  button,.top-actions button,.forge-studio-tool-link{min-height:44px}
   select,input,textarea{font-size:16px;min-height:44px}
   .editor{min-height:54vh;font-size:16px}
   .forge-book-shelf{justify-content:flex-start;overscroll-behavior-x:contain}

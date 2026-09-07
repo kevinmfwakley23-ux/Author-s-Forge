@@ -31,15 +31,37 @@ test("Forge Core owns one shared memory store and AI broker", () => {
   assert.equal(core.readiness().formatVersion, FORGE_CORE_FORMAT_VERSION);
   assert.equal(core.readiness().ready, false);
   assert.equal(core.readiness().aiConfigured, false);
+  assert.equal(core.readiness().aiOperational, false);
   assert.equal(core.readiness().projectStoreAvailable, false);
 });
 
-test("Forge Core becomes ready only after durable project storage and a real configured AI resource are present", () => {
-  const readiness = configuredCore().readiness();
+test("Forge Core becomes ready only after durable project storage and an operational AI resource are present", () => {
+  const readiness = configuredCore().readiness("2026-09-06T00:00:00.000Z");
   assert.equal(readiness.ready, true);
   assert.equal(readiness.aiConfigured, true);
+  assert.equal(readiness.aiOperational, true);
   assert.equal(readiness.projectStoreAvailable, true);
   assert.equal(readiness.modelCount, 1);
+  assert.equal(readiness.operationalModelCount, 1);
+});
+
+test("Forge Core never reports ready when every configured model is unhealthy or cooling down", () => {
+  const core = createForgeCore({ projectStore: projectStore() });
+  core.registerAiModels([
+    { provider: "test", model: "unhealthy", configured: true, healthy: false, capabilities: {} },
+    { provider: "test", model: "cooldown", configured: true, healthy: true, cooldownUntil: "2026-09-06T02:00:00.000Z", capabilities: {} },
+  ]);
+  const readiness = core.readiness("2026-09-06T01:00:00.000Z");
+  assert.equal(readiness.aiConfigured, true);
+  assert.equal(readiness.modelCount, 2);
+  assert.equal(readiness.aiOperational, false);
+  assert.equal(readiness.operationalModelCount, 0);
+  assert.equal(readiness.ready, false);
+
+  const recovered = core.readiness("2026-09-06T03:00:00.000Z");
+  assert.equal(recovered.aiOperational, true);
+  assert.equal(recovered.operationalModelCount, 1);
+  assert.equal(recovered.ready, true);
 });
 
 test("Forge Core injects existing infrastructure instead of duplicating it", () => {
