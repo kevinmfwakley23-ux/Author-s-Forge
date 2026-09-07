@@ -46,6 +46,8 @@ export interface GuidedJournalJourneyStatus {
 
 export function startGuidedJournalJourney(request: StartGuidedJournalJourneyRequest): GuidedJournalJourneyProgress {
   validateGuidedJournalPromptPack(request.pack);
+  const projectId = required(request.projectId, "Project id");
+  if (request.pack.projectId !== projectId) throw new Error("Cannot start a Guided Journal journey from another project's prompt pack.");
   const now = timestamp(request.now);
   const seed = request.seed?.trim() || `${request.pack.id}:v${request.pack.version}`;
   const order = resolvePromptPackOrder(request.pack, seed);
@@ -54,7 +56,7 @@ export function startGuidedJournalJourney(request: StartGuidedJournalJourneyRequ
   return Object.freeze({
     formatVersion: GUIDED_JOURNAL_JOURNEY_FORMAT_VERSION,
     id: required(request.id, "Journey id"),
-    projectId: required(request.projectId, "Project id"),
+    projectId,
     ...(request.journalId?.trim() ? { journalId: request.journalId.trim() } : {}),
     packId: request.pack.id,
     packVersion: request.pack.version,
@@ -153,6 +155,7 @@ export function guidedJournalJourneyStatus(progress: GuidedJournalJourneyProgres
 export function validateProgressAgainstPack(progress: GuidedJournalJourneyProgress, pack: GuidedJournalPromptPack): void {
   validateGuidedJournalJourneyProgress(progress);
   validateGuidedJournalPromptPack(pack);
+  if (progress.projectId !== pack.projectId) throw new Error("Journey and prompt pack belong to different Forge projects.");
   if (progress.packId !== pack.id || progress.packVersion !== pack.version) throw new Error("Journey is pinned to a different prompt pack version.");
   if (progress.packFingerprint !== pack.sourceLibraryFingerprint) throw new Error("Journey prompt pack fingerprint mismatch.");
   if (promptPackFingerprint(pack.prompts) !== progress.packFingerprint) throw new Error("Pinned journey pack snapshot is corrupt.");
