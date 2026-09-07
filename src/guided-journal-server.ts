@@ -7,6 +7,7 @@ import { FileGuidedJournalStore } from "./infrastructure/file-guided-journal-sto
 import { FileGuidedJournalLibraryStore } from "./infrastructure/file-guided-journal-library-store";
 import { GuidedJournalOfficeService } from "./application/guided-journal-office";
 import { GuidedJournalLibraryService } from "./application/guided-journal-library";
+import { GuidedJournalPromptImportService, JOURNAL_PROMPT_IMPORT_FORMATS, type JournalPromptImportFormat } from "./application/guided-journal-prompt-import";
 import { GuidedJournalIntelligenceService, type JournalAiPromptProposal } from "./application/guided-journal-intelligence";
 import { GuidedJournalProductionService } from "./application/guided-journal-production";
 import { GuidedJournalWorkspaceService } from "./application/guided-journal-workspace";
@@ -23,6 +24,7 @@ const publicRoot = join(process.cwd(), "public");
 const projects = new FileProjectStore(dataRoot);
 const editions = new GuidedJournalOfficeService(new FileGuidedJournalStore(join(dataRoot, "guided-journal-editions.json")));
 const library = new GuidedJournalLibraryService(new FileGuidedJournalLibraryStore(join(dataRoot, "guided-journal-library.json")));
+const promptImport = new GuidedJournalPromptImportService(library);
 const production = new GuidedJournalProductionService();
 
 function json(res: ServerResponse, status: number, value: unknown): void {
@@ -62,6 +64,11 @@ function journalCategory(value: unknown, optional = false): JournalCategory | un
   if (value === undefined || value === null || value === "") { if (optional) return undefined; throw new Error("Journal category is required."); }
   if (typeof value !== "string" || !JOURNAL_CATEGORIES.includes(value as JournalCategory)) throw new Error("Invalid journal category.");
   return value as JournalCategory;
+}
+
+function promptImportFormat(value: unknown): JournalPromptImportFormat {
+  if (typeof value !== "string" || !JOURNAL_PROMPT_IMPORT_FORMATS.includes(value as JournalPromptImportFormat)) throw new Error("Invalid journal prompt import format.");
+  return value as JournalPromptImportFormat;
 }
 
 function pageStyle(value: unknown, fallback: JournalPageStyle = "lined"): JournalPageStyle {
@@ -135,7 +142,7 @@ function aiStatus() {
 
 async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): Promise<boolean> {
   if (url.pathname === "/api/health" && req.method === "GET") {
-    json(res, 200, { ok: true, service: "authors-forge-guided-journal-office", sharedDataRoot: dataRoot, ai: aiStatus(), categories: JOURNAL_CATEGORIES, pageStyles: JOURNAL_PAGE_STYLES });
+    json(res, 200, { ok: true, service: "authors-forge-guided-journal-office", sharedDataRoot: dataRoot, ai: aiStatus(), categories: JOURNAL_CATEGORIES, pageStyles: JOURNAL_PAGE_STYLES, promptImportFormats: JOURNAL_PROMPT_IMPORT_FORMATS });
     return true;
   }
   if (url.pathname === "/api/projects" && req.method === "POST") {
@@ -159,9 +166,20 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
   if (url.pathname === `/api/projects/${projectId}/journal/library` && req.method === "GET") { json(res, 200, await workspace.getLibrary(projectId)); return true; }
   if (url.pathname === `/api/projects/${projectId}/journal/library/import` && req.method === "POST") {
     const input = await body(req);
+    if (typeof input.content === "string") {
+      const defaultCategory = journalCategory(input.defaultCategory, true);
+      const result = await promptImport.import({
+        projectId,
+        format: promptImportFormat(input.format ?? "text"),
+        content: required(input.content, "Prompt import content"),
+        ...(defaultCategory ? { defaultCategory } : {}),
+        ...(typeof input.idPrefix === "string" && input.idPrefix.trim() ? { idPrefix: input.idPrefix.trim() } : {}),
+      });
+      json(res, 200, result); return true;
+    }
     const prompts = Array.isArray(input.prompts) ? input.prompts as JournalPrompt[] : [];
     const coverStatements = Array.isArray(input.coverStatements) ? input.coverStatements as JournalCoverStatement[] : [];
-    if (!prompts.length && !coverStatements.length) throw new Error("Import requires prompts or cover statements.");
+    if (!prompts.length && !coverStatements.length) throw new Error("Import requires prompt content, prompts, or cover statements.");
     if (prompts.length) await library.upsertPrompts(projectId, prompts);
     if (coverStatements.length) await library.upsertCoverStatements(projectId, coverStatements);
     json(res, 200, await workspace.getLibrary(projectId)); return true;
