@@ -158,7 +158,7 @@ async function main() {
     let usableTargets = 0;
     for (let index = 0; index < count; index += 1) {
       const element = controls.nth(index);
-      if (!(await element.isVisible()).catch(() => false)) continue;
+      if (!(await element.isVisible().catch(() => false))) continue;
       const box = await element.boundingBox();
       if (box && box.width >= 40 && box.height >= 40) usableTargets += 1;
     }
