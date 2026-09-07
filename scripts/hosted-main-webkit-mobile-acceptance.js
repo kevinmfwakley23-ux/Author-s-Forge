@@ -116,9 +116,29 @@ async function main() {
 
     const studio = await page.goto(`${base}/?project=${encodeURIComponent(PROJECT_ID)}#dashboard`, { waitUntil: "networkidle" });
     assert.ok(studio?.ok());
-    await page.waitForSelector("#forge-office-launcher");
+    await page.waitForSelector("#forge-studio-tool-launcher");
     assert.equal(await page.evaluate(() => document.documentElement.classList.contains("forge-hosted")), true);
     assert.equal(await page.evaluate(() => document.documentElement.classList.contains("forge-console")), false);
+
+    const studioUi = await page.evaluate(() => ({
+      launcherText: document.getElementById("forge-studio-tool-launcher")?.textContent || "",
+      royalLoaded: Boolean(document.querySelector('script[data-forge-extension="royal-ui"]')),
+      royalHardeningLoaded: Boolean(document.querySelector('link[data-forge-royal-hardening]')),
+      optionalLinks: [
+        "open-guided-journal-office",
+        "open-workbook-office",
+        "open-specialized-office",
+        "open-nft-office",
+      ].filter((id) => document.getElementById(id)),
+    }));
+    assert.match(studioUi.launcherText, /Main Studio tools/);
+    assert.match(studioUi.launcherText, /Agent Workbench/);
+    assert.match(studioUi.launcherText, /Design & Motion/);
+    assert.match(studioUi.launcherText, /Series Engine/);
+    assert.equal(studioUi.royalLoaded, true, "Mobile main Studio must load the royal white-marble UI extension.");
+    assert.equal(studioUi.royalHardeningLoaded, true, "Mobile main Studio must load the royal white-marble hardening stylesheet.");
+    assert.deepEqual(studioUi.optionalLinks, [], "Optional offices must not appear in the mobile main Studio royal launcher.");
+
     await noHorizontalOverflow(page, "Hosted main Studio");
 
     const loaded = await page.evaluate(async (id) => {
@@ -145,7 +165,7 @@ async function main() {
     assert.ok(usableTargets >= 3, "Main Studio must expose touch-usable controls on iPhone-sized WebKit.");
 
     await context.close();
-    console.log("HOSTED MAIN WEBKIT ACCEPTANCE PASSED: authenticated iPhone-sized Studio, durable project API, touch usability, no horizontal overflow, and optional-office isolation.");
+    console.log("HOSTED MAIN WEBKIT ACCEPTANCE PASSED: authenticated iPhone-sized Studio, royal white-marble UI isolated to main Studio, durable project API, touch usability, no horizontal overflow, and optional-office isolation.");
   } finally {
     if (browser) await browser.close().catch(() => {});
     await stop(launcher).catch(() => {});
