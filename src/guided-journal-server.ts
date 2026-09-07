@@ -5,6 +5,7 @@ import { extname, join, normalize } from "node:path";
 import { FileProjectStore } from "./infrastructure/file-project-store";
 import { FileGuidedJournalStore } from "./infrastructure/file-guided-journal-store";
 import { FileGuidedJournalLibraryStore } from "./infrastructure/file-guided-journal-library-store";
+import { discoverConfiguredAiModelResources } from "./infrastructure/ai-model-resources";
 import { GuidedJournalOfficeService } from "./application/guided-journal-office";
 import { GuidedJournalLibraryService } from "./application/guided-journal-library";
 import { GuidedJournalPromptImportService, JOURNAL_PROMPT_IMPORT_FORMATS, type JournalPromptImportFormat } from "./application/guided-journal-prompt-import";
@@ -131,12 +132,13 @@ async function persistMemories(project: ProjectState, memory: ProjectMemoryStore
 }
 
 function aiStatus() {
+  const providers = new Set(discoverConfiguredAiModelResources().map((resource) => resource.provider));
   return {
-    omniroute: Boolean(process.env.OMNIROUTE_BASE_URL?.trim()),
-    router9: Boolean(process.env.ROUTER9_BASE_URL?.trim()),
-    kings: Boolean(process.env.KINGS_AI_ENDPOINT?.trim()),
-    openai: Boolean(process.env.OPENAI_API_KEY?.trim() && process.env.OPENAI_MODEL?.trim()),
-    ollama: Boolean(process.env.OLLAMA_BASE_URL?.trim() && process.env.OLLAMA_MODEL?.trim()),
+    omniroute: providers.has("omniroute"),
+    router9: providers.has("9router"),
+    kings: providers.has("kings"),
+    openai: providers.has("openai"),
+    ollama: providers.has("ollama"),
   };
 }
 
@@ -200,7 +202,7 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
   }
   const statementMatch = url.pathname.match(new RegExp(`^/api/projects/${projectId}/journal/library/cover-statements/([^/]+)$`));
   if (statementMatch && req.method === "PATCH") { const input = await body(req); json(res, 200, await library.setCoverStatementEnabled(projectId, decodeURIComponent(statementMatch[1]), input.enabled === true)); return true; }
-  if (statementMatch && req.method === "DELETE") { json(res, 200, await library.removeCoverStatement(projectId, decodeURIComponent(statementMatch[1]))); return true; }
+  if (statementMatch && req.method === "DELETE") { json(res, 200, await library.removeCoverStatement(projectId, decodeURIComponent(statementMatch[1])); return true; }
 
   if (url.pathname === `/api/projects/${projectId}/journal/random` && req.method === "POST") {
     const input = await body(req);
