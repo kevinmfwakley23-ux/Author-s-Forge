@@ -94,7 +94,17 @@ async function main() {
     await page.locator("#agent-mode").selectOption("autonomous");
     await page.locator("#agent-goal").fill("Draft and continuity edit this scene, grounded in the current project truth.");
     await page.locator("#agent-form button[type=submit]").tap();
-    await page.waitForFunction(() => document.querySelector('[data-tool-id="project.context"]') && document.querySelector('[data-tool-id="editing.analyze"]'));
+    await page.waitForFunction(async (projectId) => {
+      const response = await fetch(`/api/projects/${encodeURIComponent(projectId)}/collaboration`);
+      if (!response.ok) return false;
+      const collaboration = await response.json().catch(() => ({}));
+      return collaboration.mode === "autonomous";
+    }, PROJECT_ID);
+    await page.waitForFunction(() => {
+      const status = document.querySelector("#agent-status")?.textContent || "";
+      const group = document.querySelector(".agent-group-run")?.textContent || "";
+      return /governed workflow steps planned/i.test(status) && /2 safe read-only steps/i.test(group);
+    });
     assert.equal((await api(base, `/api/projects/${PROJECT_ID}/collaboration`)).mode, "autonomous");
     assert.match(await page.locator(".agent-group-run").innerText(), /2 safe read-only steps/);
     await page.locator(".agent-group-run").tap();
