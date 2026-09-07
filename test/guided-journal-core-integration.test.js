@@ -39,6 +39,9 @@ test("Guided Journal keeps shared Forge AI boundary and does not import standalo
   const server = read("src/guided-journal-server.ts");
   assert.match(intelligence, /generateProjectText/);
   assert.match(intelligence, /Shared-trunk integration boundary/);
+  assert.match(server, /discoverConfiguredAiModelResources/);
+  assert.match(server, /providers\.has\("kings"\)/);
+  assert.doesNotMatch(server, /kings:\s*Boolean\(process\.env\.KINGS_AI_ENDPOINT/);
   assert.doesNotMatch(server, /guided-journal-ai-router/);
   assert.doesNotMatch(server, /guided-journal-brain/);
 });
