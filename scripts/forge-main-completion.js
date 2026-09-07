@@ -39,6 +39,7 @@ const groups = [
     "src/domain/guided-journal-layout.ts",
     "src/application/guided-journal-office.ts",
     "src/application/guided-journal-library.ts",
+    "src/application/guided-journal-prompt-import.ts",
     "src/application/guided-journal-intelligence.ts",
     "src/application/guided-journal-production.ts",
     "src/application/guided-journal-workspace.ts",
@@ -48,6 +49,10 @@ const groups = [
     "public/guided-journal.html",
     "public/guided-journal.js",
     "public/guided-journal.css",
+    "public/guided-journal-royal.js",
+    "public/guided-journal-royal.css",
+    "test/guided-journal-prompt-import.test.js",
+    "test/guided-journal-core-integration.test.js",
   ]],
   ["Visual + cover", [
     "src/application/studio-image-lab.ts",
