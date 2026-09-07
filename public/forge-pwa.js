@@ -1,4 +1,4 @@
-/* Author's Forge PWA lifecycle, Android install UX, persisted appearance, and main Studio tool launcher. No project data is stored here. */
+/* Author's Forge PWA lifecycle, Android install UX, persisted appearance, and Forge core tool launcher. No project data is stored here. */
 (() => {
   "use strict";
 
@@ -14,10 +14,12 @@
   function isStandalone(){return window.matchMedia?.("(display-mode: standalone)")?.matches||window.navigator.standalone===true;}
   function isMainStudio(){return Boolean(document.getElementById("dashboard"));}
   function projectUrl(path="/"){const pathname=path.startsWith("/")?path:`/${path}`;return `${location.origin}${pathname}?project=${encodeURIComponent(currentProjectId())}`;}
+  function journalUrl(){const explicit=new URLSearchParams(location.search).get("journal");if(explicit){try{const url=new URL(explicit,location.href);url.searchParams.set("project",currentProjectId());return url.toString();}catch{}}if(hostedMode())return projectUrl("/journal/");return `${location.protocol}//${location.hostname}:4273/?project=${encodeURIComponent(currentProjectId())}`;}
 
   function applyStoredTheme(){try{const saved=localStorage.getItem(THEME_KEY);const theme=saved==="dark"||saved==="light"?saved:(window.matchMedia?.("(prefers-color-scheme: dark)")?.matches?"dark":"light");document.documentElement.dataset.forgeTheme=theme;document.documentElement.style.colorScheme=theme;}catch{}}
   function ensureRoyalHardeningStyles(){if(!isMainStudio()||document.querySelector('link[data-forge-royal-hardening]'))return;const link=document.createElement("link");link.rel="stylesheet";link.href="/forge-royal-hardening.css";link.dataset.forgeRoyalHardening="true";document.head.appendChild(link);}
 
+  function ensureJournalNavigation(){if(!isMainStudio())return;const nav=document.querySelector(".sidebar nav");if(!nav)return;let link=document.getElementById("open-guided-journal-office");if(!link){link=document.createElement("a");link.id="open-guided-journal-office";link.textContent="Guided Journal";link.dataset.icon="✦";const writing=nav.querySelector('[data-route="writing"]');nav.insertBefore(link,writing||nav.firstChild);}link.href=journalUrl();}
   function ensureAgentNavigation(){if(!isMainStudio())return;const nav=document.querySelector(".sidebar nav");if(!nav)return;let link=document.getElementById("open-agent-workbench");if(!link){link=document.createElement("a");link.id="open-agent-workbench";link.textContent="Agent Workbench";link.dataset.icon="⚒";const writing=nav.querySelector('[data-route="writing"]');nav.insertBefore(link,writing||nav.firstChild);}link.href=projectUrl("/forge-agent.html");}
   function ensureMediaNavigation(){if(!isMainStudio())return;const nav=document.querySelector(".sidebar nav");if(!nav)return;let link=document.getElementById("open-design-motion");if(!link){link=document.createElement("a");link.id="open-design-motion";link.textContent="Design & Motion";link.dataset.icon="◈";const art=nav.querySelector('[data-route="art"]');nav.insertBefore(link,art||null);}link.href=projectUrl("/forge-media-studio.html");}
   function ensureSeriesNavigation(){if(!isMainStudio())return;const nav=document.querySelector(".sidebar nav");if(!nav)return;let link=document.getElementById("open-series-engine");if(!link){link=document.createElement("a");link.id="open-series-engine";link.textContent="Series Engine";const characters=nav.querySelector('[data-route="characters"]');nav.insertBefore(link,characters||null);}link.href=projectUrl("/series.html");}
@@ -29,7 +31,7 @@
     const card=document.createElement("article");
     card.id="forge-studio-tool-launcher";
     card.className="card";
-    card.innerHTML=`<h3>Main Studio tools</h3><p class="muted">These tools belong to the main K.I.N.G.S. Author's Forge writing, production, and publishing workflow.</p><div class="row"><a class="forge-studio-tool-link" id="open-agent-workbench-dashboard" href="${projectUrl("/forge-agent.html")}">Agent Workbench</a><a class="forge-studio-tool-link" id="open-design-motion-dashboard" href="${projectUrl("/forge-media-studio.html")}">Design & Motion</a><a class="forge-studio-tool-link" id="open-series-engine-dashboard" href="${projectUrl("/series.html")}">Series Engine</a></div>`;
+    card.innerHTML=`<h3>Forge core tools</h3><p class="muted">These tools belong to the K.I.N.G.S. Author's Forge core creative, writing, production, and publishing workflow.</p><div class="row"><a class="forge-studio-tool-link" id="open-guided-journal-dashboard" href="${journalUrl()}">Guided Journal</a><a class="forge-studio-tool-link" id="open-agent-workbench-dashboard" href="${projectUrl("/forge-agent.html")}">Agent Workbench</a><a class="forge-studio-tool-link" id="open-design-motion-dashboard" href="${projectUrl("/forge-media-studio.html")}">Design & Motion</a><a class="forge-studio-tool-link" id="open-series-engine-dashboard" href="${projectUrl("/series.html")}">Series Engine</a></div>`;
     dashboard.append(card);
     card.querySelectorAll(".forge-studio-tool-link").forEach(link=>Object.assign(link.style,{display:"inline-flex",alignItems:"center",justifyContent:"center",minHeight:"44px",padding:"10px 14px",border:"1px solid #20252b",borderRadius:"7px",background:"#20252b",color:"#fff",textDecoration:"none",flex:"1 1 180px"}));
   }
@@ -94,6 +96,7 @@
   function ensureUi(){
     applyStoredTheme();
     ensureRoyalHardeningStyles();
+    ensureJournalNavigation();
     ensureAgentNavigation();
     ensureMediaNavigation();
     ensureSeriesNavigation();
