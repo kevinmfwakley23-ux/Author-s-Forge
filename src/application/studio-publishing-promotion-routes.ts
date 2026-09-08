@@ -7,6 +7,7 @@ import { FileBrandKitStore } from "../infrastructure/file-brand-kit-store";
 import { FileCreativeProvenanceStore } from "../infrastructure/file-creative-provenance-store";
 import { FileForgeRecipeStore } from "../infrastructure/file-forge-recipe-store";
 import { FileHumanReviewStore } from "../infrastructure/file-human-review-store";
+import { FileProductionArtifactVault } from "../infrastructure/file-production-artifact-vault";
 import { createStudioAiEnsembleRoutes } from "./studio-ai-ensemble-routes";
 import { createStudioAiGatewayRoutes } from "./studio-ai-gateway-routes";
 import { createStudioAiModelOptionsRoutes } from "./studio-ai-model-options-routes";
@@ -23,6 +24,7 @@ import { createStudioKnowledgeGapRoutes } from "./studio-knowledge-gap-routes";
 import { createStudioLiveResearchRoutes } from "./studio-live-research-routes";
 import { createStudioManuscriptImportRoutes } from "./studio-manuscript-import-routes";
 import { createStudioMarketPromotionRoutes } from "./studio-market-promotion-routes";
+import { createStudioProductionExportRoutes } from "./studio-production-export-routes";
 import { createStudioProvenanceRoutes } from "./studio-provenance-routes";
 import { createStudioPublishingRoutes } from "./studio-publishing-routes";
 import { createStudioSceneCardWorkflowRoutes } from "./studio-scene-card-workflow-routes";
@@ -38,8 +40,8 @@ export type StudioPublishingPromotionRouteHandler = (req: IncomingMessage, res: 
  * project Brand Kit governance, model freedom, generic AI gateways, governed
  * multi-model writing, evidence-based model performance, reusable Forge Recipes,
  * governed human review, creative provenance, Chapter Card, Scene Card,
- * manuscript intake, Series, Story Map, research, image, publishing, market and
- * promotion routes remain independently testable.
+ * manuscript intake, Series, Story Map, research, image, production, publishing,
+ * market and promotion routes remain independently testable.
  */
 export function createStudioPublishingPromotionRoutes(store: FileProjectStore): StudioPublishingPromotionRouteHandler {
   const dataRoot = process.env.FORGE_DATA_DIR ?? join(process.cwd(), ".forge-data");
@@ -49,6 +51,7 @@ export function createStudioPublishingPromotionRoutes(store: FileProjectStore): 
   const brandKitStore = new FileBrandKitStore(join(dataRoot, "brand-kits.json"));
   const sharedProposalStore = new FileAiProposalStore(join(dataRoot, "ai-proposals.json"));
   const performanceStore = new FileAiModelPerformanceStore(join(dataRoot, "ai-model-performance.json"));
+  const productionArtifacts = new FileProductionArtifactVault(dataRoot);
   const gatewayRoutes = createStudioAiGatewayRoutes(store);
   const modelOptions = createStudioAiModelOptionsRoutes(store);
   const modelPerformance = createStudioAiModelPerformanceRoutes(store, performanceStore);
@@ -69,7 +72,8 @@ export function createStudioPublishingPromotionRoutes(store: FileProjectStore): 
   const knowledgeGaps = createStudioKnowledgeGapRoutes(store);
   const liveResearch = createStudioLiveResearchRoutes(store);
   const imageLab = createStudioImageLabRoutes(store);
-  const publishing = createStudioPublishingRoutes(store);
+  const productionExport = createStudioProductionExportRoutes(store, productionArtifacts);
+  const publishing = createStudioPublishingRoutes(store, productionArtifacts);
   const marketPromotion = createStudioMarketPromotionRoutes(store);
 
   return async (req, res, url, projectId) => {
@@ -93,6 +97,7 @@ export function createStudioPublishingPromotionRoutes(store: FileProjectStore): 
     if (await knowledgeGaps(req, res, url, projectId)) return true;
     if (await liveResearch(req, res, url, projectId)) return true;
     if (await imageLab(req, res, url, projectId)) return true;
+    if (await productionExport(req, res, url, projectId)) return true;
     if (await publishing(req, res, url, projectId)) return true;
     return marketPromotion(req, res, url, projectId);
   };
