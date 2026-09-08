@@ -15,6 +15,28 @@ export type AiWritingGenerator = (request: {
   preferModel?: string;
 }) => Promise<AiGenerationResult>;
 
+export interface AiWritingExecutionEvidence {
+  readonly requestedProvider?: string;
+  readonly requestedModel?: string;
+  readonly provider: AiGenerationResult["provider"];
+  readonly model: string;
+  readonly requestId?: string;
+  readonly cacheHit?: boolean;
+  readonly fallbackUsed: boolean;
+  readonly attempts: readonly {
+    readonly provider: AiGenerationResult["provider"];
+    readonly model?: string;
+    readonly success: boolean;
+    readonly latencyMs: number;
+    readonly error?: string;
+  }[];
+  readonly routing?: AiGenerationResult["routing"];
+}
+
+export type CoordinatedAiWritingResult = AiWritingResult & {
+  readonly execution: AiWritingExecutionEvidence;
+};
+
 /** Durable application boundary for real Studio writing assistance. */
 export class AiWritingCoordinator {
   private readonly generator: AiWritingGenerator;
@@ -26,9 +48,10 @@ export class AiWritingCoordinator {
   async generate(
     request: AiWritingRequest,
     assessCandidate?: AiWritingCandidateAssessor,
-  ): Promise<AiWritingResult> {
+  ): Promise<CoordinatedAiWritingResult> {
     const { routingPreference, ...durableRequest } = request;
     const proposals = await this.durableStore.load();
+    let execution: AiWritingExecutionEvidence | undefined;
     const service = new AiWritingService({
       generate: async (providerRequest) => {
         const result = await this.generator({
@@ -43,6 +66,28 @@ export class AiWritingCoordinator {
           maxOutputTokens: 5000,
           ...aiMissionRoutingGenerationFields(routingPreference),
         });
+        const attempts = (result.attempts ?? []).map((attempt) => ({
+          provider: attempt.provider,
+          ...(attempt.model ? { model: attempt.model } : {}),
+          success: attempt.success,
+          latencyMs: attempt.latencyMs,
+          ...(attempt.error ? { error: attempt.error } : {}),
+        }));
+        const requestedProvider = routingPreference?.preferProvider;
+        const requestedModel = routingPreference?.preferModel;
+        execution = {
+          ...(requestedProvider ? { requestedProvider } : {}),
+          ...(requestedModel ? { requestedModel } : {}),
+          provider: result.provider,
+          model: result.model,
+          ...(result.requestId ? { requestId: result.requestId } : {}),
+          ...(result.cacheHit !== undefined ? { cacheHit: result.cacheHit } : {}),
+          fallbackUsed: attempts.some((attempt) => !attempt.success)
+            || Boolean(requestedProvider && requestedProvider !== result.provider)
+            || Boolean(requestedModel && requestedModel !== result.model),
+          attempts,
+          ...(result.routing ? { routing: { ...result.routing } } : {}),
+        };
         return result.text;
       },
     }, proposals, assessCandidate);
@@ -50,8 +95,9 @@ export class AiWritingCoordinator {
       ...durableRequest,
       baseContentSha256: durableRequest.baseContentSha256 ?? sha256(durableRequest.existingContent),
     });
+    if (!execution) throw new Error("AI writing provider completed without execution evidence.");
     await this.durableStore.save();
-    return result;
+    return { ...result, execution };
   }
 
   async review(proposalId: string, decision: "accepted" | "rejected", note?: string, now?: string): Promise<ProposalReviewDecision> {
