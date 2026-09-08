@@ -4,6 +4,7 @@ import { assembleProjectBrainContext, type ProjectBrainQuery } from "./project-b
 import { assembleRelationshipAwareProjectBrainContext, type ProjectBrainRelationshipEvidence, type ProjectBrainRelationshipOptions } from "./project-brain-relationship-context";
 import type { ProjectMemoryStore } from "./project-memory-store";
 import type { MemoryRelationship } from "../domain/relationship-memory";
+import type { MemoryRecord } from "../domain/memory";
 
 export interface ProjectContextPipelineOptions {
   readonly budget?: number;
@@ -45,8 +46,9 @@ export function buildProjectContext(
     : assembleRelationshipAwareProjectBrainContext(store, options.relationships, query, options.relationshipOptions);
 
   const all = [...brain.authoritative, ...brain.working, ...brain.changed];
-  const unique = new Map(all.map((memory) => [memory.id, memory]));
-  const sections: ContextSection[] = [...unique.values()].map((memory, index) => ({
+  const uniqueById = new Map(all.map((memory) => [memory.id, memory]));
+  const deduplicated = deduplicateMemories([...uniqueById.values()], brain.relationshipEvidence);
+  const sections: ContextSection[] = deduplicated.memories.map((memory, index) => ({
     id: memory.id,
     priority: memoryPriority(memory.authority),
     order: index,
@@ -66,18 +68,55 @@ export function buildProjectContext(
   const originalEstimatedTokens = budgeted.originalEstimatedTokens + estimateTokens(originalUser);
   const optimizedEstimatedTokens = optimized.optimizedEstimatedTokens;
   const tokensSaved = Math.max(0, originalEstimatedTokens - optimizedEstimatedTokens);
+  const omittedMemoryIds = [...budgeted.omittedIds, ...deduplicated.duplicateMemoryIds]
+    .filter((id, index, ids) => ids.indexOf(id) === index);
 
   return {
     system: optimized.system,
     user: optimized.user,
     selectedMemoryIds: budgeted.includedIds,
-    omittedMemoryIds: budgeted.omittedIds,
+    omittedMemoryIds,
     originalEstimatedTokens,
     optimizedEstimatedTokens,
     tokensSaved,
     compressionRatio: originalEstimatedTokens === 0 ? 1 : optimizedEstimatedTokens / originalEstimatedTokens,
-    strategies: ["project-brain-retrieval", ...(options.relationships === undefined ? [] : ["bounded-relationship-expansion"]), "priority-context-budget", "provenance-attached", ...optimized.strategy],
+    strategies: [
+      "project-brain-retrieval",
+      "session-context-deduplication",
+      ...(options.relationships === undefined ? [] : ["bounded-relationship-expansion"]),
+      "priority-context-budget",
+      "provenance-attached",
+      ...optimized.strategy,
+    ],
   };
+}
+
+function deduplicateMemories(
+  memories: readonly MemoryRecord[],
+  relationshipEvidence: readonly ProjectBrainRelationshipEvidence[],
+): { readonly memories: MemoryRecord[]; readonly duplicateMemoryIds: string[] } {
+  const seen = new Set<string>();
+  const kept: MemoryRecord[] = [];
+  const duplicateMemoryIds: string[] = [];
+  for (const memory of memories) {
+    const key = normalizeForDedup([
+      memory.class,
+      memory.authority,
+      memory.content,
+      formatRelationshipEvidence(memory.id, relationshipEvidence),
+    ].filter(Boolean).join("\n"));
+    if (seen.has(key)) {
+      duplicateMemoryIds.push(memory.id);
+      continue;
+    }
+    seen.add(key);
+    kept.push(memory);
+  }
+  return { memories: kept, duplicateMemoryIds };
+}
+
+function normalizeForDedup(value: string): string {
+  return value.trim().replace(/\s+/g, " ");
 }
 
 function formatProvenance(memory: { readonly provenance: readonly { readonly kind: string; readonly reference: string }[] }): string {
