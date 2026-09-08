@@ -40,10 +40,15 @@ export interface ProposalReviewDecision {
   readonly reviewedAt: string;
 }
 
+export interface ProposalReviewAuditEntry extends ProposalReviewDecision {
+  readonly sequence: number;
+}
+
 type ProposalInput = Omit<AiProposal, "status" | "createdAt"> & { now?: string };
 
 export class AiProposalStore {
   private readonly proposals = new Map<string, AiProposal>();
+  private readonly reviewAudit: ProposalReviewAuditEntry[] = [];
 
   propose(input: ProposalInput): AiProposal {
     if (!input.id.trim()) throw new Error("AI proposal id is required.");
@@ -98,22 +103,47 @@ export class AiProposalStore {
     if (!existing) throw new Error(`AI proposal \"${proposalId}\" not found.`);
     if (existing.status !== "pending") throw new Error(`AI proposal \"${proposalId}\" has already been reviewed.`);
     if (reviewer !== "author") throw new Error("AI proposals require author review before they become durable.");
-    const reviewed: AiProposal = { ...existing, status: decision, reviewedAt: now, reviewedBy: reviewer, ...(note?.trim() ? { reviewNote: note.trim() } : {}) };
+    const trimmedNote = note?.trim();
+    const reviewed: AiProposal = {
+      ...existing,
+      status: decision,
+      reviewedAt: now,
+      reviewedBy: reviewer,
+      ...(trimmedNote ? { reviewNote: trimmedNote } : {}),
+    };
     this.proposals.set(proposalId, cloneProposal(reviewed));
-    return { proposalId, from: existing.status, to: decision, reviewer, ...(note?.trim() ? { note: note.trim() } : {}), reviewedAt: now };
+    const audit: ProposalReviewAuditEntry = Object.freeze({
+      proposalId,
+      from: existing.status,
+      to: decision,
+      reviewer,
+      ...(trimmedNote ? { note: trimmedNote } : {}),
+      reviewedAt: now,
+      sequence: this.reviewAudit.length + 1,
+    });
+    this.reviewAudit.push(audit);
+    return cloneAuditDecision(audit);
   }
 
   pending(projectId?: string): AiProposal[] { return this.list(projectId).filter((proposal) => proposal.status === "pending"); }
 
-  snapshot(): AiProposal[] { return this.list(); }
+  audit(projectId?: string): ProposalReviewAuditEntry[] {
+    if (projectId === undefined) return this.reviewAudit.map(cloneAuditEntry);
+    const allowed = new Set([...this.proposals.values()].filter((proposal) => proposal.projectId === projectId).map((proposal) => proposal.id));
+    return this.reviewAudit.filter((entry) => allowed.has(entry.proposalId)).map(cloneAuditEntry);
+  }
 
-  restore(proposals: readonly AiProposal[]): void {
-    if (this.proposals.size > 0) throw new Error("AI proposal store is already populated.");
+  snapshot(): AiProposal[] { return this.list(); }
+  auditSnapshot(): ProposalReviewAuditEntry[] { return this.reviewAudit.map(cloneAuditEntry); }
+
+  restore(proposals: readonly AiProposal[], reviewAudit: readonly ProposalReviewAuditEntry[] = []): void {
+    if (this.proposals.size > 0 || this.reviewAudit.length > 0) throw new Error("AI proposal store is already populated.");
     const ids = new Set<string>();
     for (const proposal of proposals) {
       if (!proposal.id.trim()) throw new Error("AI proposal id is required.");
       if (ids.has(proposal.id)) throw new Error(`Duplicate AI proposal id \"${proposal.id}\".`);
       ids.add(proposal.id);
+      if (!["pending", "accepted", "rejected", "superseded"].includes(proposal.status)) throw new Error(`AI proposal \"${proposal.id}\" has invalid status.`);
       validateTarget(proposal.target);
       if (proposal.baseContentSha256 !== undefined && !/^[a-f0-9]{64}$/.test(proposal.baseContentSha256)) throw new Error("AI proposal base content hash is invalid.");
       validateVoiceDrift(proposal.voiceDrift);
@@ -127,6 +157,37 @@ export class AiProposalStore {
       }
       this.proposals.set(proposal.id, cloneProposal(proposal));
     }
+    validateReviewAudit(reviewAudit, this.proposals);
+    this.reviewAudit.push(...reviewAudit.map((entry) => Object.freeze(cloneAuditEntry(entry))));
+  }
+}
+
+function validateReviewAudit(entries: readonly ProposalReviewAuditEntry[], proposals: ReadonlyMap<string, AiProposal>): void {
+  const reviewed = new Set<string>();
+  entries.forEach((entry, index) => {
+    if (entry.sequence !== index + 1) throw new Error("AI proposal review audit sequence is corrupt.");
+    if (entry.from !== "pending") throw new Error("AI proposal review audit must originate from pending state.");
+    if (entry.to !== "accepted" && entry.to !== "rejected") throw new Error("AI proposal review audit decision is invalid.");
+    if (entry.reviewer !== "author") throw new Error("AI proposal review audit contains a non-author durable decision.");
+    if (!entry.reviewedAt?.trim() || Number.isNaN(Date.parse(entry.reviewedAt))) throw new Error("AI proposal review audit timestamp is invalid.");
+    if (reviewed.has(entry.proposalId)) throw new Error(`AI proposal review audit duplicates proposal \"${entry.proposalId}\".`);
+    reviewed.add(entry.proposalId);
+    const proposal = proposals.get(entry.proposalId);
+    if (!proposal) throw new Error(`AI proposal review audit references missing proposal \"${entry.proposalId}\".`);
+    if (proposal.status !== entry.to || proposal.reviewedBy !== entry.reviewer || proposal.reviewedAt !== entry.reviewedAt) {
+      throw new Error(`AI proposal review audit does not match proposal \"${entry.proposalId}\".`);
+    }
+    const proposalNote = proposal.reviewNote?.trim() || undefined;
+    const auditNote = entry.note?.trim() || undefined;
+    if (proposalNote !== auditNote) throw new Error(`AI proposal review audit note does not match proposal \"${entry.proposalId}\".`);
+  });
+
+  for (const proposal of proposals.values()) {
+    if (proposal.status !== "accepted" && proposal.status !== "rejected") continue;
+    if (proposal.reviewedBy !== "author" || !proposal.reviewedAt?.trim() || Number.isNaN(Date.parse(proposal.reviewedAt))) {
+      throw new Error(`Reviewed AI proposal \"${proposal.id}\" is missing valid author review evidence.`);
+    }
+    if (!reviewed.has(proposal.id)) throw new Error(`AI proposal review audit is missing reviewed proposal \"${proposal.id}\".`);
   }
 }
 
@@ -174,5 +235,23 @@ function cloneProposal(proposal: AiProposal): AiProposal {
     ...(proposal.voiceDrift ? { voiceDrift: cloneVoiceDrift(proposal.voiceDrift) } : {}),
     ...(proposal.characterContinuity ? { characterContinuity: cloneCharacterContinuity(proposal.characterContinuity) } : {}),
     ...(proposal.craftLensEvidence ? { craftLensEvidence: cloneCraftLensEvidence(proposal.craftLensEvidence) } : {}),
+  };
+}
+
+function cloneAuditDecision(entry: ProposalReviewAuditEntry): ProposalReviewDecision {
+  return {
+    proposalId: entry.proposalId,
+    from: entry.from,
+    to: entry.to,
+    reviewer: entry.reviewer,
+    ...(entry.note ? { note: entry.note } : {}),
+    reviewedAt: entry.reviewedAt,
+  };
+}
+
+function cloneAuditEntry(entry: ProposalReviewAuditEntry): ProposalReviewAuditEntry {
+  return {
+    ...cloneAuditDecision(entry),
+    sequence: entry.sequence,
   };
 }
