@@ -22,14 +22,43 @@ function request() {
   };
 }
 
-test("coordinator durably records real provider output before author review", async () => {
+test("coordinator durably records real provider output and exposes actual execution/fallback evidence", async () => {
   const directory = await mkdtemp(join(tmpdir(), "forge-ai-coordinator-"));
   try {
     const file = join(directory, "proposals.json");
-    const coordinator = new AiWritingCoordinator(new FileAiProposalStore(file), async () => ({ provider: "ollama", model: "test-model", text: "A real provider boundary returned this candidate." }));
-    const result = await coordinator.generate(request());
+    const coordinator = new AiWritingCoordinator(new FileAiProposalStore(file), async () => ({
+      provider: "ollama",
+      model: "test-model",
+      requestId: "req-real-provider-1",
+      text: "A real provider boundary returned this candidate.",
+      attempts: [
+        { provider: "openai", model: "requested-model", success: false, latencyMs: 41, error: "temporary provider failure" },
+        { provider: "ollama", model: "test-model", success: true, latencyMs: 22 },
+      ],
+      routing: {
+        accountedTokens: 91,
+        usageSource: "provider",
+        task: "writing",
+        mode: "balanced",
+        spendPolicy: "unrestricted",
+      },
+    }));
+    const result = await coordinator.generate({
+      ...request(),
+      routingPreference: { preferProvider: "openai", preferModel: "requested-model" },
+    });
     assert.equal(result.proposal.status, "pending");
     assert.deepEqual(result.proposal.target, { bookId: "book-1", chapterId: "chapter-1", sceneId: "scene-1" });
+    assert.equal(result.execution.requestedProvider, "openai");
+    assert.equal(result.execution.requestedModel, "requested-model");
+    assert.equal(result.execution.provider, "ollama");
+    assert.equal(result.execution.model, "test-model");
+    assert.equal(result.execution.requestId, "req-real-provider-1");
+    assert.equal(result.execution.fallbackUsed, true);
+    assert.equal(result.execution.attempts.length, 2);
+    assert.equal(result.execution.attempts[0].success, false);
+    assert.equal(result.execution.attempts[1].success, true);
+    assert.equal(result.execution.routing.accountedTokens, 91);
     const persisted = JSON.parse(await readFile(file, "utf8"));
     assert.equal(persisted.proposals[0].status, "pending");
     assert.equal(persisted.proposals[0].target.sceneId, "scene-1");
