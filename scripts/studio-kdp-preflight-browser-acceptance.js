@@ -6,11 +6,16 @@ const { homedir, tmpdir } = require("node:os");
 const { join } = require("node:path");
 const { existsSync, readdirSync } = require("node:fs");
 const { chromium } = require("@playwright/test");
+const { BookCoverStudioService } = require("../dist/application/book-cover-studio.js");
 const { calculateKdpCoverLayout } = require("../dist/domain/book-cover-studio.js");
+const { createProject, withProjectBookCoverPlans } = require("../dist/domain/project.js");
+const { FileProjectStore } = require("../dist/infrastructure/file-project-store.js");
 
 const HOST = "127.0.0.1";
 const PORT = 6100 + Math.floor(Math.random() * 300);
 const projectId = `kdp-ui-${Date.now()}`;
+const bookId = "kdp-ui-book";
+const publishing = { platform: "kdp", binding: "paperback", interiorType: "black-white", paperType: "white", trimWidthInches: 6, trimHeightInches: 9, pageCount: 120, bleedInches: 0.125, readingDirection: "ltr" };
 
 function findBrowser() {
   if (process.env.FORGE_BROWSER_EXECUTABLE) {
@@ -45,22 +50,42 @@ async function waitForHttp(url, timeoutMs = 10000) {
   throw new Error(`Timed out waiting for ${url}`);
 }
 
+async function seedAuthoritativeProject(dataDir) {
+  const plan = new BookCoverStudioService().create({
+    id: "kdp-ui-cover-plan",
+    projectId,
+    bookId,
+    format: "paperback",
+    publishing,
+    title: "KDP UI Acceptance",
+    author: "Forge Acceptance Author",
+    frontPrompt: "Author-approved KDP front-cover direction",
+    spineText: "KDP UI Acceptance",
+    backText: "Author-approved KDP back-cover copy",
+    outputFormat: "pdf",
+    dpi: 300,
+    version: 1,
+    approvalStatus: "draft",
+  });
+  const project = withProjectBookCoverPlans(createProject({ id: projectId, title: "KDP UI Acceptance" }), [plan]);
+  await new FileProjectStore(dataDir).create(project);
+}
+
 async function main() {
   const executablePath = findBrowser();
   if (!executablePath) throw new Error("KDP PREFLIGHT BROWSER ACCEPTANCE BLOCKED: no Chrome/Chromium executable found.");
   const dataDir = await mkdtemp(join(tmpdir(), "authors-forge-kdp-ui-"));
-  const server = spawn(process.execPath, ["dist/studio-server.js"], {
-    env: { ...process.env, PORT: String(PORT), HOST, FORGE_DATA_DIR: dataDir, OPENAI_API_KEY: "", OPENAI_MODEL: "" },
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  let server;
   let browser;
   try {
+    await seedAuthoritativeProject(dataDir);
+    server = spawn(process.execPath, ["dist/studio-server.js"], {
+      env: { ...process.env, PORT: String(PORT), HOST, FORGE_DATA_DIR: dataDir, OPENAI_API_KEY: "", OPENAI_MODEL: "" },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
     const baseUrl = `http://${HOST}:${PORT}`;
     await waitForHttp(`${baseUrl}/api/health`);
-    const created = await fetch(`${baseUrl}/api/projects`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: projectId, title: "KDP UI Acceptance" }) });
-    assert.equal(created.ok, true, await created.text());
 
-    const publishing = { platform: "kdp", binding: "paperback", interiorType: "black-white", paperType: "white", trimWidthInches: 6, trimHeightInches: 9, pageCount: 120, bleedInches: 0.125, readingDirection: "ltr" };
     const layout = calculateKdpCoverLayout(publishing);
 
     browser = await chromium.launch({ executablePath, headless: true, args: ["--no-sandbox", "--disable-gpu"] });
@@ -90,11 +115,13 @@ async function main() {
     const apiHistory = await (await fetch(`${baseUrl}/api/projects/${projectId}/production/kdp-preflight`)).json();
     assert.equal(apiHistory.reports.length, 2);
     assert.equal(apiHistory.latest.status, "blocked");
-    console.log("KDP PREFLIGHT BROWSER ACCEPTANCE PASSED: Studio surface renders, ready audit persists, reload restores history, and invalid cover geometry blocks production.");
+    console.log("KDP PREFLIGHT BROWSER ACCEPTANCE PASSED: authoritative Cover Studio geometry drives ready/blocked audits, history survives reload, and invalid cover geometry blocks production.");
   } finally {
     if (browser) await browser.close().catch(() => {});
-    server.kill("SIGTERM");
-    await new Promise((resolve) => server.exitCode !== null ? resolve() : server.once("exit", resolve));
+    if (server) {
+      server.kill("SIGTERM");
+      await new Promise((resolve) => server.exitCode !== null ? resolve() : server.once("exit", resolve));
+    }
     await rm(dataDir, { recursive: true, force: true });
   }
 }
