@@ -4,9 +4,12 @@ const { tmpdir } = require("node:os");
 const { join } = require("node:path");
 
 const target = String(process.argv[2] || "").trim().toLowerCase();
-const supported = new Set(["omniroute", "9router", "ollama", "kings"]);
+const supported = new Set([
+  "omniroute", "9router", "ollama", "kings", "openai",
+  "groq", "mistral", "gemini", "anthropic", "openrouter",
+]);
 if (!supported.has(target)) {
-  fail("Usage: node scripts/ai-live-smoke.js <omniroute|9router|ollama|kings>");
+  fail("Usage: node scripts/ai-live-smoke.js <omniroute|9router|ollama|kings|openai|groq|mistral|gemini|anthropic|openrouter>");
 }
 if (process.env.AI_LIVE_SMOKE !== "1") {
   fail("Live AI certification is opt-in. Set AI_LIVE_SMOKE=1 only when you intend to send a real provider request.");
@@ -17,6 +20,12 @@ const prefixByProvider = {
   "9router": "ROUTER9_",
   ollama: "OLLAMA_",
   kings: "KINGS_AI_",
+  openai: "OPENAI_",
+  groq: "GROQ_",
+  mistral: "MISTRAL_",
+  gemini: "GEMINI_",
+  anthropic: "ANTHROPIC_",
+  openrouter: "OPENROUTER_",
 };
 const allProviderPrefixes = [
   "OMNIROUTE_", "ROUTER9_", "KINGS_AI_", "OPENAI_", "OLLAMA_",
@@ -32,6 +41,7 @@ for (const key of Object.keys(process.env)) {
   }
 }
 delete process.env.AI_MODEL_RESOURCES_JSON;
+delete process.env.AI_GATEWAYS_JSON;
 delete process.env.AI_PINNED_PROVIDER;
 delete process.env.AI_PINNED_MODEL;
 
@@ -123,17 +133,47 @@ function assertTargetConfiguration(provider) {
   if (provider === "omniroute" && !process.env.OMNIROUTE_BASE_URL?.trim()) fail("OMNIROUTE_BASE_URL is required for live OmniRoute certification.");
   if (provider === "9router") {
     if (!process.env.ROUTER9_BASE_URL?.trim()) fail("ROUTER9_BASE_URL is required for live 9Router certification.");
-    if (!process.env.ROUTER9_MODEL?.trim() && !process.env.ROUTER9_MODELS?.trim()) fail("ROUTER9_MODEL or ROUTER9_MODELS is required; Forge will not invent a universal 9Router auto model.");
+    requireModel("ROUTER9", "9Router");
   }
   if (provider === "ollama") {
     if (!process.env.OLLAMA_BASE_URL?.trim()) fail("OLLAMA_BASE_URL is required for live Ollama certification.");
-    if (!process.env.OLLAMA_MODEL?.trim() && !process.env.OLLAMA_MODELS?.trim()) fail("OLLAMA_MODEL or OLLAMA_MODELS is required for live Ollama certification.");
+    requireModel("OLLAMA", "Ollama");
   }
   if (provider === "kings") {
     const endpoint = process.env.KINGS_AI_RESPONSES_URL?.trim();
     if (!endpoint) fail("KINGS_AI_RESPONSES_URL is required. The normal K.I.N.G.S. owner/coding-machine root is not a generic text endpoint.");
     if (!/\/(?:v1\/)?responses\/?$/i.test(endpoint)) fail("KINGS_AI_RESPONSES_URL must point to an explicit Responses-compatible /responses endpoint.");
-    if (!process.env.KINGS_AI_MODEL?.trim() && !process.env.KINGS_AI_MODELS?.trim()) fail("KINGS_AI_MODEL or KINGS_AI_MODELS is required for live K.I.N.G.S. certification.");
+    requireModel("KINGS_AI", "K.I.N.G.S.");
+  }
+  if (provider === "openai") {
+    if (!process.env.OPENAI_API_KEY?.trim()) fail("OPENAI_API_KEY is required for live OpenAI certification.");
+    requireModel("OPENAI", "OpenAI");
+  }
+  if (provider === "groq") {
+    if (!process.env.GROQ_API_KEY?.trim()) fail("GROQ_API_KEY is required for live Groq certification.");
+    requireModel("GROQ", "Groq");
+  }
+  if (provider === "mistral") {
+    if (!process.env.MISTRAL_API_KEY?.trim()) fail("MISTRAL_API_KEY is required for live Mistral certification.");
+    requireModel("MISTRAL", "Mistral");
+  }
+  if (provider === "gemini") {
+    if (!process.env.GEMINI_API_KEY?.trim()) fail("GEMINI_API_KEY is required for live Gemini certification.");
+    requireModel("GEMINI", "Gemini");
+  }
+  if (provider === "anthropic") {
+    if (!process.env.ANTHROPIC_API_KEY?.trim()) fail("ANTHROPIC_API_KEY is required for live Anthropic certification.");
+    requireModel("ANTHROPIC", "Anthropic");
+  }
+  if (provider === "openrouter") {
+    if (!process.env.OPENROUTER_API_KEY?.trim()) fail("OPENROUTER_API_KEY is required for live OpenRouter certification.");
+    requireModel("OPENROUTER", "OpenRouter");
+  }
+}
+
+function requireModel(prefix, label) {
+  if (!process.env[`${prefix}_MODEL`]?.trim() && !process.env[`${prefix}_MODELS`]?.trim()) {
+    fail(`${prefix}_MODEL or ${prefix}_MODELS is required for live ${label} certification.`);
   }
 }
 
