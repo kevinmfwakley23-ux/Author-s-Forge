@@ -6,23 +6,27 @@ import { parseAiMissionRoutingPreference } from "./ai-mission-routing";
 import { compileCreativeAgentPlan } from "./creative-agent-plan";
 import { compileCreativeAgentPlanWithAi } from "./creative-agent-ai-planner";
 import { CreativeAgentRecipeService, type CreativeAgentRecipeStep } from "./creative-agent-recipes";
+import { CreativeAgentRuntime } from "./creative-agent-runtime";
 import { creativeToolRegistrySnapshot } from "./creative-tool-registry";
 import { StudioCoverDirectionService } from "./studio-cover-direction";
 
 export type StudioCreativeAgentRouteHandler = (req: IncomingMessage, res: ServerResponse, url: URL, projectId: string) => Promise<boolean>;
 
-/** Discoverable tool metadata, governed planning, cover direction, and durable reusable Forge Recipes. */
+/** Discoverable tools, governed planning, durable iterative execution, cover direction, and reusable Forge Recipes. */
 export function createStudioCreativeAgentRoutes(store: FileProjectStore): StudioCreativeAgentRouteHandler {
   const recipes = new CreativeAgentRecipeService(store);
   const coverDirection = new StudioCoverDirectionService(store);
+  const runtime = new CreativeAgentRuntime(store);
   return async (req, res, url, projectId) => {
     const toolsPath = `/api/projects/${projectId}/agent/tools`;
     const planPath = `/api/projects/${projectId}/agent/plan`;
+    const runPath = `/api/projects/${projectId}/agent/run`;
     const coverDirectionPath = `/api/projects/${projectId}/agent/cover-direction`;
     const recipesPath = `/api/projects/${projectId}/agent/recipes`;
+    const runMatch = url.pathname.match(new RegExp(`^${escapeRegExp(runPath)}/([A-Za-z0-9_-]+)$`));
     const recipeMatch = url.pathname.match(new RegExp(`^${escapeRegExp(recipesPath)}/([A-Za-z0-9_-]+)$`));
     const recipePlanMatch = url.pathname.match(new RegExp(`^${escapeRegExp(recipesPath)}/([A-Za-z0-9_-]+)/plan$`));
-    if (url.pathname !== toolsPath && url.pathname !== planPath && url.pathname !== coverDirectionPath && url.pathname !== recipesPath && !recipeMatch && !recipePlanMatch) return false;
+    if (url.pathname !== toolsPath && url.pathname !== planPath && url.pathname !== runPath && url.pathname !== coverDirectionPath && url.pathname !== recipesPath && !runMatch && !recipeMatch && !recipePlanMatch) return false;
     const project = await store.load(projectId);
     if (!project) throw new Error(`Project "${projectId}" not found.`);
 
@@ -32,6 +36,44 @@ export function createStudioCreativeAgentRoutes(store: FileProjectStore): Studio
         ...creativeToolRegistrySnapshot(),
         authority: "discovery-only",
         executionRule: "Each operation remains subject to its existing Forge route, provider, state, proposal, and author-approval boundary.",
+      });
+      return true;
+    }
+
+    if (runMatch && req.method === "GET") {
+      json(res, 200, {
+        projectId,
+        run: await runtime.get(projectId, runMatch[1]),
+        authority: "durable-agent-evidence",
+        executionRule: "This is persisted Creative Agent Runtime V4 evidence. It records model decisions and real Forge tool observations without exposing hidden chain-of-thought.",
+      });
+      return true;
+    }
+
+    if (url.pathname === runPath && req.method === "POST") {
+      const input = await body(req);
+      const bookId = optionalId(input.bookId);
+      const chapterId = optionalId(input.chapterId);
+      const sceneId = optionalId(input.sceneId);
+      const author = optionalText(input.author);
+      const approvedToolIds = optionalToolIds(input.approvedToolIds);
+      const maxSteps = optionalPositiveInteger(input.maxSteps, 12, "Creative Agent maxSteps");
+      const routingPreference = parseAiMissionRoutingPreference(input.routingPreference);
+      const run = await runtime.run(projectId, {
+        goal: requiredText(input.goal, "Creative agent goal"),
+        ...(bookId ? { bookId } : {}),
+        ...(chapterId ? { chapterId } : {}),
+        ...(sceneId ? { sceneId } : {}),
+        ...(author ? { author } : {}),
+        ...(approvedToolIds ? { approvedToolIds } : {}),
+        ...(maxSteps ? { maxSteps } : {}),
+        ...(routingPreference ? { routingPreference } : {}),
+      });
+      json(res, 200, {
+        projectId,
+        run,
+        authority: "server-owned-iterative-agent",
+        executionRule: "The model chooses one eligible registered tool at a time. Forge executes that real API route, persists the observation, re-reads project truth, and asks the model what to do next. Consequential tools are invisible to the model unless explicitly approved in this run request; proposal acceptance/apply and direct canon/manuscript mutation remain outside the registry.",
       });
       return true;
     }
@@ -220,6 +262,20 @@ function optionalId(value: unknown): string | undefined {
   if (value === undefined || value === null || value === "") return undefined;
   if (typeof value !== "string" || !/^[A-Za-z0-9_-]+$/u.test(value)) throw new Error("Invalid creative agent target id.");
   return value;
+}
+
+function optionalToolIds(value: unknown): readonly string[] | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (!Array.isArray(value)) throw new Error("Creative Agent approvedToolIds must be an array.");
+  if (value.length > 20) throw new Error("Creative Agent approvedToolIds cannot contain more than 20 entries.");
+  return value.map((entry, index) => requiredText(entry, `Creative Agent approved tool ${index + 1}`));
+}
+
+function optionalPositiveInteger(value: unknown, max: number, label: string): number | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > max) throw new Error(`${label} must be an integer from 1 through ${max}.`);
+  return parsed;
 }
 
 function escapeRegExp(value: string): string { return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
