@@ -30,18 +30,20 @@ function artifact(now = "2026-09-08T19:00:00.000Z") {
   }, now);
 }
 
+const options = {
+  format: "epub",
+  pageSize: "6x9",
+  pageNumbers: true,
+  includeTitlePage: true,
+  includeToc: true,
+};
+
 test("production artifact vault persists real bytes and verifies them after restart", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "forge-production-vault-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const generated = artifact();
   const first = new FileProductionArtifactVault(root);
-  const evidence = await first.save(generated, {
-    format: "epub",
-    pageSize: "6x9",
-    pageNumbers: true,
-    includeTitlePage: true,
-    includeToc: true,
-  });
+  const evidence = await first.save(generated, options);
 
   assert.equal(evidence.sha256, generated.sha256);
   assert.equal(evidence.byteLength, generated.byteLength);
@@ -55,18 +57,30 @@ test("production artifact vault persists real bytes and verifies them after rest
   assert.equal(latest.evidence.artifactId, generated.id);
 });
 
+test("same-instant production exports use distinct durable files and manifests", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "forge-production-vault-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const generated = artifact("2026-09-08T19:00:30.000Z");
+  const vault = new FileProductionArtifactVault(root);
+  const first = await vault.save(generated, options);
+  const second = await vault.save(generated, options);
+
+  assert.equal(first.artifactId, second.artifactId, "renderer identity intentionally demonstrates the collision case");
+  assert.notEqual(first.storageFileName, second.storageFileName, "durable files must not overwrite one another");
+  const records = await vault.list(generated.projectId, { bookId: generated.bookId, formats: ["epub"] });
+  assert.equal(records.length, 2, "both same-instant exports must retain independent manifests");
+  for (const record of records) {
+    const verified = await vault.verify(record);
+    assert.equal(verified.valid, true, verified.issues.join("; "));
+  }
+});
+
 test("production artifact vault detects byte tampering instead of trusting the manifest", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "forge-production-vault-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const generated = artifact("2026-09-08T19:01:00.000Z");
   const vault = new FileProductionArtifactVault(root);
-  const evidence = await vault.save(generated, {
-    format: "epub",
-    pageSize: "6x9",
-    pageNumbers: true,
-    includeTitlePage: true,
-    includeToc: true,
-  });
+  const evidence = await vault.save(generated, options);
   const path = join(root, "projects", generated.projectId, "production", evidence.storageFileName);
   const bytes = await readFile(path);
   bytes[bytes.length - 1] = bytes[bytes.length - 1] ^ 0xff;
