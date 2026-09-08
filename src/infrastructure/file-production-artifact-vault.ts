@@ -23,10 +23,11 @@ export class FileProductionArtifactVault {
     const directory = this.productionDirectory(artifact.projectId);
     await mkdir(directory, { recursive: true });
     const extension = extensionFor(artifact.format);
-    const storageFileName = `${safeId(artifact.id)}${extension}`;
+    const instanceId = randomUUID();
+    const storageFileName = `${safeId(artifact.id)}-${instanceId}${extension}`;
     const evidence = createProductionArtifactEvidence(artifact, storageFileName, options);
     const artifactPath = join(directory, storageFileName);
-    const manifestPath = this.manifestPath(artifact.projectId, artifact.id);
+    const manifestPath = this.manifestPath(artifact.projectId, storageFileName);
 
     await writeAtomically(artifactPath, bytes);
     try {
@@ -58,7 +59,7 @@ export class FileProductionArtifactVault {
       if (formats && !formats.has(evidence.format)) continue;
       records.push(evidence);
     }
-    return records.sort((a, b) => b.generatedAt.localeCompare(a.generatedAt) || b.artifactId.localeCompare(a.artifactId));
+    return records.sort((a, b) => b.generatedAt.localeCompare(a.generatedAt) || b.storageFileName.localeCompare(a.storageFileName));
   }
 
   async verify(evidence: ProductionArtifactEvidence): Promise<ProductionArtifactVerification> {
@@ -89,8 +90,9 @@ export class FileProductionArtifactVault {
   private productionDirectory(projectId: string): string {
     return join(this.rootDirectory, "projects", safeId(projectId), "production");
   }
-  private manifestPath(projectId: string, artifactId: string): string {
-    return join(this.productionDirectory(projectId), `${safeId(artifactId)}.manifest.json`);
+  private manifestPath(projectId: string, storageFileName: string): string {
+    if (!/^[A-Za-z0-9_.-]+$/.test(storageFileName) || storageFileName.includes("..")) throw new Error("Production artifact storage filename is unsafe.");
+    return join(this.productionDirectory(projectId), `${storageFileName}.manifest.json`);
   }
 }
 
