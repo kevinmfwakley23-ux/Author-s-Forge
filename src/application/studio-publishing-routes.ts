@@ -5,15 +5,17 @@ import { createPublishingReadinessReport, type PublishingReadinessInput, type Pu
 import { createReleaseGateReport } from "../domain/release-gate";
 import { withProjectPublishingReadinessReports } from "../domain/project";
 import { getBook, validateStudioWorkspace } from "../domain/studio-workspace";
+import type { ProductionFormat } from "../domain/manuscript-production";
 import type { PublishingMetadata } from "../domain/publishing-metadata";
 import { FileProjectStore } from "../infrastructure/file-project-store";
+import { FileProductionArtifactVault } from "../infrastructure/file-production-artifact-vault";
 import { StudioMarketingCampaignService } from "./studio-marketing-campaign";
 import { StudioPublishingMetadataService } from "./studio-publishing-metadata";
 
 export type StudioPublishingRouteHandler = (req: IncomingMessage, res: ServerResponse, url: URL, projectId: string) => Promise<boolean>;
 const RELEASE_FORMATS: readonly PublishingReleaseFormat[] = ["ebook", "paperback", "hardcover"];
 
-export function createStudioPublishingRoutes(store: FileProjectStore): StudioPublishingRouteHandler {
+export function createStudioPublishingRoutes(store: FileProjectStore, productionArtifacts: FileProductionArtifactVault): StudioPublishingRouteHandler {
   const publishing = new StudioPublishingMetadataService(store);
   const campaigns = new StudioMarketingCampaignService(store);
 
@@ -55,8 +57,8 @@ export function createStudioPublishingRoutes(store: FileProjectStore): StudioPub
       if (!currentMetadata) throw new Error("Save Publishing metadata before running Publishing readiness.");
       const evidence = input.evidence === undefined ? {} : objectValue(input.evidence, "Publishing readiness evidence");
       const manuscriptEvidence = evidence.manuscript === undefined ? {} : objectValue(evidence.manuscript, "Manuscript readiness evidence");
-      const formattingEvidence = evidence.formatting === undefined ? undefined : objectValue(evidence.formatting, "Formatting readiness evidence");
-      const productionEvidence = evidence.production === undefined ? undefined : objectValue(evidence.production, "Production readiness evidence");
+      const formattingEvidence = evidence.formatting === undefined ? {} : objectValue(evidence.formatting, "Formatting readiness evidence");
+      const productionEvidence = evidence.production === undefined ? {} : objectValue(evidence.production, "Production readiness evidence");
       const requestedFormat = releaseFormat(input.releaseFormat ?? currentMetadata.metadata.formats[0], "Release format");
       if (!currentMetadata.metadata.formats.includes(requestedFormat)) throw new Error(`Publishing metadata does not enable the ${requestedFormat} release format.`);
       const latestCover = [...(project.bookCoverPlans ?? [])]
@@ -68,6 +70,9 @@ export function createStudioPublishingRoutes(store: FileProjectStore): StudioPub
         const dpi = asset.generationSettings?.dpi;
         return typeof dpi === "number" && Number.isFinite(dpi) && dpi >= 300;
       }));
+      const productionArtifact = await productionArtifacts.latestVerified(projectId, bookId, productionFormatsForRelease(requestedFormat));
+      const artifact = productionArtifact?.evidence;
+      const artifactFileType = artifact ? baseProductionFileType(artifact.format) : undefined;
       const report = createPublishingReadinessReport({
         id: optionalText(input.id) ?? `publishing-readiness-${bookId}-${requestedFormat}-${randomUUID()}`,
         projectId,
@@ -76,6 +81,11 @@ export function createStudioPublishingRoutes(store: FileProjectStore): StudioPub
         now: optionalText(input.now),
         manuscript: {
           ...(manuscriptEvidence as PublishingReadinessInput["manuscript"]),
+          ...(artifact ? {
+            hasTitlePage: artifact.options.includeTitlePage,
+            hasCopyrightPage: true,
+            hasTableOfContents: artifact.options.includeToc,
+          } : {}),
           title: book.title,
           author: currentMetadata.metadata.author,
           chapters: book.chapters.map((chapter) => ({ title: chapter.title, number: chapter.number })),
@@ -103,7 +113,12 @@ export function createStudioPublishingRoutes(store: FileProjectStore): StudioPub
           keywords: currentMetadata.metadata.keywords,
           categories: currentMetadata.metadata.categories,
         },
-        formatting: formattingEvidence as PublishingReadinessInput["formatting"],
+        formatting: {
+          fileTypes: artifactFileType ? [artifactFileType] : [],
+          validated: Boolean(productionArtifact?.valid),
+          pageNumbering: requestedFormat === "ebook" ? true : Boolean(artifact?.options.pageNumbers),
+          headersFooters: formattingEvidence.headersFooters === true,
+        },
         images: {
           required: imagesRequired,
           count: bookAssets.length,
@@ -111,7 +126,12 @@ export function createStudioPublishingRoutes(store: FileProjectStore): StudioPub
           allApproved: bookAssets.length > 0 && bookAssets.every((asset) => asset.approvalStatus === "approved"),
           resolutionValidated: imageResolutionValidated,
         },
-        production: productionEvidence as PublishingReadinessInput["production"],
+        production: {
+          trim: requestedFormat === "ebook" ? true : productionEvidence.trim === true,
+          bleed: requestedFormat === "ebook" ? true : productionEvidence.bleed === true,
+          fileTypes: artifactFileType ? [artifactFileType] : [],
+          validated: Boolean(productionArtifact?.valid),
+        },
       });
       const persistenceNow = latestTimestamp(project.metadata.createdAt, project.metadata.updatedAt, report.createdAt);
       await store.save(withProjectPublishingReadinessReports(project, [...(project.publishingReadinessReports ?? []), report], persistenceNow));
@@ -137,6 +157,9 @@ export function createStudioPublishingRoutes(store: FileProjectStore): StudioPub
       if (!currentMetadata) staleReasons.push("Publishing metadata is no longer available");
       else if (Date.parse(currentMetadata.metadata.updatedAt) > Date.parse(publishingReadiness.createdAt)) staleReasons.push("Publishing metadata changed after the readiness audit");
       if (matchingCover && Date.parse(matchingCover.updatedAt) > Date.parse(publishingReadiness.createdAt)) staleReasons.push(`the ${auditedFormat} cover changed after the readiness audit`);
+      const latestArtifact = auditedFormat ? await productionArtifacts.latestVerified(projectId, bookId, productionFormatsForRelease(auditedFormat)) : undefined;
+      if (!latestArtifact) staleReasons.push(`no verified ${auditedFormat ?? "release"} production artifact is currently available`);
+      else if (Date.parse(latestArtifact.evidence.generatedAt) > Date.parse(publishingReadiness.createdAt)) staleReasons.push(`the ${auditedFormat} production artifact changed after the readiness audit`);
       const campaign = campaignId ? (await campaigns.get(projectId, bookId, campaignId)).campaign : undefined;
       const promotionReadiness = campaign ? createPromotionReadinessReport({ id: `promotion-readiness-${campaign.id}`, projectId, bookId, campaign }) : undefined;
       respond(res, 200, createReleaseGateReport({
@@ -157,6 +180,15 @@ export function createStudioPublishingRoutes(store: FileProjectStore): StudioPub
   };
 }
 
+function productionFormatsForRelease(format: PublishingReleaseFormat): readonly ProductionFormat[] {
+  if (format === "ebook") return ["epub", "kdp-epub"];
+  return ["pdf", "kdp-pdf", "docx", "kdp-docx"];
+}
+function baseProductionFileType(format: ProductionFormat): "docx" | "pdf" | "epub" {
+  if (format.endsWith("docx")) return "docx";
+  if (format.endsWith("pdf")) return "pdf";
+  return "epub";
+}
 async function requireProject(store: FileProjectStore, projectId: string) {
   const project = await store.load(projectId);
   if (!project) throw new Error(`Project "${projectId}" was not found.`);
