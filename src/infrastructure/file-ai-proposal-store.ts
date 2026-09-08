@@ -1,12 +1,15 @@
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { AiProposalStore, type AiProposal } from "../application/ai-proposal-store";
+import { AiProposalStore, type AiProposal, type ProposalReviewAuditEntry } from "../application/ai-proposal-store";
 
-export const AI_PROPOSAL_STORE_FORMAT_VERSION = 1 as const;
+const LEGACY_AI_PROPOSAL_STORE_FORMAT_VERSION = 1 as const;
+export const AI_PROPOSAL_STORE_FORMAT_VERSION = 2 as const;
 
 type PersistedProposalState = {
   readonly formatVersion: typeof AI_PROPOSAL_STORE_FORMAT_VERSION;
   readonly proposals: readonly AiProposal[];
+  readonly reviewAudit: readonly ProposalReviewAuditEntry[];
 };
 
 type SharedProposalBackend = {
@@ -61,7 +64,8 @@ export class FileAiProposalStore {
   private async loadOnce(): Promise<AiProposalStore> {
     try {
       const raw = await readFile(this.canonicalPath, "utf8");
-      this.backend.store.restore(validateState(JSON.parse(raw)).proposals);
+      const state = validateState(JSON.parse(raw));
+      this.backend.store.restore(state.proposals, state.reviewAudit);
     } catch (error) {
       if (!isMissingFile(error)) throw error;
     }
@@ -70,20 +74,37 @@ export class FileAiProposalStore {
   }
 
   private async saveOnce(): Promise<void> {
-    const state: PersistedProposalState = { formatVersion: AI_PROPOSAL_STORE_FORMAT_VERSION, proposals: this.backend.store.snapshot() };
+    const state: PersistedProposalState = {
+      formatVersion: AI_PROPOSAL_STORE_FORMAT_VERSION,
+      proposals: this.backend.store.snapshot(),
+      reviewAudit: this.backend.store.auditSnapshot(),
+    };
     await mkdir(dirname(this.canonicalPath), { recursive: true });
-    const temporaryPath = `${this.canonicalPath}.${process.pid}.${Date.now()}.tmp`;
-    await writeFile(temporaryPath, `${JSON.stringify(state, null, 2)}\n`, "utf8");
-    await rename(temporaryPath, this.canonicalPath);
+    await writeFileAtomically(this.canonicalPath, `${JSON.stringify(state, null, 2)}\n`);
   }
 }
 
 function validateState(value: unknown): PersistedProposalState {
   if (!value || typeof value !== "object") throw new Error("Invalid AI proposal store.");
   const candidate = value as Record<string, unknown>;
-  if (candidate.formatVersion !== AI_PROPOSAL_STORE_FORMAT_VERSION || !Array.isArray(candidate.proposals)) throw new Error("Unsupported or corrupt AI proposal store.");
+  if (candidate.formatVersion !== LEGACY_AI_PROPOSAL_STORE_FORMAT_VERSION && candidate.formatVersion !== AI_PROPOSAL_STORE_FORMAT_VERSION) {
+    throw new Error("Unsupported or corrupt AI proposal store.");
+  }
+  if (!Array.isArray(candidate.proposals)) throw new Error("Unsupported or corrupt AI proposal store.");
+
+  const proposals = validateProposals(candidate.proposals);
+  const reviewAudit = candidate.formatVersion === LEGACY_AI_PROPOSAL_STORE_FORMAT_VERSION
+    ? migrateLegacyReviewAudit(proposals)
+    : validateReviewAuditArray(candidate.reviewAudit);
+
+  const verifier = new AiProposalStore();
+  verifier.restore(proposals, reviewAudit);
+  return { formatVersion: AI_PROPOSAL_STORE_FORMAT_VERSION, proposals, reviewAudit };
+}
+
+function validateProposals(value: readonly unknown[]): AiProposal[] {
   const ids = new Set<string>();
-  const proposals = candidate.proposals.map((item) => {
+  return value.map((item) => {
     if (!item || typeof item !== "object") throw new Error("Invalid AI proposal record.");
     const proposal = item as AiProposal;
     if (!proposal.id?.trim()) throw new Error("AI proposal id is required.");
@@ -94,13 +115,82 @@ function validateState(value: unknown): PersistedProposalState {
     if (!proposal.proposedContent?.trim()) throw new Error(`AI proposal "${proposal.id}" has no content.`);
     if (!Array.isArray(proposal.sourceMemoryIds)) throw new Error(`AI proposal "${proposal.id}" has invalid source memory ids.`);
     if (!["pending", "accepted", "rejected", "superseded"].includes(proposal.status)) throw new Error(`AI proposal "${proposal.id}" has invalid status.`);
-    if (!proposal.createdAt?.trim()) throw new Error(`AI proposal "${proposal.id}" has no creation time.`);
+    if (!proposal.createdAt?.trim() || Number.isNaN(Date.parse(proposal.createdAt))) throw new Error(`AI proposal "${proposal.id}" has invalid creation time.`);
     if (proposal.target) {
-      for (const [name, value] of Object.entries(proposal.target)) if (!value?.trim()) throw new Error(`AI proposal "${proposal.id}" has invalid target ${name}.`);
+      for (const [name, targetValue] of Object.entries(proposal.target)) if (!targetValue?.trim()) throw new Error(`AI proposal "${proposal.id}" has invalid target ${name}.`);
     }
-    return { ...proposal, sourceMemoryIds: [...new Set(proposal.sourceMemoryIds.map(String))].sort(), ...(proposal.target ? { target: { ...proposal.target } } : {}) };
+    return {
+      ...proposal,
+      sourceMemoryIds: [...new Set(proposal.sourceMemoryIds.map(String))].sort(),
+      ...(proposal.target ? { target: { ...proposal.target } } : {}),
+    };
   });
-  return { formatVersion: AI_PROPOSAL_STORE_FORMAT_VERSION, proposals };
+}
+
+function validateReviewAuditArray(value: unknown): ProposalReviewAuditEntry[] {
+  if (!Array.isArray(value)) throw new Error("Unsupported or corrupt AI proposal review audit.");
+  return value.map((item) => {
+    if (!item || typeof item !== "object") throw new Error("Invalid AI proposal review audit entry.");
+    const entry = item as ProposalReviewAuditEntry;
+    return {
+      proposalId: String(entry.proposalId ?? ""),
+      from: entry.from,
+      to: entry.to,
+      reviewer: entry.reviewer,
+      ...(entry.note?.trim() ? { note: entry.note.trim() } : {}),
+      reviewedAt: String(entry.reviewedAt ?? ""),
+      sequence: entry.sequence,
+    };
+  });
+}
+
+function migrateLegacyReviewAudit(proposals: readonly AiProposal[]): ProposalReviewAuditEntry[] {
+  return proposals
+    .filter((proposal) => (proposal.status === "accepted" || proposal.status === "rejected") && proposal.reviewedBy === "author" && Boolean(proposal.reviewedAt?.trim()))
+    .sort((a, b) => (a.reviewedAt ?? "").localeCompare(b.reviewedAt ?? "") || a.id.localeCompare(b.id))
+    .map((proposal, index) => ({
+      proposalId: proposal.id,
+      from: "pending",
+      to: proposal.status as "accepted" | "rejected",
+      reviewer: "author",
+      ...(proposal.reviewNote?.trim() ? { note: proposal.reviewNote.trim() } : {}),
+      reviewedAt: proposal.reviewedAt as string,
+      sequence: index + 1,
+    }));
+}
+
+async function writeFileAtomically(path: string, content: string): Promise<void> {
+  const temporaryPath = `${path}.${process.pid}.${randomUUID()}.tmp`;
+  let handle: Awaited<ReturnType<typeof open>> | undefined;
+  try {
+    handle = await open(temporaryPath, "wx");
+    await handle.writeFile(content, "utf8");
+    await handle.sync();
+    await handle.close();
+    handle = undefined;
+    await rename(temporaryPath, path);
+    await syncDirectoryBestEffort(dirname(path));
+  } finally {
+    if (handle) await handle.close().catch(() => {});
+    await rm(temporaryPath, { force: true }).catch(() => {});
+  }
+}
+
+async function syncDirectoryBestEffort(directory: string): Promise<void> {
+  let handle: Awaited<ReturnType<typeof open>> | undefined;
+  try {
+    handle = await open(directory, "r");
+    await handle.sync();
+  } catch (error) {
+    if (!isUnsupportedDirectorySync(error)) throw error;
+  } finally {
+    if (handle) await handle.close().catch(() => {});
+  }
+}
+
+function isUnsupportedDirectorySync(error: unknown): boolean {
+  if (!error || typeof error !== "object" || !("code" in error)) return false;
+  return ["EISDIR", "EINVAL", "ENOTSUP", "EPERM", "EACCES"].includes(String((error as { code?: unknown }).code));
 }
 
 function isMissingFile(error: unknown): boolean {
