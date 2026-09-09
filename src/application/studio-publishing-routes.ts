@@ -55,16 +55,19 @@ export function createStudioPublishingRoutes(store: FileProjectStore): StudioPub
       if (!currentMetadata) throw new Error("Save Publishing metadata before running Publishing readiness.");
       const evidence = input.evidence === undefined ? {} : objectValue(input.evidence, "Publishing readiness evidence");
       const manuscriptEvidence = evidence.manuscript === undefined ? {} : objectValue(evidence.manuscript, "Manuscript readiness evidence");
-      const coverEvidence = evidence.cover === undefined ? {} : objectValue(evidence.cover, "Cover readiness evidence");
-      const imageEvidence = evidence.images === undefined ? {} : objectValue(evidence.images, "Image readiness evidence");
-      const requestedFormat = releaseFormat(input.releaseFormat ?? coverEvidence.format ?? currentMetadata.metadata.formats[0], "Release format");
+      const formattingEvidence = evidence.formatting === undefined ? undefined : objectValue(evidence.formatting, "Formatting readiness evidence");
+      const productionEvidence = evidence.production === undefined ? undefined : objectValue(evidence.production, "Production readiness evidence");
+      const requestedFormat = releaseFormat(input.releaseFormat ?? currentMetadata.metadata.formats[0], "Release format");
       if (!currentMetadata.metadata.formats.includes(requestedFormat)) throw new Error(`Publishing metadata does not enable the ${requestedFormat} release format.`);
       const latestCover = [...(project.bookCoverPlans ?? [])]
         .filter((plan) => plan.bookId === bookId && plan.format === requestedFormat)
         .sort((a, b) => b.version - a.version || b.updatedAt.localeCompare(a.updatedAt))[0];
       const bookAssets = (project.illustrationAssetLibrary?.assets ?? []).filter((asset) => asset.bookId === bookId);
-      const defaultImagesRequired = book.kind === "childrens-book" || book.kind === "comic-book" || bookAssets.length > 0;
-      const imagesRequired = imageEvidence.required === undefined ? defaultImagesRequired : imageEvidence.required === true;
+      const imagesRequired = book.kind === "childrens-book" || book.kind === "comic-book" || bookAssets.length > 0;
+      const imageResolutionValidated = !imagesRequired || (bookAssets.length > 0 && bookAssets.every((asset) => {
+        const dpi = asset.generationSettings?.dpi;
+        return typeof dpi === "number" && Number.isFinite(dpi) && dpi >= 300;
+      }));
       const report = createPublishingReadinessReport({
         id: optionalText(input.id) ?? `publishing-readiness-${bookId}-${requestedFormat}-${randomUUID()}`,
         projectId,
@@ -72,14 +75,13 @@ export function createStudioPublishingRoutes(store: FileProjectStore): StudioPub
         releaseFormat: requestedFormat,
         now: optionalText(input.now),
         manuscript: {
+          ...(manuscriptEvidence as PublishingReadinessInput["manuscript"]),
           title: book.title,
           author: currentMetadata.metadata.author,
           chapters: book.chapters.map((chapter) => ({ title: chapter.title, number: chapter.number })),
-          ...(manuscriptEvidence as PublishingReadinessInput["manuscript"]),
         },
         cover: {
           ...(latestCover ? {
-            format: latestCover.format,
             widthInches: latestCover.dimensions.widthInches,
             heightInches: latestCover.dimensions.heightInches,
             hasBarcodeSafeArea: Boolean(latestCover.zones.barcodeSafeArea),
@@ -89,10 +91,9 @@ export function createStudioPublishingRoutes(store: FileProjectStore): StudioPub
             validated: latestCover.approvalStatus === "approved" && Boolean(latestCover.outputUri),
             fileType: latestCover.outputUri ? latestCover.outputFormat : undefined,
             hasFront: Boolean(latestCover.outputUri),
-            hasBack: latestCover.format === "ebook" ? true : Boolean(latestCover.outputUri),
-            hasSpine: latestCover.format === "ebook" ? true : Boolean(latestCover.outputUri),
+            hasBack: requestedFormat === "ebook" ? true : Boolean(latestCover.outputUri),
+            hasSpine: requestedFormat === "ebook" ? true : Boolean(latestCover.outputUri),
           } : {}),
-          ...(coverEvidence as PublishingReadinessInput["cover"]),
           format: requestedFormat,
         },
         metadata: {
@@ -102,15 +103,15 @@ export function createStudioPublishingRoutes(store: FileProjectStore): StudioPub
           keywords: currentMetadata.metadata.keywords,
           categories: currentMetadata.metadata.categories,
         },
-        formatting: evidence.formatting as PublishingReadinessInput["formatting"],
+        formatting: formattingEvidence as PublishingReadinessInput["formatting"],
         images: {
           required: imagesRequired,
           count: bookAssets.length,
           allResolved: bookAssets.length > 0 && bookAssets.every((asset) => typeof asset.assetUri === "string" && asset.assetUri.trim().length > 0),
           allApproved: bookAssets.length > 0 && bookAssets.every((asset) => asset.approvalStatus === "approved"),
-          resolutionValidated: imageEvidence.resolutionValidated === true,
+          resolutionValidated: imageResolutionValidated,
         },
-        production: evidence.production as PublishingReadinessInput["production"],
+        production: productionEvidence as PublishingReadinessInput["production"],
       });
       const persistenceNow = latestTimestamp(project.metadata.createdAt, project.metadata.updatedAt, report.createdAt);
       await store.save(withProjectPublishingReadinessReports(project, [...(project.publishingReadinessReports ?? []), report], persistenceNow));
