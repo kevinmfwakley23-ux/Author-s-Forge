@@ -16,6 +16,7 @@ const { createBookCoverPlan } = require("../.forge-build/domain/book-cover-studi
 const { createIllustrationAsset } = require("../.forge-build/domain/illustration-asset-library.js");
 const { FileProjectStore } = require("../.forge-build/infrastructure/file-project-store.js");
 const { FileProductionArtifactVault } = require("../.forge-build/infrastructure/file-production-artifact-vault.js");
+const { FileCoverArtifactVault } = require("../.forge-build/infrastructure/file-cover-artifact-vault.js");
 const { StudioPublishingMetadataService } = require("../.forge-build/application/studio-publishing-metadata.js");
 const { createStudioPublishingRoutes } = require("../.forge-build/application/studio-publishing-routes.js");
 
@@ -98,7 +99,7 @@ async function fixture({ withProductionAssets = false } = {}) {
       prompt: "Approved production illustration",
       references: [],
       style: "children's publishing test",
-      generationSettings: { dpi: 300 },
+      generationSettings: { dpi: 300, purpose: "illustration" },
       approvalStatus: "approved",
       assetUri: "/artifacts/illustration-1.png",
       now: "2026-09-08T18:04:00.000Z",
@@ -113,6 +114,7 @@ async function fixture({ withProductionAssets = false } = {}) {
 
   const store = new FileProjectStore(root);
   const productionArtifacts = new FileProductionArtifactVault(root);
+  const coverArtifacts = new FileCoverArtifactVault(root);
   await store.create(project);
   await new StudioPublishingMetadataService(store).save(projectId, bookId, {
     title: "Durable Project Truth",
@@ -131,7 +133,7 @@ async function fixture({ withProductionAssets = false } = {}) {
     lowContent: false,
     aiContent: { text: "none", images: "none", translations: "none" },
   }, { now: "2026-09-08T18:06:00.000Z", reference: "authoritative-evidence-test" });
-  return { root, store, productionArtifacts, projectId, bookId };
+  return { root, store, productionArtifacts, coverArtifacts, projectId, bookId };
 }
 
 function evidence() {
@@ -188,9 +190,9 @@ function check(report, id) {
 }
 
 test("browser assertions cannot manufacture cover, illustration, or production readiness", async (t) => {
-  const { root, store, productionArtifacts, projectId, bookId } = await fixture();
+  const { root, store, productionArtifacts, coverArtifacts, projectId, bookId } = await fixture();
   t.after(() => rm(root, { recursive: true, force: true }));
-  const response = await invoke(createStudioPublishingRoutes(store, productionArtifacts), projectId, {
+  const response = await invoke(createStudioPublishingRoutes(store, productionArtifacts, coverArtifacts), projectId, {
     bookId,
     releaseFormat: "paperback",
     evidence: evidence(),
@@ -207,10 +209,10 @@ test("browser assertions cannot manufacture cover, illustration, or production r
   assert.equal(check(response.payload, "production-validation").status, "attention", "production validation must come from a verified persisted artifact");
 });
 
-test("saved approved Cover Studio and illustration evidence satisfies only those authoritative visual checks", async (t) => {
-  const { root, store, productionArtifacts, projectId, bookId } = await fixture({ withProductionAssets: true });
+test("fake outputUri cannot replace verified cover bytes while durable illustration evidence remains authoritative", async (t) => {
+  const { root, store, productionArtifacts, coverArtifacts, projectId, bookId } = await fixture({ withProductionAssets: true });
   t.after(() => rm(root, { recursive: true, force: true }));
-  const response = await invoke(createStudioPublishingRoutes(store, productionArtifacts), projectId, {
+  const response = await invoke(createStudioPublishingRoutes(store, productionArtifacts, coverArtifacts), projectId, {
     bookId,
     releaseFormat: "paperback",
     evidence: evidence(),
@@ -218,9 +220,9 @@ test("saved approved Cover Studio and illustration evidence satisfies only those
   });
 
   assert.equal(response.status, 201);
-  assert.equal(check(response.payload, "cover-file").status, "passed");
-  assert.equal(check(response.payload, "cover-front").status, "passed");
-  assert.equal(check(response.payload, "cover-validation").status, "passed");
+  assert.equal(check(response.payload, "cover-file").status, "attention", "an outputUri string is not a final cover file");
+  assert.equal(check(response.payload, "cover-front").status, "attention");
+  assert.equal(check(response.payload, "cover-validation").status, "attention");
   assert.equal(check(response.payload, "images-present").status, "passed");
   assert.equal(check(response.payload, "images-resolved").status, "passed");
   assert.equal(check(response.payload, "images-approved").status, "passed");
