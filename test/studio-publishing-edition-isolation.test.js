@@ -1,16 +1,19 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { createHash } = require("node:crypto");
 const { Readable } = require("node:stream");
 const { mkdtemp, rm } = require("node:fs/promises");
 const { tmpdir } = require("node:os");
 const { join } = require("node:path");
 
-const { createProject, withProjectStudioWorkspace, withProjectBookCoverPlans } = require("../.forge-build/domain/project.js");
+const { createProject, withProjectStudioWorkspace, withProjectBookCoverPlans, withProjectIllustrationAssetLibrary } = require("../.forge-build/domain/project.js");
 const { createStudioWorkspace, createWorkspaceBook, addWorkspaceBook, addWorkspaceChapter } = require("../.forge-build/domain/studio-workspace.js");
 const { createBookCoverPlan } = require("../.forge-build/domain/book-cover-studio.js");
+const { createIllustrationAsset } = require("../.forge-build/domain/illustration-asset-library.js");
 const { productionSourceSha256 } = require("../.forge-build/domain/production-artifact-evidence.js");
 const { FileProjectStore } = require("../.forge-build/infrastructure/file-project-store.js");
 const { FileProductionArtifactVault } = require("../.forge-build/infrastructure/file-production-artifact-vault.js");
+const { FileCoverArtifactVault } = require("../.forge-build/infrastructure/file-cover-artifact-vault.js");
 const { ManuscriptProductionService } = require("../.forge-build/application/manuscript-production.js");
 const { StudioPublishingMetadataService } = require("../.forge-build/application/studio-publishing-metadata.js");
 const { createStudioPublishingRoutes } = require("../.forge-build/application/studio-publishing-routes.js");
@@ -81,8 +84,9 @@ async function fixture({ withEbookCover = false, withEbookArtifact = false } = {
     now: "2026-08-31T10:02:00.000Z",
   });
   const covers = [paperback];
+  let ebookCover;
   if (withEbookCover) {
-    covers.push(createBookCoverPlan({
+    ebookCover = createBookCoverPlan({
       id: "ebook-cover-authoritative",
       projectId,
       bookId,
@@ -103,17 +107,37 @@ async function fixture({ withEbookCover = false, withEbookArtifact = false } = {
       frontPrompt: "The approved eBook front cover for the exact digital edition.",
       spineText: "Edition Isolation",
       backText: "Digital edition cover evidence.",
-      outputUri: "/artifacts/edition-isolation-ebook.jpg",
+      outputUri: "/api/projects/project-edition-isolation/cover/artifacts/fixture/file",
       outputFormat: "jpeg",
       dpi: 300,
       version: 1,
       approvalStatus: "approved",
       now: "2026-08-31T10:02:30.000Z",
-    }));
+    });
+    covers.push(ebookCover);
+    const sourceBytes = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
+    const source = createIllustrationAsset({
+      id: "ebook-cover-source",
+      projectId,
+      bookId,
+      chapterId: "cover",
+      sceneId: "cover",
+      characterId: "cover",
+      locationId: "cover",
+      prompt: "Approved final eBook cover artwork source.",
+      references: [],
+      style: "eBook cover source",
+      generationSettings: { purpose: "cover-art", provider: "fixture", model: "fixture" },
+      approvalStatus: "approved",
+      assetUri: `data:image/jpeg;base64,${sourceBytes.toString("base64")}`,
+      now: "2026-08-31T10:02:40.000Z",
+    });
+    project = withProjectIllustrationAssetLibrary(project, { formatVersion: 1, projectId, assets: [source], characterDesignLocks: [] }, "2026-08-31T10:02:45.000Z");
   }
   project = withProjectBookCoverPlans(project, covers, "2026-08-31T10:03:00.000Z");
   const store = new FileProjectStore(root);
   const productionArtifacts = new FileProductionArtifactVault(root);
+  const coverArtifacts = new FileCoverArtifactVault(root);
   await store.create(project);
   await new StudioPublishingMetadataService(store).save(projectId, bookId, {
     title: "Edition Isolation",
@@ -131,6 +155,27 @@ async function fixture({ withEbookCover = false, withEbookArtifact = false } = {
     aiContent: { text: "none", images: "none", translations: "none" },
   }, { now: "2026-08-31T10:04:00.000Z", reference: "edition-isolation-test" });
 
+  if (ebookCover) {
+    const sourceBytes = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
+    await coverArtifacts.save({
+      artifactId: "ebook-cover-artifact",
+      projectId,
+      bookId,
+      plan: ebookCover,
+      sourceAssetId: "ebook-cover-source",
+      sourceAssetSha256: createHash("sha256").update(sourceBytes).digest("hex"),
+      fileFormat: "jpeg",
+      fileName: "edition-isolation-ebook.jpg",
+      bytes: sourceBytes,
+      widthPixels: 1600,
+      heightPixels: 2560,
+      widthInches: 1600 / 300,
+      heightInches: 2560 / 300,
+      dpi: 300,
+      generatedAt: "2026-08-31T10:03:30.000Z",
+    });
+  }
+
   if (withEbookArtifact) {
     const manuscript = {
       projectId,
@@ -145,7 +190,7 @@ async function fixture({ withEbookCover = false, withEbookArtifact = false } = {
     const artifact = new ManuscriptProductionService().render(manuscript, options, "2026-08-31T10:04:30.000Z");
     await productionArtifacts.save(artifact, options, productionSourceSha256(manuscript, options));
   }
-  return { root, store, productionArtifacts, projectId, bookId };
+  return { root, store, productionArtifacts, coverArtifacts, projectId, bookId };
 }
 
 function ebookReadinessEvidence() {
@@ -157,9 +202,9 @@ function ebookReadinessEvidence() {
 }
 
 test("ebook readiness cannot inherit an approved paperback cover from the same book", async (t) => {
-  const { root, store, productionArtifacts, projectId, bookId } = await fixture({ withEbookArtifact: true });
+  const { root, store, productionArtifacts, coverArtifacts, projectId, bookId } = await fixture({ withEbookArtifact: true });
   t.after(() => rm(root, { recursive: true, force: true }));
-  const handler = createStudioPublishingRoutes(store, productionArtifacts);
+  const handler = createStudioPublishingRoutes(store, productionArtifacts, coverArtifacts);
   const response = await invoke(handler, projectId, `/api/projects/${projectId}/publishing/readiness`, {
     bookId,
     releaseFormat: "ebook",
@@ -179,16 +224,16 @@ test("ebook readiness cannot inherit an approved paperback cover from the same b
 });
 
 test("release gate blocks an ebook readiness audit after Publishing metadata changes", async (t) => {
-  const { root, store, productionArtifacts, projectId, bookId } = await fixture({ withEbookCover: true, withEbookArtifact: true });
+  const { root, store, productionArtifacts, coverArtifacts, projectId, bookId } = await fixture({ withEbookCover: true, withEbookArtifact: true });
   t.after(() => rm(root, { recursive: true, force: true }));
-  const handler = createStudioPublishingRoutes(store, productionArtifacts);
+  const handler = createStudioPublishingRoutes(store, productionArtifacts, coverArtifacts);
   const readiness = await invoke(handler, projectId, `/api/projects/${projectId}/publishing/readiness`, {
     bookId,
     releaseFormat: "ebook",
     evidence: ebookReadinessEvidence(),
   });
   assert.equal(readiness.status, 201);
-  assert.equal(readiness.payload.checks.filter((check) => check.status === "attention" && check.severity === "error").length, 0, "real saved ebook Cover Studio + current production artifact evidence should leave no release-blocking Publishing errors before mutation");
+  assert.equal(readiness.payload.checks.filter((check) => check.status === "attention" && check.severity === "error").length, 0, "verified eBook cover bytes + current production artifact should leave no release-blocking Publishing errors before mutation");
 
   const metadataService = new StudioPublishingMetadataService(store);
   const current = await metadataService.get(projectId, bookId);
