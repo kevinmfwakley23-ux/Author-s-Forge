@@ -26,7 +26,7 @@ async function invoke(handler, projectId, path, payload) {
   return { status, payload: text ? JSON.parse(text) : null };
 }
 
-async function fixture() {
+async function fixture({ withEbookCover = false } = {}) {
   const root = await mkdtemp(join(tmpdir(), "forge-edition-isolation-"));
   const projectId = "project-edition-isolation";
   const bookId = "book-edition-isolation";
@@ -77,7 +77,38 @@ async function fixture() {
     approvalStatus: "approved",
     now: "2026-08-31T10:02:00.000Z",
   });
-  project = withProjectBookCoverPlans(project, [paperback], "2026-08-31T10:03:00.000Z");
+  const covers = [paperback];
+  if (withEbookCover) {
+    covers.push(createBookCoverPlan({
+      id: "ebook-cover-authoritative",
+      projectId,
+      bookId,
+      format: "ebook",
+      publishing: {
+        platform: "kdp",
+        binding: "paperback",
+        interiorType: "black-white",
+        paperType: "white",
+        trimWidthInches: 6,
+        trimHeightInches: 9,
+        pageCount: 100,
+        bleedInches: 0.125,
+        readingDirection: "ltr",
+      },
+      title: "Edition Isolation",
+      author: "Forge Author",
+      frontPrompt: "The approved eBook front cover for the exact digital edition.",
+      spineText: "Edition Isolation",
+      backText: "Digital edition cover evidence.",
+      outputUri: "/artifacts/edition-isolation-ebook.jpg",
+      outputFormat: "jpeg",
+      dpi: 300,
+      version: 1,
+      approvalStatus: "approved",
+      now: "2026-08-31T10:02:30.000Z",
+    }));
+  }
+  project = withProjectBookCoverPlans(project, covers, "2026-08-31T10:03:00.000Z");
   const store = new FileProjectStore(root);
   await store.create(project);
   await new StudioPublishingMetadataService(store).save(projectId, bookId, {
@@ -98,14 +129,13 @@ async function fixture() {
   return { root, store, projectId, bookId };
 }
 
-function ebookReadinessEvidence(withCover = false) {
+function ebookReadinessEvidence() {
   return {
     manuscript: {
       hasTitlePage: true,
       hasCopyrightPage: true,
       hasTableOfContents: true,
     },
-    ...(withCover ? { cover: { format: "ebook", fileType: "jpeg", hasFront: true, validated: true } } : {}),
     images: { required: false },
     formatting: { fileTypes: ["epub"], validated: true },
     production: { fileTypes: ["epub"], validated: true },
@@ -120,7 +150,7 @@ test("ebook readiness cannot inherit an approved paperback cover from the same b
     bookId,
     releaseFormat: "ebook",
     now: "2026-08-31T10:05:00.000Z",
-    evidence: ebookReadinessEvidence(false),
+    evidence: ebookReadinessEvidence(),
   });
 
   assert.equal(response.status, 201);
@@ -136,17 +166,17 @@ test("ebook readiness cannot inherit an approved paperback cover from the same b
 });
 
 test("release gate blocks an ebook readiness audit after Publishing metadata changes", async (t) => {
-  const { root, store, projectId, bookId } = await fixture();
+  const { root, store, projectId, bookId } = await fixture({ withEbookCover: true });
   t.after(() => rm(root, { recursive: true, force: true }));
   const handler = createStudioPublishingRoutes(store);
   const readiness = await invoke(handler, projectId, `/api/projects/${projectId}/publishing/readiness`, {
     bookId,
     releaseFormat: "ebook",
     now: "2026-08-31T10:05:00.000Z",
-    evidence: ebookReadinessEvidence(true),
+    evidence: ebookReadinessEvidence(),
   });
   assert.equal(readiness.status, 201);
-  assert.equal(readiness.payload.checks.filter((check) => check.status === "attention" && check.severity === "error").length, 0, "fixture should have no release-blocking Publishing errors before mutation");
+  assert.equal(readiness.payload.checks.filter((check) => check.status === "attention" && check.severity === "error").length, 0, "real saved ebook Cover Studio evidence should leave no release-blocking Publishing errors before mutation");
 
   const metadataService = new StudioPublishingMetadataService(store);
   const current = await metadataService.get(projectId, bookId);
