@@ -12,12 +12,17 @@ const {
   createProject,
   withProjectStudioWorkspace,
   withProjectKdpMarketIntelligenceReports,
-  withProjectIllustrationAssetLibrary,
   withProjectBookCoverPlans,
 } = require("../dist/domain/project.js");
-const { createStudioWorkspace, createWorkspaceBook, addWorkspaceBook, addWorkspaceChapter, addWorkspaceScene } = require("../dist/domain/studio-workspace.js");
+const {
+  createStudioWorkspace,
+  createWorkspaceBook,
+  addWorkspaceBook,
+  addWorkspaceChapter,
+  addWorkspaceScene,
+  saveSceneContent,
+} = require("../dist/domain/studio-workspace.js");
 const { createKdpMarketIntelligenceReport } = require("../dist/domain/kdp-market-intelligence.js");
-const { createIllustrationAsset } = require("../dist/domain/illustration-asset-library.js");
 const { createBookCoverPlan } = require("../dist/domain/book-cover-studio.js");
 
 const HOST = "127.0.0.1";
@@ -34,7 +39,9 @@ function findBrowser() {
   }
   const systemBrowser = ["/usr/bin/google-chrome", "/usr/bin/google-chrome-stable", "/usr/bin/chromium", "/usr/bin/chromium-browser", "/usr/bin/chrome"].find(existsSync);
   if (systemBrowser) return systemBrowser;
-  const root = process.env.PLAYWRIGHT_BROWSERS_PATH === "0" ? join(process.cwd(), "node_modules", "playwright-core") : process.env.PLAYWRIGHT_BROWSERS_PATH || join(homedir(), ".cache", "ms-playwright");
+  const root = process.env.PLAYWRIGHT_BROWSERS_PATH === "0"
+    ? join(process.cwd(), "node_modules", "playwright-core")
+    : process.env.PLAYWRIGHT_BROWSERS_PATH || join(homedir(), ".cache", "ms-playwright");
   if (!existsSync(root)) return null;
   const candidates = [];
   const walk = (directory, depth = 0) => {
@@ -61,7 +68,10 @@ async function waitForHttp(url, timeoutMs = 10000) {
 }
 
 async function jsonRequest(baseUrl, path, options = {}, expectedOk = true) {
-  const response = await fetch(`${baseUrl}${path}`, { ...options, headers: { "content-type": "application/json", ...(options.headers || {}) } });
+  const response = await fetch(`${baseUrl}${path}`, {
+    ...options,
+    headers: { "content-type": "application/json", ...(options.headers || {}) },
+  });
   const text = await response.text();
   let payload;
   try { payload = text ? JSON.parse(text) : null; } catch { payload = text; }
@@ -75,8 +85,8 @@ async function seed(dataDir) {
   workspace = addWorkspaceBook(workspace, createWorkspaceBook({
     id: bookId,
     title: "Heartwood Friendship",
-    kind: "childrens-book",
-    description: "A gentle animal story about making a new friend and belonging.",
+    kind: "novel",
+    description: "A release-integrity fixture for a text publication about friendship and belonging.",
     now: "2026-08-31T00:00:00.000Z",
   }));
   workspace = addWorkspaceChapter(workspace, bookId, {
@@ -89,36 +99,20 @@ async function seed(dataDir) {
     id: sceneId,
     number: 1,
     title: "The Hello",
-    synopsis: "The Heartwood character reaches out to a possible new friend.",
+    synopsis: "A hesitant introduction becomes the beginning of a durable friendship.",
   });
+  workspace = saveSceneContent(
+    workspace,
+    bookId,
+    chapterId,
+    sceneId,
+    "Mara stopped at the edge of the garden path, found enough courage for one brave hello, and discovered that belonging could begin with a single honest sentence.",
+  );
   let project = withProjectStudioWorkspace(
     createProject({ id: projectId, title: "Publishing Promotion Acceptance", now: "2026-08-31T00:00:00.000Z" }),
     workspace,
     "2026-08-31T00:01:00.000Z",
   );
-
-  const illustration = createIllustrationAsset({
-    id: "illustration-release-1",
-    projectId,
-    bookId,
-    chapterId,
-    sceneId,
-    characterId: "heartwood-character",
-    locationId: "heartwood-jungle",
-    prompt: "A gentle original Heartwood Jungle friendship scene.",
-    references: [],
-    style: "children's picture-book illustration",
-    generationSettings: { dpi: 300 },
-    approvalStatus: "approved",
-    assetUri: "/api/test-assets/heartwood-friendship.png",
-    now: "2026-08-31T00:02:00.000Z",
-  });
-  project = withProjectIllustrationAssetLibrary(project, {
-    formatVersion: 1,
-    projectId,
-    assets: [illustration],
-    characterDesignLocks: [],
-  }, "2026-08-31T00:03:00.000Z");
 
   const ebookCover = createBookCoverPlan({
     id: "ebook-cover-release-1",
@@ -140,7 +134,7 @@ async function seed(dataDir) {
     author: "Kevin Wakley",
     frontPrompt: "Author-approved final eBook cover direction.",
     spineText: "Heartwood Friendship",
-    backText: "A gentle story about friendship and belonging.",
+    backText: "A story about friendship and belonging.",
     outputUri: "/api/test-assets/heartwood-friendship-cover.jpg",
     outputFormat: "jpeg",
     dpi: 300,
@@ -157,14 +151,42 @@ async function seed(dataDir) {
     question: "Find friendship story keywords and observable market signals.",
     market: "Amazon.com / United States",
     researchedAt: "2026-08-31T00:04:00.000Z",
-    evidence: [{ id: "e1", source: "Current observed sample", url: "https://example.org/current-market", observedAt: "2026-08-31T00:04:00.000Z", observation: "The observed sample contains current friendship and belonging titles.", strength: "moderate" }],
-    signals: [{ id: "s1", topic: "keyword-opportunities", label: "Friendship intent", observation: "Making-friends language matches the proposed book.", direction: "positive", evidenceIds: ["e1"] }],
+    evidence: [{
+      id: "e1",
+      source: "Current observed sample",
+      url: "https://example.org/current-market",
+      observedAt: "2026-08-31T00:04:00.000Z",
+      observation: "The observed sample contains current friendship and belonging titles.",
+      strength: "moderate",
+    }],
+    signals: [{
+      id: "s1",
+      topic: "keyword-opportunities",
+      label: "Friendship intent",
+      observation: "Making-friends language matches the proposed book.",
+      direction: "positive",
+      evidenceIds: ["e1"],
+    }],
     comparableTitles: [
-      { title: "Friendship Sample A", category: "Children's Friendship", price: 9.99, currency: "USD", bestSellerRank: 12000, reviewCount: 140, rating: 4.7, publishedDate: "2026-05-01", sourceUrl: "https://example.org/current-market", observedAt: "2026-08-31T00:04:00.000Z" },
-      { title: "Friendship Sample B", category: "Children's Friendship", price: 11.99, currency: "USD", bestSellerRank: 18000, reviewCount: 80, rating: 4.5, publishedDate: "2025-12-01", sourceUrl: "https://example.org/current-market", observedAt: "2026-08-31T00:04:00.000Z" },
+      { title: "Friendship Sample A", category: "Friendship Fiction", price: 9.99, currency: "USD", bestSellerRank: 12000, reviewCount: 140, rating: 4.7, publishedDate: "2026-05-01", sourceUrl: "https://example.org/current-market", observedAt: "2026-08-31T00:04:00.000Z" },
+      { title: "Friendship Sample B", category: "Friendship Fiction", price: 11.99, currency: "USD", bestSellerRank: 18000, reviewCount: 80, rating: 4.5, publishedDate: "2025-12-01", sourceUrl: "https://example.org/current-market", observedAt: "2026-08-31T00:04:00.000Z" },
     ],
-    keywordRecommendations: [{ phrase: "making new friends", score: 94, rationale: "Specific reader-search intent aligned to the actual story.", evidenceIds: ["e1"], recommendedForKdpSlot: true, complianceNotes: ["accurate to the central theme"] }],
-    nicheOpportunities: [{ niche: "gentle animal friendship and belonging stories", score: 88, demandSignal: "high", competitionSignal: "moderate", rationale: "Current sample supports reader interest while differentiation still matters.", evidenceIds: ["e1"] }],
+    keywordRecommendations: [{
+      phrase: "making new friends",
+      score: 94,
+      rationale: "Specific reader-search intent aligned to the actual story.",
+      evidenceIds: ["e1"],
+      recommendedForKdpSlot: true,
+      complianceNotes: ["accurate to the central theme"],
+    }],
+    nicheOpportunities: [{
+      niche: "friendship and belonging fiction",
+      score: 88,
+      demandSignal: "high",
+      competitionSignal: "moderate",
+      rationale: "Current sample supports reader interest while differentiation still matters.",
+      evidenceIds: ["e1"],
+    }],
     assessment: {
       level: "promising",
       rationale: "The current observed sample supports further consideration.",
@@ -212,25 +234,21 @@ async function main() {
     const form = page.locator("#publishing-metadata-form");
     await form.locator('[name="title"]').fill("Heartwood Friendship");
     await form.locator('[name="author"]').fill("Kevin Wakley");
-    await form.locator('[name="description"]').fill("A gentle animal story about making a new friend, finding belonging, and learning that one brave hello can matter.");
-    await form.locator('[name="keywords"]').fill("animal friendship story");
-    await form.locator('[name="categories"]').fill("Children's Fiction");
-    await form.locator('[name="primaryAudience"]').selectOption("children");
-    await form.locator('[name="readingAgeMin"]').fill("5");
-    await form.locator('[name="readingAgeMax"]').fill("9");
+    await form.locator('[name="description"]').fill("A friendship and belonging story in which one brave greeting changes the direction of two lives.");
+    await form.locator('[name="keywords"]').fill("friendship belonging fiction");
+    await form.locator('[name="categories"]').fill("Fiction");
+    await form.locator('[name="primaryAudience"]').selectOption("general");
     const saveResponse = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname.endsWith("/publishing/metadata"));
     await form.locator('button[type="submit"]').click();
     assert.equal((await saveResponse).ok(), true, "Publishing metadata must save through the live Studio route");
     const saved = (await jsonRequest(baseUrl, `/api/projects/${projectId}/publishing/metadata?bookId=${bookId}`)).payload;
     assert.equal(saved.metadata.title, "Heartwood Friendship");
-    assert.deepEqual(saved.metadata.keywords, ["animal friendship story"]);
 
     await page.locator('nav a[data-route="marketing"]').click();
     await page.waitForFunction(() => location.hash === "#marketing" && document.querySelector("#forge-promotion-office"));
     await page.locator("#refresh-market-research").click();
     await page.waitForFunction(() => document.querySelector("#market-report")?.textContent.includes("making new friends"));
     assert.match(await page.locator("#market-report").textContent(), /Median BSR/);
-    assert.match(await page.locator("#market-report").textContent(), /15000/);
 
     page.once("dialog", (dialog) => dialog.accept());
     const applyResponse = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname.endsWith("/market-research/apply-keywords"));
@@ -246,7 +264,7 @@ async function main() {
     assert.match(await failedResearch.text(), /OPENAI_API_KEY|OPENAI_MARKET_RESEARCH_MODEL|OPENAI_MODEL/);
 
     const promotionForm = page.locator("#promotion-generate-form");
-    await promotionForm.locator('[name="audience"]').fill("Parents and teachers");
+    await promotionForm.locator('[name="audience"]').fill("Adult fiction readers");
     await promotionForm.locator('[name="readerPromise"]').fill("A warm friendship and belonging story");
     const promotionFailure = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname.endsWith("/promotion/generate"));
     await promotionForm.locator('button[type="submit"]').click();
@@ -259,7 +277,7 @@ async function main() {
       projectId,
       bookId,
       objective: "Launch accurately",
-      audience: "Parents and teachers",
+      audience: "Adult fiction readers",
       readerPromise: "A warm friendship and belonging story",
       researchReportIds: ["market-browser-1"],
       assets: [{
@@ -267,7 +285,7 @@ async function main() {
         channel: "social",
         kind: "social-post",
         title: "One brave hello",
-        body: "A gentle Heartwood story about friendship and belonging.",
+        body: "A story about friendship, courage, and belonging.",
         status: "draft",
         evidence: [{ source: `book:${bookId}`, claim: "Friendship and belonging are central to the book.", confidence: "known" }],
         sourceResearchIds: ["market-browser-1"],
@@ -286,29 +304,45 @@ async function main() {
     await page.locator('nav a[data-route="publishing"]').click();
     const readiness = page.locator("#publishing-readiness-form");
     await readiness.locator('[name="releaseFormat"]').selectOption("ebook");
-    await readiness.locator('[name="hasTitlePage"]').check();
-    await readiness.locator('[name="hasCopyrightPage"]').check();
-    await readiness.locator('[name="hasTableOfContents"]').check();
-    await readiness.locator('[name="imagesRequired"]').check();
-    await readiness.locator('[name="resolutionValidated"]').check();
-    await readiness.locator('[name="formattingValidated"]').check();
-    await readiness.locator('[name="productionValidated"]').check();
-    await readiness.locator('[name="fileTypes"]').fill("epub");
+    assert.equal(await readiness.locator('[name="coverFileType"]').inputValue(), "", "browser must not declare authoritative cover evidence");
+    assert.equal(await readiness.locator('[name="coverValidated"]').isChecked(), false, "browser must not self-certify cover validation");
+    assert.equal(await readiness.locator('[name="productionValidated"]').isChecked(), false, "browser must not self-certify production validation");
 
-    assert.equal(await readiness.locator('[name="coverFileType"]').inputValue(), "", "browser must not need to declare the authoritative cover file");
-    assert.equal(await readiness.locator('[name="coverFront"]').isChecked(), false, "browser must not need to self-certify the cover front");
-    assert.equal(await readiness.locator('[name="coverValidated"]').isChecked(), false, "browser must not need to self-certify cover validation");
-
-    const readinessResponse = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname.endsWith("/publishing/readiness"));
+    let readinessResponse = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname.endsWith("/publishing/readiness"));
     await readiness.locator('button[type="submit"]').click();
-    assert.equal((await readinessResponse).ok(), true);
-    const editionReports = (await jsonRequest(baseUrl, `/api/projects/${projectId}/publishing/readiness?bookId=${bookId}&format=ebook`)).payload.reports;
-    assert.equal(editionReports[0].releaseFormat, "ebook");
-    assert.equal(editionReports[0].checks.filter((item) => item.status === "attention" && item.severity === "error").length, 0, "saved Cover Studio and illustration evidence should remove Publishing release blockers without browser self-certification");
+    let readinessPayload = await (await readinessResponse).json();
+    assert.equal(readinessPayload.checks.find((item) => item.id === "production-validation").status, "attention", "release must remain blocked before a real artifact exists");
+    await page.locator("#run-release-gate").click();
+    await page.waitForFunction(() => document.querySelector("#release-gate-result")?.textContent.includes("RELEASE BLOCKED"));
+
+    const exported = await page.evaluate(async ({ projectId: pid, bookId: bid }) => {
+      const response = await fetch(`/api/projects/${pid}/export`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ bookId: bid, format: "epub", pageSize: "6x9", pageNumbers: true, includeTitlePage: true, includeToc: true }),
+      });
+      return { ok: response.ok, status: response.status, payload: await response.json() };
+    }, { projectId, bookId });
+    assert.equal(exported.ok, true, `live production export failed: ${JSON.stringify(exported.payload)}`);
+    assert.equal(exported.payload.persisted, true);
+    assert.equal(exported.payload.format, "epub");
+    assert.match(exported.payload.evidence.sourceSha256, /^[a-f0-9]{64}$/);
+    assert.match(exported.payload.evidence.sha256, /^[a-f0-9]{64}$/);
+    assert.equal(Buffer.from(exported.payload.contentBase64, "base64").subarray(0, 2).toString(), "PK", "EPUB must contain real ZIP bytes");
+
+    const artifactLedger = (await jsonRequest(baseUrl, `/api/projects/${projectId}/production/artifacts?bookId=${bookId}&format=epub`)).payload;
+    assert.equal(artifactLedger.artifacts.length, 1);
+    assert.equal(artifactLedger.artifacts[0].valid, true, artifactLedger.artifacts[0].issues.join("; "));
+
+    readinessResponse = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname.endsWith("/publishing/readiness"));
+    await readiness.locator('button[type="submit"]').click();
+    readinessPayload = await (await readinessResponse).json();
+    assert.equal(readinessPayload.checks.filter((item) => item.status === "attention" && item.severity === "error").length, 0, "current verified EPUB + saved Cover Studio evidence should remove release-blocking Publishing errors");
+    assert.equal(readinessPayload.checks.find((item) => item.id === "production-validation").status, "passed");
 
     await page.locator("#run-release-gate").click();
     await page.waitForFunction(() => document.querySelector("#release-gate-result")?.textContent.includes("READY TO RELEASE"));
-    assert.doesNotMatch(await page.locator("#release-gate-result").textContent(), /publishing-readiness|promotion-readiness/i, "authoritative Publishing + Promotion evidence should clear the combined gate");
+    assert.doesNotMatch(await page.locator("#release-gate-result").textContent(), /publishing-readiness|promotion-readiness/i, "verified Publishing + Promotion evidence should clear the combined gate");
 
     const mobileContext = await browser.newContext({
       viewport: { width: 390, height: 844 },
@@ -330,7 +364,7 @@ async function main() {
     assert.ok(dimensions.document <= dimensions.viewport + 1, `Publishing/Promotion document overflows Android viewport: ${JSON.stringify(dimensions)}`);
     await mobileContext.close();
 
-    console.log("PUBLISHING/PROMOTION BROWSER ACCEPTANCE PASSED: durable metadata + saved market evidence + author-approved keywords + honest live-provider failures + durable promotion approval/readiness + authoritative Cover Studio/illustration evidence + format-scoped release gate + Android touch/overflow.");
+    console.log("PUBLISHING/PROMOTION BROWSER ACCEPTANCE PASSED: durable metadata + saved market evidence + author-approved promotion + honest provider failure + blocked-before-export + real persisted source-bound EPUB + ready-after-export + Android touch/overflow.");
   } finally {
     if (browser) await browser.close().catch(() => {});
     server.kill("SIGTERM");

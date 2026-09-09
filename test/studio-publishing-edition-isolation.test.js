@@ -8,7 +8,10 @@ const { join } = require("node:path");
 const { createProject, withProjectStudioWorkspace, withProjectBookCoverPlans } = require("../.forge-build/domain/project.js");
 const { createStudioWorkspace, createWorkspaceBook, addWorkspaceBook, addWorkspaceChapter } = require("../.forge-build/domain/studio-workspace.js");
 const { createBookCoverPlan } = require("../.forge-build/domain/book-cover-studio.js");
+const { productionSourceSha256 } = require("../.forge-build/domain/production-artifact-evidence.js");
 const { FileProjectStore } = require("../.forge-build/infrastructure/file-project-store.js");
+const { FileProductionArtifactVault } = require("../.forge-build/infrastructure/file-production-artifact-vault.js");
+const { ManuscriptProductionService } = require("../.forge-build/application/manuscript-production.js");
 const { StudioPublishingMetadataService } = require("../.forge-build/application/studio-publishing-metadata.js");
 const { createStudioPublishingRoutes } = require("../.forge-build/application/studio-publishing-routes.js");
 
@@ -26,7 +29,7 @@ async function invoke(handler, projectId, path, payload) {
   return { status, payload: text ? JSON.parse(text) : null };
 }
 
-async function fixture({ withEbookCover = false } = {}) {
+async function fixture({ withEbookCover = false, withEbookArtifact = false } = {}) {
   const root = await mkdtemp(join(tmpdir(), "forge-edition-isolation-"));
   const projectId = "project-edition-isolation";
   const bookId = "book-edition-isolation";
@@ -110,6 +113,7 @@ async function fixture({ withEbookCover = false } = {}) {
   }
   project = withProjectBookCoverPlans(project, covers, "2026-08-31T10:03:00.000Z");
   const store = new FileProjectStore(root);
+  const productionArtifacts = new FileProductionArtifactVault(root);
   await store.create(project);
   await new StudioPublishingMetadataService(store).save(projectId, bookId, {
     title: "Edition Isolation",
@@ -126,30 +130,39 @@ async function fixture({ withEbookCover = false } = {}) {
     lowContent: false,
     aiContent: { text: "none", images: "none", translations: "none" },
   }, { now: "2026-08-31T10:04:00.000Z", reference: "edition-isolation-test" });
-  return { root, store, projectId, bookId };
+
+  if (withEbookArtifact) {
+    const manuscript = {
+      projectId,
+      bookId,
+      title: "Edition Isolation",
+      author: "Forge Author",
+      chapters: [{ id: "chapter-1", number: 1, title: "Chapter One", scenes: [] }],
+      frontMatter: [],
+      backMatter: [],
+    };
+    const options = { format: "epub", pageSize: "6x9", pageNumbers: true, includeTitlePage: true, includeToc: true };
+    const artifact = new ManuscriptProductionService().render(manuscript, options, "2026-08-31T10:04:30.000Z");
+    await productionArtifacts.save(artifact, options, productionSourceSha256(manuscript, options));
+  }
+  return { root, store, productionArtifacts, projectId, bookId };
 }
 
 function ebookReadinessEvidence() {
   return {
-    manuscript: {
-      hasTitlePage: true,
-      hasCopyrightPage: true,
-      hasTableOfContents: true,
-    },
+    manuscript: {},
     images: { required: false },
-    formatting: { fileTypes: ["epub"], validated: true },
-    production: { fileTypes: ["epub"], validated: true },
+    formatting: { headersFooters: true },
   };
 }
 
 test("ebook readiness cannot inherit an approved paperback cover from the same book", async (t) => {
-  const { root, store, projectId, bookId } = await fixture();
+  const { root, store, productionArtifacts, projectId, bookId } = await fixture({ withEbookArtifact: true });
   t.after(() => rm(root, { recursive: true, force: true }));
-  const handler = createStudioPublishingRoutes(store);
+  const handler = createStudioPublishingRoutes(store, productionArtifacts);
   const response = await invoke(handler, projectId, `/api/projects/${projectId}/publishing/readiness`, {
     bookId,
     releaseFormat: "ebook",
-    now: "2026-08-31T10:05:00.000Z",
     evidence: ebookReadinessEvidence(),
   });
 
@@ -166,26 +179,26 @@ test("ebook readiness cannot inherit an approved paperback cover from the same b
 });
 
 test("release gate blocks an ebook readiness audit after Publishing metadata changes", async (t) => {
-  const { root, store, projectId, bookId } = await fixture({ withEbookCover: true });
+  const { root, store, productionArtifacts, projectId, bookId } = await fixture({ withEbookCover: true, withEbookArtifact: true });
   t.after(() => rm(root, { recursive: true, force: true }));
-  const handler = createStudioPublishingRoutes(store);
+  const handler = createStudioPublishingRoutes(store, productionArtifacts);
   const readiness = await invoke(handler, projectId, `/api/projects/${projectId}/publishing/readiness`, {
     bookId,
     releaseFormat: "ebook",
-    now: "2026-08-31T10:05:00.000Z",
     evidence: ebookReadinessEvidence(),
   });
   assert.equal(readiness.status, 201);
-  assert.equal(readiness.payload.checks.filter((check) => check.status === "attention" && check.severity === "error").length, 0, "real saved ebook Cover Studio evidence should leave no release-blocking Publishing errors before mutation");
+  assert.equal(readiness.payload.checks.filter((check) => check.status === "attention" && check.severity === "error").length, 0, "real saved ebook Cover Studio + current production artifact evidence should leave no release-blocking Publishing errors before mutation");
 
   const metadataService = new StudioPublishingMetadataService(store);
   const current = await metadataService.get(projectId, bookId);
   assert.ok(current);
   const { formatVersion, projectId: ignoredProject, bookId: ignoredBook, updatedAt, ...editable } = current.metadata;
+  const later = new Date(Date.parse(readiness.payload.createdAt) + 1000).toISOString();
   await metadataService.save(projectId, bookId, {
     ...editable,
     description: `${editable.description} This later revision intentionally invalidates the earlier readiness audit.`,
-  }, { now: "2026-08-31T10:06:00.000Z", reference: "stale-readiness-test" });
+  }, { now: later, reference: "stale-readiness-test" });
 
   const gate = await invoke(handler, projectId, `/api/projects/${projectId}/release-gate?bookId=${encodeURIComponent(bookId)}&format=ebook`);
   assert.equal(gate.status, 200);
