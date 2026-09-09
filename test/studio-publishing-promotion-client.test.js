@@ -5,6 +5,8 @@ const { readFileSync } = require("node:fs");
 const client = readFileSync("public/forge-publishing-promotion.js", "utf8");
 const performanceClient = readFileSync("public/forge-promotion-performance.js", "utf8");
 const children = readFileSync("public/forge-children-topics.js", "utf8");
+const coverProductionClient = readFileSync("public/forge-cover-production.js", "utf8");
+const pwa = readFileSync("public/forge-pwa.js", "utf8");
 const server = readFileSync("src/studio-server.ts", "utf8");
 const routeComposer = readFileSync("src/application/studio-publishing-promotion-routes.ts", "utf8");
 const publishingRoutes = readFileSync("src/application/studio-publishing-routes.ts", "utf8");
@@ -43,11 +45,23 @@ test("Publishing readiness is edition-scoped and server-owned illustration truth
   assert.match(client, /name="releaseFormat"/);
   assert.match(client, /format=\$\{encodeURIComponent\(format\)\}/);
   assert.match(publishingRoutes, /project\.illustrationAssetLibrary\?\.assets/);
-  assert.match(publishingRoutes, /count: bookAssets\.length/);
+  assert.match(publishingRoutes, /count: interiorAssets\.length/);
+  assert.match(publishingRoutes, /generationSettings\?\.purpose === "illustration"/);
   assert.match(publishingRoutes, /asset\.approvalStatus === "approved"/);
   assert.match(publishingRoutes, /report\.releaseFormat === format/);
   assert.match(publishingRoutes, /plan\.format === requestedFormat/);
   assert.doesNotMatch(client, /count:\s*defaultImagesRequired/);
+});
+
+test("final Cover Studio production is a real author-approved artifact workflow", () => {
+  assert.doesNotThrow(() => new Function(coverProductionClient));
+  assert.match(pwa, /cover-production/);
+  assert.match(pwa, /forge-cover-production\.js/);
+  assert.match(coverProductionClient, /approved.*cover-art/s);
+  assert.match(coverProductionClient, /authorApproved:\s*true/);
+  assert.match(coverProductionClient, /\/cover\/artifacts/);
+  assert.match(coverProductionClient, /SHA-256/);
+  assert.match(coverProductionClient, /Download verified cover/);
 });
 
 test("Promotion client preserves draft-review authority and explicit publication confirmation", () => {
