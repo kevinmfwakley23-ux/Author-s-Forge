@@ -230,7 +230,7 @@ function productionProfile(plan: BookCoverPlan, format: ReleaseCoverFormat, sour
     safeMarginInches,
     dpi: COVER_DPI,
     colorIntent: "sRGB",
-    artifactKinds: Object.freeze(["png"]),
+    artifactKinds: Object.freeze(["png"] as const),
     duplex: false,
     notes: Object.freeze(["Final cover raster is flattened before JPEG/PDF packaging."]),
   });
