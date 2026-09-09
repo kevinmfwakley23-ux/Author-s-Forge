@@ -15,6 +15,7 @@ const { createStudioWorkspace, createWorkspaceBook, addWorkspaceBook, addWorkspa
 const { createBookCoverPlan } = require("../.forge-build/domain/book-cover-studio.js");
 const { createIllustrationAsset } = require("../.forge-build/domain/illustration-asset-library.js");
 const { FileProjectStore } = require("../.forge-build/infrastructure/file-project-store.js");
+const { FileProductionArtifactVault } = require("../.forge-build/infrastructure/file-production-artifact-vault.js");
 const { StudioPublishingMetadataService } = require("../.forge-build/application/studio-publishing-metadata.js");
 const { createStudioPublishingRoutes } = require("../.forge-build/application/studio-publishing-routes.js");
 
@@ -111,6 +112,7 @@ async function fixture({ withProductionAssets = false } = {}) {
   }
 
   const store = new FileProjectStore(root);
+  const productionArtifacts = new FileProductionArtifactVault(root);
   await store.create(project);
   await new StudioPublishingMetadataService(store).save(projectId, bookId, {
     title: "Durable Project Truth",
@@ -129,7 +131,7 @@ async function fixture({ withProductionAssets = false } = {}) {
     lowContent: false,
     aiContent: { text: "none", images: "none", translations: "none" },
   }, { now: "2026-09-08T18:06:00.000Z", reference: "authoritative-evidence-test" });
-  return { root, store, projectId, bookId };
+  return { root, store, productionArtifacts, projectId, bookId };
 }
 
 function evidence() {
@@ -185,10 +187,10 @@ function check(report, id) {
   return found;
 }
 
-test("browser assertions cannot manufacture cover or illustration readiness", async (t) => {
-  const { root, store, projectId, bookId } = await fixture();
+test("browser assertions cannot manufacture cover, illustration, or production readiness", async (t) => {
+  const { root, store, productionArtifacts, projectId, bookId } = await fixture();
   t.after(() => rm(root, { recursive: true, force: true }));
-  const response = await invoke(createStudioPublishingRoutes(store), projectId, {
+  const response = await invoke(createStudioPublishingRoutes(store, productionArtifacts), projectId, {
     bookId,
     releaseFormat: "paperback",
     evidence: evidence(),
@@ -201,12 +203,14 @@ test("browser assertions cannot manufacture cover or illustration readiness", as
   assert.equal(check(response.payload, "cover-validation").status, "attention");
   assert.equal(check(response.payload, "images-present").status, "attention", "a children's book cannot disable required images from the browser");
   assert.equal(check(response.payload, "image-resolution").status, "attention", "browser resolution claims cannot replace saved image evidence");
+  assert.equal(check(response.payload, "format-validation").status, "attention", "browser validation claims cannot replace a persisted generated artifact");
+  assert.equal(check(response.payload, "production-validation").status, "attention", "production validation must come from a verified persisted artifact");
 });
 
-test("saved approved Cover Studio and illustration evidence satisfies those readiness checks", async (t) => {
-  const { root, store, projectId, bookId } = await fixture({ withProductionAssets: true });
+test("saved approved Cover Studio and illustration evidence satisfies only those authoritative visual checks", async (t) => {
+  const { root, store, productionArtifacts, projectId, bookId } = await fixture({ withProductionAssets: true });
   t.after(() => rm(root, { recursive: true, force: true }));
-  const response = await invoke(createStudioPublishingRoutes(store), projectId, {
+  const response = await invoke(createStudioPublishingRoutes(store, productionArtifacts), projectId, {
     bookId,
     releaseFormat: "paperback",
     evidence: evidence(),
@@ -221,4 +225,5 @@ test("saved approved Cover Studio and illustration evidence satisfies those read
   assert.equal(check(response.payload, "images-resolved").status, "passed");
   assert.equal(check(response.payload, "images-approved").status, "passed");
   assert.equal(check(response.payload, "image-resolution").status, "passed");
+  assert.equal(check(response.payload, "production-validation").status, "attention", "visual evidence alone must not pretend a release artifact exists");
 });
