@@ -24,7 +24,7 @@ type WorkspaceBook = ReturnType<typeof getBook>;
 export function createStudioPublishingRoutes(
   store: FileProjectStore,
   productionArtifacts: FileProductionArtifactVault,
-  coverArtifacts: FileCoverArtifactVault,
+  coverArtifacts?: FileCoverArtifactVault,
 ): StudioPublishingRouteHandler {
   const publishing = new StudioPublishingMetadataService(store);
   const campaigns = new StudioMarketingCampaignService(store);
@@ -71,7 +71,7 @@ export function createStudioPublishingRoutes(
       const requestedFormat = releaseFormat(input.releaseFormat ?? currentMetadata.metadata.formats[0], "Release format");
       if (!currentMetadata.metadata.formats.includes(requestedFormat)) throw new Error(`Publishing metadata does not enable the ${requestedFormat} release format.`);
       const latestCover = latestCoverPlan(project, bookId, requestedFormat);
-      const coverArtifact = latestCover
+      const coverArtifact = latestCover && coverArtifacts
         ? await latestCurrentCoverArtifact(coverArtifacts, project, latestCover, requestedFormat)
         : undefined;
       const coverEvidence = coverArtifact?.evidence;
@@ -181,6 +181,8 @@ export function createStudioPublishingRoutes(
       if (auditedFormat) {
         if (!matchingCover) {
           staleReasons.push(`no ${auditedFormat} Cover Studio plan is currently available`);
+        } else if (!coverArtifacts) {
+          staleReasons.push(`no verified ${auditedFormat} cover artifact vault is available for this readiness check`);
         } else {
           const currentCoverArtifact = await latestCurrentCoverArtifact(coverArtifacts, project, matchingCover, auditedFormat);
           if (!currentCoverArtifact) staleReasons.push(`no verified ${auditedFormat} cover artifact matches the current Cover Studio plan and approved artwork`);
