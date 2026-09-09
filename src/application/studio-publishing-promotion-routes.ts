@@ -4,6 +4,7 @@ import { FileProjectStore } from "../infrastructure/file-project-store";
 import { FileAiProposalStore } from "../infrastructure/file-ai-proposal-store";
 import { FileAiModelPerformanceStore } from "../infrastructure/file-ai-model-performance-store";
 import { FileBrandKitStore } from "../infrastructure/file-brand-kit-store";
+import { FileCoverArtifactVault } from "../infrastructure/file-cover-artifact-vault";
 import { FileCreativeProvenanceStore } from "../infrastructure/file-creative-provenance-store";
 import { FileForgeRecipeStore } from "../infrastructure/file-forge-recipe-store";
 import { FileHumanReviewStore } from "../infrastructure/file-human-review-store";
@@ -16,6 +17,7 @@ import { createStudioArchitectureAiRoutes } from "./studio-architecture-ai-route
 import { createStudioAuthorCraftRoutes } from "./studio-author-craft-routes";
 import { createStudioBrandKitRoutes } from "./studio-brand-kit-routes";
 import { createStudioChapterCardWorkflowRoutes } from "./studio-chapter-card-workflow-routes";
+import { createStudioCoverArtifactRoutes } from "./studio-cover-artifact-routes";
 import { createStudioCreativeAgentRoutes } from "./studio-creative-agent-routes";
 import { createStudioForgeRecipeRoutes } from "./studio-forge-recipe-routes";
 import { createStudioHumanReviewRoutes } from "./studio-human-review-routes";
@@ -52,6 +54,7 @@ export function createStudioPublishingPromotionRoutes(store: FileProjectStore): 
   const sharedProposalStore = new FileAiProposalStore(join(dataRoot, "ai-proposals.json"));
   const performanceStore = new FileAiModelPerformanceStore(join(dataRoot, "ai-model-performance.json"));
   const productionArtifacts = new FileProductionArtifactVault(dataRoot);
+  const coverArtifacts = new FileCoverArtifactVault(dataRoot);
   const gatewayRoutes = createStudioAiGatewayRoutes(store);
   const modelOptions = createStudioAiModelOptionsRoutes(store);
   const modelPerformance = createStudioAiModelPerformanceRoutes(store, performanceStore);
@@ -72,8 +75,9 @@ export function createStudioPublishingPromotionRoutes(store: FileProjectStore): 
   const knowledgeGaps = createStudioKnowledgeGapRoutes(store);
   const liveResearch = createStudioLiveResearchRoutes(store);
   const imageLab = createStudioImageLabRoutes(store);
+  const coverArtifactRoutes = createStudioCoverArtifactRoutes(store, coverArtifacts);
   const productionExport = createStudioProductionExportRoutes(store, productionArtifacts);
-  const publishing = createStudioPublishingRoutes(store, productionArtifacts);
+  const publishing = createStudioPublishingRoutes(store, productionArtifacts, coverArtifacts);
   const marketPromotion = createStudioMarketPromotionRoutes(store);
 
   return async (req, res, url, projectId) => {
@@ -97,6 +101,7 @@ export function createStudioPublishingPromotionRoutes(store: FileProjectStore): 
     if (await knowledgeGaps(req, res, url, projectId)) return true;
     if (await liveResearch(req, res, url, projectId)) return true;
     if (await imageLab(req, res, url, projectId)) return true;
+    if (await coverArtifactRoutes(req, res, url, projectId)) return true;
     if (await productionExport(req, res, url, projectId)) return true;
     if (await publishing(req, res, url, projectId)) return true;
     return marketPromotion(req, res, url, projectId);
