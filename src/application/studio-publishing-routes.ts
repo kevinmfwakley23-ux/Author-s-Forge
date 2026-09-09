@@ -1,13 +1,16 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { coverPlanSha256, type CoverArtifactVerification } from "../domain/cover-artifact-evidence";
+import type { BookCoverPlan } from "../domain/book-cover-studio";
 import { createPromotionReadinessReport } from "../domain/promotion-readiness";
 import { createPublishingReadinessReport, type PublishingReadinessInput, type PublishingReleaseFormat } from "../domain/publishing-readiness";
 import { createReleaseGateReport } from "../domain/release-gate";
-import { withProjectPublishingReadinessReports } from "../domain/project";
+import { withProjectPublishingReadinessReports, type ProjectState } from "../domain/project";
 import { getBook, validateStudioWorkspace } from "../domain/studio-workspace";
 import { productionSourceSha256, type ProductionArtifactEvidence, type ProductionArtifactVerification } from "../domain/production-artifact-evidence";
 import type { ProductionFormat, ProductionManuscript, ProductionOptions } from "../domain/manuscript-production";
 import type { PublishingMetadata } from "../domain/publishing-metadata";
+import { FileCoverArtifactVault } from "../infrastructure/file-cover-artifact-vault";
 import { FileProjectStore } from "../infrastructure/file-project-store";
 import { FileProductionArtifactVault } from "../infrastructure/file-production-artifact-vault";
 import { StudioMarketingCampaignService } from "./studio-marketing-campaign";
@@ -18,7 +21,11 @@ const RELEASE_FORMATS: readonly PublishingReleaseFormat[] = ["ebook", "paperback
 
 type WorkspaceBook = ReturnType<typeof getBook>;
 
-export function createStudioPublishingRoutes(store: FileProjectStore, productionArtifacts: FileProductionArtifactVault): StudioPublishingRouteHandler {
+export function createStudioPublishingRoutes(
+  store: FileProjectStore,
+  productionArtifacts: FileProductionArtifactVault,
+  coverArtifacts: FileCoverArtifactVault,
+): StudioPublishingRouteHandler {
   const publishing = new StudioPublishingMetadataService(store);
   const campaigns = new StudioMarketingCampaignService(store);
 
@@ -63,12 +70,16 @@ export function createStudioPublishingRoutes(store: FileProjectStore, production
       const formattingEvidence = evidence.formatting === undefined ? {} : objectValue(evidence.formatting, "Formatting readiness evidence");
       const requestedFormat = releaseFormat(input.releaseFormat ?? currentMetadata.metadata.formats[0], "Release format");
       if (!currentMetadata.metadata.formats.includes(requestedFormat)) throw new Error(`Publishing metadata does not enable the ${requestedFormat} release format.`);
-      const latestCover = [...(project.bookCoverPlans ?? [])]
-        .filter((plan) => plan.bookId === bookId && plan.format === requestedFormat)
-        .sort((a, b) => b.version - a.version || b.updatedAt.localeCompare(a.updatedAt))[0];
-      const bookAssets = (project.illustrationAssetLibrary?.assets ?? []).filter((asset) => asset.bookId === bookId);
-      const imagesRequired = book.kind === "childrens-book" || book.kind === "comic-book" || bookAssets.length > 0;
-      const imageResolutionValidated = !imagesRequired || (bookAssets.length > 0 && bookAssets.every((asset) => {
+      const latestCover = latestCoverPlan(project, bookId, requestedFormat);
+      const coverArtifact = latestCover
+        ? await latestCurrentCoverArtifact(coverArtifacts, project, latestCover, requestedFormat)
+        : undefined;
+      const coverEvidence = coverArtifact?.evidence;
+      const interiorAssets = (project.illustrationAssetLibrary?.assets ?? []).filter((asset) =>
+        asset.bookId === bookId && asset.generationSettings?.purpose === "illustration",
+      );
+      const imagesRequired = book.kind === "childrens-book" || book.kind === "comic-book" || interiorAssets.length > 0;
+      const imageResolutionValidated = !imagesRequired || (interiorAssets.length > 0 && interiorAssets.every((asset) => {
         const dpi = asset.generationSettings?.dpi;
         return typeof dpi === "number" && Number.isFinite(dpi) && dpi >= 300;
       }));
@@ -85,6 +96,7 @@ export function createStudioPublishingRoutes(store: FileProjectStore, production
       const printTrimValidated = !print || Boolean(artifact && latestCover && artifactTrimMatchesCover(artifact, latestCover.publishing.trimWidthInches, latestCover.publishing.trimHeightInches));
       const rendererContainsAllRequiredImages = !imagesRequired;
       const finalProductionValidated = Boolean(productionArtifact?.valid) && rendererContainsAllRequiredImages;
+      const finalCoverValidated = Boolean(coverArtifact?.valid) && latestCover?.approvalStatus === "approved";
       const report = createPublishingReadinessReport({
         id: optionalText(input.id) ?? `publishing-readiness-${bookId}-${requestedFormat}-${randomUUID()}`,
         projectId,
@@ -103,17 +115,17 @@ export function createStudioPublishingRoutes(store: FileProjectStore, production
         },
         cover: {
           ...(latestCover ? {
-            widthInches: latestCover.dimensions.widthInches,
-            heightInches: latestCover.dimensions.heightInches,
-            hasBarcodeSafeArea: Boolean(latestCover.zones.barcodeSafeArea),
-            hasBleed: latestCover.publishing.bleedInches > 0,
-            hasTrim: true,
-            hasSafeMargins: latestCover.zones.safeMarginInches > 0,
-            validated: latestCover.approvalStatus === "approved" && Boolean(latestCover.outputUri),
-            fileType: latestCover.outputUri ? latestCover.outputFormat : undefined,
-            hasFront: Boolean(latestCover.outputUri),
-            hasBack: requestedFormat === "ebook" ? true : Boolean(latestCover.outputUri),
-            hasSpine: requestedFormat === "ebook" ? true : Boolean(latestCover.outputUri),
+            widthInches: coverEvidence?.widthInches ?? latestCover.dimensions.widthInches,
+            heightInches: coverEvidence?.heightInches ?? latestCover.dimensions.heightInches,
+            hasBarcodeSafeArea: requestedFormat === "ebook" ? true : Boolean(coverEvidence && latestCover.zones.barcodeSafeArea),
+            hasBleed: requestedFormat === "ebook" ? true : Boolean(coverEvidence && latestCover.publishing.bleedInches > 0),
+            hasTrim: requestedFormat === "ebook" ? true : Boolean(coverEvidence),
+            hasSafeMargins: requestedFormat === "ebook" ? true : Boolean(coverEvidence && latestCover.zones.safeMarginInches > 0),
+            validated: finalCoverValidated,
+            fileType: coverEvidence?.fileFormat,
+            hasFront: Boolean(coverEvidence),
+            hasBack: requestedFormat === "ebook" ? true : Boolean(coverEvidence),
+            hasSpine: requestedFormat === "ebook" ? true : Boolean(coverEvidence),
           } : {}),
           format: requestedFormat,
         },
@@ -132,9 +144,9 @@ export function createStudioPublishingRoutes(store: FileProjectStore, production
         },
         images: {
           required: imagesRequired,
-          count: bookAssets.length,
-          allResolved: bookAssets.length > 0 && bookAssets.every((asset) => typeof asset.assetUri === "string" && asset.assetUri.trim().length > 0),
-          allApproved: bookAssets.length > 0 && bookAssets.every((asset) => asset.approvalStatus === "approved"),
+          count: interiorAssets.length,
+          allResolved: interiorAssets.length > 0 && interiorAssets.every((asset) => typeof asset.assetUri === "string" && asset.assetUri.trim().length > 0),
+          allApproved: interiorAssets.length > 0 && interiorAssets.every((asset) => asset.approvalStatus === "approved"),
           resolutionValidated: imageResolutionValidated,
         },
         production: {
@@ -161,13 +173,20 @@ export function createStudioPublishingRoutes(store: FileProjectStore, production
       if (!publishingReadiness) throw new Error(`Run Publishing readiness for this book${format ? ` and ${format} format` : ""} before checking the release gate.`);
       const auditedFormat = publishingReadiness.releaseFormat;
       const currentMetadata = await publishing.get(projectId, bookId);
-      const matchingCover = [...(project.bookCoverPlans ?? [])]
-        .filter((plan) => plan.bookId === bookId && plan.format === auditedFormat)
-        .sort((a, b) => b.version - a.version || b.updatedAt.localeCompare(a.updatedAt))[0];
+      const matchingCover = auditedFormat ? latestCoverPlan(project, bookId, auditedFormat) : undefined;
       const staleReasons: string[] = [];
       if (!currentMetadata) staleReasons.push("Publishing metadata is no longer available");
       else if (Date.parse(currentMetadata.metadata.updatedAt) > Date.parse(publishingReadiness.createdAt)) staleReasons.push("Publishing metadata changed after the readiness audit");
-      if (matchingCover && Date.parse(matchingCover.updatedAt) > Date.parse(publishingReadiness.createdAt)) staleReasons.push(`the ${auditedFormat} cover changed after the readiness audit`);
+      if (matchingCover && Date.parse(matchingCover.updatedAt) > Date.parse(publishingReadiness.createdAt)) staleReasons.push(`the ${auditedFormat} cover plan changed after the readiness audit`);
+      if (auditedFormat) {
+        if (!matchingCover) {
+          staleReasons.push(`no ${auditedFormat} Cover Studio plan is currently available`);
+        } else {
+          const currentCoverArtifact = await latestCurrentCoverArtifact(coverArtifacts, project, matchingCover, auditedFormat);
+          if (!currentCoverArtifact) staleReasons.push(`no verified ${auditedFormat} cover artifact matches the current Cover Studio plan and approved artwork`);
+          else if (Date.parse(currentCoverArtifact.evidence.generatedAt) > Date.parse(publishingReadiness.createdAt)) staleReasons.push(`the ${auditedFormat} cover artifact changed after the readiness audit`);
+        }
+      }
       if (currentMetadata && auditedFormat) {
         const workspace = requireWorkspace(project);
         const book = getBook(workspace, bookId);
@@ -217,6 +236,41 @@ async function latestCurrentProductionArtifact(
   }
   return undefined;
 }
+
+async function latestCurrentCoverArtifact(
+  vault: FileCoverArtifactVault,
+  project: ProjectState,
+  plan: BookCoverPlan,
+  format: PublishingReleaseFormat,
+): Promise<CoverArtifactVerification | undefined> {
+  const records = await vault.list(project.metadata.id, { bookId: plan.bookId, planId: plan.id });
+  const currentPlanSha256 = coverPlanSha256(plan);
+  for (const record of records) {
+    if (record.coverFormat !== format || record.planVersion !== plan.version || record.planSha256 !== currentPlanSha256) continue;
+    const sourceAsset = project.illustrationAssetLibrary?.assets.find((asset) => asset.id === record.sourceAssetId && asset.bookId === plan.bookId);
+    if (!sourceAsset || sourceAsset.approvalStatus !== "approved" || sourceAsset.generationSettings?.purpose !== "cover-art") continue;
+    const sourceSha256 = embeddedAssetSha256(sourceAsset.assetUri);
+    if (!sourceSha256 || sourceSha256 !== record.sourceAssetSha256) continue;
+    const verification = await vault.verify(record);
+    if (verification.valid) return verification;
+  }
+  return undefined;
+}
+
+function latestCoverPlan(project: ProjectState, bookId: string, format: PublishingReleaseFormat): BookCoverPlan | undefined {
+  return [...(project.bookCoverPlans ?? [])]
+    .filter((plan) => plan.bookId === bookId && plan.format === format)
+    .sort((a, b) => b.version - a.version || b.updatedAt.localeCompare(a.updatedAt))[0];
+}
+
+function embeddedAssetSha256(uri: string): string | undefined {
+  const match = uri.match(/^data:image\/(?:png|jpeg|jpg);base64,([A-Za-z0-9+/=\r\n]+)$/i);
+  if (!match) return undefined;
+  const bytes = Buffer.from(match[1].replace(/\s+/g, ""), "base64");
+  if (!bytes.length) return undefined;
+  return createHash("sha256").update(bytes).digest("hex");
+}
+
 function productionManuscript(projectId: string, book: WorkspaceBook, author: string): ProductionManuscript {
   return {
     projectId,
