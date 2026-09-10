@@ -49,7 +49,7 @@ test("Publishing readiness is edition-scoped and server-owned illustration truth
   assert.match(publishingRoutes, /generationSettings\?\.purpose === "illustration"/);
   assert.match(publishingRoutes, /asset\.approvalStatus === "approved"/);
   assert.match(publishingRoutes, /report\.releaseFormat === format/);
-  assert.match(publishingRoutes, /plan\.format === requestedFormat/);
+  assert.match(publishingRoutes, /latestCoverPlan\(project, bookId, requestedFormat\)/);
   assert.doesNotMatch(client, /count:\s*defaultImagesRequired/);
 });
 
