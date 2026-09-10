@@ -6,6 +6,7 @@ const { existsSync, readdirSync } = require("node:fs");
 const { mkdtemp, rm } = require("node:fs/promises");
 const { homedir, tmpdir } = require("node:os");
 const { join } = require("node:path");
+const zlib = require("node:zlib");
 const { chromium } = require("@playwright/test");
 const { FileProjectStore } = require("../dist/infrastructure/file-project-store.js");
 const {
@@ -13,6 +14,7 @@ const {
   withProjectStudioWorkspace,
   withProjectKdpMarketIntelligenceReports,
   withProjectBookCoverPlans,
+  withProjectIllustrationAssetLibrary,
 } = require("../dist/domain/project.js");
 const {
   createStudioWorkspace,
@@ -24,6 +26,7 @@ const {
 } = require("../dist/domain/studio-workspace.js");
 const { createKdpMarketIntelligenceReport } = require("../dist/domain/kdp-market-intelligence.js");
 const { createBookCoverPlan } = require("../dist/domain/book-cover-studio.js");
+const { createIllustrationAsset } = require("../dist/domain/illustration-asset-library.js");
 
 const HOST = "127.0.0.1";
 const PORT = 5680 + Math.floor(Math.random() * 150);
@@ -31,6 +34,62 @@ const projectId = `publishing-promotion-${Date.now()}`;
 const bookId = "book-release";
 const chapterId = "chapter-release";
 const sceneId = "scene-release";
+const coverPlanId = "ebook-cover-release-1";
+const coverAssetId = "cover-art-release-1";
+const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+
+const CRC_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let n = 0; n < 256; n += 1) {
+    let c = n;
+    for (let k = 0; k < 8; k += 1) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+    table[n] = c >>> 0;
+  }
+  return table;
+})();
+
+function crc32(buffer) {
+  let c = 0xffffffff;
+  for (const byte of buffer) c = CRC_TABLE[(c ^ byte) & 255] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+function pngChunk(type, data) {
+  const typeBytes = Buffer.from(type, "ascii");
+  const length = Buffer.alloc(4);
+  length.writeUInt32BE(data.length, 0);
+  const crc = Buffer.alloc(4);
+  crc.writeUInt32BE(crc32(Buffer.concat([typeBytes, data])), 0);
+  return Buffer.concat([length, typeBytes, data, crc]);
+}
+
+function deterministicCoverPngDataUri(width = 625, height = 1000) {
+  const stride = width * 4;
+  const scanlines = Buffer.alloc((stride + 1) * height);
+  for (let y = 0; y < height; y += 1) {
+    const row = y * (stride + 1);
+    scanlines[row] = 0;
+    for (let x = 0; x < width; x += 1) {
+      const offset = row + 1 + x * 4;
+      scanlines[offset] = 26 + Math.floor((x / Math.max(1, width - 1)) * 36);
+      scanlines[offset + 1] = 42 + Math.floor((y / Math.max(1, height - 1)) * 28);
+      scanlines[offset + 2] = 66;
+      scanlines[offset + 3] = 255;
+    }
+  }
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8;
+  ihdr[9] = 6;
+  const bytes = Buffer.concat([
+    PNG_SIGNATURE,
+    pngChunk("IHDR", ihdr),
+    pngChunk("IDAT", zlib.deflateSync(scanlines, { level: 9 })),
+    pngChunk("IEND", Buffer.alloc(0)),
+  ]);
+  return `data:image/png;base64,${bytes.toString("base64")}`;
+}
 
 function findBrowser() {
   if (process.env.FORGE_BROWSER_EXECUTABLE) {
@@ -114,8 +173,31 @@ async function seed(dataDir) {
     "2026-08-31T00:01:00.000Z",
   );
 
+  const coverArt = createIllustrationAsset({
+    id: coverAssetId,
+    projectId,
+    bookId,
+    chapterId,
+    sceneId,
+    characterId: "cover-subject",
+    locationId: "cover-setting",
+    prompt: "Original portrait cover art used to verify the real final-cover production boundary.",
+    references: [],
+    style: "original atmospheric fiction cover",
+    generationSettings: { purpose: "cover-art", dpi: 300 },
+    approvalStatus: "approved",
+    assetUri: deterministicCoverPngDataUri(),
+    now: "2026-08-31T00:02:00.000Z",
+  });
+  project = withProjectIllustrationAssetLibrary(project, {
+    formatVersion: 1,
+    projectId,
+    assets: [coverArt],
+    characterDesignLocks: [],
+  }, "2026-08-31T00:02:30.000Z");
+
   const ebookCover = createBookCoverPlan({
-    id: "ebook-cover-release-1",
+    id: coverPlanId,
     projectId,
     bookId,
     format: "ebook",
@@ -133,13 +215,12 @@ async function seed(dataDir) {
     title: "Heartwood Friendship",
     author: "Kevin Wakley",
     frontPrompt: "Author-approved final eBook cover direction.",
-    spineText: "Heartwood Friendship",
-    backText: "A story about friendship and belonging.",
-    outputUri: "/api/test-assets/heartwood-friendship-cover.jpg",
+    spineText: "",
+    backText: "eBook cover",
     outputFormat: "jpeg",
     dpi: 300,
     version: 1,
-    approvalStatus: "approved",
+    approvalStatus: "draft",
     now: "2026-08-31T00:03:30.000Z",
   });
   project = withProjectBookCoverPlans(project, [ebookCover], "2026-08-31T00:03:40.000Z");
@@ -312,6 +393,7 @@ async function main() {
     await readiness.locator('button[type="submit"]').click();
     let readinessPayload = await (await readinessResponse).json();
     assert.equal(readinessPayload.checks.find((item) => item.id === "production-validation").status, "attention", "release must remain blocked before a real artifact exists");
+    assert.equal(readinessPayload.checks.find((item) => item.id === "cover-validation").status, "attention", "a draft cover plan without verified bytes must remain blocked");
     await page.locator("#run-release-gate").click();
     await page.waitForFunction(() => document.querySelector("#release-gate-result")?.textContent.includes("RELEASE BLOCKED"));
 
@@ -334,11 +416,37 @@ async function main() {
     assert.equal(artifactLedger.artifacts.length, 1);
     assert.equal(artifactLedger.artifacts[0].valid, true, artifactLedger.artifacts[0].issues.join("; "));
 
+    const coverResult = await page.evaluate(async ({ projectId: pid, bookId: bid, planId, assetId }) => {
+      const response = await fetch(`/api/projects/${pid}/cover/artifacts`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ bookId: bid, planId, assetId, authorApproved: true }),
+      });
+      const text = await response.text();
+      let payload;
+      try { payload = text ? JSON.parse(text) : null; } catch { payload = text; }
+      return { ok: response.ok, status: response.status, payload };
+    }, { projectId, bookId, planId: coverPlanId, assetId: coverAssetId });
+    assert.equal(coverResult.ok, true, `live final-cover production failed: ${JSON.stringify(coverResult.payload)}`);
+    assert.equal(coverResult.payload.evidence.fileFormat, "jpeg");
+    assert.equal(coverResult.payload.evidence.widthPixels, 625);
+    assert.equal(coverResult.payload.evidence.heightPixels, 1000);
+    assert.match(coverResult.payload.evidence.sha256, /^[a-f0-9]{64}$/);
+    const coverBytes = Buffer.from(coverResult.payload.contentBase64, "base64");
+    assert.equal(coverBytes[0], 0xff, "final eBook cover must contain real JPEG bytes");
+    assert.equal(coverBytes[1], 0xd8, "final eBook cover must contain real JPEG bytes");
+
+    const coverLedger = (await jsonRequest(baseUrl, `/api/projects/${projectId}/cover/artifacts?bookId=${bookId}&planId=${coverPlanId}`)).payload;
+    assert.equal(coverLedger.artifacts.length, 1);
+    assert.equal(coverLedger.artifacts[0].valid, true, coverLedger.artifacts[0].issues.join("; "));
+    assert.equal(coverLedger.artifacts[0].evidence.sourceAssetId, coverAssetId);
+
     readinessResponse = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname.endsWith("/publishing/readiness"));
     await readiness.locator('button[type="submit"]').click();
     readinessPayload = await (await readinessResponse).json();
-    assert.equal(readinessPayload.checks.filter((item) => item.status === "attention" && item.severity === "error").length, 0, "current verified EPUB + saved Cover Studio evidence should remove release-blocking Publishing errors");
+    assert.equal(readinessPayload.checks.filter((item) => item.status === "attention" && item.severity === "error").length, 0, "current verified EPUB + verified final cover artifact should remove release-blocking Publishing errors");
     assert.equal(readinessPayload.checks.find((item) => item.id === "production-validation").status, "passed");
+    assert.equal(readinessPayload.checks.find((item) => item.id === "cover-validation").status, "passed");
 
     await page.locator("#run-release-gate").click();
     await page.waitForFunction(() => document.querySelector("#release-gate-result")?.textContent.includes("READY TO RELEASE"));
@@ -364,7 +472,7 @@ async function main() {
     assert.ok(dimensions.document <= dimensions.viewport + 1, `Publishing/Promotion document overflows Android viewport: ${JSON.stringify(dimensions)}`);
     await mobileContext.close();
 
-    console.log("PUBLISHING/PROMOTION BROWSER ACCEPTANCE PASSED: durable metadata + saved market evidence + author-approved promotion + honest provider failure + blocked-before-export + real persisted source-bound EPUB + ready-after-export + Android touch/overflow.");
+    console.log("PUBLISHING/PROMOTION BROWSER ACCEPTANCE PASSED: durable metadata + saved market evidence + author-approved promotion + honest provider failure + blocked-before-artifacts + real persisted source-bound EPUB + real verified final JPEG cover + ready-after-verification + Android touch/overflow.");
   } finally {
     if (browser) await browser.close().catch(() => {});
     server.kill("SIGTERM");
