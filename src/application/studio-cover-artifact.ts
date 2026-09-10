@@ -62,6 +62,14 @@ export class StudioCoverArtifactService {
       ? plan
       : Object.freeze({ ...plan, approvalStatus: "approved" as const, updatedAt: now });
     const composition = coverComposition(approvedPlan, sourceAsset, image.width, image.height, image.mimeType, now);
+    const preflight = this.compositor.preflight(composition.project, composition.profile, now, composition.project);
+    if (preflight.blocking > 0) {
+      const details = preflight.issues
+        .filter((issue) => issue.severity === "error")
+        .map((issue) => `${issue.code}${issue.elementId ? `:${issue.elementId}` : ""} ${issue.message}`)
+        .join(" | ");
+      throw new Error(`Final cover production preflight blocked: ${details}`);
+    }
     const png = this.compositor.render(composition.project, composition.profile, "png", composition.project);
     const jpegArtifact = renderSpecializedJpegFromPng(png, 95);
     const jpegBytes = Buffer.from(jpegArtifact.bytesBase64, "base64");
@@ -250,12 +258,21 @@ function coverSurface(
     elements.push(image("cover-art", assetId, 0, 0, profile.widthInches, profile.heightInches, 1));
     const margin = Math.min(0.3, profile.widthInches * 0.08);
     const titleHeight = Math.min(1.5, profile.heightInches * 0.25);
+    const titleX = margin * 1.3;
+    const titleY = margin * 1.2;
+    const titleWidth = profile.widthInches - margin * 2.6;
+    const titleTextHeight = titleHeight * 0.8;
+    const titleFont = fittedCoverFontSize(plan.title, titleWidth, titleTextHeight, 30, 8, "Cover title");
     elements.push(shape("title-backing", margin, margin, profile.widthInches - margin * 2, titleHeight, "#111111", 2, 0.62));
-    elements.push(text("cover-title", plan.title, margin * 1.3, margin * 1.2, profile.widthInches - margin * 2.6, titleHeight * 0.8, 30, "#ffffff", 3, "bold"));
+    elements.push(text("cover-title", plan.title, titleX, titleY, titleWidth, titleTextHeight, titleFont, "#ffffff", 3, "bold"));
     const authorHeight = Math.min(0.7, profile.heightInches * 0.12);
     const authorY = profile.heightInches - authorHeight - margin;
+    const authorX = margin * 1.3;
+    const authorWidth = profile.widthInches - margin * 2.6;
+    const authorTextHeight = authorHeight - 0.12;
+    const authorFont = fittedCoverFontSize(plan.author, authorWidth, authorTextHeight, 18, 7, "Cover author");
     elements.push(shape("author-backing", margin, authorY, profile.widthInches - margin * 2, authorHeight, "#111111", 4, 0.62));
-    elements.push(text("cover-author", plan.author, margin * 1.3, authorY + 0.08, profile.widthInches - margin * 2.6, authorHeight - 0.12, 18, "#ffffff", 5, "bold"));
+    elements.push(text("cover-author", plan.author, authorX, authorY + 0.08, authorWidth, authorTextHeight, authorFont, "#ffffff", 5, "bold"));
   } else {
     const safe = Math.max(0.25, plan.zones.safeMarginInches);
     const front = plan.zones.front;
@@ -267,12 +284,20 @@ function coverSurface(
     };
     const fitted = fitWithoutUpscale(artContainer, sourceWidth / COVER_DPI, sourceHeight / COVER_DPI);
     elements.push(image("cover-art", assetId, fitted.x, fitted.y, fitted.width, fitted.height, 2));
-    elements.push(text("cover-title", plan.title, front.x + safe, front.y + safe, front.width - safe * 2, 0.95, 24, "#ffffff", 3, "bold"));
-    elements.push(text("cover-author", plan.author, front.x + safe, front.y + front.height - safe - 0.55, front.width - safe * 2, 0.45, 14, "#ffffff", 4, "bold"));
+    const titleWidth = front.width - safe * 2;
+    const titleHeight = 0.95;
+    const titleFont = fittedCoverFontSize(plan.title, titleWidth, titleHeight, 24, 8, "Cover title");
+    const authorWidth = front.width - safe * 2;
+    const authorHeight = 0.45;
+    const authorFont = fittedCoverFontSize(plan.author, authorWidth, authorHeight, 14, 7, "Cover author");
+    elements.push(text("cover-title", plan.title, front.x + safe, front.y + safe, titleWidth, titleHeight, titleFont, "#ffffff", 3, "bold"));
+    elements.push(text("cover-author", plan.author, front.x + safe, front.y + front.height - safe - 0.55, authorWidth, authorHeight, authorFont, "#ffffff", 4, "bold"));
     const back = plan.zones.back;
     const barcode = plan.zones.barcodeSafeArea;
     const backHeight = Math.max(1, Math.min(back.height - safe * 2, barcode.y - back.y - safe * 1.5));
-    elements.push(text("cover-back-copy", plan.backText, back.x + safe, back.y + safe, back.width - safe * 2, backHeight, 10, "#ffffff", 3));
+    const backWidth = back.width - safe * 2;
+    const backFont = fittedCoverFontSize(plan.backText, backWidth, backHeight, 10, 6, "Back-cover copy");
+    elements.push(text("cover-back-copy", plan.backText, back.x + safe, back.y + safe, backWidth, backHeight, backFont, "#ffffff", 3));
     elements.push(shape("barcode-safe-area", barcode.x, barcode.y, barcode.width, barcode.height, "#ffffff", 8));
   }
   return Object.freeze({
@@ -286,6 +311,21 @@ function coverSurface(
     readingOrder: 1,
     elements: Object.freeze(elements),
   });
+}
+
+function fittedCoverFontSize(value: string, widthInches: number, heightInches: number, preferredPt: number, minimumPt: number, label: string): number {
+  if (!value.trim()) throw new Error(`${label} cannot be empty.`);
+  if (!(widthInches > 0) || !(heightInches > 0)) throw new Error(`${label} has no usable production text area.`);
+  for (let size = Math.floor(preferredPt); size >= minimumPt; size -= 1) {
+    if (estimatedCoverTextHeight(value, size, widthInches) <= heightInches * 72) return size;
+  }
+  throw new Error(`${label} cannot fit the approved cover layout at the minimum readable size of ${minimumPt} pt. Shorten the text or adjust the cover layout before production.`);
+}
+
+function estimatedCoverTextHeight(value: string, fontSizePt: number, widthInches: number): number {
+  const charsPerLine = Math.max(1, Math.floor(widthInches * 72 / (fontSizePt * 0.55)));
+  const lines = value.split(/\n/).reduce((sum, line) => sum + Math.max(1, Math.ceil(line.length / charsPerLine)), 0);
+  return lines * fontSizePt * 1.25;
 }
 
 function fitWithoutUpscale(container: { x: number; y: number; width: number; height: number }, sourceWidthInches: number, sourceHeightInches: number) {
