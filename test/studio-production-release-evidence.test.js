@@ -75,6 +75,8 @@ async function fixture() {
     workspace,
     "2026-09-09T12:01:00.000Z",
   );
+  // This approved plan intentionally has no verified cover-vault bytes. The test is
+  // about manuscript production identity, and must not pretend a URI is a cover file.
   const cover = createBookCoverPlan({
     id: "ebook-cover-release",
     projectId,
@@ -96,7 +98,6 @@ async function fixture() {
     frontPrompt: "Approved eBook cover direction.",
     spineText: "Current Source Release",
     backText: "Release fixture cover copy.",
-    outputUri: "/artifacts/current-source-release.jpg",
     outputFormat: "jpeg",
     dpi: 300,
     version: 1,
@@ -154,6 +155,13 @@ async function readiness(publishingRoutes, projectId, bookId) {
   return response.payload;
 }
 
+function assertProductionCurrentButCoverStillReal(report) {
+  assert.equal(check(report, "production-validation").status, "passed");
+  assert.equal(check(report, "format-validation").status, "passed");
+  assert.equal(check(report, "cover-file").status, "attention", "a Cover Studio plan without verified bytes must remain blocked");
+  assert.equal(check(report, "cover-validation").status, "attention", "approved metadata cannot substitute for a verified cover artifact");
+}
+
 test("release evidence follows the exact current manuscript and requires re-export after author edits", async (t) => {
   const { root, store, vault, projectId, bookId, chapterId, sceneId } = await fixture();
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -162,8 +170,7 @@ test("release evidence follows the exact current manuscript and requires re-expo
 
   const firstExport = await exportEpub(exportRoutes, projectId, bookId);
   const firstReadiness = await readiness(publishingRoutes, projectId, bookId);
-  assert.equal(check(firstReadiness, "production-validation").status, "passed");
-  assert.equal(firstReadiness.checks.filter((entry) => entry.status === "attention" && entry.severity === "error").length, 0);
+  assertProductionCurrentButCoverStillReal(firstReadiness);
 
   const loaded = await store.load(projectId);
   assert.ok(loaded?.studioWorkspace);
@@ -194,8 +201,7 @@ test("release evidence follows the exact current manuscript and requires re-expo
   const secondExport = await exportEpub(exportRoutes, projectId, bookId);
   assert.notEqual(secondExport.evidence.sourceSha256, firstExport.evidence.sourceSha256, "author manuscript edit must change the production source fingerprint");
   const restored = await readiness(publishingRoutes, projectId, bookId);
-  assert.equal(check(restored, "production-validation").status, "passed");
-  assert.equal(restored.checks.filter((entry) => entry.status === "attention" && entry.severity === "error").length, 0);
+  assertProductionCurrentButCoverStillReal(restored);
 
   const records = await vault.list(projectId, { bookId, formats: ["epub"] });
   assert.equal(records.length, 2, "both historical production artifacts should remain auditable");
