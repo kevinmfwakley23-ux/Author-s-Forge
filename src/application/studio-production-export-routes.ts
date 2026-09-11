@@ -1,9 +1,13 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { ManuscriptProductionService } from "./manuscript-production";
+import { productionIllustrationFromAsset } from "./publication-image";
 import { StudioPublishingMetadataService } from "./studio-publishing-metadata";
+import { latestRightsDeclaration } from "../domain/asset-rights-provenance";
+import { projectAssetRightsRegistry } from "../domain/project-rights";
+import type { ProjectState } from "../domain/project";
 import { getBook, validateStudioWorkspace } from "../domain/studio-workspace";
 import { productionSourceSha256 } from "../domain/production-artifact-evidence";
-import type { ProductionFormat, ProductionManuscript, ProductionOptions } from "../domain/manuscript-production";
+import type { ProductionFormat, ProductionIllustration, ProductionManuscript, ProductionOptions } from "../domain/manuscript-production";
 import { FileProjectStore } from "../infrastructure/file-project-store";
 import { FileProductionArtifactVault } from "../infrastructure/file-production-artifact-vault";
 
@@ -63,7 +67,15 @@ export function createStudioProductionExportRoutes(
         id: chapter.id,
         number: chapter.number,
         title: chapter.title,
-        scenes: chapter.scenes.map((scene) => ({ id: scene.id, title: scene.title, body: scene.content })),
+        scenes: chapter.scenes.map((scene) => {
+          const illustrations = publicationIllustrations(project, book.id, chapter.id, scene.id);
+          return {
+            id: scene.id,
+            title: scene.title,
+            body: scene.content,
+            ...(illustrations.length ? { illustrations } : {}),
+          };
+        }),
       })),
       frontMatter: [],
       backMatter: [],
@@ -74,6 +86,25 @@ export function createStudioProductionExportRoutes(
     respond(res, 200, { ...artifact, persisted: true, evidence });
     return true;
   };
+}
+
+function publicationIllustrations(project: ProjectState, bookId: string, chapterId: string, sceneId: string): readonly ProductionIllustration[] {
+  const assets = (project.illustrationAssetLibrary?.assets ?? [])
+    .filter((asset) => asset.bookId === bookId && asset.chapterId === chapterId && asset.sceneId === sceneId)
+    .filter((asset) => asset.approvalStatus === "approved" && asset.generationSettings.purpose === "illustration")
+    .sort((a, b) => a.date.localeCompare(b.date) || a.version - b.version || a.id.localeCompare(b.id));
+  if (!assets.length) return Object.freeze([]);
+  const registry = projectAssetRightsRegistry(project);
+  return Object.freeze(assets.map((asset) => {
+    const declaration = latestRightsDeclaration(registry, asset.id);
+    if (!declaration || declaration.publicationClearance !== "author-declared-cleared") {
+      throw new Error(`Publication export is blocked: illustration asset "${asset.id}" does not have author-declared publication clearance.`);
+    }
+    if (Date.parse(declaration.recordedAt) < Date.parse(asset.updatedAt)) {
+      throw new Error(`Publication export is blocked: rights clearance for illustration asset "${asset.id}" predates its latest asset revision. Review the final artwork and declare publication clearance again.`);
+    }
+    return productionIllustrationFromAsset(asset);
+  }));
 }
 
 async function body(req: IncomingMessage): Promise<Record<string, unknown>> {
