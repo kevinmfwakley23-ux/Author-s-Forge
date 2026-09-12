@@ -146,25 +146,30 @@ function verifyExecutionContract() {
 
   const scripts = pkg && typeof pkg === "object" && pkg.scripts && typeof pkg.scripts === "object" ? pkg.scripts : {};
   const verify = typeof scripts.verify === "string" ? scripts.verify : "";
+  const verifyCommands = verify.split(/\s*&&\s*/).map((command) => command.trim()).filter(Boolean);
   const requiredVerifySteps = ["test:main", "baseline", "completion", "test:browser", "test:browser:mobile"];
   for (const step of requiredVerifySteps) {
-    if (!verify.includes(`npm run ${step}`)) failures.push(`package.json verify no longer runs ${step}.`);
+    if (!verifyCommands.includes(`npm run ${step}`)) failures.push(`package.json verify no longer runs ${step}.`);
   }
-  if (typeof scripts["test:main"] !== "string" || !scripts["test:main"].includes("run-main-tests.js")) {
+  if (typeof scripts["test:main"] !== "string" || !scripts["test:main"].split(/\s*&&\s*/).some((command) => command.trim() === "node scripts/run-main-tests.js")) {
     failures.push("package.json test:main no longer routes through scripts/run-main-tests.js.");
   }
 
   const canonicalWorkflow = readText(".github/workflows/canonical-verification.yml", failures);
-  if (canonicalWorkflow && !canonicalWorkflow.includes("npm run verify")) {
+  if (canonicalWorkflow && !hasYamlRun(canonicalWorkflow, "npm run verify")) {
     failures.push("Canonical Forge Verification no longer runs npm run verify.");
   }
   const mainCi = readText(".github/workflows/ci.yml", failures);
   if (mainCi) {
     for (const command of ["npm run test:main", "npm run baseline", "npm run completion", "npm run test:browser", "npm run test:browser:mobile"]) {
-      if (!mainCi.includes(command)) failures.push(`Forge Main Studio CI no longer runs ${command}.`);
+      if (!hasYamlRun(mainCi, command)) failures.push(`Forge Main Studio CI no longer runs ${command}.`);
     }
   }
   return failures;
+}
+
+function hasYamlRun(source, command) {
+  return source.split(/\r?\n/).some((line) => line.trim() === `- run: ${command}` || line.trim() === `run: ${command}`);
 }
 
 function readText(relativePath, failures) {
