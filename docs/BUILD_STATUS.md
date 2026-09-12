@@ -1,144 +1,114 @@
 # Author's Forge — Build Status
 
-**Date:** 2026-08-30  
+**Status date:** 2026-09-11  
 **Canonical branch:** `main`  
-**Latest engineering baseline:** `ef024b6e08871e9ab5b96f861e92480007dc5e98` — Editing Room deterministic proposal review diff integration and regression coverage.
+**Scope of this status:** K.I.N.G.S. Author's Forge Main Studio. Optional offices such as Guided Journals, Workbooks, Specialized Creation, and NFT creation are deliberately outside the Main Studio completion gate.
 
-## Current condition
+## Current production condition
 
-Author's Forge has moved beyond a UI prototype into a substantial domain/application system with an integrated Studio server, durable project state, AI provider boundaries, author-controlled proposals, manuscript production, publishing readiness, marketing governance, workflow gates, portable project packages, Book Genome/final-product systems, and PWA/mobile surfaces.
+Author's Forge is now a real integrated authoring application rather than a UI prototype. The Main Studio has durable project/manuscript state, Project Brain context, canon and character memory, author-voice support, research, architecture/planning, AI-assisted writing and editing, explicit proposal review/application, visual and cover production, manuscript production, KDP-oriented preflight, publishing preparation, promotion tooling, recovery, PWA/mobile behavior, and a native Android packaging workflow.
 
-The latest local result reported during engineering work was:
+The repository's production rule remains strict: a file, label, mock response, or green isolated unit test is not enough to claim a working capability. Production paths must preserve durable state, real provider boundaries, author authority, truthful failure, and executable acceptance evidence.
 
-> REAL BROWSER ACCEPTANCE PASSED: 18 routes + durable book/chapter/scene + manuscript save/reload + character + canon + honest AI failure.
+## AI execution truth
 
-That result is treated as evidence, not as a blanket completion claim. Fresh build/test execution is required after checkout/integration, and physical Chromebook/Android verification remains a separate release gate.
+The shared Forge AI boundary is real-provider-only. Main Studio AI calls route through the configured broker/provider boundary and do not fabricate generated content when no provider is available.
 
-## Mission 051 — Editing proposal review diff
+Configured provider families supported by the current runtime include:
 
-The Editing Room now exposes the same governed, deterministic review-diff standard already established for Writing Desk AI proposals. A selected manuscript-edit proposal is compared against the currently loaded scene and presented as line-level added/removed/unchanged records with word-count impact. Proposal selection is explicit, approval remains separate from application, and server-side source-revision protection remains authoritative.
+- OmniRoute;
+- 9Router;
+- K.I.N.G.S. Responses-compatible endpoint;
+- local Ollama;
+- Groq;
+- Mistral;
+- Gemini;
+- Anthropic;
+- OpenRouter;
+- OpenAI;
+- registered OpenAI-compatible gateways.
 
-Regression coverage now verifies the live Editing Room script contains the durable proposal endpoint, deterministic diff, line-level review, add/remove counts, selection, and explicit apply controls.
+Provider selection is capability-, quota-, health-, model-, and spend-policy-aware. The default owner policy is intentionally `no-paid-tokens`; metered or unknown routes require an explicit owner decision through the Forge AI controls before they can spend money. This is a safety control, not a fake fallback. If no eligible configured provider can satisfy a request, Forge fails explicitly.
 
-This closes the immediate review-integrity gap between the Writing Desk and Editing Room: authors can inspect what an AI rewrite would change before accepting or applying it.
+Real paid-provider account success cannot be proven by public CI because credentials are intentionally excluded from the repository. Live provider certification remains a secret-backed runtime test and must not be replaced by a mock claim.
 
-## Mission 049 — Proposal review integrity
+## Main author journey
 
-The AI proposal boundary now has a deterministic review-diff service. `createAiProposalDiff` produces line-level added/removed/unchanged records, exact base/proposed SHA-256 bindings, character/word counts, and explicit line-number mapping. The capability is review-only and cannot mutate manuscript state. Regression coverage is in `test/ai-proposal-diff.test.js` and the capability is exported from `src/index.ts`.
+The Main Studio completion scope is:
 
-The Writing Desk exposes this review directly, and Mission 051 extends the same review discipline to Editing Room rewrite proposals.
+1. create or restore a durable project;
+2. develop concept, architecture, story map, canon, characters, series state, and scene/chapter plans;
+3. write manually or request governed AI writing assistance;
+4. review proposals before authoritative manuscript mutation;
+5. edit with source/revision protection and author control;
+6. create/manage visual assets and cover direction;
+7. produce a final cover artifact with durable evidence rather than treating a design preview as a publishable file;
+8. run manuscript production and publishing/KDP readiness checks;
+9. prepare metadata, positioning, promotion, and performance tracking;
+10. preserve recovery/portable project state across sessions and supported devices.
 
-## Canonical verification
+## Final-cover production truth
 
-The repository now contains `.github/workflows/canonical-verification.yml`, which runs on pushes to `main` and manual dispatch. It installs dependencies and Chromium, then runs the build/regression suite, completion meter, browser acceptance, and mobile acceptance. This makes the canonical verification path reproducible from the repository itself.
+The production release path now distinguishes a cover plan or preview from a verified final cover artifact. Release evidence includes the cover artifact service/routes, durable artifact vault, SHA-256-bound evidence, format/dimension metadata, source-asset linkage, and the live cover-production client. Production and publishing gates must reject missing or invalid required cover evidence rather than silently treating a preview as final output.
 
-## Current PWA/mobile build
+The final cleanup gate also requires these cover-production sources and compiled artifacts to remain present and non-empty, and Main Studio CI performs a direct JavaScript syntax check on the cover-production client.
 
-The Android/PWA surface has been strengthened from a manifest-and-harness-only boundary into an explicit install lifecycle:
+## Verification contract
 
-- real `beforeinstallprompt` handling;
-- an install control created in the live Studio when supported;
-- explicit standalone/app-installed status;
-- service-worker registration from the live browser client;
-- service-worker upgrade messaging;
-- versioned shell cache (`authors-forge-shell-v4`);
-- continued exclusion of `/api/` project data from service-worker caching;
-- mobile acceptance coverage for touch navigation, phone viewport, overflow, manuscript persistence, and reload;
-- dedicated PWA lifecycle tests covering install, safe storage boundaries, and shell upgrades.
-
-The PWA layer deliberately does not create a second project-state store. Durable project data remains behind the Forge server/domain persistence boundary.
-
-## Portable release bundle
-
-The repository contains `.github/workflows/release-bundle.yml`. It builds the canonical Forge, runs the completion meter and browser-side syntax checks, then packages `dist`, `public`, the Termux launcher, package metadata, README/directive documentation, and Android/Chromebook run instructions into a versioned tarball with SHA-256 checksum.
-
-The workflow runs on demand and on `v*` tags. This establishes a repeatable path from the repository's verified build to a portable package that can be transferred to the Chromebook or Android/Termux environment. It does not pretend to be a native APK; Forge's Android target remains the platform-neutral PWA/web application.
-
-## Immediate engineering condition
-
-The next priority is functional truth, not feature accumulation. The repository already contains the public API exports required by the manuscript, project foundation, publishing, version-control, collaboration, health, relationship-memory, delivery-audit, and workflow regression suites. If an older local checkout reports errors such as `createManuscriptState is not a function`, `createProject is not a function`, or similar export errors, rebuild from current `main` with:
-
-```bash
-npm install
-npm run build
-npm test
-```
-
-Do not repair these failures by deleting tests or weakening exports. First eliminate stale build artifacts or branch divergence; then repair the implementation if the current source genuinely fails.
-
-## Completion measurement
-
-Run:
+Use the repository-native commands:
 
 ```bash
-npm run completion
+npm ci
+npm run runtime:check
+npm run verify
 ```
 
-The meter reports engineering capability completion and verification/evidence readiness. It intentionally refuses to treat a source file, route label, or green unit test as proof of a complete user capability. 100% means the full author journey is implemented and verified across the required evidence levels.
+`npm run verify` is the strongest Main Studio repository gate. It must continue to execute:
 
-The Android/PWA capability now measures the actual `manifest.webmanifest`, service worker, live PWA lifecycle module, and matching automated evidence instead of looking for the obsolete `public/manifest.json` path.
+- the Main Studio regression suite;
+- built-artifact baseline validation;
+- the Main Studio completion/integrity gate;
+- desktop/browser acceptance;
+- mobile acceptance.
 
-## Cross-repository architecture adopted
+The completion gate now verifies that this execution contract has not been quietly weakened. It also requires the AI routing/writing integration evidence and verified final-cover production surface. A completion message therefore means **ready for executed verification**, not "external retailer publication already happened" or "every paid provider account was live-tested without credentials."
 
-Forge selectively incorporates the strongest pre-decided architectural principles from the companion K.I.N.G.S. system rather than copying its implementation wholesale:
+## Canonical CI
 
-- human authority above automation;
-- requirement → audit → integration → build → test → end-to-end proof;
-- provider-neutral, capability-aware intelligence;
-- governed context, budgets, cost controls, and fail-open optimization;
-- durable continuity and recovery;
-- provenance and evidence gates;
-- constrained-runtime awareness.
+The repository maintains three important production verification surfaces on `main`:
 
-Forge does not fork K.I.N.G.S. internals or require its private runtime for core authoring behavior.
+- **Canonical Forge Verification** — installs the locked dependencies, validates the Node runtime contract, installs browser engines, and runs `npm run verify`;
+- **Forge Main Studio CI** — runs Main Studio regression, baseline/completion gates, syntax checks, browser acceptance, and mobile acceptance;
+- **Forge Android Native APK** — validates the native Android packaging path separately from the PWA/web path.
 
-## Build order from here
+Before this final cleanup branch was opened, all three workflows were green on the exact then-current `main` head. Any merge after that point must earn fresh exact-head CI evidence again; previous green runs are not inherited as proof for changed code.
 
-### Phase A — Canonical baseline
-- synchronize `main` and eliminate stale local build artifacts;
-- restore the complete regression suite to green;
-- verify public API exports and package entry points;
-- make build, unit, browser, and mobile commands deterministic.
+## Android, PWA, and Chromebook condition
 
-### Phase B — Core author loop
-- project creation/restoration;
-- book/chapter/scene editing;
-- Project Brain, canon, character, voice, and research context;
-- AI assist through the Model Broker;
-- proposal review and explicit author approval;
-- deterministic proposal diffs in the live Writing Desk and Editing Room;
-- durable continuation after reload/restart.
+Android is no longer described as PWA-only. The repository has both:
 
-### Phase C — Visual production
-- visual identity and character continuity;
-- reference assets;
-- real illustration generation/editing boundaries;
-- cover planning and validation;
-- durable visual artifacts linked to book state.
+- a responsive/installable PWA/mobile web surface with guarded service-worker behavior; and
+- a native Android APK build workflow.
 
-### Phase D — Production and release
-- DOCX/PDF/EPUB artifacts;
-- metadata and positioning;
-- evidence-gated marketing;
-- publishing readiness;
-- delivery audit;
-- portable project package and restore.
+Chromebook/Linux remains a supported development/runtime path. Device-specific installation, signing, permissions, network reachability, and real secret-backed provider execution still require the actual target environment; repository CI cannot truthfully manufacture those external conditions.
 
-### Phase E — Device proof
-- Chromebook responsive/touch verification;
-- Android browser/PWA installation using the live install control or browser install flow;
-- Android persistence and file handling;
-- offline shell and recovery;
-- long-running project continuity;
-- real configured AI provider execution.
+## Secret and configuration hygiene
 
-### Phase F — After the journey is stable
-- additional providers;
-- advanced semantic compression;
-- richer automation;
-- broader promotion/scheduling integrations;
-- measured workload optimization.
+Local provider credentials belong in `.env` or equivalent secret injection and are git-ignored. Example environment files remain commit-safe. Do not commit live API keys, signing keys, keystores, or provider secrets to prove a test.
 
-## Definition of complete
+## What is not being claimed
 
-Author's Forge is complete only when a real author can create or restore a project and carry it through the intended Studio journey — concept, architecture, canon, characters, research, manuscript, editing, visual work, cover, production, positioning, marketing, publishing preparation, delivery audit, and portable recovery — with durable state, real provider boundaries, author approval, truthful failures, and verified Chromebook/Android operation.
+This status does **not** claim that:
+
+- a retailer such as Amazon KDP has accepted or published a particular book;
+- a paid AI provider account succeeded without a live credential-backed call;
+- Android store signing/distribution has occurred merely because the APK workflow builds;
+- optional offices outside Main Studio are complete because Main Studio is green.
+
+Those are separate external or product-scope proofs.
+
+## Release-readiness rule
+
+Author's Forge Main Studio is release-ready only when the exact candidate head is green under the required repository workflows and the intended deployment environment has the necessary real credentials/configuration. If the source changes after a green run, verification must run again on the new head.
+
+No test may be deleted, bypassed, converted to a placeholder, or weakened merely to make a completion score or workflow turn green.
